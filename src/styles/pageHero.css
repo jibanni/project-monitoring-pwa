@@ -1,0 +1,207 @@
+/* =========================================================
+   GLOBAL PAGE HERO TYPOGRAPHY
+   Makes all page blue hero titles consistent and less cramped
+   ========================================================= */
+
+/* Main hero containers */
+.dashboard-hero,
+.projects-hero,
+.pm-map-hero,
+.reports-hero,
+.offline-sync-hero,
+.user-management-hero,
+.users-hero,
+.create-project-hero,
+.project-create-hero,
+.cp-hero {
+  border-radius: 30px !important;
+}
+
+/* Eyebrow / small all-caps label */
+.dashboard-eyebrow,
+.projects-eyebrow,
+.pm-map-eyebrow,
+.reports-eyebrow,
+.offline-sync-eyebrow,
+.user-management-eyebrow,
+.users-eyebrow,
+.create-project-eyebrow,
+.project-create-eyebrow,
+.cp-eyebrow {
+  font-size: 0.76rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.18em !important;
+  line-height: 1.35 !important;
+  text-transform: uppercase !important;
+}
+
+/* Main page hero titles */
+.dashboard-hero h1,
+.dashboard-hero h2,
+.projects-hero h1,
+.projects-hero h2,
+.pm-map-hero h1,
+.pm-map-hero h2,
+.reports-hero h1,
+.reports-hero h2,
+.offline-sync-hero h1,
+.offline-sync-hero h2,
+.user-management-hero h1,
+.user-management-hero h2,
+.users-hero h1,
+.users-hero h2,
+.create-project-hero h1,
+.create-project-hero h2,
+.project-create-hero h1,
+.project-create-hero h2,
+.cp-hero h1,
+.cp-hero h2 {
+  color: #ffffff !important;
+  font-size: clamp(2.55rem, 5.2vw, 3.65rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.06 !important;
+  letter-spacing: -0.035em !important;
+  word-spacing: 0.02em !important;
+}
+
+/* Hero descriptions */
+.dashboard-hero p,
+.projects-hero p,
+.pm-map-hero p:not(.pm-map-eyebrow),
+.reports-hero p,
+.offline-sync-hero p,
+.user-management-hero p,
+.users-hero p,
+.create-project-hero p,
+.project-create-hero p,
+.cp-hero p {
+  max-width: 880px !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  font-size: 1rem !important;
+  font-weight: 750 !important;
+  line-height: 1.62 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Hero action buttons */
+.dashboard-hero button,
+.projects-hero button,
+.pm-map-hero button,
+.reports-hero button,
+.offline-sync-hero button,
+.user-management-hero button,
+.users-hero button,
+.create-project-hero button,
+.project-create-hero button,
+.cp-hero button,
+.dashboard-hero a,
+.projects-hero a,
+.pm-map-hero a,
+.reports-hero a,
+.offline-sync-hero a,
+.user-management-hero a,
+.users-hero a,
+.create-project-hero a,
+.project-create-hero a,
+.cp-hero a {
+  font-size: 0.96rem !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .dashboard-hero h1,
+  .dashboard-hero h2,
+  .projects-hero h1,
+  .projects-hero h2,
+  .pm-map-hero h1,
+  .pm-map-hero h2,
+  .reports-hero h1,
+  .reports-hero h2,
+  .offline-sync-hero h1,
+  .offline-sync-hero h2,
+  .user-management-hero h1,
+  .user-management-hero h2,
+  .users-hero h1,
+  .users-hero h2,
+  .create-project-hero h1,
+  .create-project-hero h2,
+  .project-create-hero h1,
+  .project-create-hero h2,
+  .cp-hero h1,
+  .cp-hero h2 {
+    font-size: clamp(2.35rem, 9vw, 3.15rem) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -0.028em !important;
+  }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .dashboard-hero,
+  .projects-hero,
+  .pm-map-hero,
+  .reports-hero,
+  .offline-sync-hero,
+  .user-management-hero,
+  .users-hero,
+  .create-project-hero,
+  .project-create-hero,
+  .cp-hero {
+    border-radius: 24px !important;
+  }
+
+  .dashboard-eyebrow,
+  .projects-eyebrow,
+  .pm-map-eyebrow,
+  .reports-eyebrow,
+  .offline-sync-eyebrow,
+  .user-management-eyebrow,
+  .users-eyebrow,
+  .create-project-eyebrow,
+  .project-create-eyebrow,
+  .cp-eyebrow {
+    font-size: 0.68rem !important;
+    letter-spacing: 0.16em !important;
+  }
+
+  .dashboard-hero h1,
+  .dashboard-hero h2,
+  .projects-hero h1,
+  .projects-hero h2,
+  .pm-map-hero h1,
+  .pm-map-hero h2,
+  .reports-hero h1,
+  .reports-hero h2,
+  .offline-sync-hero h1,
+  .offline-sync-hero h2,
+  .user-management-hero h1,
+  .user-management-hero h2,
+  .users-hero h1,
+  .users-hero h2,
+  .create-project-hero h1,
+  .create-project-hero h2,
+  .project-create-hero h1,
+  .project-create-hero h2,
+  .cp-hero h1,
+  .cp-hero h2 {
+    font-size: clamp(2.05rem, 11vw, 2.75rem) !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.018em !important;
+  }
+
+  .dashboard-hero p,
+  .projects-hero p,
+  .pm-map-hero p:not(.pm-map-eyebrow),
+  .reports-hero p,
+  .offline-sync-hero p,
+  .user-management-hero p,
+  .users-hero p,
+  .create-project-hero p,
+  .project-create-hero p,
+  .cp-hero p {
+    font-size: 0.9rem !important;
+    line-height: 1.58 !important;
+  }
+}

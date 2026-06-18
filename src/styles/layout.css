@@ -1,0 +1,419 @@
+.app-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 32%),
+    linear-gradient(180deg, #f8fafc 0%, #eef4fb 100%);
+  color: #0f172a;
+  animation: app-shell-in 300ms var(--app-ease-soft, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background:
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.12), transparent 30%),
+    linear-gradient(135deg, #082f5f 0%, #0d3d70 60%, #0b3769 100%);
+  color: #ffffff;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.2);
+  animation: app-header-in 360ms var(--app-ease-soft, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+.app-header-inner {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 22px 24px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.app-brand-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  min-width: 0;
+}
+
+.app-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.app-logo {
+  object-fit: contain;
+  filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.25));
+  transition:
+    transform var(--app-duration-slow, 380ms) var(--app-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    filter var(--app-duration-slow, 380ms) var(--app-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.app-logo-row:hover .app-logo {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 14px 22px rgba(15, 23, 42, 0.3));
+}
+
+.app-logo.dilg {
+  width: 76px;
+  height: 76px;
+}
+
+.app-logo.bagong {
+  width: 78px;
+  height: 78px;
+}
+
+.app-title-block {
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.app-title-block h1 {
+  margin: 0 0 10px;
+  color: #ffffff;
+  font-size: clamp(1.35rem, 2vw, 1.85rem);
+  line-height: 1.05;
+  font-weight: 950;
+  letter-spacing: -0.026em;
+  word-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-title-block p {
+  margin: 3px 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.96rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.app-user-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 235px;
+  max-width: 280px;
+  padding: 14px 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  transition:
+    transform var(--app-duration, 240ms) var(--app-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    background var(--app-duration, 240ms) var(--app-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    border-color var(--app-duration, 240ms) var(--app-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.app-user-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.17);
+}
+
+.app-user-avatar {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0b3769;
+  font-size: 0.95rem;
+  font-weight: 950;
+}
+
+.app-user-card strong {
+  display: block;
+  max-width: 185px;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 950;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-user-card span {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.app-nav-row {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.app-nav a {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.92rem;
+  font-weight: 950;
+  text-decoration: none;
+  will-change: transform;
+}
+
+.app-nav a:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.app-nav a.active {
+  color: #431407;
+  background: linear-gradient(135deg, #ff6b35 0%, #f97316 100%);
+  box-shadow: 0 14px 26px rgba(249, 115, 22, 0.28);
+}
+
+.app-nav a.active:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(249, 115, 22, 0.34);
+}
+
+.app-logout-btn {
+  min-height: 42px;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  border-radius: 14px;
+  padding: 0 18px;
+  background: rgba(127, 29, 29, 0.45);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 950;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.app-logout-btn:hover {
+  transform: translateY(-1px);
+  background: #b91c1c;
+  border-color: #ef4444;
+  box-shadow: 0 12px 24px rgba(185, 28, 28, 0.24);
+}
+
+.app-logout-btn:active {
+  transform: translateY(0) scale(0.985);
+}
+
+/* MAIN WIDTH FIX */
+.app-main {
+  width: 100%;
+  max-width: 1280px;
+  min-height: calc(100vh - 168px);
+  margin: 0 auto;
+  padding: 28px 24px;
+}
+
+.app-page-transition {
+  min-width: 0;
+  animation: app-page-enter 260ms var(--app-ease-soft, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+.app-page-loader {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  padding: 42px 20px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 16px 36px rgba(15, 48, 87, 0.08);
+  color: #174b87;
+  font-weight: 900;
+  animation: app-page-enter 240ms var(--app-ease-soft, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+.app-page-loader p {
+  margin: 0;
+}
+
+.app-page-loader-spinner {
+  width: 42px;
+  height: 42px;
+  border: 5px solid #dbeafe;
+  border-top-color: #174b87;
+  border-radius: 999px;
+  animation: app-loader-spin 0.85s linear infinite;
+}
+
+@keyframes app-shell-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes app-header-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes app-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.998);
+    filter: blur(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes app-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1100px) {
+  .app-header-inner {
+    flex-direction: column;
+  }
+
+  .app-user-card {
+    align-self: flex-start;
+  }
+
+  .app-nav-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .app-logout-btn {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-header {
+    position: static;
+  }
+
+  .app-header-inner {
+    padding: 18px 16px 14px;
+  }
+
+  .app-brand-block {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .app-logo.dilg,
+  .app-logo.bagong {
+    width: 62px;
+    height: 62px;
+  }
+
+  .app-title-block h1 {
+    white-space: normal;
+    font-size: 1.25rem;
+  }
+
+  .app-title-block p {
+    font-size: 0.86rem;
+  }
+
+  .app-user-card {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .app-user-card strong {
+    max-width: none;
+  }
+
+  .app-nav-row {
+    padding: 0 16px 18px;
+  }
+
+  .app-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .app-nav a {
+    width: 100%;
+  }
+
+  .app-logout-btn {
+    width: 100%;
+  }
+
+  .app-main {
+    padding: 16px;
+  }
+
+  .app-page-transition {
+    animation-duration: 220ms;
+  }
+}
+
+@media (max-width: 440px) {
+  .app-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .app-main {
+    padding: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell,
+  .app-header,
+  .app-page-transition,
+  .app-page-loader {
+    animation: none !important;
+  }
+
+  .app-page-loader-spinner {
+    animation-duration: 1.2s;
+  }
+}

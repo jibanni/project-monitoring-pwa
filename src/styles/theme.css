@@ -1,0 +1,147 @@
+:root {
+  --app-container-max: 1360px;
+  --app-gutter: 32px;
+
+  --color-primary: #0b376d;
+  --color-primary-dark: #08284f;
+  --color-primary-soft: #e8f1fb;
+  --color-accent: #ff5722;
+
+  --color-bg: #f3f6fa;
+  --color-card: #ffffff;
+  --color-text: #0f172a;
+  --color-muted: #64748b;
+  --color-border: #dfe7f1;
+
+  --color-blue: #1e88e5;
+  --color-green: #43a047;
+  --color-orange: #f4511e;
+  --color-red: #e53935;
+  --color-purple: #8e24aa;
+  --color-gray: #64748b;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+
+  --shadow-soft: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.page {
+  width: 100%;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 900;
+  line-height: 1.1;
+  text-align: left;
+  letter-spacing: -0.04em;
+}
+
+.page-subtitle {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.card,
+.table-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+}
+
+.table-card {
+  overflow: hidden;
+}
+
+.table-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.section-title {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: 20px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.section-subtitle {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  text-align: left;
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.data-table th {
+  background: #f8fafc;
+  color: var(--color-primary);
+  padding: 14px 12px;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 14px 12px;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.45;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+  text-align: left;
+  overflow-wrap: break-word;
+}
+
+.badge {
+  display: inline-block;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.empty-state {
+  padding: 32px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --app-gutter: 16px;
+  }
+
+  .data-table {
+    min-width: 900px;
+  }
+}

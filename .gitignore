@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+dev-dist/
+dist/
+.env.local
+supabase/.temp/
