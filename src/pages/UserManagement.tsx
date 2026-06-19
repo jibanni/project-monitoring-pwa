@@ -1,24 +1,59 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import '../styles/userManagement.css'
 
+type UserRole = 'admin' | 'engineer' | 'viewer'
+
 type ManagedUser = {
   id: string
-  email: string
-  name: string
-  role: string
-  status: string
-  created_at: string | null
+  full_name: string | null
+  email: string | null
+  role: string | null
+  approved: boolean | null
+  created_at?: string | null
 }
 
-type Notice = {
-  type: 'success' | 'error' | 'info'
-  message: string
-} | null
+type StatusFilter = 'all' | 'approved' | 'pending'
+type RoleFilter = 'all' | UserRole
 
-function formatDate(value: string | null) {
+const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'engineer', label: 'Engineer' },
+  { value: 'viewer', label: 'Viewer' },
+]
+
+function normalizeRole(role: string | null | undefined): UserRole {
+  const value = String(role || '').trim().toLowerCase()
+
+  if (value === 'admin') return 'admin'
+  if (value === 'engineer') return 'engineer'
+  if (value === 'viewer') return 'viewer'
+
+  return 'viewer'
+}
+
+function roleLabel(role: string | null | undefined) {
+  const normalized = normalizeRole(role)
+  return ROLE_OPTIONS.find((item) => item.value === normalized)?.label || 'Viewer'
+}
+
+function getInitials(name?: string | null, email?: string | null) {
+  const source = (name || email || 'User').trim()
+
+  const words = source
+    .replace(/@.*/, '')
+    .split(/\s+/)
+    .filter(Boolean)
+
+  if (words.length >= 2) {
+    return `${words[0][0]}${words[1][0]}`.toUpperCase()
+  }
+
+  return source.slice(0, 2).toUpperCase()
+}
+
+function formatDate(value?: string | null) {
   if (!value) return 'Not available'
 
   const date = new Date(value)
@@ -32,46 +67,6 @@ function formatDate(value: string | null) {
   })
 }
 
-function normalizeRole(role: string) {
-  const cleanRole = String(role || 'viewer').trim().toLowerCase()
-
-  if (cleanRole === 'admin') return 'Admin'
-  if (cleanRole === 'engineer') return 'Engineer'
-  if (cleanRole === 'viewer') return 'Viewer'
-
-  return cleanRole
-    .split(/[\s_-]+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
-function getRoleClass(role: string) {
-  const cleanRole = String(role || '').trim().toLowerCase()
-
-  if (cleanRole === 'admin') return 'um-role-admin'
-  if (cleanRole === 'engineer') return 'um-role-engineer'
-  if (cleanRole === 'viewer') return 'um-role-viewer'
-
-  return 'um-role-default'
-}
-
-function getInitials(user: ManagedUser) {
-  const source = user.name || user.email || 'User'
-
-  const parts = source
-    .replace(/@.*/, '')
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-
-  if (parts.length === 0) return 'U'
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('')
-}
-
 function generateStrongPassword() {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
   const lower = 'abcdefghijkmnopqrstuvwxyz'
@@ -79,563 +74,784 @@ function generateStrongPassword() {
   const symbols = '!@#$%&*?'
   const all = upper + lower + numbers + symbols
 
-  const pick = (characters: string) => {
-    const values = new Uint32Array(1)
-    crypto.getRandomValues(values)
-    return characters[values[0] % characters.length]
-  }
+  const required = [
+    upper[Math.floor(Math.random() * upper.length)],
+    lower[Math.floor(Math.random() * lower.length)],
+    numbers[Math.floor(Math.random() * numbers.length)],
+    symbols[Math.floor(Math.random() * symbols.length)],
+  ]
 
-  const password = [pick(upper), pick(lower), pick(numbers), pick(symbols)]
+  const remaining = Array.from({ length: 8 }, () => {
+    return all[Math.floor(Math.random() * all.length)]
+  })
 
-  while (password.length < 14) {
-    password.push(pick(all))
-  }
-
-  for (let index = password.length - 1; index > 0; index -= 1) {
-    const values = new Uint32Array(1)
-    crypto.getRandomValues(values)
-
-    const swapIndex = values[0] % (index + 1)
-    const temp = password[index]
-    password[index] = password[swapIndex]
-    password[swapIndex] = temp
-  }
-
-  return password.join('')
+  return [...required, ...remaining]
+    .sort(() => Math.random() - 0.5)
+    .join('')
 }
 
-function withTimeout<T>(promise: Promise<T>, milliseconds: number) {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      window.setTimeout(() => {
-        reject(new Error('Request timed out. Please check the Edge Function logs.'))
-      }, milliseconds)
-    }),
-  ])
+function validatePassword(password: string, confirmPassword: string) {
+  if (password.length < 8) return 'Password must be at least 8 characters.'
+  if (!/[A-Z]/.test(password)) return 'Password must include an uppercase letter.'
+  if (!/[a-z]/.test(password)) return 'Password must include a lowercase letter.'
+  if (!/[0-9]/.test(password)) return 'Password must include a number.'
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Password must include a symbol.'
+  if (password !== confirmPassword) return 'Password confirmation does not match.'
+
+  return ''
 }
 
 export default function UserManagement() {
-  const auth = useAuth() as any
-  const navigate = useNavigate()
-
-  const isAdmin =
-    typeof auth?.isAdmin === 'function' ? Boolean(auth.isAdmin()) : Boolean(auth?.isAdmin)
+  const { user, isAdmin } = useAuth()
 
   const [users, setUsers] = useState<ManagedUser[]>([])
-  const [selectedUserId, setSelectedUserId] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
   const [searchTerm, setSearchTerm] = useState('')
-  const [roleFilter, setRoleFilter] = useState('all')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const [passwordUser, setPasswordUser] = useState<ManagedUser | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [notice, setNotice] = useState<Notice>(null)
-
-  const selectedUser = useMemo(() => {
-    return users.find((user) => user.id === selectedUserId) || null
-  }, [users, selectedUserId])
-
-  const filteredUsers = useMemo(() => {
-    const cleanSearch = searchTerm.trim().toLowerCase()
-    const cleanRoleFilter = roleFilter.trim().toLowerCase()
-
-    return users.filter((user) => {
-      const role = String(user.role || '').trim().toLowerCase()
-
-      const matchesRole = cleanRoleFilter === 'all' || role === cleanRoleFilter
-
-      const matchesSearch =
-        cleanSearch.length === 0 ||
-        user.name.toLowerCase().includes(cleanSearch) ||
-        user.email.toLowerCase().includes(cleanSearch) ||
-        normalizeRole(user.role).toLowerCase().includes(cleanSearch)
-
-      return matchesRole && matchesSearch
-    })
-  }, [users, searchTerm, roleFilter])
-
-  const passwordChecks = useMemo(() => {
-    return [
-      {
-        label: 'At least 8 characters',
-        passed: newPassword.length >= 8,
-      },
-      {
-        label: 'Has uppercase letter',
-        passed: /[A-Z]/.test(newPassword),
-      },
-      {
-        label: 'Has lowercase letter',
-        passed: /[a-z]/.test(newPassword),
-      },
-      {
-        label: 'Has number',
-        passed: /[0-9]/.test(newPassword),
-      },
-      {
-        label: 'Has symbol',
-        passed: /[^A-Za-z0-9]/.test(newPassword),
-      },
-      {
-        label: 'Passwords match',
-        passed: newPassword.length > 0 && newPassword === confirmPassword,
-      },
-    ]
-  }, [newPassword, confirmPassword])
-
-  const passwordStrength = useMemo(() => {
-    return passwordChecks.filter((check) => check.passed).length
-  }, [passwordChecks])
-
-  const passwordIsValid = passwordChecks.every((check) => check.passed)
-
-  const roleCounts = useMemo(() => {
-    return users.reduce(
-      (counts, user) => {
-        const role = String(user.role || 'viewer').trim().toLowerCase()
-
-        if (role === 'admin') counts.admin += 1
-        else if (role === 'engineer') counts.engineer += 1
-        else if (role === 'viewer') counts.viewer += 1
-        else counts.other += 1
-
-        return counts
-      },
-      {
-        admin: 0,
-        engineer: 0,
-        viewer: 0,
-        other: 0,
-      },
-    )
-  }, [users])
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (!isAdmin) {
-      navigate('/unauthorized', { replace: true })
-      return
-    }
-
     loadUsers()
-  }, [isAdmin, navigate])
+  }, [])
 
   async function loadUsers() {
     try {
       setLoading(true)
-      setNotice(null)
+      setError('')
+      setSuccess('')
 
-      const { data, error } = await supabase
+      const { data, error: usersError } = await supabase
         .from('profiles')
         .select('id, full_name, email, role, approved, created_at')
-        .order('full_name', { ascending: true })
+        .order('created_at', { ascending: false })
 
-      if (error) {
-        throw new Error(error.message || 'Unable to load user profiles.')
+      if (usersError) {
+        throw usersError
       }
 
-      const loadedUsers: ManagedUser[] = Array.isArray(data)
-        ? data.map((profile: any) => ({
-            id: String(profile.id || ''),
-            email: String(profile.email || 'No email'),
-            name: String(profile.full_name || profile.email || 'Unnamed User'),
-            role: String(profile.role || 'viewer').toLowerCase(),
-            status: profile.approved === false ? 'Not Approved' : 'Active',
-            created_at: profile.created_at || null,
-          }))
-        : []
-
-      const sortedUsers = loadedUsers
-        .filter((user) => user.id)
-        .sort((first, second) => {
-          const firstName = first.name || first.email
-          const secondName = second.name || second.email
-          return firstName.localeCompare(secondName)
-        })
-
-      setUsers(sortedUsers)
-
-      if (selectedUserId && !sortedUsers.some((user) => user.id === selectedUserId)) {
-        setSelectedUserId('')
-      }
-    } catch (error: any) {
-      setNotice({
-        type: 'error',
-        message:
-          error?.message ||
-          'Unable to load user accounts. Please check the profiles table policy.',
-      })
+      setUsers(data || [])
+    } catch (err: any) {
+      setError(err?.message || 'Unable to load users.')
     } finally {
       setLoading(false)
     }
   }
 
-  function handleSelectUser(userId: string) {
-    setSelectedUserId(userId)
+  function clearNotices() {
+    setError('')
+    setSuccess('')
+  }
+
+  async function updateUserRole(targetUser: ManagedUser, nextRole: UserRole) {
+    clearNotices()
+
+    if (!isAdmin) {
+      setError('Only admin accounts can change user roles.')
+      return
+    }
+
+    if (targetUser.id === user?.id) {
+      setError('You cannot change your own role while logged in.')
+      return
+    }
+
+    const previousRole = normalizeRole(targetUser.role)
+
+    if (previousRole === nextRole) return
+
+    const actionKey = `role-${targetUser.id}`
+
+    try {
+      setActionLoading(actionKey)
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ role: nextRole })
+        .eq('id', targetUser.id)
+
+      if (updateError) {
+        throw updateError
+      }
+
+      setUsers((current) =>
+        current.map((item) =>
+          item.id === targetUser.id ? { ...item, role: nextRole } : item,
+        ),
+      )
+
+      setSuccess(
+        `${targetUser.full_name || targetUser.email || 'User'} is now assigned as ${roleLabel(
+          nextRole,
+        )}.`,
+      )
+    } catch (err: any) {
+      setError(err?.message || 'Unable to update user role.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function updateApproval(targetUser: ManagedUser, approved: boolean) {
+    clearNotices()
+
+    if (!isAdmin) {
+      setError('Only admin accounts can update account approval.')
+      return
+    }
+
+    if (!approved && targetUser.id === user?.id) {
+      setError('You cannot revoke your own account.')
+      return
+    }
+
+    const actionKey = `${approved ? 'approve' : 'revoke'}-${targetUser.id}`
+
+    try {
+      setActionLoading(actionKey)
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ approved })
+        .eq('id', targetUser.id)
+
+      if (updateError) {
+        throw updateError
+      }
+
+      setUsers((current) =>
+        current.map((item) =>
+          item.id === targetUser.id ? { ...item, approved } : item,
+        ),
+      )
+
+      setSuccess(
+        `${targetUser.full_name || targetUser.email || 'User'} has been ${
+          approved ? 'approved' : 'revoked'
+        }.`,
+      )
+    } catch (err: any) {
+      setError(err?.message || 'Unable to update account status.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  function openPasswordModal(targetUser: ManagedUser) {
+    clearNotices()
+    setPasswordUser(targetUser)
     setNewPassword('')
     setConfirmPassword('')
-    setNotice(null)
+    setShowPassword(false)
+    setCopied(false)
+  }
+
+  function closePasswordModal() {
+    setPasswordUser(null)
+    setNewPassword('')
+    setConfirmPassword('')
+    setShowPassword(false)
+    setCopied(false)
   }
 
   function handleGeneratePassword() {
     const password = generateStrongPassword()
-
     setNewPassword(password)
     setConfirmPassword(password)
-    setShowPassword(true)
-    setNotice({
-      type: 'info',
-      message: 'A strong password was generated. Copy it before saving.',
-    })
+    setCopied(false)
   }
 
   async function handleCopyPassword() {
-    if (!newPassword) {
-      setNotice({
-        type: 'error',
-        message: 'There is no password to copy.',
-      })
-      return
-    }
+    if (!newPassword) return
 
     try {
       await navigator.clipboard.writeText(newPassword)
-
-      setNotice({
-        type: 'success',
-        message: 'Password copied to clipboard.',
-      })
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
     } catch {
-      setNotice({
-        type: 'error',
-        message: 'Unable to copy password. Please copy it manually.',
-      })
+      setCopied(false)
+      setError('Unable to copy password. Please copy it manually.')
     }
   }
 
-  function handleClearPassword() {
-    setNewPassword('')
-    setConfirmPassword('')
-    setShowPassword(false)
-    setNotice(null)
-  }
+  async function handleChangePassword() {
+    clearNotices()
 
-  async function handleChangePassword(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+    if (!passwordUser) return
 
-    if (!selectedUser) {
-      setNotice({
-        type: 'error',
-        message: 'Please select a user account first.',
-      })
+    const passwordError = validatePassword(newPassword, confirmPassword)
+
+    if (passwordError) {
+      setError(passwordError)
       return
     }
 
-    if (!passwordIsValid) {
-      setNotice({
-        type: 'error',
-        message: 'Please complete all password requirements before saving.',
-      })
-      return
-    }
+    const actionKey = `password-${passwordUser.id}`
 
     try {
-      setSaving(true)
-      setNotice(null)
+      setActionLoading(actionKey)
 
-      const { data, error } = await withTimeout(
-        supabase.functions.invoke('admin-change-password', {
+      const { error: functionError } = await supabase.functions.invoke(
+        'admin-change-password',
+        {
           body: {
             action: 'change-password',
-            userId: selectedUser.id,
+            userId: passwordUser.id,
             newPassword,
           },
-        }),
-        20000,
+        },
       )
 
-      if (error) {
-        throw new Error(error.message || 'Unable to change password.')
+      if (functionError) {
+        throw functionError
       }
 
-      if (!data?.ok) {
-        throw new Error(data?.message || 'Unable to change password.')
-      }
+      setSuccess(
+        `Password changed for ${passwordUser.full_name || passwordUser.email || 'user'}.`,
+      )
 
-      setNotice({
-        type: 'success',
-        message: `Password changed successfully for ${selectedUser.name || selectedUser.email}.`,
-      })
-
-      setNewPassword('')
-      setConfirmPassword('')
-      setShowPassword(false)
-    } catch (error: any) {
-      setNotice({
-        type: 'error',
-        message:
-          error?.message ||
-          'Unable to change password. Please check the Edge Function logs.',
-      })
+      closePasswordModal()
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          'Unable to change password. Please check if the admin-change-password Edge Function is deployed.',
+      )
     } finally {
-      setSaving(false)
+      setActionLoading(null)
     }
   }
 
+  const filteredUsers = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase()
+
+    return users.filter((item) => {
+      const role = normalizeRole(item.role)
+      const approved = item.approved === true
+
+      const matchesSearch =
+        !keyword ||
+        String(item.full_name || '').toLowerCase().includes(keyword) ||
+        String(item.email || '').toLowerCase().includes(keyword) ||
+        roleLabel(role).toLowerCase().includes(keyword)
+
+      const matchesRole = roleFilter === 'all' || role === roleFilter
+
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'approved' && approved) ||
+        (statusFilter === 'pending' && !approved)
+
+      return matchesSearch && matchesRole && matchesStatus
+    })
+  }, [users, searchTerm, roleFilter, statusFilter])
+
+  const summary = useMemo(() => {
+    return {
+      total: users.length,
+      approved: users.filter((item) => item.approved === true).length,
+      pending: users.filter((item) => item.approved !== true).length,
+      admins: users.filter((item) => normalizeRole(item.role) === 'admin').length,
+      engineers: users.filter((item) => normalizeRole(item.role) === 'engineer')
+        .length,
+      viewers: users.filter((item) => normalizeRole(item.role) === 'viewer')
+        .length,
+    }
+  }, [users])
+
   if (!isAdmin) {
-    return null
+    return (
+      <div className="user-management-page">
+        <section className="user-management-hero">
+          <div>
+            <p className="user-management-eyebrow">Administration</p>
+            <h1>User Management</h1>
+            <p>
+              You do not have permission to manage users. Please login using an
+              administrator account.
+            </p>
+          </div>
+        </section>
+      </div>
+    )
   }
 
   return (
-    <main className="um-page">
-      <section className="um-hero">
+    <div className="user-management-page">
+      <section className="user-management-hero">
         <div>
-          <p className="um-kicker">Admin Console</p>
+          <p className="user-management-eyebrow">Administration</p>
           <h1>User Management</h1>
           <p>
-            Manage user account access by changing passwords only. Names, roles, emails,
-            and other account details are locked on this page.
+            Approve user accounts, assign system roles, and manage access to the
+            DILG-PDMU Project Monitoring System.
           </p>
         </div>
 
-        <div className="um-hero-actions">
-          <button type="button" className="um-secondary-button" onClick={loadUsers}>
-            Refresh Users
-          </button>
+        <button
+          type="button"
+          className="user-management-hero-button"
+          onClick={loadUsers}
+          disabled={loading}
+        >
+          {loading ? 'Refreshing...' : 'Refresh Users'}
+        </button>
+      </section>
 
-          <Link to="/dashboard" className="um-primary-link">
-            Back to Dashboard
-          </Link>
+      <section className="user-management-summary-grid">
+        <article className="user-management-summary-card">
+          <span>Total Users</span>
+          <strong>{summary.total}</strong>
+        </article>
+
+        <article className="user-management-summary-card">
+          <span>Approved</span>
+          <strong>{summary.approved}</strong>
+        </article>
+
+        <article className="user-management-summary-card">
+          <span>Pending</span>
+          <strong>{summary.pending}</strong>
+        </article>
+
+        <article className="user-management-summary-card">
+          <span>Admins</span>
+          <strong>{summary.admins}</strong>
+        </article>
+
+        <article className="user-management-summary-card">
+          <span>Engineers</span>
+          <strong>{summary.engineers}</strong>
+        </article>
+
+        <article className="user-management-summary-card">
+          <span>Viewers</span>
+          <strong>{summary.viewers}</strong>
+        </article>
+      </section>
+
+      {error && <div className="user-management-alert error">{error}</div>}
+      {success && <div className="user-management-alert success">{success}</div>}
+
+      <section className="user-management-filter-card">
+        <div>
+          <label htmlFor="user-search">Search Users</label>
+          <input
+            id="user-search"
+            type="search"
+            placeholder="Search name, email, or role"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="role-filter">Role</label>
+          <select
+            id="role-filter"
+            value={roleFilter}
+            onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
+          >
+            <option value="all">All Roles</option>
+            {ROLE_OPTIONS.map((role) => (
+              <option key={role.value} value={role.value}>
+                {role.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="status-filter">Status</label>
+          <select
+            id="status-filter"
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(event.target.value as StatusFilter)
+            }
+          >
+            <option value="all">All Status</option>
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+          </select>
         </div>
       </section>
 
-      {notice && (
-        <section className={`um-notice um-notice-${notice.type}`}>
-          <span>{notice.message}</span>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss notice">
-            ×
-          </button>
-        </section>
-      )}
-
-      <section className="um-summary-grid">
-        <article className="um-summary-card">
-          <span>Total Users</span>
-          <strong>{users.length}</strong>
-          <small>All profile accounts</small>
-        </article>
-
-        <article className="um-summary-card">
-          <span>Admins</span>
-          <strong>{roleCounts.admin}</strong>
-          <small>Full access</small>
-        </article>
-
-        <article className="um-summary-card">
-          <span>Engineers</span>
-          <strong>{roleCounts.engineer}</strong>
-          <small>Field access</small>
-        </article>
-
-        <article className="um-summary-card">
-          <span>Viewers</span>
-          <strong>{roleCounts.viewer}</strong>
-          <small>Read-only access</small>
-        </article>
-      </section>
-
-      <section className="um-workspace">
-        <article className="um-card um-users-card">
-          <div className="um-card-header">
-            <div>
-              <h2>User Accounts</h2>
-              <p>Select one account to update its login password.</p>
-            </div>
+      <section className="user-management-list-card">
+        <div className="user-management-list-header">
+          <div>
+            <h2>User Accounts</h2>
+            <p>
+              Showing {filteredUsers.length} of {users.length} registered user
+              accounts.
+            </p>
           </div>
+        </div>
 
-          <div className="um-filter-grid">
-            <label>
-              <span>Search</span>
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search name, email, or role"
-              />
-            </label>
-
-            <label>
-              <span>Role</span>
-              <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-                <option value="all">All roles</option>
-                <option value="admin">Admin</option>
-                <option value="engineer">Engineer</option>
-                <option value="viewer">Viewer</option>
-              </select>
-            </label>
+        {loading ? (
+          <div className="user-management-state">Loading users...</div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="user-management-state">
+            No users matched your current filters.
           </div>
+        ) : (
+          <>
+            <div className="user-management-table-wrap">
+              <table className="user-management-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
 
-          {loading ? (
-            <div className="um-loading-state">
-              <div className="um-loader" />
-              <p>Loading user accounts...</p>
+                <tbody>
+                  {filteredUsers.map((item) => {
+                    const isCurrentUser = item.id === user?.id
+                    const approved = item.approved === true
+                    const role = normalizeRole(item.role)
+
+                    return (
+                      <tr key={item.id}>
+                        <td>
+                          <div className="user-management-person">
+                            <div className="user-management-avatar">
+                              {getInitials(item.full_name, item.email)}
+                            </div>
+                            <div>
+                              <strong>{item.full_name || 'Unnamed User'}</strong>
+                              {isCurrentUser && <span>Current admin account</span>}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td>{item.email || 'No email'}</td>
+
+                        <td>
+                          <select
+                            className="user-management-role-select"
+                            value={role}
+                            disabled={
+                              isCurrentUser ||
+                              actionLoading === `role-${item.id}`
+                            }
+                            onChange={(event) =>
+                              updateUserRole(item, event.target.value as UserRole)
+                            }
+                          >
+                            {ROLE_OPTIONS.map((roleOption) => (
+                              <option
+                                key={roleOption.value}
+                                value={roleOption.value}
+                              >
+                                {roleOption.label}
+                              </option>
+                            ))}
+                          </select>
+
+                          {isCurrentUser && (
+                            <small className="user-management-note">
+                              Own role locked
+                            </small>
+                          )}
+                        </td>
+
+                        <td>
+                          <span
+                            className={`user-management-status ${
+                              approved ? 'approved' : 'pending'
+                            }`}
+                          >
+                            {approved ? 'Approved' : 'Pending'}
+                          </span>
+                        </td>
+
+                        <td>{formatDate(item.created_at)}</td>
+
+                        <td>
+                          <div className="user-management-actions">
+                            {approved ? (
+                              <button
+                                type="button"
+                                className="user-management-button danger"
+                                disabled={
+                                  isCurrentUser ||
+                                  actionLoading === `revoke-${item.id}`
+                                }
+                                onClick={() => updateApproval(item, false)}
+                              >
+                                {actionLoading === `revoke-${item.id}`
+                                  ? 'Revoking...'
+                                  : 'Revoke'}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="user-management-button success"
+                                disabled={actionLoading === `approve-${item.id}`}
+                                onClick={() => updateApproval(item, true)}
+                              >
+                                {actionLoading === `approve-${item.id}`
+                                  ? 'Approving...'
+                                  : 'Approve'}
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              className="user-management-button primary"
+                              onClick={() => openPasswordModal(item)}
+                            >
+                              Change Password
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="um-empty-state">
-              <strong>No users found</strong>
-              <p>Try clearing the search or check the profiles table.</p>
-            </div>
-          ) : (
-            <div className="um-user-list">
-              {filteredUsers.map((user) => {
-                const selected = user.id === selectedUserId
+
+            <div className="user-management-mobile-list">
+              {filteredUsers.map((item) => {
+                const isCurrentUser = item.id === user?.id
+                const approved = item.approved === true
+                const role = normalizeRole(item.role)
 
                 return (
-                  <button
-                    type="button"
-                    key={user.id}
-                    className={`um-user-row ${selected ? 'um-user-row-active' : ''}`}
-                    onClick={() => handleSelectUser(user.id)}
-                  >
-                    <span className="um-avatar">{getInitials(user)}</span>
+                  <article className="user-management-mobile-card" key={item.id}>
+                    <div className="user-management-mobile-top">
+                      <div className="user-management-person">
+                        <div className="user-management-avatar">
+                          {getInitials(item.full_name, item.email)}
+                        </div>
+                        <div>
+                          <strong>{item.full_name || 'Unnamed User'}</strong>
+                          <span>{item.email || 'No email'}</span>
+                        </div>
+                      </div>
 
-                    <span className="um-user-main">
-                      <strong>{user.name}</strong>
-                      <small>{user.email}</small>
-                    </span>
+                      <span
+                        className={`user-management-status ${
+                          approved ? 'approved' : 'pending'
+                        }`}
+                      >
+                        {approved ? 'Approved' : 'Pending'}
+                      </span>
+                    </div>
 
-                    <span className={`um-role-pill ${getRoleClass(user.role)}`}>
-                      {normalizeRole(user.role)}
-                    </span>
-                  </button>
+                    <div className="user-management-mobile-grid">
+                      <div>
+                        <span>Role</span>
+                        <select
+                          className="user-management-role-select"
+                          value={role}
+                          disabled={
+                            isCurrentUser || actionLoading === `role-${item.id}`
+                          }
+                          onChange={(event) =>
+                            updateUserRole(item, event.target.value as UserRole)
+                          }
+                        >
+                          {ROLE_OPTIONS.map((roleOption) => (
+                            <option
+                              key={roleOption.value}
+                              value={roleOption.value}
+                            >
+                              {roleOption.label}
+                            </option>
+                          ))}
+                        </select>
+                        {isCurrentUser && (
+                          <small className="user-management-note">
+                            Own role locked
+                          </small>
+                        )}
+                      </div>
+
+                      <div>
+                        <span>Created</span>
+                        <strong>{formatDate(item.created_at)}</strong>
+                      </div>
+                    </div>
+
+                    <div className="user-management-mobile-actions">
+                      {approved ? (
+                        <button
+                          type="button"
+                          className="user-management-button danger"
+                          disabled={
+                            isCurrentUser || actionLoading === `revoke-${item.id}`
+                          }
+                          onClick={() => updateApproval(item, false)}
+                        >
+                          {actionLoading === `revoke-${item.id}`
+                            ? 'Revoking...'
+                            : 'Revoke'}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="user-management-button success"
+                          disabled={actionLoading === `approve-${item.id}`}
+                          onClick={() => updateApproval(item, true)}
+                        >
+                          {actionLoading === `approve-${item.id}`
+                            ? 'Approving...'
+                            : 'Approve'}
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="user-management-button primary"
+                        onClick={() => openPasswordModal(item)}
+                      >
+                        Change Password
+                      </button>
+                    </div>
+                  </article>
                 )
               })}
             </div>
-          )}
-        </article>
+          </>
+        )}
+      </section>
 
-        <article className="um-card um-password-card">
-          <div className="um-card-header">
-            <div>
-              <h2>Change Password</h2>
-              <p>Only the selected user’s password will be updated.</p>
+      {passwordUser && (
+        <div
+          className="user-management-modal-backdrop"
+          role="presentation"
+          onClick={closePasswordModal}
+        >
+          <div
+            className="user-management-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="user-management-modal-header">
+              <div>
+                <p>Admin Password Reset</p>
+                <h2 id="password-modal-title">Change Password</h2>
+              </div>
+
+              <button
+                type="button"
+                className="user-management-modal-close"
+                onClick={closePasswordModal}
+                aria-label="Close password modal"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="user-management-password-user">
+              <div className="user-management-avatar">
+                {getInitials(passwordUser.full_name, passwordUser.email)}
+              </div>
+
+              <div>
+                <strong>{passwordUser.full_name || 'Unnamed User'}</strong>
+                <span>{passwordUser.email || 'No email'}</span>
+              </div>
+            </div>
+
+            <div className="user-management-password-grid">
+              <div>
+                <label htmlFor="new-password">New Password</label>
+                <input
+                  id="new-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="Enter new password"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="confirm-password">Confirm Password</label>
+                <input
+                  id="confirm-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="Confirm new password"
+                />
+              </div>
+            </div>
+
+            <label className="user-management-check">
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onChange={(event) => setShowPassword(event.target.checked)}
+              />
+              <span>Show password</span>
+            </label>
+
+            <div className="user-management-password-tools">
+              <button
+                type="button"
+                className="user-management-button secondary"
+                onClick={handleGeneratePassword}
+              >
+                Generate Strong Password
+              </button>
+
+              <button
+                type="button"
+                className="user-management-button secondary"
+                disabled={!newPassword}
+                onClick={handleCopyPassword}
+              >
+                {copied ? 'Copied' : 'Copy Password'}
+              </button>
+            </div>
+
+            <div className="user-management-password-rules">
+              Password must have at least 8 characters, uppercase, lowercase,
+              number, and symbol.
+            </div>
+
+            <div className="user-management-modal-actions">
+              <button
+                type="button"
+                className="user-management-button secondary"
+                onClick={closePasswordModal}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="user-management-button primary"
+                disabled={actionLoading === `password-${passwordUser.id}`}
+                onClick={handleChangePassword}
+              >
+                {actionLoading === `password-${passwordUser.id}`
+                  ? 'Changing...'
+                  : 'Change Password'}
+              </button>
             </div>
           </div>
-
-          {selectedUser ? (
-            <>
-              <div className="um-selected-user">
-                <div className="um-avatar um-avatar-large">{getInitials(selectedUser)}</div>
-
-                <div>
-                  <strong>{selectedUser.name}</strong>
-                  <span>{selectedUser.email}</span>
-
-                  <div className="um-selected-meta">
-                    <span className={`um-role-pill ${getRoleClass(selectedUser.role)}`}>
-                      {normalizeRole(selectedUser.role)}
-                    </span>
-                    <small>{selectedUser.status}</small>
-                  </div>
-                </div>
-              </div>
-
-              <div className="um-account-details">
-                <div>
-                  <span>Created</span>
-                  <strong>{formatDate(selectedUser.created_at)}</strong>
-                </div>
-
-                <div>
-                  <span>Password Action</span>
-                  <strong>Admin reset only</strong>
-                </div>
-              </div>
-
-              <form className="um-password-form" onSubmit={handleChangePassword}>
-                <label>
-                  <span>New Password</span>
-
-                  <div className="um-password-input">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={newPassword}
-                      onChange={(event) => setNewPassword(event.target.value)}
-                      placeholder="Enter new password"
-                      autoComplete="new-password"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((current) => !current)}
-                      className="um-text-button"
-                    >
-                      {showPassword ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
-                </label>
-
-                <label>
-                  <span>Confirm Password</span>
-
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Re-enter new password"
-                    autoComplete="new-password"
-                  />
-                </label>
-
-                <div className="um-password-tools">
-                  <button type="button" className="um-secondary-button" onClick={handleGeneratePassword}>
-                    Generate Strong Password
-                  </button>
-
-                  <button type="button" className="um-secondary-button" onClick={handleCopyPassword}>
-                    Copy Password
-                  </button>
-
-                  <button type="button" className="um-light-button" onClick={handleClearPassword}>
-                    Clear
-                  </button>
-                </div>
-
-                <div className="um-password-strength">
-                  <div className="um-strength-bar">
-                    <span style={{ width: `${(passwordStrength / passwordChecks.length) * 100}%` }} />
-                  </div>
-
-                  <ul>
-                    {passwordChecks.map((check) => (
-                      <li key={check.label} className={check.passed ? 'um-check-passed' : ''}>
-                        <span>{check.passed ? '✓' : '•'}</span>
-                        {check.label}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="um-form-actions">
-                  <button
-                    type="submit"
-                    className="um-danger-button"
-                    disabled={saving || !passwordIsValid}
-                  >
-                    {saving ? 'Changing Password...' : 'Change Password'}
-                  </button>
-                </div>
-              </form>
-            </>
-          ) : (
-            <div className="um-empty-state um-select-empty">
-              <strong>Select a user account</strong>
-              <p>Choose a user from the list to enable password update.</p>
-            </div>
-          )}
-        </article>
-      </section>
-    </main>
+        </div>
+      )}
+    </div>
   )
 }
