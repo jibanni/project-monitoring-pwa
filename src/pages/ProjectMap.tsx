@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import {
@@ -27,6 +26,11 @@ const MINDANAO_BOUNDS = {
 
 const MINDANAO_CENTER: [number, number] = [7.8, 124.8]
 const DEFAULT_ZOOM = 7
+
+const REGION_10_BOUNDS: [[number, number], [number, number]] = [
+  [7.15, 123.25],
+  [9.75, 125.85],
+]
 
 type ProjectRecord = {
   id: string
@@ -83,12 +87,6 @@ type CoordinateCandidate = {
   latestUpdateGps: ProjectUpdateRecord | null
 }
 
-type SummaryItem = {
-  label: string
-  value: string
-  helper: string
-}
-
 function toNumber(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === '') return null
 
@@ -103,6 +101,10 @@ function toTimestamp(value: string | null | undefined) {
   const parsed = new Date(value).getTime()
 
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function normalizeText(value: string | null | undefined) {
+  return (value || '').trim()
 }
 
 function isValidMindanaoCoordinate(latitude: number | null, longitude: number | null) {
@@ -288,10 +290,6 @@ function formatPercent(value: number | null | undefined) {
   })}%`
 }
 
-function normalizeText(value: string | null | undefined) {
-  return (value || '').trim()
-}
-
 function getProjectLocation(project: ProjectRecord) {
   const parts = [
     normalizeText(project.barangay),
@@ -317,9 +315,13 @@ function getStatusClass(status: string | null | undefined) {
 
   if (value.includes('completed')) return 'pm-status-completed'
   if (value.includes('ongoing')) return 'pm-status-ongoing'
-  if (value.includes('not yet')) return 'pm-status-not-started'
+  if (value.includes('not yet') || value.includes('not started')) {
+    return 'pm-status-not-started'
+  }
   if (value.includes('suspended')) return 'pm-status-suspended'
-  if (value.includes('cancelled') || value.includes('terminated')) return 'pm-status-cancelled'
+  if (value.includes('cancelled') || value.includes('terminated')) {
+    return 'pm-status-cancelled'
+  }
 
   return 'pm-status-neutral'
 }
@@ -355,7 +357,8 @@ function createClusterIcon(cluster: any) {
       </div>
     `,
     className: 'pm-cluster-wrapper',
-    iconSize: L.point(48, 48, true),
+    iconSize: L.point(50, 50, true),
+    iconAnchor: [25, 25],
   })
 }
 
@@ -387,52 +390,75 @@ function RefreshIcon() {
   )
 }
 
-function FitMapToMarkers({ projects }: { projects: MapProject[] }) {
+function RefocusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 3v3" />
+      <path d="M12 18v3" />
+      <path d="M3 12h3" />
+      <path d="M18 12h3" />
+      <circle cx="12" cy="12" r="5.5" />
+      <circle cx="12" cy="12" r="1.4" />
+    </svg>
+  )
+}
+
+function focusMapToProjectSet(map: L.Map, projects: MapProject[]) {
+  map.invalidateSize()
+
+  const validProjects = projects.filter(
+    (project) => project.displayLatitude !== null && project.displayLongitude !== null,
+  )
+
+  if (validProjects.length === 0) {
+    map.fitBounds(REGION_10_BOUNDS, {
+      padding: [28, 28],
+      maxZoom: 9,
+    })
+    return
+  }
+
+  if (validProjects.length === 1) {
+    const project = validProjects[0]
+
+    map.setView(
+      [project.displayLatitude as number, project.displayLongitude as number],
+      13,
+    )
+    return
+  }
+
+  const bounds = L.latLngBounds(
+    validProjects.map((project) => [
+      project.displayLatitude as number,
+      project.displayLongitude as number,
+    ]),
+  )
+
+  map.fitBounds(bounds, {
+    padding: [38, 38],
+    maxZoom: 13,
+  })
+}
+
+function FitMapToMarkers({
+  projects,
+  focusSignal,
+}: {
+  projects: MapProject[]
+  focusSignal: number
+}) {
   const map = useMap()
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      map.invalidateSize()
-
-      const validProjects = projects.filter(
-        (project) => project.displayLatitude !== null && project.displayLongitude !== null,
-      )
-
-      if (validProjects.length === 0) {
-        map.setView(MINDANAO_CENTER, DEFAULT_ZOOM)
-        return
-      }
-
-      if (validProjects.length === 1) {
-        const project = validProjects[0]
-
-        if (project) {
-          map.setView(
-            [project.displayLatitude as number, project.displayLongitude as number],
-            13,
-          )
-        }
-
-        return
-      }
-
-      const bounds = L.latLngBounds(
-        validProjects.map((project) => [
-          project.displayLatitude as number,
-          project.displayLongitude as number,
-        ]),
-      )
-
-      map.fitBounds(bounds, {
-        padding: [36, 36],
-        maxZoom: 13,
-      })
-    }, 120)
+      focusMapToProjectSet(map, projects)
+    }, 180)
 
     return () => {
       window.clearTimeout(timeout)
     }
-  }, [map, projects])
+  }, [map, projects, focusSignal])
 
   return null
 }
@@ -447,60 +473,34 @@ function MapResizeWatcher({ trigger }: { trigger: unknown }) {
 
     resizeMap()
 
-    const timeoutOne = window.setTimeout(resizeMap, 150)
-    const timeoutTwo = window.setTimeout(resizeMap, 500)
+    const timeoutOne = window.setTimeout(resizeMap, 160)
+    const timeoutTwo = window.setTimeout(resizeMap, 520)
     const timeoutThree = window.setTimeout(resizeMap, 1000)
+
+    const container = map.getContainer()
+    const observer =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => resizeMap())
+        : null
+
+    observer?.observe(container)
 
     window.addEventListener('resize', resizeMap)
     window.addEventListener('orientationchange', resizeMap)
+    window.visualViewport?.addEventListener('resize', resizeMap)
 
     return () => {
       window.clearTimeout(timeoutOne)
       window.clearTimeout(timeoutTwo)
       window.clearTimeout(timeoutThree)
+      observer?.disconnect()
       window.removeEventListener('resize', resizeMap)
       window.removeEventListener('orientationchange', resizeMap)
+      window.visualViewport?.removeEventListener('resize', resizeMap)
     }
   }, [map, trigger])
 
   return null
-}
-
-const refreshFabStyle: CSSProperties = {
-  position: 'fixed',
-  left: 'auto',
-  right: 'max(18px, env(safe-area-inset-right))',
-  bottom: 'calc(100px + env(safe-area-inset-bottom))',
-  zIndex: 2147483600,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 56,
-  height: 56,
-  minWidth: 56,
-  minHeight: 56,
-  padding: 0,
-  border: 0,
-  borderRadius: 999,
-  color: '#ffffff',
-  background: 'linear-gradient(135deg, #f97316, #fb923c)',
-  boxShadow:
-    '0 18px 34px rgba(249, 115, 22, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.22)',
-  lineHeight: 0,
-  transform: 'none',
-  cursor: 'pointer',
-}
-
-const refreshFabIconStyle: CSSProperties = {
-  display: 'block',
-  width: 25,
-  height: 25,
-  margin: 0,
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 2.5,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
 }
 
 export default function ProjectMap() {
@@ -514,6 +514,7 @@ export default function ProjectMap() {
   const [isHeroCompact, setIsHeroCompact] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
+  const [focusSignal, setFocusSignal] = useState(0)
 
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('All')
@@ -552,31 +553,6 @@ export default function ProjectMap() {
 
     return () => {
       window.removeEventListener('scroll', handleScroll)
-    }
-  }, [])
-
-  useEffect(() => {
-    function forceRefreshFabPosition() {
-      const fab = document.getElementById('gis-refresh-fab-final')
-
-      if (!fab) return
-
-      fab.style.setProperty('position', 'fixed', 'important')
-      fab.style.setProperty('left', 'auto', 'important')
-      fab.style.setProperty('right', 'max(18px, env(safe-area-inset-right))', 'important')
-      fab.style.setProperty('bottom', 'calc(100px + env(safe-area-inset-bottom))', 'important')
-      fab.style.setProperty('z-index', '2147483600', 'important')
-      fab.style.setProperty('transform', 'none', 'important')
-    }
-
-    forceRefreshFabPosition()
-
-    window.addEventListener('resize', forceRefreshFabPosition)
-    window.addEventListener('scroll', forceRefreshFabPosition, { passive: true })
-
-    return () => {
-      window.removeEventListener('resize', forceRefreshFabPosition)
-      window.removeEventListener('scroll', forceRefreshFabPosition)
     }
   }, [])
 
@@ -760,21 +736,6 @@ export default function ProjectMap() {
     [filteredProjects],
   )
 
-  const summaryItems = useMemo<SummaryItem[]>(() => {
-    return [
-      {
-        label: 'Total Projects',
-        value: String(filteredProjects.length),
-        helper: 'Filtered records',
-      },
-      {
-        label: 'Displayed',
-        value: String(displayedProjects.length),
-        helper: 'Shown on map',
-      },
-    ]
-  }, [filteredProjects.length, displayedProjects.length])
-
   const hasActiveFilters =
     searchTerm.trim() !== '' ||
     provinceFilter !== 'All' ||
@@ -792,40 +753,40 @@ export default function ProjectMap() {
     setRiskFilter('All')
   }
 
-  const refreshFab = (
-    <button
-      id="gis-refresh-fab-final"
-      type="button"
-      className="gis-refresh-fab-final"
-      onClick={() => loadMapProjects(true)}
-      disabled={loading || refreshing}
-      aria-label="Refresh map"
-      title="Refresh map"
-      style={{
-        ...refreshFabStyle,
-        opacity: loading || refreshing ? 0.78 : 1,
-        cursor: loading || refreshing ? 'wait' : 'pointer',
-      }}
-    >
-      <span style={refreshFabIconStyle}>
+  const mapFabs = (
+    <div className="gis-map-fab-stack">
+      <button
+        type="button"
+        className="gis-refocus-fab-final"
+        onClick={() => setFocusSignal((current) => current + 1)}
+        disabled={loading}
+        aria-label="Refocus map"
+        title="Refocus map"
+      >
+        <RefocusIcon />
+      </button>
+
+      <button
+        type="button"
+        className="gis-refresh-fab-final"
+        onClick={() => loadMapProjects(true)}
+        disabled={loading || refreshing}
+        aria-label="Refresh map"
+        title="Refresh map"
+      >
         <RefreshIcon />
-      </span>
-    </button>
+      </button>
+    </div>
   )
 
   return (
     <>
-      <main
-        className={`pm-map-page ${isHeroCompact ? 'is-map-scrolled' : ''}`}
-      >
+      <main className={`pm-map-page ${isHeroCompact ? 'is-map-scrolled' : ''}`}>
         <section className={`pm-map-hero ${isHeroCompact ? 'is-compact' : ''}`}>
           <div>
             <p className="pm-map-eyebrow">DILG-PDMU GIS Monitoring</p>
             <h1>Project GIS Map</h1>
-            <p>
-              The map uses the latest valid coordinates entered from project creation,
-              project editing, or project update records.
-            </p>
+            <p>Latest valid coordinates from project creation, editing, or updates.</p>
           </div>
         </section>
 
@@ -836,13 +797,17 @@ export default function ProjectMap() {
         )}
 
         <section className="pm-map-summary-grid">
-          {summaryItems.map((item) => (
-            <article className="pm-map-summary-card" key={item.label}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-              <p>{item.helper}</p>
-            </article>
-          ))}
+          <article className="pm-map-summary-card">
+            <span>Total Projects</span>
+            <strong>{filteredProjects.length}</strong>
+            <p>Filtered records</p>
+          </article>
+
+          <article className="pm-map-summary-card">
+            <span>Displayed</span>
+            <strong>{displayedProjects.length}</strong>
+            <p>Shown on map</p>
+          </article>
         </section>
 
         <section className="pm-map-filter-card">
@@ -862,6 +827,7 @@ export default function ProjectMap() {
               className={`pm-map-filter-button ${showFilters ? 'is-active' : ''}`}
               onClick={() => setShowFilters((current) => !current)}
               aria-expanded={showFilters}
+              aria-pressed={showFilters}
             >
               <FilterIcon />
               <span>Filter</span>
@@ -962,7 +928,7 @@ export default function ProjectMap() {
               </div>
 
               <span>
-                {displayedProjects.length} of {filteredProjects.length} project/s mapped
+                {displayedProjects.length} of {filteredProjects.length} mapped
               </span>
             </div>
 
@@ -990,15 +956,23 @@ export default function ProjectMap() {
                   zoom={DEFAULT_ZOOM}
                   scrollWheelZoom
                   className="pm-leaflet-map"
-                  style={{ width: '100%', height: '100%' }}
+                  zoomControl
                 >
                   <TileLayer
                     attribution="&copy; OpenStreetMap contributors"
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    detectRetina
+                    maxZoom={19}
                   />
 
-                  <MapResizeWatcher trigger={`${displayedProjects.length}-${searchTerm}`} />
-                  <FitMapToMarkers projects={displayedProjects} />
+                  <MapResizeWatcher
+                    trigger={`${displayedProjects.length}-${searchTerm}-${showFilters}`}
+                  />
+
+                  <FitMapToMarkers
+                    projects={displayedProjects}
+                    focusSignal={focusSignal}
+                  />
 
                   <MarkerClusterGroup
                     chunkedLoading
@@ -1022,7 +996,6 @@ export default function ProjectMap() {
                         <Popup>
                           <div className="pm-map-popup">
                             <h3>{project.project_name || 'Untitled Project'}</h3>
-
                             <p>{getProjectLocation(project)}</p>
 
                             <div className="pm-map-popup-badges">
@@ -1163,9 +1136,7 @@ export default function ProjectMap() {
                         <p>{project.coordinateIssue || 'GPS needs review.'}</p>
                       </div>
 
-                      {canUpdateProject && (
-                        <Link to={`/projects/${project.id}/updates`}>Update GPS</Link>
-                      )}
+                      <Link to={`/projects/${project.id}`}>Open</Link>
                     </article>
                   ))
                 )}
@@ -1175,7 +1146,7 @@ export default function ProjectMap() {
         </section>
       </main>
 
-      {portalReady && createPortal(refreshFab, document.body)}
+      {portalReady ? createPortal(mapFabs, document.body) : null}
     </>
   )
 }

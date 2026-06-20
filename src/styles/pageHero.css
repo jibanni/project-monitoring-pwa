@@ -473,3 +473,115 @@ a[class*='fab'] svg {
     font-size: 1.02rem !important;
   }
 }
+
+/* =========================================================
+   REAL PHONE HERO FIX
+   Compact hero must become fixed under the main fixed header.
+========================================================= */
+
+.dashboard-hero,
+.pm-map-hero,
+.reports-hero,
+.offline-sync-hero,
+.user-management-hero,
+.create-project-hero,
+.edit-project-hero,
+.pu-hero {
+  transform: none !important;
+  transition:
+    min-height 0.12s ease,
+    max-height 0.12s ease,
+    border-radius 0.12s ease,
+    padding 0.12s ease !important;
+  will-change: auto !important;
+}
+
+/* When the layout marks the app as scrolled, lock hero under header */
+.app-scrolled .dashboard-hero,
+.app-scrolled .pm-map-hero,
+.app-scrolled .reports-hero,
+.app-scrolled .offline-sync-hero,
+.app-scrolled .user-management-hero,
+.app-scrolled .create-project-hero,
+.app-scrolled .edit-project-hero,
+.app-scrolled .pu-hero {
+  position: fixed !important;
+  top: calc(var(--app-header-live-h, 74px) - 1px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 99980 !important;
+
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 54px !important;
+  max-height: 54px !important;
+
+  margin: 0 !important;
+  padding: 0 18px !important;
+  border-radius: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Give the page room when hero is fixed */
+.app-scrolled .dashboard-page,
+.app-scrolled .pm-map-page,
+.app-scrolled .reports-page,
+.app-scrolled .offline-sync-page,
+.app-scrolled .user-management-page,
+.app-scrolled .create-project-page,
+.app-scrolled .edit-project-page,
+.app-scrolled .pu-page {
+  padding-top: 54px !important;
+}
+
+/* Remove heavy hero effects while scrolling on phone */
+.app-scrolled .dashboard-hero::before,
+.app-scrolled .dashboard-hero::after,
+.app-scrolled .pm-map-hero::before,
+.app-scrolled .pm-map-hero::after,
+.app-scrolled .reports-hero::before,
+.app-scrolled .reports-hero::after,
+.app-scrolled .offline-sync-hero::before,
+.app-scrolled .offline-sync-hero::after,
+.app-scrolled .user-management-hero::before,
+.app-scrolled .user-management-hero::after,
+.app-scrolled .create-project-hero::before,
+.app-scrolled .create-project-hero::after,
+.app-scrolled .edit-project-hero::before,
+.app-scrolled .edit-project-hero::after,
+.app-scrolled .pu-hero::before,
+.app-scrolled .pu-hero::after {
+  display: none !important;
+}
+
+@media (max-width: 560px) {
+  .app-scrolled .dashboard-hero,
+  .app-scrolled .pm-map-hero,
+  .app-scrolled .reports-hero,
+  .app-scrolled .offline-sync-hero,
+  .app-scrolled .user-management-hero,
+  .app-scrolled .create-project-hero,
+  .app-scrolled .edit-project-hero,
+  .app-scrolled .pu-hero {
+    min-height: 52px !important;
+    max-height: 52px !important;
+    padding: 0 14px !important;
+  }
+
+  .app-scrolled .dashboard-page,
+  .app-scrolled .pm-map-page,
+  .app-scrolled .reports-page,
+  .app-scrolled .offline-sync-page,
+  .app-scrolled .user-management-page,
+  .app-scrolled .create-project-page,
+  .app-scrolled .edit-project-page,
+  .app-scrolled .pu-page {
+    padding-top: 52px !important;
+  }
+}
