@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -470,6 +471,7 @@ export default function ProjectUpdates() {
   const [gpsMessage, setGpsMessage] = useState('')
   const [photoInputs, setPhotoInputs] = useState<PhotoInput[]>([])
   const [isUpdateScrolled, setIsUpdateScrolled] = useState(false)
+  const [portalReady, setPortalReady] = useState(false)
 
   const currentPhysical = useMemo(
     () => clampProgress(project?.physical_accomplishment),
@@ -487,6 +489,10 @@ export default function ProjectUpdates() {
 
   const hasInspectionCoordinates =
     inspectionLatitude.trim() !== '' || inspectionLongitude.trim() !== ''
+
+  useEffect(() => {
+    setPortalReady(true)
+  }, [])
 
   useEffect(() => {
     function handleOnline() {
@@ -1583,15 +1589,21 @@ export default function ProjectUpdates() {
         </aside>
       </div>
 
-      <button
-        type="button"
-        className="pu-back-fab"
-        onClick={() => navigate(`/projects/${id}`)}
-        aria-label="Back to project details"
-        title="Back to Project Details"
-      >
-        <IconBack />
-      </button>
+      {portalReady
+        ? createPortal(
+            <button
+            type="button"
+            className="pu-back-fab"
+            onClick={() => navigate(`/projects/${id}`)}
+            aria-label="Back to project details"
+            title="Back to Project Details"
+            >
+            <IconBack />
+            </button>
+            ,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

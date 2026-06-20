@@ -1253,3 +1253,1243 @@
     border-radius: 20px;
   }
 }
+/* =========================================================
+   PROJECT DETAILS FAB FIX — KEEP ACTION BUTTONS FIXED
+   Paste at the VERY BOTTOM of src/styles/projectDetails.css
+   ========================================================= */
+
+.project-details-fab-stack,
+.project-details-action-stack,
+.project-details-floating-actions,
+.project-details-actions-fab,
+.project-details-fabs,
+.pd-fab-stack,
+.pd-action-stack,
+.pd-floating-actions,
+.pd-actions-fab,
+.pd-fabs {
+  position: fixed !important;
+
+  top: auto !important;
+  left: auto !important;
+  right: 16px !important;
+  bottom: 96px !important;
+
+  z-index: 2147483000 !important;
+
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+
+  width: 58px !important;
+  height: auto !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  transform: none !important;
+  translate: none !important;
+  transition: none !important;
+  animation: none !important;
+
+  pointer-events: none !important;
+}
+
+/* Make sure buttons/links inside the stack remain clickable */
+.project-details-fab-stack > *,
+.project-details-action-stack > *,
+.project-details-floating-actions > *,
+.project-details-actions-fab > *,
+.project-details-fabs > *,
+.pd-fab-stack > *,
+.pd-action-stack > *,
+.pd-floating-actions > *,
+.pd-actions-fab > *,
+.pd-fabs > * {
+  pointer-events: auto !important;
+}
+
+/* Normalize all Project Details FAB buttons */
+.project-details-fab-stack a,
+.project-details-fab-stack button,
+.project-details-action-stack a,
+.project-details-action-stack button,
+.project-details-floating-actions a,
+.project-details-floating-actions button,
+.project-details-actions-fab a,
+.project-details-actions-fab button,
+.project-details-fabs a,
+.project-details-fabs button,
+.pd-fab-stack a,
+.pd-fab-stack button,
+.pd-action-stack a,
+.pd-action-stack button,
+.pd-floating-actions a,
+.pd-floating-actions button,
+.pd-actions-fab a,
+.pd-actions-fab button,
+.pd-fabs a,
+.pd-fabs button {
+  position: relative !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 0 !important;
+  border-radius: 999px !important;
+
+  color: #ffffff !important;
+  text-decoration: none !important;
+
+  box-shadow:
+    0 16px 30px rgba(15, 23, 42, 0.24),
+    0 6px 14px rgba(15, 23, 42, 0.16) !important;
+
+  transform: none !important;
+  translate: none !important;
+  transition: none !important;
+
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Center all icons */
+.project-details-fab-stack svg,
+.project-details-action-stack svg,
+.project-details-floating-actions svg,
+.project-details-actions-fab svg,
+.project-details-fabs svg,
+.pd-fab-stack svg,
+.pd-action-stack svg,
+.pd-floating-actions svg,
+.pd-actions-fab svg,
+.pd-fabs svg {
+  display: block !important;
+  width: 25px !important;
+  height: 25px !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+}
+
+/* Keep the stack above bottom nav, but not too high */
+@media (max-width: 768px) {
+  .project-details-fab-stack,
+  .project-details-action-stack,
+  .project-details-floating-actions,
+  .project-details-actions-fab,
+  .project-details-fabs,
+  .pd-fab-stack,
+  .pd-action-stack,
+  .pd-floating-actions,
+  .pd-actions-fab,
+  .pd-fabs {
+    right: 16px !important;
+    bottom: 96px !important;
+    width: 58px !important;
+    gap: 12px !important;
+  }
+
+  .project-details-fab-stack a,
+  .project-details-fab-stack button,
+  .project-details-action-stack a,
+  .project-details-action-stack button,
+  .project-details-floating-actions a,
+  .project-details-floating-actions button,
+  .project-details-actions-fab a,
+  .project-details-actions-fab button,
+  .project-details-fabs a,
+  .project-details-fabs button,
+  .pd-fab-stack a,
+  .pd-fab-stack button,
+  .pd-action-stack a,
+  .pd-action-stack button,
+  .pd-floating-actions a,
+  .pd-floating-actions button,
+  .pd-actions-fab a,
+  .pd-actions-fab button,
+  .pd-fabs a,
+  .pd-fabs button {
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    min-height: 58px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .project-details-fab-stack,
+  .project-details-action-stack,
+  .project-details-floating-actions,
+  .project-details-actions-fab,
+  .project-details-fabs,
+  .pd-fab-stack,
+  .pd-action-stack,
+  .pd-floating-actions,
+  .pd-actions-fab,
+  .pd-fabs {
+    right: 14px !important;
+    bottom: 92px !important;
+    gap: 11px !important;
+  }
+
+  .project-details-fab-stack a,
+  .project-details-fab-stack button,
+  .project-details-action-stack a,
+  .project-details-action-stack button,
+  .project-details-floating-actions a,
+  .project-details-floating-actions button,
+  .project-details-actions-fab a,
+  .project-details-actions-fab button,
+  .project-details-fabs a,
+  .project-details-fabs button,
+  .pd-fab-stack a,
+  .pd-fab-stack button,
+  .pd-action-stack a,
+  .pd-action-stack button,
+  .pd-floating-actions a,
+  .pd-floating-actions button,
+  .pd-actions-fab a,
+  .pd-actions-fab button,
+  .pd-fabs a,
+  .pd-fabs button {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+  }
+}
+
+
+/* =========================================================
+   FINAL PROJECT DETAILS FIX
+   - Hero sticks/merges under main DILG header
+   - FABs are viewport-fixed through React portal
+   - Lighter mobile repaint cost
+   ========================================================= */
+
+.app-project-details-route .app-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 2147482000 !important;
+}
+
+.app-project-details-route .app-main {
+  padding-top: 0 !important;
+  overflow: visible !important;
+}
+
+.pd-page {
+  --pd-header-offset: var(--app-header-live-h, var(--current-header-h, 74px));
+  --pd-compact-hero-h: 58px;
+  overflow: visible !important;
+}
+
+.pd-hero {
+  position: sticky !important;
+  top: calc(var(--pd-header-offset) + 8px) !important;
+  z-index: 900 !important;
+  transform: none !important;
+  translate: none !important;
+  will-change: auto !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero {
+  position: fixed !important;
+  top: var(--pd-header-offset) !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 2147481000 !important;
+
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: var(--pd-compact-hero-h) !important;
+  height: var(--pd-compact-hero-h) !important;
+  max-height: var(--pd-compact-hero-h) !important;
+
+  margin: 0 !important;
+  padding: 0 18px !important;
+  border-radius: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  box-shadow: 0 10px 24px rgba(15, 48, 87, 0.16) !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-main,
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero .pd-eyebrow,
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-meta,
+.app-project-details-route.app-scrolled .pd-hero .pd-status-panel {
+  display: none !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block h1 {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  font-size: clamp(1.12rem, 4.6vw, 1.45rem) !important;
+  line-height: 1 !important;
+  letter-spacing: -0.025em !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+.app-project-details-route.app-scrolled .pd-summary-grid {
+  padding-top: calc(var(--pd-compact-hero-h) + 14px) !important;
+}
+
+/* Portal-mounted FAB stack. This must stay fixed to the viewport. */
+body > .pd-fab-stack {
+  position: fixed !important;
+  top: auto !important;
+  left: auto !important;
+  right: 16px !important;
+  bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  z-index: 2147483000 !important;
+
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 11px !important;
+  width: 56px !important;
+  height: auto !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  translate: none !important;
+  pointer-events: none !important;
+}
+
+body > .pd-fab-stack .pd-fab {
+  pointer-events: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 56px !important;
+  height: 56px !important;
+  min-width: 56px !important;
+  min-height: 56px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 0 !important;
+  border-radius: 999px !important;
+  transform: none !important;
+  translate: none !important;
+  transition: none !important;
+
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+body > .pd-fab-stack .pd-fab svg {
+  display: block !important;
+  width: 24px !important;
+  height: 24px !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+}
+
+@media (max-width: 760px) {
+  .app-project-details-route.app-scrolled .pd-hero {
+    min-height: 54px !important;
+    height: 54px !important;
+    max-height: 54px !important;
+    padding-inline: 16px !important;
+  }
+
+  .app-project-details-route.app-scrolled .pd-summary-grid {
+    padding-top: 68px !important;
+  }
+
+  body > .pd-fab-stack {
+    right: 14px !important;
+    bottom: calc(92px + env(safe-area-inset-bottom)) !important;
+    gap: 10px !important;
+  }
+}
+
+
+/* =========================================================
+   PROJECT DETAILS FINAL STICKY HEADER + HERO MERGE FIX
+   Keeps the DILG main header fixed and makes the Project
+   Details hero merge using its own page scroll state.
+   ========================================================= */
+
+.app-project-details-route,
+.app-project-details-route .app-main,
+.app-project-details-route .pd-page {
+  transform: none !important;
+  translate: none !important;
+  filter: none !important;
+  perspective: none !important;
+  contain: none !important;
+  overflow: visible !important;
+}
+
+.app-project-details-route .app-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 2147482000 !important;
+  width: 100% !important;
+  transform: none !important;
+  translate: none !important;
+  will-change: auto !important;
+  backface-visibility: hidden !important;
+}
+
+.pd-page {
+  --pd-header-offset: var(--app-header-live-h, var(--current-header-h, var(--app-header-h, 74px)));
+  --pd-hero-compact-h: 56px;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Normal state: hero sticks below the main banner. */
+.pd-hero {
+  position: sticky !important;
+  top: calc(var(--pd-header-offset) + 8px) !important;
+  z-index: 2147481000 !important;
+  transform: none !important;
+  translate: none !important;
+  backface-visibility: hidden !important;
+}
+
+/* Scrolled state: use ProjectDetails' own class, not only Layout's app-scrolled class. */
+.pd-page.is-pd-scrolled {
+  padding-top: calc(var(--pd-hero-compact-h) + 14px) !important;
+}
+
+.pd-page.is-pd-scrolled .pd-hero,
+.app-project-details-route.app-scrolled .pd-hero {
+  position: fixed !important;
+  top: var(--pd-header-offset) !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 2147481500 !important;
+
+  width: 100vw !important;
+  max-width: 100vw !important;
+  min-height: var(--pd-hero-compact-h) !important;
+  height: var(--pd-hero-compact-h) !important;
+  max-height: var(--pd-hero-compact-h) !important;
+
+  margin: 0 !important;
+  padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left)) !important;
+  border-radius: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 0 !important;
+
+  box-shadow: 0 10px 24px rgba(15, 48, 87, 0.16) !important;
+  transform: none !important;
+  translate: none !important;
+}
+
+.pd-page.is-pd-scrolled .pd-hero .pd-hero-main,
+.pd-page.is-pd-scrolled .pd-hero .pd-title-block,
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-main,
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.pd-page.is-pd-scrolled .pd-hero::before,
+.pd-page.is-pd-scrolled .pd-hero::after,
+.pd-page.is-pd-scrolled .pd-hero .pd-eyebrow,
+.pd-page.is-pd-scrolled .pd-hero .pd-hero-meta,
+.pd-page.is-pd-scrolled .pd-hero .pd-status-panel,
+.app-project-details-route.app-scrolled .pd-hero::before,
+.app-project-details-route.app-scrolled .pd-hero::after,
+.app-project-details-route.app-scrolled .pd-hero .pd-eyebrow,
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-meta,
+.app-project-details-route.app-scrolled .pd-hero .pd-status-panel {
+  display: none !important;
+}
+
+.pd-page.is-pd-scrolled .pd-hero .pd-title-block h1,
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block h1 {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+
+  color: #ffffff !important;
+  font-size: clamp(1.05rem, 4.5vw, 1.42rem) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.025em !important;
+
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+.pd-page.is-pd-scrolled .pd-summary-grid,
+.app-project-details-route.app-scrolled .pd-summary-grid {
+  padding-top: calc(var(--pd-hero-compact-h) + 14px) !important;
+}
+
+@media (max-width: 760px) {
+  .pd-page {
+    --pd-hero-compact-h: 54px;
+  }
+
+  .pd-hero {
+    top: calc(var(--pd-header-offset) + 8px) !important;
+  }
+
+  .pd-page.is-pd-scrolled .pd-hero,
+  .app-project-details-route.app-scrolled .pd-hero {
+    top: var(--pd-header-offset) !important;
+    min-height: var(--pd-hero-compact-h) !important;
+    height: var(--pd-hero-compact-h) !important;
+    max-height: var(--pd-hero-compact-h) !important;
+    padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right)) !important;
+  }
+
+  .pd-page.is-pd-scrolled .pd-summary-grid,
+  .app-project-details-route.app-scrolled .pd-summary-grid {
+    padding-top: 68px !important;
+  }
+}
+
+/* =========================================================
+   FINAL PROJECT DETAILS HEADER + HERO STACKING FIX
+   Paste at the VERY BOTTOM of src/styles/projectDetails.css
+
+   Purpose:
+   - Main DILG header always stays visible.
+   - Project Details compact hero stays directly BELOW the main header.
+   - Project Details hero no longer covers the main header.
+   ========================================================= */
+
+.app-project-details-route .app-header,
+.app-project-details-route.app-scrolled .app-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+
+  z-index: 2147483000 !important;
+
+  width: 100% !important;
+  transform: none !important;
+  translate: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Full hero at top: sticky below the DILG header */
+.app-project-details-route:not(.app-scrolled) .pd-hero {
+  position: sticky !important;
+  top: calc(var(--app-header-live-h, var(--current-header-h, 74px)) + 8px) !important;
+
+  z-index: 2147480500 !important;
+
+  width: min(calc(100% - 28px), 1180px) !important;
+  max-width: 1180px !important;
+
+  margin: 0.85rem auto 0.85rem !important;
+  border-radius: 30px !important;
+}
+
+/* Compact hero when scrolled: fixed BELOW the main header, not over it */
+.app-project-details-route.app-scrolled .pd-hero {
+  position: fixed !important;
+
+  top: var(--app-header-live-h, var(--current-header-h, 74px)) !important;
+  left: 0 !important;
+  right: 0 !important;
+
+  z-index: 2147482000 !important;
+
+  width: 100vw !important;
+  max-width: 100vw !important;
+
+  min-height: 58px !important;
+  height: 58px !important;
+  max-height: 58px !important;
+
+  margin: 0 !important;
+  padding: 0 18px !important;
+
+  border-radius: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  box-shadow: 0 10px 24px rgba(15, 48, 87, 0.16) !important;
+  transform: none !important;
+  translate: none !important;
+}
+
+/* Add enough space when compact hero becomes fixed */
+.app-project-details-route.app-scrolled .pd-page {
+  padding-top: 72px !important;
+}
+
+.app-project-details-route.app-scrolled .pd-summary-grid {
+  padding-top: 72px !important;
+}
+
+/* In compact mode, show title only */
+.app-project-details-route.app-scrolled .pd-hero .pd-eyebrow,
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-meta,
+.app-project-details-route.app-scrolled .pd-hero .pd-status-panel {
+  display: none !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-main,
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block h1 {
+  width: 100% !important;
+  max-width: 100% !important;
+
+  margin: 0 !important;
+
+  overflow: hidden !important;
+  color: #ffffff !important;
+  font-size: clamp(1.1rem, 4.5vw, 1.42rem) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.025em !important;
+
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Mobile correction */
+@media (max-width: 900px) {
+  .app-project-details-route .app-header,
+  .app-project-details-route.app-scrolled .app-header {
+    z-index: 2147483000 !important;
+  }
+
+  .app-project-details-route:not(.app-scrolled) .pd-hero {
+    top: calc(var(--app-header-live-h, var(--current-header-h, 74px)) + 8px) !important;
+  }
+
+  .app-project-details-route.app-scrolled .pd-hero {
+    top: var(--app-header-live-h, var(--current-header-h, 74px)) !important;
+    z-index: 2147482000 !important;
+
+    min-height: 54px !important;
+    height: 54px !important;
+    max-height: 54px !important;
+
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .app-project-details-route.app-scrolled .pd-page {
+    padding-top: 68px !important;
+  }
+
+  .app-project-details-route.app-scrolled .pd-summary-grid {
+    padding-top: 68px !important;
+  }
+}
+/* =========================================================
+   PROJECT DETAILS HERO BELOW MAIN HEADER FIX
+   Paste at the VERY BOTTOM of src/styles/projectDetails.css
+   ========================================================= */
+
+.app-project-details-route {
+  --pd-real-header-h: var(--app-header-live-h, 74px);
+  --pd-compact-hero-h: 56px;
+}
+
+/* Full hero stays below the DILG header */
+.app-project-details-route:not(.app-scrolled) .pd-hero {
+  position: sticky !important;
+  top: calc(var(--pd-real-header-h) + 8px) !important;
+  z-index: 2147481000 !important;
+}
+
+/* Compact hero stays below the DILG header, not above it */
+.app-project-details-route.app-scrolled .pd-hero {
+  position: fixed !important;
+
+  top: var(--pd-real-header-h) !important;
+  left: 0 !important;
+  right: 0 !important;
+
+  z-index: 2147482000 !important;
+
+  width: 100% !important;
+  max-width: 100% !important;
+
+  height: var(--pd-compact-hero-h) !important;
+  min-height: var(--pd-compact-hero-h) !important;
+  max-height: var(--pd-compact-hero-h) !important;
+
+  margin: 0 !important;
+  padding: 0 18px !important;
+  border-radius: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  box-shadow: 0 10px 24px rgba(15, 48, 87, 0.16) !important;
+  transform: none !important;
+  translate: none !important;
+}
+
+/* Space for fixed compact hero */
+.app-project-details-route.app-scrolled .pd-page {
+  padding-top: calc(var(--pd-compact-hero-h) + 14px) !important;
+}
+
+.app-project-details-route.app-scrolled .pd-summary-grid {
+  padding-top: 0 !important;
+}
+
+/* Compact hero title only */
+.app-project-details-route.app-scrolled .pd-hero .pd-eyebrow,
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-meta,
+.app-project-details-route.app-scrolled .pd-hero .pd-status-panel {
+  display: none !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-main,
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block h1 {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+
+  overflow: hidden !important;
+  color: #ffffff !important;
+  font-size: clamp(1.12rem, 4.5vw, 1.42rem) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.025em !important;
+
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+@media (max-width: 900px) {
+  .app-project-details-route {
+    --pd-real-header-h: 74px;
+    --pd-compact-hero-h: 54px;
+  }
+
+  .app-project-details-route.app-scrolled .pd-hero {
+    top: 74px !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    max-height: 54px !important;
+  }
+
+  .app-project-details-route.app-scrolled .pd-page {
+    padding-top: 68px !important;
+  }
+}
+/* =========================================================
+   PROJECT DETAILS FINAL STICKY HEADER FIX
+   Paste at the VERY BOTTOM of src/styles/projectDetails.css
+
+   Fix:
+   1. Main DILG banner stays fixed and visible.
+   2. Main DILG banner does not shrink/move on Project Details.
+   3. Project Details compact hero sticks directly below main banner.
+   4. Removes the big gap between main banner and compact hero.
+   ========================================================= */
+
+.app-project-details-route {
+  --pd-fixed-header-h: 74px;
+  --pd-compact-hero-h: 54px;
+}
+
+/* Lock the main DILG banner on Project Details */
+.app-project-details-route,
+.app-project-details-route.app-scrolled {
+  --current-header-h: var(--pd-fixed-header-h) !important;
+}
+
+.app-project-details-route .app-header,
+.app-project-details-route.app-scrolled .app-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+
+  z-index: 2147483000 !important;
+
+  width: 100% !important;
+  min-height: var(--pd-fixed-header-h) !important;
+  height: var(--pd-fixed-header-h) !important;
+  max-height: var(--pd-fixed-header-h) !important;
+
+  padding: 9px 12px !important;
+
+  transform: none !important;
+  translate: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  will-change: auto !important;
+}
+
+/* Prevent logo/header contents from shrinking too much on Project Details */
+.app-project-details-route .app-brand-logo-wrap,
+.app-project-details-route .app-brand-logo,
+.app-project-details-route.app-scrolled .app-brand-logo-wrap,
+.app-project-details-route.app-scrolled .app-brand-logo {
+  width: 46px !important;
+  height: 46px !important;
+  min-width: 46px !important;
+  min-height: 46px !important;
+  max-width: 46px !important;
+  max-height: 46px !important;
+}
+
+.app-project-details-route .app-user-avatar,
+.app-project-details-route.app-scrolled .app-user-avatar {
+  width: 35px !important;
+  height: 35px !important;
+}
+
+/* Full hero before scrolling */
+.app-project-details-route:not(.app-scrolled) .pd-hero {
+  position: sticky !important;
+  top: calc(var(--pd-fixed-header-h) + 8px) !important;
+
+  z-index: 2147481000 !important;
+
+  width: min(calc(100% - 28px), 1180px) !important;
+  max-width: 1180px !important;
+
+  margin: 0.85rem auto 0.85rem !important;
+  border-radius: 30px !important;
+}
+
+/* Compact hero after scrolling */
+.app-project-details-route.app-scrolled .pd-hero {
+  position: fixed !important;
+
+  top: var(--pd-fixed-header-h) !important;
+  left: 0 !important;
+  right: 0 !important;
+
+  z-index: 2147482000 !important;
+
+  width: 100vw !important;
+  max-width: 100vw !important;
+
+  min-height: var(--pd-compact-hero-h) !important;
+  height: var(--pd-compact-hero-h) !important;
+  max-height: var(--pd-compact-hero-h) !important;
+
+  margin: 0 !important;
+  padding: 0 18px !important;
+  border-radius: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  box-shadow: 0 10px 24px rgba(15, 48, 87, 0.16) !important;
+
+  transform: none !important;
+  translate: none !important;
+}
+
+/* Add only the needed space when compact hero becomes fixed */
+.app-project-details-route.app-scrolled .pd-page {
+  padding-top: calc(var(--pd-compact-hero-h) + 12px) !important;
+}
+
+.app-project-details-route.app-scrolled .pd-summary-grid {
+  padding-top: 0 !important;
+}
+
+/* Compact hero must show title only */
+.app-project-details-route.app-scrolled .pd-hero .pd-eyebrow,
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-meta,
+.app-project-details-route.app-scrolled .pd-hero .pd-status-panel {
+  display: none !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero .pd-hero-main,
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.app-project-details-route.app-scrolled .pd-hero .pd-title-block h1 {
+  width: 100% !important;
+  max-width: 100% !important;
+
+  margin: 0 !important;
+
+  overflow: hidden !important;
+  color: #ffffff !important;
+  font-size: clamp(1.12rem, 4.5vw, 1.42rem) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.025em !important;
+
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Small phone tuning */
+@media (max-width: 420px) {
+  .app-project-details-route {
+    --pd-fixed-header-h: 74px;
+    --pd-compact-hero-h: 54px;
+  }
+
+  .app-project-details-route .app-brand-logo-wrap,
+  .app-project-details-route .app-brand-logo,
+  .app-project-details-route.app-scrolled .app-brand-logo-wrap,
+  .app-project-details-route.app-scrolled .app-brand-logo {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    max-width: 42px !important;
+    max-height: 42px !important;
+  }
+}
+
+/* =========================================================
+   PROJECT DETAILS TRUE VIEWPORT STICKY FIX
+   This uses a portal-mounted compact title bar so the hero
+   is fixed to the viewport, not to the scrolling page content.
+   Keep this at the VERY BOTTOM.
+   ========================================================= */
+
+.app-project-details-route {
+  --pd-safe-top: env(safe-area-inset-top, 0px);
+  --pd-fixed-header-h: calc(74px + var(--pd-safe-top));
+  --pd-compact-titlebar-h: 54px;
+}
+
+/* Keep the actual main DILG header fixed and above the compact titlebar. */
+.app-project-details-route .app-header,
+.app-project-details-route.app-scrolled .app-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+
+  z-index: 2147483000 !important;
+
+  width: 100% !important;
+  min-height: var(--pd-fixed-header-h) !important;
+  height: var(--pd-fixed-header-h) !important;
+  max-height: var(--pd-fixed-header-h) !important;
+
+  padding-top: calc(9px + var(--pd-safe-top)) !important;
+  padding-bottom: 9px !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+
+  transform: none !important;
+  translate: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  will-change: auto !important;
+}
+
+/* Keep the route content below the locked main header. */
+.app-project-details-route {
+  padding-top: var(--pd-fixed-header-h) !important;
+}
+
+.app-project-details-route .app-main {
+  padding-top: 0 !important;
+}
+
+/* Full hero at the top stays below the DILG header. */
+.app-project-details-route .pd-page:not(.is-pd-scrolled) > .pd-hero {
+  position: sticky !important;
+  top: calc(var(--pd-fixed-header-h) + 8px) !important;
+  z-index: 900 !important;
+
+  width: min(calc(100% - 28px), 1180px) !important;
+  max-width: 1180px !important;
+  margin: 0.85rem auto 0.85rem !important;
+  border-radius: 30px !important;
+
+  transform: none !important;
+  translate: none !important;
+}
+
+/* When compact state is active, stop the original hero from becoming fixed.
+   The visible compact bar is now body > .pd-viewport-titlebar. */
+.app-project-details-route .pd-page.is-pd-scrolled > .pd-hero,
+.app-project-details-route.app-scrolled .pd-page.is-pd-scrolled > .pd-hero,
+.app-project-details-route.app-scrolled .pd-hero {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+
+  width: min(calc(100% - 28px), 1180px) !important;
+  max-width: 1180px !important;
+
+  min-height: 0 !important;
+  height: 0 !important;
+  max-height: 0 !important;
+
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding: 0 !important;
+
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
+}
+
+/* The actual fixed compact title bar. */
+body > .pd-viewport-titlebar {
+  position: fixed !important;
+  top: var(--pd-fixed-header-h) !important;
+  left: 0 !important;
+  right: 0 !important;
+
+  z-index: 2147482500 !important;
+
+  width: 100vw !important;
+  height: var(--pd-compact-titlebar-h) !important;
+  min-height: var(--pd-compact-titlebar-h) !important;
+  max-height: var(--pd-compact-titlebar-h) !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  padding-left: max(18px, env(safe-area-inset-left)) !important;
+  padding-right: max(18px, env(safe-area-inset-right)) !important;
+
+  color: #ffffff !important;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 34%),
+    linear-gradient(135deg, #123f73 0%, #18599d 56%, #2368b5 100%) !important;
+
+  box-shadow: 0 10px 24px rgba(15, 48, 87, 0.16) !important;
+  transform: none !important;
+  translate: none !important;
+  pointer-events: none !important;
+}
+
+body > .pd-viewport-titlebar h1 {
+  width: 100% !important;
+  max-width: 100% !important;
+
+  margin: 0 !important;
+  overflow: hidden !important;
+
+  color: #ffffff !important;
+  font-size: clamp(1.08rem, 4.5vw, 1.42rem) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.025em !important;
+
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Put the summary cards below the fixed titlebar when compact. */
+.app-project-details-route .pd-page.is-pd-scrolled {
+  padding-top: calc(var(--pd-compact-titlebar-h) + 14px) !important;
+}
+
+.app-project-details-route .pd-page.is-pd-scrolled .pd-summary-grid,
+.app-project-details-route.app-scrolled .pd-summary-grid {
+  padding-top: 0 !important;
+}
+
+/* Header contents must remain readable in the locked header. */
+.app-project-details-route .app-brand-logo-wrap,
+.app-project-details-route .app-brand-logo,
+.app-project-details-route.app-scrolled .app-brand-logo-wrap,
+.app-project-details-route.app-scrolled .app-brand-logo {
+  width: 46px !important;
+  height: 46px !important;
+  min-width: 46px !important;
+  min-height: 46px !important;
+  max-width: 46px !important;
+  max-height: 46px !important;
+}
+
+.app-project-details-route .app-user-avatar,
+.app-project-details-route.app-scrolled .app-user-avatar {
+  width: 35px !important;
+  height: 35px !important;
+}
+
+/* Small phone tuning. */
+@media (max-width: 420px) {
+  .app-project-details-route {
+    --pd-compact-titlebar-h: 52px;
+  }
+
+  .app-project-details-route .app-brand-logo-wrap,
+  .app-project-details-route .app-brand-logo,
+  .app-project-details-route.app-scrolled .app-brand-logo-wrap,
+  .app-project-details-route.app-scrolled .app-brand-logo {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    max-width: 42px !important;
+    max-height: 42px !important;
+  }
+
+  body > .pd-viewport-titlebar {
+    height: var(--pd-compact-titlebar-h) !important;
+    min-height: var(--pd-compact-titlebar-h) !important;
+    max-height: var(--pd-compact-titlebar-h) !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: max(16px, env(safe-area-inset-right)) !important;
+  }
+
+  .app-project-details-route .pd-page.is-pd-scrolled {
+    padding-top: calc(var(--pd-compact-titlebar-h) + 12px) !important;
+  }
+}
+/* =========================================================
+   HARD FIX: PROJECT DETAILS PORTAL TITLE BAR
+   Paste at the VERY BOTTOM of src/styles/projectDetails.css
+
+   Important:
+   This uses literal values because .pd-viewport-titlebar is portaled
+   to document.body and cannot inherit variables from .pd-page.
+   ========================================================= */
+
+/* When scrolled, hide the original hero from the page flow */
+.pd-page.is-pd-scrolled > .pd-hero {
+  position: relative !important;
+  top: auto !important;
+
+  width: min(calc(100% - 28px), 1180px) !important;
+  max-width: 1180px !important;
+
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+
+  margin: 0 auto !important;
+  padding: 0 !important;
+
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Full hero before scrolling */
+.pd-page:not(.is-pd-scrolled) > .pd-hero {
+  position: sticky !important;
+  top: calc(74px + 8px) !important;
+  z-index: 900 !important;
+}
+
+/* The real compact title bar rendered through createPortal(document.body) */
+body > .pd-viewport-titlebar {
+  position: fixed !important;
+
+  top: 74px !important;
+  left: 0 !important;
+  right: 0 !important;
+
+  z-index: 2147483400 !important;
+
+  width: 100vw !important;
+  height: 54px !important;
+  min-height: 54px !important;
+  max-height: 54px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  padding: 0 18px !important;
+
+  color: #ffffff !important;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 34%),
+    linear-gradient(135deg, #123f73 0%, #18599d 56%, #2368b5 100%) !important;
+
+  box-shadow: 0 10px 24px rgba(15, 48, 87, 0.16) !important;
+
+  transform: none !important;
+  translate: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+}
+
+body > .pd-viewport-titlebar h1 {
+  width: 100% !important;
+  max-width: 100% !important;
+
+  margin: 0 !important;
+
+  overflow: hidden !important;
+  color: #ffffff !important;
+  font-size: clamp(1.12rem, 4.5vw, 1.42rem) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.025em !important;
+
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Space for the fixed compact title bar */
+.pd-page.is-pd-scrolled {
+  padding-top: 68px !important;
+}
+
+.pd-page.is-pd-scrolled .pd-summary-grid {
+  padding-top: 0 !important;
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  .pd-page:not(.is-pd-scrolled) > .pd-hero {
+    top: calc(74px + env(safe-area-inset-top) + 8px) !important;
+  }
+
+  body > .pd-viewport-titlebar {
+    top: calc(74px + env(safe-area-inset-top)) !important;
+  }
+}

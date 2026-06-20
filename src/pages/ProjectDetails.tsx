@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -157,6 +158,34 @@ export default function ProjectDetails() {
   const [loading, setLoading] = useState(true)
   const [dataSource, setDataSource] = useState('online')
   const [photosExpanded, setPhotosExpanded] = useState(false)
+  const [portalReady, setPortalReady] = useState(false)
+  const [isHeroCompact, setIsHeroCompact] = useState(false)
+
+  useEffect(() => {
+    setPortalReady(true)
+  }, [])
+
+  useEffect(() => {
+    let ticking = false
+
+    function handleScroll() {
+      if (ticking) return
+
+      ticking = true
+
+      window.requestAnimationFrame(() => {
+        setIsHeroCompact(window.scrollY > 28)
+        ticking = false
+      })
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
 
   useEffect(() => {
     setPhotosExpanded(false)
@@ -500,7 +529,7 @@ export default function ProjectDetails() {
   }
 
   return (
-    <div className="pd-page">
+    <div className={`pd-page ${isHeroCompact ? 'is-pd-scrolled' : ''}`}>
       {dataSource === 'offline' && (
         <div className="pd-offline-banner">
           <strong>Offline Mode:</strong> You are viewing cached project details. Online
@@ -893,7 +922,18 @@ export default function ProjectDetails() {
         </aside>
       </main>
 
-      <div className="pd-fab-stack" aria-label="Project quick actions">
+      {portalReady && isHeroCompact
+        ? createPortal(
+            <div className="pd-viewport-titlebar" aria-hidden="true">
+              <h1>{getDisplayValue(project.project_name, 'Untitled Project')}</h1>
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {portalReady
+        ? createPortal(
+            <div className="pd-fab-stack" aria-label="Project quick actions">
         <button
           type="button"
           className="pd-fab pd-fab-back"
@@ -959,7 +999,10 @@ export default function ProjectDetails() {
             <IconDelete />
           </button>
         )}
-      </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

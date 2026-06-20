@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import '../styles/layout.css'
@@ -27,7 +28,7 @@ const NAV_ITEMS: NavItem[] = [
     key: 'dashboard',
     label: 'Dashboard',
     mobileLabel: 'Home',
-    to: '/',
+    to: '/dashboard',
     icon: 'home',
   },
   {
@@ -181,6 +182,12 @@ export default function Layout({ children }: LayoutProps) {
 
   const [isScrolled, setIsScrolled] = useState(false)
   const [headerHeight, setHeaderHeight] = useState(74)
+  const [pendingMobilePath, setPendingMobilePath] = useState('')
+  const [headerPortalReady, setHeaderPortalReady] = useState(false)
+
+  useEffect(() => {
+    setHeaderPortalReady(true)
+  }, [])
 
   useEffect(() => {
     const previousScrollRestoration = window.history.scrollRestoration
@@ -194,7 +201,8 @@ export default function Layout({ children }: LayoutProps) {
   useLayoutEffect(() => {
     const measureHeader = () => {
       const nextHeight = Math.ceil(headerRef.current?.getBoundingClientRect().height || 74)
-      setHeaderHeight(nextHeight)
+
+      setHeaderHeight((current) => (current === nextHeight ? current : nextHeight))
     }
 
     measureHeader()
@@ -213,21 +221,12 @@ export default function Layout({ children }: LayoutProps) {
       observer?.disconnect()
       window.removeEventListener('resize', measureHeader)
     }
-  }, [])
+  }, [headerPortalReady])
 
-  useLayoutEffect(() => {
-    setIsScrolled(false)
+  useEffect(() => {
+    setPendingMobilePath('')
 
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: 'auto',
-    })
-
-    document.documentElement.scrollTop = 0
-    document.body.scrollTop = 0
-
-    const frame = requestAnimationFrame(() => {
+    const frame = window.requestAnimationFrame(() => {
       window.scrollTo({
         top: 0,
         left: 0,
@@ -236,27 +235,12 @@ export default function Layout({ children }: LayoutProps) {
 
       document.documentElement.scrollTop = 0
       document.body.scrollTop = 0
-
-      const nextHeight = Math.ceil(headerRef.current?.getBoundingClientRect().height || 74)
-      setHeaderHeight(nextHeight)
-      setIsScrolled(false)
     })
 
     return () => {
-      cancelAnimationFrame(frame)
+      window.cancelAnimationFrame(frame)
     }
   }, [location.pathname])
-
-  useLayoutEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      const nextHeight = Math.ceil(headerRef.current?.getBoundingClientRect().height || 74)
-      setHeaderHeight(nextHeight)
-    })
-
-    return () => {
-      cancelAnimationFrame(frame)
-    }
-  }, [isScrolled, location.pathname])
 
   useEffect(() => {
     let ticking = false
@@ -266,20 +250,21 @@ export default function Layout({ children }: LayoutProps) {
 
       ticking = true
 
-      requestAnimationFrame(() => {
-        setIsScrolled(window.scrollY > 24)
+      window.requestAnimationFrame(() => {
+        const nextScrolled = window.scrollY > 24
+
+        setIsScrolled((current) => (current === nextScrolled ? current : nextScrolled))
         ticking = false
       })
     }
 
     handleScroll()
-
     window.addEventListener('scroll', handleScroll, { passive: true })
 
     return () => {
       window.removeEventListener('scroll', handleScroll)
     }
-  }, [location.pathname])
+  }, [])
 
   const visibleNavItems = useMemo(() => {
     return NAV_ITEMS.filter((item) => {
@@ -305,6 +290,8 @@ export default function Layout({ children }: LayoutProps) {
 
   const isItemActive = (item: NavItem) => {
     const path = location.pathname
+
+    if (pendingMobilePath === item.to) return true
 
     if (item.key === 'dashboard') {
       return path === '/' || path === '/dashboard'
@@ -340,6 +327,24 @@ export default function Layout({ children }: LayoutProps) {
     return path === item.to
   }
 
+  const navigateMobile = (item: NavItem) => {
+    const path = location.pathname
+    const isSameDashboard = item.key === 'dashboard' && (path === '/' || path === '/dashboard')
+    const isSamePath = path === item.to || isSameDashboard
+
+    if (isSamePath) {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth',
+      })
+      return
+    }
+
+    setPendingMobilePath(item.to)
+    navigate(item.to)
+  }
+
   const shellClassName = [
     'app-shell',
     isScrolled ? 'app-scrolled' : '',
@@ -370,71 +375,81 @@ export default function Layout({ children }: LayoutProps) {
     }
   }
 
-  return (
-    <>
-      <div className={shellClassName} style={shellStyle}>
-        <header ref={headerRef} className="app-header">
-        <div className="app-header-inner">
-          <NavLink to="/" end className="app-brand" aria-label="Go to dashboard">
-            <span className="app-brand-logo-wrap">
-              <img src="/dilg-logo.png" alt="DILG Logo" className="app-brand-logo" />
-            </span>
+  const appHeader = (
+    <header
+      ref={headerRef}
+      className={['app-header', isScrolled ? 'app-header-scrolled' : '']
+        .filter(Boolean)
+        .join(' ')}
+      style={shellStyle}
+    >
+      <div className="app-header-inner">
+        <NavLink to="/dashboard" end className="app-brand" aria-label="Go to dashboard">
+          <span className="app-brand-logo-wrap">
+            <img src="/dilg-logo.png" alt="DILG Logo" className="app-brand-logo" />
+          </span>
 
-            <span className="app-brand-text">
-              <span className="app-brand-title">DILG X - PDMU</span>
-              <span className="app-brand-subtitle">Project Monitoring System</span>
-              <span className="app-brand-unit">Project Development and Management Unit</span>
-            </span>
-          </NavLink>
+          <span className="app-brand-text">
+            <span className="app-brand-title">DILG X - PDMU</span>
+            <span className="app-brand-subtitle">Project Monitoring System</span>
+            <span className="app-brand-unit">Project Development and Management Unit</span>
+          </span>
+        </NavLink>
 
-          <nav className="app-desktop-nav" aria-label="Main navigation">
-            {visibleNavItems.map((item) => {
-              const active = isItemActive(item)
+        <nav className="app-desktop-nav" aria-label="Main navigation">
+          {visibleNavItems.map((item) => {
+            const active = isItemActive(item)
 
-              return (
-                <NavLink
-                  key={item.key}
-                  to={item.to}
-                  end={item.key === 'dashboard' || item.key === 'projects'}
-                  className={['app-nav-link', active ? 'active' : '']
-                    .filter(Boolean)
-                    .join(' ')}
-                  aria-current={active ? 'page' : undefined}
-                >
-                  <span className="app-nav-icon">
-                    <AppIcon type={item.icon} />
-                  </span>
-                  <span>{item.label}</span>
-                </NavLink>
-              )
-            })}
-          </nav>
-
-          <div className="app-user-area">
-            <div className="app-user-avatar" aria-hidden="true">
-              {initials}
-            </div>
-
-            <div className="app-user-text">
-              <span className="app-user-name">{displayName}</span>
-              <span className="app-user-role">{displayRole}</span>
-
-              <button
-                type="button"
-                className="app-user-logout-inline"
-                onClick={handleLogout}
+            return (
+              <NavLink
+                key={item.key}
+                to={item.to}
+                end={item.key === 'dashboard' || item.key === 'projects'}
+                className={['app-nav-link', active ? 'active' : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-current={active ? 'page' : undefined}
               >
-                Logout
-              </button>
-            </div>
+                <span className="app-nav-icon">
+                  <AppIcon type={item.icon} />
+                </span>
+                <span>{item.label}</span>
+              </NavLink>
+            )
+          })}
+        </nav>
 
-            <button type="button" className="app-logout-button" onClick={handleLogout}>
+        <div className="app-user-area">
+          <div className="app-user-avatar" aria-hidden="true">
+            {initials}
+          </div>
+
+          <div className="app-user-text">
+            <span className="app-user-name">{displayName}</span>
+            <span className="app-user-role">{displayRole}</span>
+
+            <button
+              type="button"
+              className="app-user-logout-inline"
+              onClick={handleLogout}
+            >
               Logout
             </button>
           </div>
-        </div>
-        </header>
 
+          <button type="button" className="app-logout-button" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+      </div>
+    </header>
+  )
+
+  return (
+    <>
+      {headerPortalReady ? createPortal(appHeader, document.body) : appHeader}
+
+      <div className={shellClassName} style={shellStyle}>
         <main className="app-main">{children || <Outlet />}</main>
       </div>
 
@@ -444,20 +459,30 @@ export default function Layout({ children }: LayoutProps) {
             const active = isItemActive(item)
 
             return (
-              <NavLink
+              <button
                 key={item.key}
-                to={item.to}
-                end={item.key === 'dashboard' || item.key === 'projects'}
+                type="button"
                 className={['app-mobile-nav-item', active ? 'active' : '']
                   .filter(Boolean)
                   .join(' ')}
                 aria-current={active ? 'page' : undefined}
+                aria-label={item.label}
+                onPointerDown={(event) => {
+                  if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+                    event.preventDefault()
+                    navigateMobile(item)
+                  }
+                }}
+                onClick={(event) => {
+                  event.preventDefault()
+                  navigateMobile(item)
+                }}
               >
                 <span className="app-mobile-nav-icon">
                   <AppIcon type={item.icon} />
                 </span>
                 <span className="app-mobile-nav-label">{item.mobileLabel}</span>
-              </NavLink>
+              </button>
             )
           })}
         </div>

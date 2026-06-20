@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -217,6 +218,28 @@ function formatPercent(value: string) {
   })}%`
 }
 
+
+function IconBack() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M15 18 9 12l6-6" />
+      <path d="M9 12h10" />
+    </svg>
+  )
+}
+
+function IconDetails() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 2.75h8.1L19 7.65V21.25H6V2.75Z" />
+      <path d="M14 2.75V8h5" />
+      <path d="M8.8 12h6.4" />
+      <path d="M8.8 15.1h6.4" />
+      <path d="M8.8 18.2h4.6" />
+    </svg>
+  )
+}
+
 export default function EditProject() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -227,6 +250,7 @@ export default function EditProject() {
   const [saving, setSaving] = useState(false)
   const [pageError, setPageError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [portalReady, setPortalReady] = useState(false)
 
   const coordinateStatus = useMemo(
     () => analyzeCoordinates(form.latitude, form.longitude),
@@ -242,6 +266,10 @@ export default function EditProject() {
     if (!form.risk_level || riskOptions.includes(form.risk_level)) return riskOptions
     return [form.risk_level, ...riskOptions]
   }, [form.risk_level])
+
+  useEffect(() => {
+    setPortalReady(true)
+  }, [])
 
   useEffect(() => {
     if (!isAdmin) {
@@ -484,18 +512,6 @@ export default function EditProject() {
           </p>
         </div>
 
-        <div className="edit-project-hero-actions">
-          <Link
-            to={`/projects/${id}`}
-            className="edit-project-button edit-project-button-secondary"
-          >
-            View Details
-          </Link>
-
-          <Link to="/projects" className="edit-project-button edit-project-button-light">
-            Back to Projects
-          </Link>
-        </div>
       </section>
 
       <section className="edit-project-summary-grid">
@@ -515,8 +531,18 @@ export default function EditProject() {
         </div>
 
         <div className="edit-project-summary-card">
-          <span>Physical Progress</span>
+          <span>Physical</span>
           <strong>{formatPercent(form.physical_accomplishment)}</strong>
+        </div>
+
+        <div className="edit-project-summary-card">
+          <span>Financial</span>
+          <strong>{formatPercent(form.financial_accomplishment)}</strong>
+        </div>
+
+        <div className="edit-project-summary-card">
+          <span>Last Inspection</span>
+          <strong>{form.last_inspection_date || 'No Date'}</strong>
         </div>
       </section>
 
@@ -874,6 +900,33 @@ export default function EditProject() {
           </div>
         </div>
       </form>
+
+      {portalReady
+        ? createPortal(
+            <div className="edit-project-fab-stack" aria-label="Edit project quick actions">
+              <button
+                type="button"
+                className="edit-project-fab edit-project-fab-back"
+                onClick={() => navigate('/projects')}
+                aria-label="Back to projects"
+                title="Back to Projects"
+              >
+                <IconBack />
+              </button>
+
+              <button
+                type="button"
+                className="edit-project-fab edit-project-fab-details"
+                onClick={() => navigate(`/projects/${id}`)}
+                aria-label="View project details"
+                title="View Details"
+              >
+                <IconDetails />
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
     </main>
   )
 }
