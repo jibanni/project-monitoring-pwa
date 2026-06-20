@@ -4,6 +4,10 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
+import {
+  formatSignedVariance,
+  getTargetPhysicalInfo,
+} from '../utils/projectVariance'
 import '../styles/reports.css'
 import '../styles/pageHero.css'
 
@@ -19,6 +23,9 @@ type ProjectRow = {
   budget: number | string | null
   start_date: string | null
   target_completion_date: string | null
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
   barangay: string | null
   municipality: string | null
   province: string | null
@@ -102,6 +109,10 @@ function getRiskClass(risk: string | null) {
 
 function cleanFilename(value: string) {
   return value.replace(/[^a-z0-9-_]+/gi, '-').replace(/-+/g, '-').toLowerCase()
+}
+
+function getProjectVariance(project: ProjectRow) {
+  return getTargetPhysicalInfo(project)
 }
 
 function SearchIcon() {
@@ -372,27 +383,35 @@ export default function Reports() {
           'Cost',
           'Status',
           'Risk',
-          'Physical',
+          'Actual',
+          'Target',
+          'Variance',
           'Financial',
           'Last Inspection',
         ],
       ],
-      body: reportProjects.map((project) => [
-        textValue(project.project_name) || 'Untitled Project',
-        textValue(project.province) || '-',
-        textValue(project.municipality) || '-',
-        textValue(project.barangay) || '-',
-        textValue(project.funding_source || project.project_type) || '-',
-        formatCurrency(project.budget),
-        textValue(project.status) || '-',
-        textValue(project.risk_level) || '-',
-        formatPercent(project.physical_accomplishment),
-        formatPercent(project.financial_accomplishment),
-        formatLongDate(project.last_inspection_date),
-      ]),
+      body: reportProjects.map((project) => {
+        const varianceInfo = getProjectVariance(project)
+
+        return [
+          textValue(project.project_name) || 'Untitled Project',
+          textValue(project.province) || '-',
+          textValue(project.municipality) || '-',
+          textValue(project.barangay) || '-',
+          textValue(project.funding_source || project.project_type) || '-',
+          formatCurrency(project.budget),
+          textValue(project.status) || '-',
+          textValue(project.risk_level) || '-',
+          formatPercent(varianceInfo.actualPhysical),
+          formatPercent(varianceInfo.targetPhysical),
+          formatSignedVariance(varianceInfo.variance),
+          formatPercent(project.financial_accomplishment),
+          formatLongDate(project.last_inspection_date),
+        ]
+      }),
       styles: {
-        fontSize: 7,
-        cellPadding: 2,
+        fontSize: 6.6,
+        cellPadding: 1.8,
         overflow: 'linebreak',
       },
       headStyles: {
@@ -404,9 +423,13 @@ export default function Reports() {
         fillColor: [245, 247, 250],
       },
       columnStyles: {
-        0: { cellWidth: 45 },
-        4: { cellWidth: 32 },
-        5: { cellWidth: 28 },
+        0: { cellWidth: 40 },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 25 },
+        8: { cellWidth: 17 },
+        9: { cellWidth: 17 },
+        10: { cellWidth: 19 },
+        11: { cellWidth: 18 },
       },
       didDrawPage: () => {
         const pageCount = doc.getNumberOfPages()
@@ -428,27 +451,33 @@ export default function Reports() {
   }
 
   function exportExcelReport() {
-    const rows = reportProjects.map((project) => ({
-      Project: textValue(project.project_name) || 'Untitled Project',
-      Description: textValue(project.description),
-      Province: textValue(project.province),
-      Municipality: textValue(project.municipality),
-      Barangay: textValue(project.barangay),
-      'Funding Source': textValue(project.funding_source),
-      'Project Type': textValue(project.project_type),
-      'Implementing Office': textValue(project.implementing_office),
-      Contractor: textValue(project.contractor),
-      'Project Cost': toNumber(project.budget),
-      Status: textValue(project.status),
-      'Risk Level': textValue(project.risk_level),
-      'Physical Accomplishment': toNumber(project.physical_accomplishment),
-      'Financial Accomplishment': toNumber(project.financial_accomplishment),
-      'Start Date': formatLongDate(project.start_date),
-      'Target Completion Date': formatLongDate(project.target_completion_date),
-      'Last Inspection Date': formatLongDate(project.last_inspection_date),
-      Latitude: textValue(project.latitude),
-      Longitude: textValue(project.longitude),
-    }))
+    const rows = reportProjects.map((project) => {
+      const varianceInfo = getProjectVariance(project)
+
+      return {
+        Project: textValue(project.project_name) || 'Untitled Project',
+        Description: textValue(project.description),
+        Province: textValue(project.province),
+        Municipality: textValue(project.municipality),
+        Barangay: textValue(project.barangay),
+        'Funding Source': textValue(project.funding_source),
+        'Project Type': textValue(project.project_type),
+        'Implementing Office': textValue(project.implementing_office),
+        Contractor: textValue(project.contractor),
+        'Project Cost': toNumber(project.budget),
+        Status: textValue(project.status),
+        'Risk Level': textValue(project.risk_level),
+        'Actual Physical': Number(varianceInfo.actualPhysical.toFixed(2)),
+        'Target Physical': Number(varianceInfo.targetPhysical.toFixed(2)),
+        Variance: Number(varianceInfo.variance.toFixed(2)),
+        'Financial Accomplishment': toNumber(project.financial_accomplishment),
+        'Start Date': formatLongDate(project.start_date),
+        'Target Completion Date': formatLongDate(project.target_completion_date),
+        'Last Inspection Date': formatLongDate(project.last_inspection_date),
+        Latitude: textValue(project.latitude),
+        Longitude: textValue(project.longitude),
+      }
+    })
 
     const summaryRows = [
       ['DILG-PDMU Project Monitoring Report'],
@@ -703,94 +732,120 @@ export default function Reports() {
                         <th>Project Cost</th>
                         <th>Status</th>
                         <th>Risk</th>
-                        <th>Physical</th>
+                        <th>Actual</th>
+                        <th>Target</th>
+                        <th>Variance</th>
                         <th>Financial</th>
                         <th>Last Inspection</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {filteredProjects.map((project) => (
-                        <tr key={project.id}>
-                          <td>
-                            <strong>{textValue(project.project_name) || 'Untitled Project'}</strong>
-                            <span>{textValue(project.project_type) || 'No project type'}</span>
-                          </td>
-                          <td>
-                            <strong>
-                              {textValue(project.municipality) || 'No Municipality'}
-                            </strong>
-                            <span>
-                              {textValue(project.barangay) || 'No Barangay'},{' '}
-                              {textValue(project.province) || 'No Province'}
-                            </span>
-                          </td>
-                          <td>{textValue(project.funding_source) || '-'}</td>
-                          <td>{formatCurrency(project.budget)}</td>
-                          <td>
-                            <span className={`reports-status ${getStatusClass(project.status)}`}>
-                              {textValue(project.status) || 'No Status'}
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
-                              {textValue(project.risk_level) || 'No Risk'}
-                            </span>
-                          </td>
-                          <td>{formatPercent(project.physical_accomplishment)}</td>
-                          <td>{formatPercent(project.financial_accomplishment)}</td>
-                          <td>{formatLongDate(project.last_inspection_date)}</td>
-                        </tr>
-                      ))}
+                      {filteredProjects.map((project) => {
+                        const varianceInfo = getProjectVariance(project)
+
+                        return (
+                          <tr key={project.id}>
+                            <td>
+                              <strong>{textValue(project.project_name) || 'Untitled Project'}</strong>
+                              <span>{textValue(project.project_type) || 'No project type'}</span>
+                            </td>
+                            <td>
+                              <strong>
+                                {textValue(project.municipality) || 'No Municipality'}
+                              </strong>
+                              <span>
+                                {textValue(project.barangay) || 'No Barangay'},{' '}
+                                {textValue(project.province) || 'No Province'}
+                              </span>
+                            </td>
+                            <td>{textValue(project.funding_source) || '-'}</td>
+                            <td>{formatCurrency(project.budget)}</td>
+                            <td>
+                              <span className={`reports-status ${getStatusClass(project.status)}`}>
+                                {textValue(project.status) || 'No Status'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
+                                {textValue(project.risk_level) || 'No Risk'}
+                              </span>
+                            </td>
+                            <td>{formatPercent(varianceInfo.actualPhysical)}</td>
+                            <td>{formatPercent(varianceInfo.targetPhysical)}</td>
+                            <td>
+                              <span className={`reports-variance ${varianceInfo.className}`}>
+                                {formatSignedVariance(varianceInfo.variance)}
+                              </span>
+                            </td>
+                            <td>{formatPercent(project.financial_accomplishment)}</td>
+                            <td>{formatLongDate(project.last_inspection_date)}</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
 
                 <div className="reports-mobile-list">
-                  {filteredProjects.map((project) => (
-                    <article key={project.id} className="reports-mobile-card">
-                      <div>
-                        <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
-                        <p>
-                          {textValue(project.barangay) || 'No Barangay'},{' '}
-                          {textValue(project.municipality) || 'No Municipality'},{' '}
-                          {textValue(project.province) || 'No Province'}
-                        </p>
-                      </div>
+                  {filteredProjects.map((project) => {
+                    const varianceInfo = getProjectVariance(project)
 
-                      <div className="reports-mobile-badges">
-                        <span className={`reports-status ${getStatusClass(project.status)}`}>
-                          {textValue(project.status) || 'No Status'}
-                        </span>
-                        <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
-                          {textValue(project.risk_level) || 'No Risk'}
-                        </span>
-                      </div>
+                    return (
+                      <article key={project.id} className="reports-mobile-card">
+                        <div>
+                          <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
+                          <p>
+                            {textValue(project.barangay) || 'No Barangay'},{' '}
+                            {textValue(project.municipality) || 'No Municipality'},{' '}
+                            {textValue(project.province) || 'No Province'}
+                          </p>
+                        </div>
 
-                      <div className="reports-mobile-grid">
-                        <span>
-                          <strong>Funding</strong>
-                          {textValue(project.funding_source) || '-'}
-                        </span>
-                        <span>
-                          <strong>Cost</strong>
-                          {formatCurrency(project.budget)}
-                        </span>
-                        <span>
-                          <strong>Physical</strong>
-                          {formatPercent(project.physical_accomplishment)}
-                        </span>
-                        <span>
-                          <strong>Financial</strong>
-                          {formatPercent(project.financial_accomplishment)}
-                        </span>
-                        <span>
-                          <strong>Last Inspection</strong>
-                          {formatLongDate(project.last_inspection_date)}
-                        </span>
-                      </div>
-                    </article>
-                  ))}
+                        <div className="reports-mobile-badges">
+                          <span className={`reports-status ${getStatusClass(project.status)}`}>
+                            {textValue(project.status) || 'No Status'}
+                          </span>
+                          <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
+                            {textValue(project.risk_level) || 'No Risk'}
+                          </span>
+                        </div>
+
+                        <div className="reports-mobile-grid">
+                          <span>
+                            <strong>Funding</strong>
+                            {textValue(project.funding_source) || '-'}
+                          </span>
+                          <span>
+                            <strong>Cost</strong>
+                            {formatCurrency(project.budget)}
+                          </span>
+                          <span>
+                            <strong>Actual</strong>
+                            {formatPercent(varianceInfo.actualPhysical)}
+                          </span>
+                          <span>
+                            <strong>Target</strong>
+                            {formatPercent(varianceInfo.targetPhysical)}
+                          </span>
+                          <span>
+                            <strong>Variance</strong>
+                            <em className={`reports-variance ${varianceInfo.className}`}>
+                              {formatSignedVariance(varianceInfo.variance)}
+                            </em>
+                          </span>
+                          <span>
+                            <strong>Financial</strong>
+                            {formatPercent(project.financial_accomplishment)}
+                          </span>
+                          <span>
+                            <strong>Last Inspection</strong>
+                            {formatLongDate(project.last_inspection_date)}
+                          </span>
+                        </div>
+                      </article>
+                    )
+                  })}
                 </div>
               </>
             )}

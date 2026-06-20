@@ -10,6 +10,10 @@ import {
 } from 'recharts'
 
 import { supabase } from '../lib/supabase'
+import {
+  formatSignedVariance,
+  getTargetPhysicalInfo,
+} from '../utils/projectVariance'
 import '../styles/dashboard.css'
 
 type ProjectRecord = Record<string, any>
@@ -194,26 +198,7 @@ function getFundingSource(project: ProjectRecord) {
   )
 }
 
-function getImplementingOffice(project: ProjectRecord) {
-  return safeText(
-    project.implementing_office ??
-      project.implementing_agency ??
-      project.office ??
-      project.contractor ??
-      project.implementer,
-    'N/A',
-  )
-}
 
-function getTargetCompletion(project: ProjectRecord) {
-  return (
-    project.target_completion_date ??
-    project.target_completion ??
-    project.completion_date ??
-    project.end_date ??
-    project.date_completion
-  )
-}
 
 function getPhysicalProgress(project: ProjectRecord) {
   return asNumber(
@@ -535,6 +520,7 @@ export default function Dashboard() {
 
   function renderProjectCard(project: ProjectRecord) {
     const projectId = getProjectId(project)
+    const varianceInfo = getTargetPhysicalInfo(project)
 
     return (
       <article
@@ -588,13 +574,15 @@ export default function Dashboard() {
           </div>
 
           <div>
-            <span>Office</span>
-            <strong>{getImplementingOffice(project)}</strong>
+            <span>Actual Physical</span>
+            <strong>{formatPercent(getPhysicalProgress(project))}</strong>
           </div>
 
           <div>
-            <span>Target</span>
-            <strong>{formatDate(getTargetCompletion(project))}</strong>
+            <span>Variance</span>
+            <strong className={`dashboard-variance-value ${varianceInfo.className}`}>
+              {varianceInfo.label}
+            </strong>
           </div>
         </div>
 
@@ -779,26 +767,32 @@ export default function Dashboard() {
 
             <div className="dashboard-project-list">
               {dashboardData.highRiskProjects.slice(0, 5).length > 0 ? (
-                dashboardData.highRiskProjects.slice(0, 5).map((project) => (
-                  <button
-                    type="button"
-                    key={getProjectId(project) || getProjectName(project)}
-                    onClick={() =>
-                      openDrilldown(
-                        getProjectName(project),
-                        'Selected high risk project record.',
-                        [project],
-                      )
-                    }
-                  >
-                    <div>
-                      <strong>{getProjectName(project)}</strong>
-                      <span>{getLocation(project)}</span>
-                    </div>
+                dashboardData.highRiskProjects.slice(0, 5).map((project) => {
+                  const varianceInfo = getTargetPhysicalInfo(project)
 
-                    <em>{formatPercent(getPhysicalProgress(project))}</em>
-                  </button>
-                ))
+                  return (
+                    <button
+                      type="button"
+                      key={getProjectId(project) || getProjectName(project)}
+                      onClick={() =>
+                        openDrilldown(
+                          getProjectName(project),
+                          'Selected high risk project record.',
+                          [project],
+                        )
+                      }
+                    >
+                      <div>
+                        <strong>{getProjectName(project)}</strong>
+                        <span>{getLocation(project)}</span>
+                      </div>
+
+                      <em className={`dashboard-slippage-em ${varianceInfo.className}`}>
+                        {formatSignedVariance(varianceInfo.variance)}
+                      </em>
+                    </button>
+                  )
+                })
               ) : (
                 <div className="dashboard-empty-state compact">
                   <strong>No high risk projects</strong>

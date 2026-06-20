@@ -5,6 +5,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { offlineDb } from '../lib/offlineDb'
 import { useAuth } from '../context/AuthContext'
+import {
+  formatProgressInput,
+  getAutoTargetPhysical,
+  getTargetPhysicalInfo,
+} from '../utils/projectVariance'
 import '../styles/projectUpdates.css'
 
 type ProjectRecord = {
@@ -26,6 +31,9 @@ type ProjectRecord = {
   longitude?: number | string | null
   physical_accomplishment?: number | string | null
   financial_accomplishment?: number | string | null
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
   risk_level?: string | null
   last_inspection_date?: string | null
   updated_at?: string | null
@@ -38,6 +46,9 @@ type ProjectUpdateRecord = {
   inspection_date?: string | null
   physical_accomplishment?: number | string | null
   financial_accomplishment?: number | string | null
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
   risk_level?: string | null
   issues?: string | null
   recommendations?: string | null
@@ -55,6 +66,8 @@ type ProjectUpdateInsert = {
   inspection_date: string
   physical_accomplishment: number
   financial_accomplishment: number
+  target_physical_accomplishment: number
+  target_physical_source: string
   risk_level: string
   issues: string | null
   recommendations: string | null
@@ -83,7 +96,7 @@ type CoordinateResult = {
 
 const PHOTO_BUCKET = 'project-photos'
 const MAX_PHOTOS_PER_UPDATE = 10
-const RECENT_UPDATE_LIMIT = 5
+const RECENT_UPDATE_LIMIT = 4
 
 const statusOptions = [
   'Not Yet Started',
@@ -141,18 +154,6 @@ function clampProgress(value: unknown) {
 
 function formatPercent(value: unknown) {
   return `${clampProgress(value).toFixed(2)}%`
-}
-
-function formatCurrency(value: unknown) {
-  const amount = toNumber(value)
-
-  return (
-    'Php ' +
-    amount.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  )
 }
 
 function formatLongDate(value?: string | null) {
@@ -448,6 +449,8 @@ export default function ProjectUpdates() {
   const [inspectionDate, setInspectionDate] = useState(todayInputValue())
   const [projectStatus, setProjectStatus] = useState('Ongoing')
   const [physicalAccomplishment, setPhysicalAccomplishment] = useState('')
+  const [targetPhysicalAccomplishment, setTargetPhysicalAccomplishment] = useState('')
+  const [targetPhysicalSource, setTargetPhysicalSource] = useState<'auto' | 'manual'>('auto')
   const [financialAccomplishment, setFinancialAccomplishment] = useState('')
   const [riskLevel, setRiskLevel] = useState('Low')
   const [issues, setIssues] = useState('')
@@ -470,6 +473,28 @@ export default function ProjectUpdates() {
     () => clampProgress(project?.financial_accomplishment),
     [project?.financial_accomplishment]
   )
+
+  const targetVarianceInfo = useMemo(() => {
+    return getTargetPhysicalInfo(
+      {
+        ...(project || {}),
+        physical_accomplishment:
+          physicalAccomplishment === ''
+            ? project?.physical_accomplishment
+            : physicalAccomplishment,
+        target_physical_accomplishment: targetPhysicalAccomplishment,
+        target_physical_as_of: inspectionDate,
+        target_physical_source: targetPhysicalSource,
+      },
+      inspectionDate,
+    )
+  }, [
+    project,
+    physicalAccomplishment,
+    targetPhysicalAccomplishment,
+    targetPhysicalSource,
+    inspectionDate,
+  ])
 
   const inspectionCoordinateStatus = useMemo(() => {
     return normalizeCoordinatePair(inspectionLatitude, inspectionLongitude)
@@ -507,6 +532,14 @@ export default function ProjectUpdates() {
       setSaveMode('offline')
     }
   }, [online])
+
+  useEffect(() => {
+    if (targetPhysicalSource !== 'auto' || !project) return
+
+    setTargetPhysicalAccomplishment(
+      formatProgressInput(getAutoTargetPhysical(project, inspectionDate)),
+    )
+  }, [project, inspectionDate, targetPhysicalSource])
 
   useEffect(() => {
     loadData()
@@ -547,6 +580,41 @@ export default function ProjectUpdates() {
     }
   }, [])
 
+
+  function applyTargetPhysicalFromProject(projectRecord: ProjectRecord | null) {
+    if (!projectRecord) {
+      setTargetPhysicalSource('auto')
+      setTargetPhysicalAccomplishment('0')
+      return
+    }
+
+    const storedTarget = String(projectRecord.target_physical_accomplishment ?? '').trim()
+    const storedSource = String(projectRecord.target_physical_source || '').toLowerCase()
+
+    if (storedTarget && storedSource !== 'auto') {
+      setTargetPhysicalSource('manual')
+      setTargetPhysicalAccomplishment(formatProgressInput(storedTarget))
+      return
+    }
+
+    setTargetPhysicalSource('auto')
+    setTargetPhysicalAccomplishment(
+      formatProgressInput(getAutoTargetPhysical(projectRecord, inspectionDate)),
+    )
+  }
+
+  function handleTargetPhysicalChange(value: string) {
+    setTargetPhysicalSource('manual')
+    setTargetPhysicalAccomplishment(value)
+  }
+
+  function resetTargetPhysicalToAuto() {
+    setTargetPhysicalSource('auto')
+    setTargetPhysicalAccomplishment(
+      formatProgressInput(getAutoTargetPhysical(project, inspectionDate)),
+    )
+  }
+
   async function loadData() {
     if (!id) return
 
@@ -566,6 +634,7 @@ export default function ProjectUpdates() {
         }
 
         setProject(projectData as ProjectRecord)
+        applyTargetPhysicalFromProject(projectData as ProjectRecord)
         setProjectStatus(projectData?.status || 'Ongoing')
         setPhysicalAccomplishment(
           projectData?.physical_accomplishment !== null &&
@@ -619,6 +688,7 @@ export default function ProjectUpdates() {
 
     if (cachedProject) {
       setProject(cachedProject)
+      applyTargetPhysicalFromProject(cachedProject as ProjectRecord)
       setProjectStatus(cachedProject?.status || 'Ongoing')
       setPhysicalAccomplishment(
         cachedProject?.physical_accomplishment !== null &&
@@ -815,15 +885,24 @@ export default function ProjectUpdates() {
       return 'Please enter the physical accomplishment.'
     }
 
+    if (targetPhysicalAccomplishment === '') {
+      return 'Please enter the target physical accomplishment.'
+    }
+
     if (financialAccomplishment === '') {
       return 'Please enter the financial accomplishment.'
     }
 
     const physical = toNumber(physicalAccomplishment)
+    const targetPhysical = toNumber(targetPhysicalAccomplishment)
     const financial = toNumber(financialAccomplishment)
 
     if (physical < 0 || physical > 100) {
       return 'Physical accomplishment must be between 0 and 100.'
+    }
+
+    if (targetPhysical < 0 || targetPhysical > 100) {
+      return 'Target physical accomplishment must be between 0 and 100.'
     }
 
     if (financial < 0 || financial > 100) {
@@ -854,6 +933,8 @@ export default function ProjectUpdates() {
       engineer_id: auth?.user?.id || auth?.profile?.id || null,
       inspection_date: inspectionDate,
       physical_accomplishment: clampProgress(physicalAccomplishment),
+      target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
+      target_physical_source: targetPhysicalSource,
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: riskLevel,
       issues: cleanText(issues),
@@ -943,6 +1024,9 @@ export default function ProjectUpdates() {
     const projectPatch = {
       status: projectStatus,
       physical_accomplishment: clampProgress(physicalAccomplishment),
+      target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
+      target_physical_as_of: inspectionDate,
+      target_physical_source: targetPhysicalSource,
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: riskLevel,
       last_inspection_date: inspectionDate,
@@ -1089,6 +1173,9 @@ export default function ProjectUpdates() {
     await updateCachedProject(projectId, {
       status: projectStatus,
       physical_accomplishment: clampProgress(physicalAccomplishment),
+      target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
+      target_physical_as_of: inspectionDate,
+      target_physical_source: targetPhysicalSource,
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: riskLevel,
       last_inspection_date: inspectionDate,
@@ -1110,6 +1197,10 @@ export default function ProjectUpdates() {
     setGpsMessage('')
     setInspectionLatitude('')
     setInspectionLongitude('')
+    setTargetPhysicalSource('auto')
+    setTargetPhysicalAccomplishment(
+      formatProgressInput(getAutoTargetPhysical(project, todayInputValue())),
+    )
 
     photoInputs.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
     setPhotoInputs([])
@@ -1162,6 +1253,9 @@ export default function ProjectUpdates() {
           <span className={`pu-badge ${getStatusClass(project?.status)}`}>
             {project?.status || 'No Status'}
           </span>
+          <span className={`pu-badge pu-variance-badge ${targetVarianceInfo.className}`}>
+            {targetVarianceInfo.compactLabel}
+          </span>
           <span className={`pu-badge ${getRiskClass(project?.risk_level)}`}>
             {project?.risk_level || 'No Risk'}
           </span>
@@ -1183,20 +1277,22 @@ export default function ProjectUpdates() {
 
       <section className="pu-summary-grid">
         <div className="pu-summary-card pu-progress-summary">
-          <span>Current Physical</span>
+          <span>Physical</span>
           <strong>{formatPercent(currentPhysical)}</strong>
         </div>
         <div className="pu-summary-card pu-progress-summary">
-          <span>Current Financial</span>
+          <span>Financial</span>
           <strong>{formatPercent(currentFinancial)}</strong>
         </div>
         <div className="pu-summary-card">
-          <span>Project Cost</span>
-          <strong>{formatCurrency(project?.budget)}</strong>
+          <span>Target</span>
+          <strong>{formatPercent(targetVarianceInfo.targetPhysical)}</strong>
         </div>
-        <div className="pu-summary-card">
-          <span>Last Inspection</span>
-          <strong>{formatLongDate(project?.last_inspection_date)}</strong>
+        <div className="pu-summary-card pu-variance-summary">
+          <span>Variance</span>
+          <strong className={targetVarianceInfo.className}>
+            {targetVarianceInfo.label}
+          </strong>
         </div>
       </section>
 
@@ -1291,6 +1387,21 @@ export default function ProjectUpdates() {
             </label>
 
             <label className="pu-field">
+              <span>Target Physical (%)</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                inputMode="decimal"
+                value={targetPhysicalAccomplishment}
+                onChange={(event) => handleTargetPhysicalChange(event.target.value)}
+                placeholder="Auto target"
+                required
+              />
+            </label>
+
+            <label className="pu-field">
               <span>Financial Accomplishment (%)</span>
               <input
                 type="number"
@@ -1321,6 +1432,21 @@ export default function ProjectUpdates() {
                 ))}
               </select>
             </label>
+          </div>
+
+          <div className={`pu-variance-preview ${targetVarianceInfo.className}`}>
+            <div>
+              <span>Variance</span>
+              <strong>{targetVarianceInfo.label}</strong>
+            </div>
+
+            <button
+              type="button"
+              onClick={resetTargetPhysicalToAuto}
+              disabled={saving || targetPhysicalSource === 'auto'}
+            >
+              Use Auto Target
+            </button>
           </div>
 
           <div className="pu-gps-card pu-gps-simple-card">
@@ -1573,6 +1699,21 @@ export default function ProjectUpdates() {
                     <p>
                       Physical: {formatPercent(update.physical_accomplishment)}
                     </p>
+                    <p>
+                      Target: {formatPercent(getTargetPhysicalInfo(update, update.inspection_date).targetPhysical)}
+                    </p>
+                    {(() => {
+                      const updateVariance = getTargetPhysicalInfo(update, update.inspection_date)
+
+                      return (
+                        <p>
+                          Variance:{' '}
+                          <strong className={updateVariance.className}>
+                            {updateVariance.label}
+                          </strong>
+                        </p>
+                      )
+                    })()}
                     <p>
                       Financial:{' '}
                       {formatPercent(update.financial_accomplishment)}

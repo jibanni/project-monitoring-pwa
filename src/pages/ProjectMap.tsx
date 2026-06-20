@@ -14,6 +14,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/projectMap.css'
 import '../styles/pageHero.css'
 
@@ -53,6 +54,9 @@ type ProjectRecord = {
   financial_accomplishment: number | null
   risk_level: string | null
   last_inspection_date: string | null
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
   updated_at: string | null
 }
 
@@ -229,20 +233,6 @@ function buildMapProject(
     latestUpdateGps: newestUpdate,
     coordinateIssue: getCoordinateIssue(project, newestUpdate),
   }
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return 'No date recorded'
-
-  const parsed = new Date(value)
-
-  if (Number.isNaN(parsed.getTime())) return 'No date recorded'
-
-  return parsed.toLocaleDateString('en-PH', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
 }
 
 function formatPhpCompact(value: number | null | undefined) {
@@ -980,7 +970,10 @@ export default function ProjectMap() {
                     showCoverageOnHover={false}
                     spiderfyOnMaxZoom
                   >
-                    {displayedProjects.map((project) => (
+                    {displayedProjects.map((project) => {
+                      const varianceInfo = getTargetPhysicalInfo(project)
+
+                      return (
                       <Marker
                         key={`${project.id}-${project.displayLatitude}-${project.displayLongitude}-${project.coordinateSource}-${project.coordinateDate || ''}`}
                         position={[
@@ -1030,13 +1023,10 @@ export default function ProjectMap() {
                               </div>
 
                               <div>
-                                <dt>GPS Source</dt>
-                                <dd>{project.coordinateLabel}</dd>
-                              </div>
-
-                              <div>
-                                <dt>GPS Date</dt>
-                                <dd>{formatDate(project.coordinateDate)}</dd>
+                                <dt>Variance</dt>
+                                <dd className={`pm-map-variance ${varianceInfo.className}`}>
+                                  {varianceInfo.label}
+                                </dd>
                               </div>
                             </dl>
 
@@ -1044,7 +1034,8 @@ export default function ProjectMap() {
                           </div>
                         </Popup>
                       </Marker>
-                    ))}
+                      )
+                    })}
                   </MarkerClusterGroup>
                 </MapContainer>
               )}
@@ -1064,7 +1055,10 @@ export default function ProjectMap() {
                 {displayedProjects.length === 0 && !loading ? (
                   <div className="pm-map-empty">No projects match the selected filters.</div>
                 ) : (
-                  displayedProjects.slice(0, 20).map((project) => (
+                  displayedProjects.map((project) => {
+                    const varianceInfo = getTargetPhysicalInfo(project)
+
+                    return (
                     <article className="pm-map-project-card" key={project.id}>
                       <div>
                         <span>{project.province || 'No Province'}</span>
@@ -1084,13 +1078,10 @@ export default function ProjectMap() {
 
                       <dl>
                         <div>
-                          <dt>GPS Source</dt>
-                          <dd>{project.coordinateLabel}</dd>
-                        </div>
-
-                        <div>
-                          <dt>GPS Date</dt>
-                          <dd>{formatDate(project.coordinateDate)}</dd>
+                          <dt>Variance</dt>
+                          <dd className={`pm-map-variance ${varianceInfo.className}`}>
+                            {varianceInfo.label}
+                          </dd>
                         </div>
 
                         <div>
@@ -1107,7 +1098,8 @@ export default function ProjectMap() {
                         )}
                       </div>
                     </article>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </section>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/projects.css'
 
 type ProjectRow = {
@@ -25,6 +26,9 @@ type ProjectRow = {
   financial_accomplishment: number | string | null
   risk_level: string | null
   last_inspection_date: string | null
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
   updated_at: string | null
 }
 
@@ -137,7 +141,9 @@ function SearchIcon() {
 function FilterIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 6.25A1.25 1.25 0 0 1 5.25 5h13.5a1.25 1.25 0 0 1 .95 2.06l-5.2 6.1v4.36a1.2 1.2 0 0 1-.66 1.07l-3 1.5A1.2 1.2 0 0 1 9.1 19.02v-5.86l-5.2-6.1A1.25 1.25 0 0 1 4 6.25Z" />
+      <path d="M4 6h16" />
+      <path d="M7 12h10" />
+      <path d="M10 18h4" />
     </svg>
   )
 }
@@ -616,6 +622,7 @@ export default function Projects() {
                 100,
                 Math.max(0, toNumber(project.financial_accomplishment)),
               )
+              const varianceInfo = getTargetPhysicalInfo(project)
 
               return (
                 <article key={project.id} className={getProjectCardClass(project.risk_level)}>
@@ -659,9 +666,12 @@ export default function Projects() {
                       <strong>{textValue(project.implementing_office) || '-'}</strong>
                     </div>
 
-                    <div className="project-info-item">
-                      <span>Contractor</span>
-                      <strong>{textValue(project.contractor) || '-'}</strong>
+                    <div className="project-info-item project-variance-item">
+                      <span>Variance</span>
+                      <strong className={`project-variance-value ${varianceInfo.className}`}>
+                        {varianceInfo.label}
+                      </strong>
+                      <small>{varianceInfo.asOfLabel}</small>
                     </div>
                   </div>
 

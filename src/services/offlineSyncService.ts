@@ -79,6 +79,8 @@ function buildOnlineUpdatePayload(update: OfflineProjectUpdate) {
     engineer_id: update.engineer_id || null,
     inspection_date: update.inspection_date,
     physical_accomplishment: toNumber(update.physical_accomplishment),
+    target_physical_accomplishment: toNumber(update.target_physical_accomplishment),
+    target_physical_source: textValue(update.target_physical_source) || 'manual',
     financial_accomplishment: toNumber(update.financial_accomplishment),
     risk_level: textValue(update.risk_level) || 'Low',
     issues: nullableText(update.issues),
@@ -97,6 +99,9 @@ function buildProjectPatch(update: OfflineProjectUpdate) {
   return {
     status: textValue(update.status) || 'Ongoing',
     physical_accomplishment: toNumber(update.physical_accomplishment),
+    target_physical_accomplishment: toNumber(update.target_physical_accomplishment),
+    target_physical_as_of: update.inspection_date,
+    target_physical_source: textValue(update.target_physical_source) || 'manual',
     financial_accomplishment: toNumber(update.financial_accomplishment),
     risk_level: textValue(update.risk_level) || 'Low',
     last_inspection_date: update.inspection_date,

@@ -9,6 +9,9 @@ export type OfflineProject = {
   province: string
   barangay: string
   physical_accomplishment: number
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
   financial_accomplishment: number
   risk_level: string
   project_type?: string
@@ -41,6 +44,9 @@ export type OfflineProjectUpdate = {
   inspection_date: string
   status: string
   physical_accomplishment: number
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
   financial_accomplishment: number
   risk_level: string
   issues: string | null

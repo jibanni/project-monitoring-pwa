@@ -876,3 +876,49 @@
     font-size: 1.18rem;
   }
 }
+/* Reports variance additions */
+.reports-table {
+  min-width: 1240px;
+}
+
+.reports-variance {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem !important;
+  font-weight: 950 !important;
+  font-style: normal;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.reports-variance.ahead {
+  color: #166534 !important;
+  background: #dcfce7;
+}
+
+.reports-variance.behind {
+  color: #b91c1c !important;
+  background: #fee2e2;
+}
+
+.reports-variance.on-track {
+  color: #1d4ed8 !important;
+  background: #dbeafe;
+}
+
+.reports-mobile-grid .reports-variance {
+  margin-top: 2px;
+}
+
+@media (max-width: 420px) {
+  .reports-variance {
+    min-height: 26px;
+    padding: 4px 9px;
+    font-size: 0.72rem !important;
+  }
+}

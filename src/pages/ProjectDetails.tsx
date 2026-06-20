@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { offlineDb } from '../lib/offlineDb'
+import { getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/projectDetails.css'
 import '../styles/pageHero.css'
 
@@ -265,6 +266,10 @@ export default function ProjectDetails() {
         province: onlineProject.province || '',
         barangay: onlineProject.barangay || '',
         physical_accomplishment: onlineProject.physical_accomplishment || 0,
+        target_physical_accomplishment:
+          onlineProject.target_physical_accomplishment ?? null,
+        target_physical_as_of: onlineProject.target_physical_as_of || '',
+        target_physical_source: onlineProject.target_physical_source || 'auto',
         financial_accomplishment: onlineProject.financial_accomplishment || 0,
         risk_level: onlineProject.risk_level || '',
         project_type: onlineProject.project_type || '',
@@ -340,6 +345,8 @@ export default function ProjectDetails() {
         ['Status', project.status || '-'],
         ['Risk Level', project.risk_level || '-'],
         ['Physical Accomplishment', `${project.physical_accomplishment || 0}%`],
+        ['Target Physical Accomplishment', `${getTargetPhysicalInfo(project).targetPhysical}%`],
+        ['Variance', getTargetPhysicalInfo(project).label],
         ['Financial Accomplishment', `${project.financial_accomplishment || 0}%`],
         ['Last Inspection Date', project.last_inspection_date || '-'],
         ['Start Date', project.start_date || '-'],
@@ -499,6 +506,7 @@ export default function ProjectDetails() {
 
   const statusClass = normalizeClassName(project?.status)
   const riskClass = normalizeClassName(project?.risk_level)
+  const varianceInfo = getTargetPhysicalInfo(project)
 
   if (loading) {
     return (
@@ -554,6 +562,9 @@ export default function ProjectDetails() {
         <div className="pd-status-panel">
           <span className={`pd-status-badge pd-status-${statusClass}`}>
             {getDisplayValue(project.status, 'No Status')}
+          </span>
+          <span className={`pd-variance-badge ${varianceInfo.className}`}>
+            {varianceInfo.compactLabel}
           </span>
           <span className={`pd-risk-badge pd-risk-${riskClass}`}>
             {getDisplayValue(project.risk_level, 'No Risk')}
