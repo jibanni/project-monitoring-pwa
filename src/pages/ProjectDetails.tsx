@@ -80,6 +80,14 @@ function normalizeClassName(value: unknown) {
   return normalized || 'unknown'
 }
 
+
+function getRiskLevelFromVariance(variance: number) {
+  if (!Number.isFinite(variance) || variance >= 0) return 'None'
+  if (variance >= -5) return 'Low'
+  if (variance > -10) return 'Moderate'
+  return 'High'
+}
+
 function sanitizeFileName(value: string) {
   return value
     .replace(/[\\/:*?"<>|]/g, '-')
@@ -505,8 +513,9 @@ export default function ProjectDetails() {
   )
 
   const statusClass = normalizeClassName(project?.status)
-  const riskClass = normalizeClassName(project?.risk_level)
   const varianceInfo = getTargetPhysicalInfo(project)
+  const computedRiskLevel = getRiskLevelFromVariance(varianceInfo.variance)
+  const riskClass = normalizeClassName(computedRiskLevel)
 
   if (loading) {
     return (
@@ -567,7 +576,7 @@ export default function ProjectDetails() {
             {varianceInfo.compactLabel}
           </span>
           <span className={`pd-risk-badge pd-risk-${riskClass}`}>
-            {getDisplayValue(project.risk_level, 'No Risk')}
+            {computedRiskLevel}
           </span>
         </div>
       </header>

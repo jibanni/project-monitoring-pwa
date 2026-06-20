@@ -106,8 +106,6 @@ const statusOptions = [
   'Delayed',
 ]
 
-const riskOptions = ['Low', 'Moderate', 'High']
-
 const offlineUpdateTables = [
   'offlineUpdates',
   'offline_updates',
@@ -353,6 +351,13 @@ function getStatusClass(status?: string | null) {
   return 'pu-badge-neutral'
 }
 
+function getAutoRiskLevelFromVariance(variance: number) {
+  if (!Number.isFinite(variance) || variance >= 0) return 'None'
+  if (variance >= -5) return 'Low'
+  if (variance > -10) return 'Moderate'
+  return 'High'
+}
+
 function getGpsErrorMessage(error: GeolocationPositionError) {
   if (!window.isSecureContext) {
     return 'GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
@@ -452,7 +457,6 @@ export default function ProjectUpdates() {
   const [targetPhysicalAccomplishment, setTargetPhysicalAccomplishment] = useState('')
   const [targetPhysicalSource, setTargetPhysicalSource] = useState<'auto' | 'manual'>('auto')
   const [financialAccomplishment, setFinancialAccomplishment] = useState('')
-  const [riskLevel, setRiskLevel] = useState('Low')
   const [issues, setIssues] = useState('')
   const [recommendations, setRecommendations] = useState('')
   const [remarks, setRemarks] = useState('')
@@ -495,6 +499,11 @@ export default function ProjectUpdates() {
     targetPhysicalSource,
     inspectionDate,
   ])
+
+  const autoRiskLevel = useMemo(
+    () => getAutoRiskLevelFromVariance(targetVarianceInfo.variance),
+    [targetVarianceInfo.variance],
+  )
 
   const inspectionCoordinateStatus = useMemo(() => {
     return normalizeCoordinatePair(inspectionLatitude, inspectionLongitude)
@@ -648,7 +657,6 @@ export default function ProjectUpdates() {
             ? String(projectData.financial_accomplishment)
             : ''
         )
-        setRiskLevel(projectData?.risk_level || 'Low')
 
         const { data: updatesData, error: updatesError } = await supabase
           .from('project_updates')
@@ -702,7 +710,6 @@ export default function ProjectUpdates() {
           ? String(cachedProject.financial_accomplishment)
           : ''
       )
-      setRiskLevel(cachedProject?.risk_level || 'Low')
     }
 
     const offlineUpdates = await readOfflineTable(offlineUpdateTables)
@@ -909,10 +916,6 @@ export default function ProjectUpdates() {
       return 'Financial accomplishment must be between 0 and 100.'
     }
 
-    if (!riskLevel) {
-      return 'Please select the risk level.'
-    }
-
     const hasLatitude = inspectionLatitude.trim() !== ''
     const hasLongitude = inspectionLongitude.trim() !== ''
 
@@ -936,7 +939,7 @@ export default function ProjectUpdates() {
       target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
       target_physical_source: targetPhysicalSource,
       financial_accomplishment: clampProgress(financialAccomplishment),
-      risk_level: riskLevel,
+      risk_level: autoRiskLevel,
       issues: cleanText(issues),
       recommendations: cleanText(recommendations),
       remarks: cleanText(remarks),
@@ -1028,7 +1031,7 @@ export default function ProjectUpdates() {
       target_physical_as_of: inspectionDate,
       target_physical_source: targetPhysicalSource,
       financial_accomplishment: clampProgress(financialAccomplishment),
-      risk_level: riskLevel,
+      risk_level: autoRiskLevel,
       last_inspection_date: inspectionDate,
       ...latestCoordinatePatch,
       updated_at: currentTimestamp,
@@ -1177,7 +1180,7 @@ export default function ProjectUpdates() {
       target_physical_as_of: inspectionDate,
       target_physical_source: targetPhysicalSource,
       financial_accomplishment: clampProgress(financialAccomplishment),
-      risk_level: riskLevel,
+      risk_level: autoRiskLevel,
       last_inspection_date: inspectionDate,
       ...latestCoordinatePatch,
       updated_at: currentTimestamp,
@@ -1256,8 +1259,8 @@ export default function ProjectUpdates() {
           <span className={`pu-badge pu-variance-badge ${targetVarianceInfo.className}`}>
             {targetVarianceInfo.compactLabel}
           </span>
-          <span className={`pu-badge ${getRiskClass(project?.risk_level)}`}>
-            {project?.risk_level || 'No Risk'}
+          <span className={`pu-badge ${getRiskClass(autoRiskLevel)}`}>
+            {autoRiskLevel}
           </span>
         </div>
       </section>
@@ -1420,17 +1423,11 @@ export default function ProjectUpdates() {
 
             <label className="pu-field">
               <span>Risk Level</span>
-              <select
-                value={riskLevel}
-                onChange={(event) => setRiskLevel(event.target.value)}
-                required
-              >
-                {riskOptions.map((risk) => (
-                  <option key={risk} value={risk}>
-                    {risk}
-                  </option>
-                ))}
-              </select>
+              <div className="pu-readonly-risk">
+                <span className={`pu-badge ${getRiskClass(autoRiskLevel)}`}>
+                  {autoRiskLevel}
+                </span>
+              </div>
             </label>
           </div>
 

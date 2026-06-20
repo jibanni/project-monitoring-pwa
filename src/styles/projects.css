@@ -1049,3 +1049,42 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* =========================
+   VARIANCE / SLIPPAGE
+========================= */
+.project-variance-item small {
+  display: block;
+  margin-top: 0.18rem;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.project-variance-value {
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.project-variance-value.behind {
+  color: #b91c1c !important;
+}
+
+.project-variance-value.ahead {
+  color: #15803d !important;
+}
+
+.project-variance-value.on-track {
+  color: #0f477f !important;
+}
+
+.projects-filter-toggle svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

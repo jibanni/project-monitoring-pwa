@@ -901,3 +901,41 @@ body > .edit-project-fab-stack .edit-project-fab svg {
     font-size: 0.82rem !important;
   }
 }
+
+
+/* =========================================================
+   FINAL FIX — CENTER EDIT PROJECT FAB ICONS
+   Keeps edit-page floating buttons perfectly centered.
+========================================================= */
+body > .edit-project-fab-stack .edit-project-fab,
+body > .edit-project-fab-stack button,
+body > .edit-project-fab-stack a,
+.edit-project-fab,
+.edit-project-fab-stack button,
+.edit-project-fab-stack a {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  line-height: 0 !important;
+  text-align: center !important;
+}
+
+body > .edit-project-fab-stack .edit-project-fab svg,
+body > .edit-project-fab-stack button svg,
+body > .edit-project-fab-stack a svg,
+.edit-project-fab svg,
+.edit-project-fab-stack button svg,
+.edit-project-fab-stack a svg {
+  display: block !important;
+  width: 24px !important;
+  height: 24px !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  transform: none !important;
+}
+
+body > .edit-project-fab-stack .edit-project-fab-back svg,
+.edit-project-fab-back svg {
+  transform: translateX(-1px) !important;
+}

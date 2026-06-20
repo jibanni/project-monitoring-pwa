@@ -394,6 +394,14 @@
   border-color: #e2e8f0;
 }
 
+
+/* Auto risk display: positive/zero variance is risk NONE */
+.pd-risk-none {
+  color: #334155;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
 /* =========================
    SUMMARY
 ========================= */
@@ -2492,4 +2500,42 @@ body > .pd-viewport-titlebar h1 {
   body > .pd-viewport-titlebar {
     top: calc(74px + env(safe-area-inset-top)) !important;
   }
+}
+
+/* =========================
+   VARIANCE / SLIPPAGE BADGE
+========================= */
+.pd-variance-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  max-width: 100%;
+  padding: 0.58rem 0.92rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pd-variance-badge.behind {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.pd-variance-badge.ahead {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.pd-variance-badge.on-track {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
 }

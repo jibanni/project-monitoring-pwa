@@ -9,12 +9,11 @@ import {
   Tooltip,
   useMap,
 } from 'react-leaflet'
-import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/projectMap.css'
 import '../styles/pageHero.css'
 
@@ -317,12 +316,13 @@ function getStatusClass(status: string | null | undefined) {
 }
 
 function createProjectMarker(project: MapProject) {
-  const risk = normalizeText(project.risk_level).toLowerCase()
+  const risk = getComputedRiskLevel(project).toLowerCase()
 
-  let markerClass = 'pm-marker-low'
+  let markerClass = 'pm-marker-neutral'
 
-  if (risk.includes('high')) markerClass = 'pm-marker-high'
+  if (risk.includes('low')) markerClass = 'pm-marker-low'
   if (risk.includes('moderate')) markerClass = 'pm-marker-moderate'
+  if (risk.includes('high')) markerClass = 'pm-marker-high'
 
   return L.divIcon({
     className: 'pm-marker-wrapper',
@@ -334,21 +334,6 @@ function createProjectMarker(project: MapProject) {
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -18],
-  })
-}
-
-function createClusterIcon(cluster: any) {
-  const count = cluster.getChildCount()
-
-  return L.divIcon({
-    html: `
-      <div class="pm-cluster">
-        <span>${count}</span>
-      </div>
-    `,
-    className: 'pm-cluster-wrapper',
-    iconSize: L.point(50, 50, true),
-    iconAnchor: [25, 25],
   })
 }
 
@@ -389,6 +374,28 @@ function RefocusIcon() {
       <path d="M18 12h3" />
       <circle cx="12" cy="12" r="5.5" />
       <circle cx="12" cy="12" r="1.4" />
+    </svg>
+  )
+}
+
+function FullscreenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 10V4h6" />
+      <path d="M14 4h6v6" />
+      <path d="M20 14v6h-6" />
+      <path d="M10 20H4v-6" />
+    </svg>
+  )
+}
+
+function ExitFullscreenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M9 4v5H4" />
+      <path d="M15 4v5h5" />
+      <path d="M20 15h-5v5" />
+      <path d="M4 15h5v5" />
     </svg>
   )
 }
@@ -505,6 +512,7 @@ export default function ProjectMap() {
   const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const [focusSignal, setFocusSignal] = useState(0)
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false)
 
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('All')
@@ -546,6 +554,27 @@ export default function ProjectMap() {
     }
   }, [])
 
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsMapFullscreen(false)
+      }
+    }
+
+    if (isMapFullscreen) {
+      document.body.classList.add('pm-map-fullscreen-lock')
+    } else {
+      document.body.classList.remove('pm-map-fullscreen-lock')
+    }
+
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.body.classList.remove('pm-map-fullscreen-lock')
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [isMapFullscreen])
+
   async function loadMapProjects(isManualRefresh = false) {
     if (isManualRefresh) {
       setRefreshing(true)
@@ -578,6 +607,9 @@ export default function ProjectMap() {
           longitude,
           physical_accomplishment,
           financial_accomplishment,
+          target_physical_accomplishment,
+          target_physical_as_of,
+          target_physical_source,
           risk_level,
           last_inspection_date,
           updated_at
@@ -647,7 +679,7 @@ export default function ProjectMap() {
         programs.add(normalizeText(project.funding_source))
       }
       if (normalizeText(project.status)) statuses.add(normalizeText(project.status))
-      if (normalizeText(project.risk_level)) risks.add(normalizeText(project.risk_level))
+      risks.add(getComputedRiskLevel(project))
     })
 
     return {
@@ -674,7 +706,7 @@ export default function ProjectMap() {
         project.municipality,
         project.province,
         project.status,
-        project.risk_level,
+        getComputedRiskLevel(project),
       ]
         .map((value) => normalizeText(value).toLowerCase())
         .join(' ')
@@ -689,7 +721,7 @@ export default function ProjectMap() {
       const matchesStatus =
         statusFilter === 'All' || normalizeText(project.status) === statusFilter
       const matchesRisk =
-        riskFilter === 'All' || normalizeText(project.risk_level) === riskFilter
+        riskFilter === 'All' || getComputedRiskLevel(project) === riskFilter
 
       return (
         matchesSearch &&
@@ -745,6 +777,17 @@ export default function ProjectMap() {
 
   const mapFabs = (
     <div className="gis-map-fab-stack">
+      <button
+        type="button"
+        className="gis-fullscreen-fab-final"
+        onClick={() => setIsMapFullscreen((current) => !current)}
+        disabled={loading}
+        aria-label={isMapFullscreen ? 'Exit full screen map' : 'Open full screen map'}
+        title={isMapFullscreen ? 'Exit full screen' : 'Full screen map'}
+      >
+        {isMapFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+      </button>
+
       <button
         type="button"
         className="gis-refocus-fab-final"
@@ -924,6 +967,10 @@ export default function ProjectMap() {
 
             <div className="pm-map-legend">
               <span>
+                <i className="pm-legend-dot pm-legend-neutral" />
+                No Risk
+              </span>
+              <span>
                 <i className="pm-legend-dot pm-legend-low" />
                 Low Risk
               </span>
@@ -937,7 +984,7 @@ export default function ProjectMap() {
               </span>
             </div>
 
-            <div className="pm-map-shell">
+            <div className={`pm-map-shell ${isMapFullscreen ? 'is-map-fullscreen' : ''}`}>
               {loading ? (
                 <div className="pm-map-loading">Loading GIS map records...</div>
               ) : (
@@ -956,7 +1003,7 @@ export default function ProjectMap() {
                   />
 
                   <MapResizeWatcher
-                    trigger={`${displayedProjects.length}-${searchTerm}-${showFilters}`}
+                    trigger={`${displayedProjects.length}-${searchTerm}-${showFilters}-${isMapFullscreen}`}
                   />
 
                   <FitMapToMarkers
@@ -964,16 +1011,10 @@ export default function ProjectMap() {
                     focusSignal={focusSignal}
                   />
 
-                  <MarkerClusterGroup
-                    chunkedLoading
-                    iconCreateFunction={createClusterIcon}
-                    showCoverageOnHover={false}
-                    spiderfyOnMaxZoom
-                  >
-                    {displayedProjects.map((project) => {
-                      const varianceInfo = getTargetPhysicalInfo(project)
+                  {displayedProjects.map((project) => {
+                    const varianceInfo = getTargetPhysicalInfo(project)
 
-                      return (
+                    return (
                       <Marker
                         key={`${project.id}-${project.displayLatitude}-${project.displayLongitude}-${project.coordinateSource}-${project.coordinateDate || ''}`}
                         position={[
@@ -996,8 +1037,8 @@ export default function ProjectMap() {
                                 {project.status || 'No Status'}
                               </span>
 
-                              <span className={getRiskClass(project.risk_level)}>
-                                {project.risk_level || 'No Risk'}
+                              <span className={getRiskClass(getComputedRiskLevel(project))}>
+                                {getComputedRiskLevel(project)}
                               </span>
                             </div>
 
@@ -1025,8 +1066,13 @@ export default function ProjectMap() {
                               <div>
                                 <dt>Variance</dt>
                                 <dd className={`pm-map-variance ${varianceInfo.className}`}>
-                                  {varianceInfo.label}
+                                  {varianceInfo.compactLabel}
                                 </dd>
+                              </div>
+
+                              <div>
+                                <dt>As of</dt>
+                                <dd>{varianceInfo.asOfLabel.replace('As of ', '')}</dd>
                               </div>
                             </dl>
 
@@ -1034,9 +1080,8 @@ export default function ProjectMap() {
                           </div>
                         </Popup>
                       </Marker>
-                      )
-                    })}
-                  </MarkerClusterGroup>
+                    )
+                  })}
                 </MapContainer>
               )}
             </div>
@@ -1071,8 +1116,8 @@ export default function ProjectMap() {
                           {project.status || 'No Status'}
                         </span>
 
-                        <span className={getRiskClass(project.risk_level)}>
-                          {project.risk_level || 'No Risk'}
+                        <span className={getRiskClass(getComputedRiskLevel(project))}>
+                          {getComputedRiskLevel(project)}
                         </span>
                       </div>
 
@@ -1080,8 +1125,13 @@ export default function ProjectMap() {
                         <div>
                           <dt>Variance</dt>
                           <dd className={`pm-map-variance ${varianceInfo.className}`}>
-                            {varianceInfo.label}
+                            {varianceInfo.compactLabel}
                           </dd>
+                        </div>
+
+                        <div>
+                          <dt>As of</dt>
+                          <dd>{varianceInfo.asOfLabel.replace('As of ', '')}</dd>
                         </div>
 
                         <div>

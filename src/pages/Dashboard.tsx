@@ -12,6 +12,7 @@ import {
 import { supabase } from '../lib/supabase'
 import {
   formatSignedVariance,
+  getComputedRiskLevel,
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
 import '../styles/dashboard.css'
@@ -38,7 +39,6 @@ const CHART_COLORS = [
 ]
 
 const STATUS_FALLBACK = 'Not Yet Started'
-const RISK_FALLBACK = 'Unspecified'
 
 function safeText(value: unknown, fallback = 'N/A') {
   if (value === null || value === undefined) return fallback
@@ -165,13 +165,7 @@ function getStatus(project: ProjectRecord) {
 }
 
 function getRiskLevel(project: ProjectRecord) {
-  return safeText(
-    project.risk_level ??
-      project.risk ??
-      project.risk_status ??
-      project.project_risk_level,
-    RISK_FALLBACK,
-  )
+  return getComputedRiskLevel(project)
 }
 
 function getProjectCost(project: ProjectRecord) {
@@ -581,7 +575,7 @@ export default function Dashboard() {
           <div>
             <span>Variance</span>
             <strong className={`dashboard-variance-value ${varianceInfo.className}`}>
-              {varianceInfo.label}
+              {varianceInfo.compactLabel}
             </strong>
           </div>
         </div>

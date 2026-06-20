@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/editProject.css'
 import '../styles/pageHero.css'
 
@@ -32,6 +33,9 @@ type ProjectForm = {
   longitude: string
   physical_accomplishment: string
   financial_accomplishment: string
+  target_physical_accomplishment: string
+  target_physical_as_of: string
+  target_physical_source: string
   risk_level: string
   last_inspection_date: string
 }
@@ -62,7 +66,10 @@ const emptyForm: ProjectForm = {
   longitude: '',
   physical_accomplishment: '0',
   financial_accomplishment: '0',
-  risk_level: 'Low',
+  target_physical_accomplishment: '',
+  target_physical_as_of: '',
+  target_physical_source: 'auto',
+  risk_level: 'None',
   last_inspection_date: '',
 }
 
@@ -74,8 +81,6 @@ const statusOptions = [
   'Cancelled',
   'Terminated',
 ]
-
-const riskOptions = ['Low', 'Moderate', 'High']
 
 function cleanText(value: string) {
   const cleaned = value.trim()
@@ -256,16 +261,52 @@ export default function EditProject() {
     () => analyzeCoordinates(form.latitude, form.longitude),
     [form.latitude, form.longitude]
   )
+  const riskInfo = useMemo(() => {
+    return getTargetPhysicalInfo({
+      start_date: form.start_date,
+      target_completion_date: form.target_completion_date,
+      physical_accomplishment: form.physical_accomplishment,
+      target_physical_accomplishment: form.target_physical_accomplishment,
+      target_physical_as_of: form.target_physical_as_of || form.last_inspection_date,
+      target_physical_source: form.target_physical_source,
+      last_inspection_date: form.last_inspection_date,
+    })
+  }, [
+    form.start_date,
+    form.target_completion_date,
+    form.physical_accomplishment,
+    form.target_physical_accomplishment,
+    form.target_physical_as_of,
+    form.target_physical_source,
+    form.last_inspection_date,
+  ])
+
+  const computedRiskLevel = useMemo(() => {
+    return getComputedRiskLevel({
+      start_date: form.start_date,
+      target_completion_date: form.target_completion_date,
+      physical_accomplishment: form.physical_accomplishment,
+      target_physical_accomplishment: form.target_physical_accomplishment,
+      target_physical_as_of: form.target_physical_as_of || form.last_inspection_date,
+      target_physical_source: form.target_physical_source,
+      last_inspection_date: form.last_inspection_date,
+    })
+  }, [
+    form.start_date,
+    form.target_completion_date,
+    form.physical_accomplishment,
+    form.target_physical_accomplishment,
+    form.target_physical_as_of,
+    form.target_physical_source,
+    form.last_inspection_date,
+  ])
+
 
   const mergedStatusOptions = useMemo(() => {
     if (!form.status || statusOptions.includes(form.status)) return statusOptions
     return [form.status, ...statusOptions]
   }, [form.status])
 
-  const mergedRiskOptions = useMemo(() => {
-    if (!form.risk_level || riskOptions.includes(form.risk_level)) return riskOptions
-    return [form.risk_level, ...riskOptions]
-  }, [form.risk_level])
 
   useEffect(() => {
     setPortalReady(true)
@@ -327,7 +368,10 @@ export default function EditProject() {
       longitude: numberInputValue(data.longitude),
       physical_accomplishment: numberInputValue(data.physical_accomplishment) || '0',
       financial_accomplishment: numberInputValue(data.financial_accomplishment) || '0',
-      risk_level: data.risk_level || 'Low',
+      target_physical_accomplishment: numberInputValue(data.target_physical_accomplishment),
+      target_physical_as_of: dateInputValue(data.target_physical_as_of),
+      target_physical_source: data.target_physical_source || 'auto',
+      risk_level: data.risk_level || 'None',
       last_inspection_date: dateInputValue(data.last_inspection_date),
     })
 
@@ -361,9 +405,6 @@ export default function EditProject() {
       return 'Project status is required.'
     }
 
-    if (!cleanText(form.risk_level)) {
-      return 'Risk level is required.'
-    }
 
     if (form.budget.trim()) {
       const amount = Number(form.budget)
@@ -428,7 +469,12 @@ export default function EditProject() {
       longitude: coordinateStatus.state === 'valid' ? coordinateStatus.longitude : null,
       physical_accomplishment: clampProgress(form.physical_accomplishment),
       financial_accomplishment: clampProgress(form.financial_accomplishment),
-      risk_level: cleanText(form.risk_level) || 'Low',
+      target_physical_accomplishment: cleanText(form.target_physical_accomplishment)
+        ? clampProgress(form.target_physical_accomplishment)
+        : null,
+      target_physical_as_of: cleanText(form.target_physical_as_of || form.last_inspection_date),
+      target_physical_source: cleanText(form.target_physical_source) || 'auto',
+      risk_level: computedRiskLevel,
       last_inspection_date: cleanText(form.last_inspection_date),
       updated_at: new Date().toISOString(),
     }
@@ -508,7 +554,7 @@ export default function EditProject() {
           <h1>Edit Project</h1>
           <p>
             Update all enrolled project details including implementation profile, project cost,
-            progress, risk level, inspection date, location, and GPS coordinates.
+            progress, automatic risk level, inspection date, location, and GPS coordinates.
           </p>
         </div>
 
@@ -522,7 +568,7 @@ export default function EditProject() {
 
         <div className="edit-project-summary-card">
           <span>Risk Level</span>
-          <strong>{form.risk_level || 'Not Set'}</strong>
+          <strong>{computedRiskLevel}</strong>
         </div>
 
         <div className="edit-project-summary-card">
@@ -599,20 +645,10 @@ export default function EditProject() {
               </select>
             </label>
 
-            <label className="edit-project-field">
+            <div className="edit-project-field edit-project-readonly-field">
               <span>Risk Level</span>
-              <select
-                value={form.risk_level}
-                onChange={(event) => updateField('risk_level', event.target.value)}
-                required
-              >
-                {mergedRiskOptions.map((risk) => (
-                  <option key={risk} value={risk}>
-                    {risk}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <strong>{computedRiskLevel}</strong>
+            </div>
 
             <label className="edit-project-field">
               <span>Project Type</span>
@@ -764,6 +800,17 @@ export default function EditProject() {
                 />
               </div>
             </label>
+
+            <div className="edit-project-progress-card edit-project-readonly-progress-card">
+              <div className="edit-project-progress-header">
+                <span>Variance</span>
+                <strong>{riskInfo.compactLabel}</strong>
+              </div>
+              <div className="edit-project-progress-header">
+                <span>Risk Level</span>
+                <strong>{computedRiskLevel}</strong>
+              </div>
+            </div>
           </div>
         </section>
 

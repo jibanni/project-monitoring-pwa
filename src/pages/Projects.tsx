@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/projects.css'
 
 type ProjectRow = {
@@ -273,7 +273,7 @@ export default function Projects() {
 
   const risks = useMemo(() => {
     return Array.from(
-      new Set(projects.map((project) => textValue(project.risk_level)).filter(Boolean)),
+      new Set(projects.map((project) => getComputedRiskLevel(project)).filter(Boolean)),
     ).sort()
   }, [projects])
 
@@ -290,7 +290,7 @@ export default function Projects() {
         project.implementing_office,
         project.contractor,
         project.status,
-        project.risk_level,
+        getComputedRiskLevel(project),
       ]
         .map(textValue)
         .join(' ')
@@ -317,7 +317,7 @@ export default function Projects() {
         : true
 
       const riskMatches = riskFilter
-        ? textValue(project.risk_level) === riskFilter
+        ? getComputedRiskLevel(project) === riskFilter
         : true
 
       return (
@@ -356,7 +356,7 @@ export default function Projects() {
   ).length
 
   const highRiskCount = filteredProjects.filter((project) =>
-    textValue(project.risk_level).toLowerCase().includes('high'),
+    getComputedRiskLevel(project) === 'High',
   ).length
 
   const activeFilterCount = [
@@ -625,7 +625,7 @@ export default function Projects() {
               const varianceInfo = getTargetPhysicalInfo(project)
 
               return (
-                <article key={project.id} className={getProjectCardClass(project.risk_level)}>
+                <article key={project.id} className={getProjectCardClass(getComputedRiskLevel(project))}>
                   <div className="project-card-header">
                     <div className="project-card-main">
                       <p className="project-location">
@@ -644,8 +644,8 @@ export default function Projects() {
                       <span className={`project-status ${getStatusClass(project.status)}`}>
                         {textValue(project.status) || 'No Status'}
                       </span>
-                      <span className={`project-risk ${getRiskClass(project.risk_level)}`}>
-                        {textValue(project.risk_level) || 'No Risk'}
+                      <span className={`project-risk ${getRiskClass(getComputedRiskLevel(project))}`}>
+                        {getComputedRiskLevel(project)}
                       </span>
                     </div>
                   </div>
@@ -669,7 +669,7 @@ export default function Projects() {
                     <div className="project-info-item project-variance-item">
                       <span>Variance</span>
                       <strong className={`project-variance-value ${varianceInfo.className}`}>
-                        {varianceInfo.label}
+                        {varianceInfo.compactLabel}
                       </strong>
                       <small>{varianceInfo.asOfLabel}</small>
                     </div>

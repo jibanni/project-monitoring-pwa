@@ -1133,3 +1133,27 @@
     transition-duration: 1ms !important;
   }
 }
+
+/* =========================
+   VARIANCE / SLIPPAGE
+========================= */
+.dashboard-variance-value,
+.dashboard-slippage-em {
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.dashboard-variance-value.behind,
+.dashboard-slippage-em.behind {
+  color: #b91c1c !important;
+}
+
+.dashboard-variance-value.ahead,
+.dashboard-slippage-em.ahead {
+  color: #15803d !important;
+}
+
+.dashboard-variance-value.on-track,
+.dashboard-slippage-em.on-track {
+  color: #0f477f !important;
+}

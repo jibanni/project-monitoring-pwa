@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/createProject.css'
 import '../styles/pageHero.css'
 
@@ -43,6 +44,9 @@ type ProjectInsert = {
   physical_accomplishment: number
   financial_accomplishment: number
   risk_level: string
+  target_physical_accomplishment?: number | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
   last_inspection_date: string | null
   updated_at: string
 }
@@ -51,8 +55,8 @@ const STATUS_OPTIONS = [
   'Not Yet Started',
   'Ongoing',
   'Completed',
-  'Delayed',
   'Suspended',
+  'Terminated',
 ]
 
 const PROJECT_TYPE_OPTIONS = [
@@ -75,8 +79,6 @@ const FUNDING_SOURCE_OPTIONS = [
   'CMGP / KALSADA',
   'Other',
 ]
-
-const RISK_OPTIONS = ['Low', 'Moderate', 'High']
 
 const MINDANAO_BOUNDS = {
   minLat: 4,
@@ -267,8 +269,6 @@ export default function CreateProject() {
   const [longitude, setLongitude] = useState('')
   const [physicalAccomplishment, setPhysicalAccomplishment] = useState('0')
   const [financialAccomplishment, setFinancialAccomplishment] = useState('0')
-  const [riskLevel, setRiskLevel] = useState('Low')
-
   const [saving, setSaving] = useState(false)
   const [gettingGps, setGettingGps] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -277,6 +277,24 @@ export default function CreateProject() {
   const coordinateStatus = useMemo(() => {
     return getCoordinateStatus(latitude, longitude)
   }, [latitude, longitude])
+  const riskInfo = useMemo(() => {
+    return getTargetPhysicalInfo({
+      start_date: startDate,
+      target_completion_date: targetCompletionDate,
+      physical_accomplishment: physicalAccomplishment,
+      target_physical_source: 'auto',
+    })
+  }, [startDate, targetCompletionDate, physicalAccomplishment])
+
+  const computedRiskLevel = useMemo(() => {
+    return getComputedRiskLevel({
+      start_date: startDate,
+      target_completion_date: targetCompletionDate,
+      physical_accomplishment: physicalAccomplishment,
+      target_physical_source: 'auto',
+    })
+  }, [startDate, targetCompletionDate, physicalAccomplishment])
+
 
   const canSubmit = useMemo(() => {
     return (
@@ -402,7 +420,10 @@ export default function CreateProject() {
       longitude: coordinateStatus.isValid ? coordinateStatus.longitude : null,
       physical_accomplishment: clampProgress(physicalAccomplishment),
       financial_accomplishment: clampProgress(financialAccomplishment),
-      risk_level: riskLevel,
+      risk_level: computedRiskLevel,
+      target_physical_accomplishment: null,
+      target_physical_as_of: null,
+      target_physical_source: 'auto',
       last_inspection_date: null,
       updated_at: new Date().toISOString(),
     }
@@ -542,19 +563,10 @@ export default function CreateProject() {
               </select>
             </label>
 
-            <label>
-              Risk Level
-              <select
-                value={riskLevel}
-                onChange={(event) => setRiskLevel(event.target.value)}
-              >
-                {RISK_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="create-project-progress-note">
+              <strong>Risk Level</strong>
+              <span>{computedRiskLevel}</span>
+            </div>
 
             <label>
               Implementing Office
@@ -709,6 +721,11 @@ export default function CreateProject() {
             <div className="create-project-progress-note">
               <strong>Initial Accomplishment</strong>
               <span>Use 0% for new projects that have not yet started.</span>
+            </div>
+
+            <div className="create-project-progress-note">
+              <strong>Variance</strong>
+              <span>{riskInfo.compactLabel}</span>
             </div>
 
             <label>

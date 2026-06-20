@@ -4,6 +4,7 @@ import {
   type OfflineProjectPhoto,
   type OfflineProjectUpdate,
 } from '../lib/offlineDb'
+import { getComputedRiskLevel } from '../utils/projectVariance'
 
 const PHOTO_BUCKET = 'project-photos'
 
@@ -41,6 +42,16 @@ function nullableNumber(value: unknown) {
 
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function getAutoRiskForUpdate(update: OfflineProjectUpdate) {
+  return getComputedRiskLevel({
+    physical_accomplishment: update.physical_accomplishment,
+    target_physical_accomplishment: update.target_physical_accomplishment,
+    target_physical_as_of: update.inspection_date,
+    target_physical_source: update.target_physical_source || 'manual',
+    last_inspection_date: update.inspection_date,
+  })
 }
 
 function isPendingRecord(record: { synced?: boolean; sync_status?: string; is_offline?: boolean }) {
@@ -82,7 +93,7 @@ function buildOnlineUpdatePayload(update: OfflineProjectUpdate) {
     target_physical_accomplishment: toNumber(update.target_physical_accomplishment),
     target_physical_source: textValue(update.target_physical_source) || 'manual',
     financial_accomplishment: toNumber(update.financial_accomplishment),
-    risk_level: textValue(update.risk_level) || 'Low',
+    risk_level: getAutoRiskForUpdate(update),
     issues: nullableText(update.issues),
     recommendations: nullableText(update.recommendations),
     remarks: nullableText(update.remarks),
@@ -103,7 +114,7 @@ function buildProjectPatch(update: OfflineProjectUpdate) {
     target_physical_as_of: update.inspection_date,
     target_physical_source: textValue(update.target_physical_source) || 'manual',
     financial_accomplishment: toNumber(update.financial_accomplishment),
-    risk_level: textValue(update.risk_level) || 'Low',
+    risk_level: getAutoRiskForUpdate(update),
     last_inspection_date: update.inspection_date,
     ...(latitude !== null && longitude !== null
       ? {

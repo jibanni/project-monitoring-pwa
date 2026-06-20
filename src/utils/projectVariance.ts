@@ -181,3 +181,20 @@ export function getTargetPhysicalInfo(
     asOfLabel: `As of ${formatAsOfDate(asOfDate)}`,
   }
 }
+
+export type ComputedRiskLevel = 'None' | 'Low' | 'Moderate' | 'High'
+
+export function getRiskLevelFromVariance(value: unknown): ComputedRiskLevel {
+  const parsed = Number(value)
+  const variance = Number.isFinite(parsed) ? parsed : 0
+
+  if (variance >= 0) return 'None'
+  if (variance >= -5) return 'Low'
+  if (variance > -10) return 'Moderate'
+
+  return 'High'
+}
+
+export function getComputedRiskLevel(project: ProjectVarianceInput | null | undefined): ComputedRiskLevel {
+  return getRiskLevelFromVariance(getTargetPhysicalInfo(project).variance)
+}

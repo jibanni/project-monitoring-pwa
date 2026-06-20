@@ -887,7 +887,7 @@
   left: auto;
   right: 16px;
   bottom: 94px;
-  z-index: 2147483000;
+  z-index: 2147483700;
 
   display: grid;
   grid-template-columns: 1fr;
@@ -901,6 +901,7 @@
   pointer-events: auto;
 }
 
+.gis-fullscreen-fab-final,
 .gis-refocus-fab-final,
 .gis-refresh-fab-final {
   display: inline-flex;
@@ -927,6 +928,10 @@
   cursor: pointer;
 }
 
+.gis-fullscreen-fab-final {
+  background: linear-gradient(135deg, #334155, #64748b);
+}
+
 .gis-refocus-fab-final {
   background: linear-gradient(135deg, #16467a, #1d64a8);
 }
@@ -935,6 +940,7 @@
   background: linear-gradient(135deg, #f97316, #fb923c);
 }
 
+.gis-fullscreen-fab-final svg,
 .gis-refocus-fab-final svg,
 .gis-refresh-fab-final svg {
   display: block;
@@ -948,6 +954,7 @@
   stroke-linejoin: round;
 }
 
+.gis-fullscreen-fab-final:disabled,
 .gis-refocus-fab-final:disabled,
 .gis-refresh-fab-final:disabled {
   cursor: wait;
@@ -1107,6 +1114,7 @@
     gap: 11px;
   }
 
+  .gis-fullscreen-fab-final,
   .gis-refocus-fab-final,
   .gis-refresh-fab-final {
     width: 56px;
@@ -1140,4 +1148,218 @@
     height: 400px;
     min-height: 400px;
   }
+}
+
+/* =========================
+   VARIANCE / SLIPPAGE + 3-CARD SCROLL LIST
+========================= */
+.pm-map-variance {
+  font-weight: 950;
+}
+
+.pm-map-variance.behind {
+  color: #b91c1c !important;
+}
+
+.pm-map-variance.ahead {
+  color: #15803d !important;
+}
+
+.pm-map-variance.on-track {
+  color: #0f477f !important;
+}
+
+.pm-map-project-list {
+  max-height: 636px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+.pm-map-project-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pm-map-project-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(15, 71, 127, 0.24);
+}
+
+@media (max-width: 900px) {
+  .pm-map-project-list {
+    max-height: 520px;
+  }
+}
+
+/* Automatic risk: neutral marker for projects with no variance slippage */
+.pm-marker-neutral span {
+  background: #64748b;
+}
+
+/* =========================================================
+   FINAL GIS MAP TUNING — RISK COLORS, NO HERO MERGE, FULLSCREEN
+   Mobile-safe: affects GIS page only.
+========================================================= */
+
+/* Risk color rule:
+   No Risk = green, Low = yellow, Moderate = orange, High = red. */
+.pm-legend-neutral {
+  background: #16a34a !important;
+}
+
+.pm-legend-low {
+  background: #facc15 !important;
+}
+
+.pm-legend-moderate {
+  background: #f97316 !important;
+}
+
+.pm-legend-high {
+  background: #dc2626 !important;
+}
+
+.pm-marker-neutral span {
+  background: #16a34a !important;
+}
+
+.pm-marker-low span {
+  background: #facc15 !important;
+}
+
+.pm-marker-moderate span {
+  background: #f97316 !important;
+}
+
+.pm-marker-high span {
+  background: #dc2626 !important;
+}
+
+.pm-risk-neutral {
+  color: #166534 !important;
+  background: #dcfce7 !important;
+}
+
+.pm-risk-low {
+  color: #854d0e !important;
+  background: #fef9c3 !important;
+}
+
+.pm-risk-moderate {
+  color: #c2410c !important;
+  background: #ffedd5 !important;
+}
+
+.pm-risk-high {
+  color: #b91c1c !important;
+  background: #fee2e2 !important;
+}
+
+/* Fullscreen map button and fullscreen map shell. */
+.pm-map-fullscreen-lock {
+  overflow: hidden !important;
+}
+
+.pm-map-fullscreen-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+
+  border: 0;
+  border-radius: 16px;
+  color: #ffffff;
+  background: rgba(15, 71, 127, 0.92);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.22);
+  cursor: pointer;
+}
+
+.pm-map-fullscreen-btn svg {
+  width: 23px;
+  height: 23px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pm-map-fullscreen-btn:hover,
+.pm-map-fullscreen-btn:active {
+  background: rgba(11, 55, 105, 0.98);
+}
+
+.pm-map-shell.is-map-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483600 !important;
+
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: 100dvh !important;
+
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #dbeafe !important;
+  box-shadow: none !important;
+}
+
+.pm-map-shell.is-map-fullscreen .pm-leaflet-map,
+.pm-map-shell.is-map-fullscreen .leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  border-radius: 0 !important;
+}
+
+.pm-map-shell.is-map-fullscreen .leaflet-control-zoom {
+  margin-top: 14px !important;
+  margin-left: 14px !important;
+}
+
+.pm-map-shell.is-map-fullscreen .leaflet-control-attribution {
+  max-width: 62% !important;
+}
+
+.pm-map-shell.is-map-fullscreen .pm-map-fullscreen-btn {
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+}
+
+@media (max-width: 760px) {
+  .pm-map-fullscreen-btn {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 14px;
+  }
+
+  .pm-map-fullscreen-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+
+/* FINAL GIS FIX — no cluster/merge indicators and fullscreen as FAB */
+.pm-cluster-wrapper,
+.pm-cluster {
+  display: none !important;
+}
+
+.pm-map-shell.is-map-fullscreen ~ * {
+  pointer-events: none;
 }

@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import {
   formatSignedVariance,
+  getComputedRiskLevel,
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
 import '../styles/reports.css'
@@ -269,7 +270,7 @@ export default function Reports() {
 
   const risks = useMemo(() => {
     return Array.from(
-      new Set(projects.map((project) => textValue(project.risk_level)).filter(Boolean)),
+      new Set(projects.map((project) => getComputedRiskLevel(project)).filter(Boolean)),
     ).sort()
   }, [projects])
 
@@ -284,7 +285,7 @@ export default function Reports() {
         project.funding_source,
         project.project_type,
         project.status,
-        project.risk_level,
+        getComputedRiskLevel(project),
         project.contractor,
         project.implementing_office,
       ]
@@ -313,7 +314,7 @@ export default function Reports() {
         : true
 
       const riskMatches = riskFilter
-        ? textValue(project.risk_level) === riskFilter
+        ? getComputedRiskLevel(project) === riskFilter
         : true
 
       return (
@@ -401,7 +402,7 @@ export default function Reports() {
           textValue(project.funding_source || project.project_type) || '-',
           formatCurrency(project.budget),
           textValue(project.status) || '-',
-          textValue(project.risk_level) || '-',
+          getComputedRiskLevel(project),
           formatPercent(varianceInfo.actualPhysical),
           formatPercent(varianceInfo.targetPhysical),
           formatSignedVariance(varianceInfo.variance),
@@ -466,7 +467,7 @@ export default function Reports() {
         Contractor: textValue(project.contractor),
         'Project Cost': toNumber(project.budget),
         Status: textValue(project.status),
-        'Risk Level': textValue(project.risk_level),
+        'Risk Level': getComputedRiskLevel(project),
         'Actual Physical': Number(varianceInfo.actualPhysical.toFixed(2)),
         'Target Physical': Number(varianceInfo.targetPhysical.toFixed(2)),
         Variance: Number(varianceInfo.variance.toFixed(2)),
@@ -767,8 +768,8 @@ export default function Reports() {
                               </span>
                             </td>
                             <td>
-                              <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
-                                {textValue(project.risk_level) || 'No Risk'}
+                              <span className={`reports-risk ${getRiskClass(getComputedRiskLevel(project))}`}>
+                                {getComputedRiskLevel(project)}
                               </span>
                             </td>
                             <td>{formatPercent(varianceInfo.actualPhysical)}</td>
@@ -806,8 +807,8 @@ export default function Reports() {
                           <span className={`reports-status ${getStatusClass(project.status)}`}>
                             {textValue(project.status) || 'No Status'}
                           </span>
-                          <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
-                            {textValue(project.risk_level) || 'No Risk'}
+                          <span className={`reports-risk ${getRiskClass(getComputedRiskLevel(project))}`}>
+                            {getComputedRiskLevel(project)}
                           </span>
                         </div>
 
