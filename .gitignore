@@ -27,3 +27,14 @@ dev-dist/
 dist/
 .env.local
 supabase/.temp/
+
+# Local backup files
+*.backup.ts
+*.backup.tsx
+*.backup.css
+*.backup2.ts
+*.backup2.tsx
+*.backup2.css
+
+# Local source/export archives
+project-monitoring-pwa-source.zip
