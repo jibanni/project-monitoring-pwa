@@ -13,7 +13,6 @@ import Register from './pages/Register'
 import PendingApproval from './pages/PendingApproval'
 import Unauthorized from './pages/Unauthorized'
 
-// Lazy-loaded pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Projects = lazy(() => import('./pages/Projects'))
 const ProjectDetails = lazy(() => import('./pages/ProjectDetails'))
@@ -119,6 +118,15 @@ function App() {
           />
 
           <Route
+            path="/dashboard"
+            element={
+              <ProtectedLayout>
+                <Dashboard />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
             path="/projects"
             element={
               <ProtectedLayout>
@@ -199,7 +207,7 @@ function App() {
             }
           />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import '../styles/userManagement.css'
+import '../styles/pageHero.css'
 
-type UserRole = 'admin' | 'engineer' | 'viewer'
+type UserRole = 'Admin' | 'Engineer' | 'Viewer'
 
 type ManagedUser = {
   id: string
@@ -18,24 +20,23 @@ type StatusFilter = 'all' | 'approved' | 'pending'
 type RoleFilter = 'all' | UserRole
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'engineer', label: 'Engineer' },
-  { value: 'viewer', label: 'Viewer' },
+  { value: 'Admin', label: 'Admin' },
+  { value: 'Engineer', label: 'Engineer' },
+  { value: 'Viewer', label: 'Viewer' },
 ]
 
 function normalizeRole(role: string | null | undefined): UserRole {
   const value = String(role || '').trim().toLowerCase()
 
-  if (value === 'admin') return 'admin'
-  if (value === 'engineer') return 'engineer'
-  if (value === 'viewer') return 'viewer'
+  if (value === 'admin') return 'Admin'
+  if (value === 'engineer') return 'Engineer'
+  if (value === 'viewer') return 'Viewer'
 
-  return 'viewer'
+  return 'Viewer'
 }
 
 function roleLabel(role: string | null | undefined) {
-  const normalized = normalizeRole(role)
-  return ROLE_OPTIONS.find((item) => item.value === normalized)?.label || 'Viewer'
+  return normalizeRole(role)
 }
 
 function getInitials(name?: string | null, email?: string | null) {
@@ -101,12 +102,23 @@ function validatePassword(password: string, confirmPassword: string) {
   return ''
 }
 
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M20 12a8 8 0 1 1-2.35-5.65" />
+      <path d="M20 4v6h-6" />
+    </svg>
+  )
+}
+
 export default function UserManagement() {
   const { user, isAdmin } = useAuth()
 
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [portalReady, setPortalReady] = useState(false)
+  const [isUserScrolled, setIsUserScrolled] = useState(false)
 
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
@@ -122,7 +134,33 @@ export default function UserManagement() {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
+    setPortalReady(true)
+  }, [])
+
+  useEffect(() => {
     loadUsers()
+  }, [])
+
+  useEffect(() => {
+    let ticking = false
+
+    function handleScroll() {
+      if (ticking) return
+
+      ticking = true
+
+      window.requestAnimationFrame(() => {
+        setIsUserScrolled(window.scrollY > 28)
+        ticking = false
+      })
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
   }, [])
 
   async function loadUsers() {
@@ -360,17 +398,28 @@ export default function UserManagement() {
       total: users.length,
       approved: users.filter((item) => item.approved === true).length,
       pending: users.filter((item) => item.approved !== true).length,
-      admins: users.filter((item) => normalizeRole(item.role) === 'admin').length,
-      engineers: users.filter((item) => normalizeRole(item.role) === 'engineer')
-        .length,
-      viewers: users.filter((item) => normalizeRole(item.role) === 'viewer')
-        .length,
+      admins: users.filter((item) => normalizeRole(item.role) === 'Admin').length,
+      engineers: users.filter((item) => normalizeRole(item.role) === 'Engineer').length,
+      viewers: users.filter((item) => normalizeRole(item.role) === 'Viewer').length,
     }
   }, [users])
 
+  const refreshFab = (
+    <button
+      type="button"
+      className="user-management-refresh-fab"
+      onClick={loadUsers}
+      disabled={loading}
+      aria-label="Refresh users"
+      title="Refresh users"
+    >
+      <RefreshIcon />
+    </button>
+  )
+
   if (!isAdmin) {
     return (
-      <div className="user-management-page">
+      <div className={`user-management-page ${isUserScrolled ? 'is-user-scrolled' : ''}`}>
         <section className="user-management-hero">
           <div>
             <p className="user-management-eyebrow">Administration</p>
@@ -386,167 +435,274 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="user-management-page">
-      <section className="user-management-hero">
-        <div>
-          <p className="user-management-eyebrow">Administration</p>
-          <h1>User Management</h1>
-          <p>
-            Approve user accounts, assign system roles, and manage access to the
-            DILG-PDMU Project Monitoring System.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          className="user-management-hero-button"
-          onClick={loadUsers}
-          disabled={loading}
-        >
-          {loading ? 'Refreshing...' : 'Refresh Users'}
-        </button>
-      </section>
-
-      <section className="user-management-summary-grid">
-        <article className="user-management-summary-card">
-          <span>Total Users</span>
-          <strong>{summary.total}</strong>
-        </article>
-
-        <article className="user-management-summary-card">
-          <span>Approved</span>
-          <strong>{summary.approved}</strong>
-        </article>
-
-        <article className="user-management-summary-card">
-          <span>Pending</span>
-          <strong>{summary.pending}</strong>
-        </article>
-
-        <article className="user-management-summary-card">
-          <span>Admins</span>
-          <strong>{summary.admins}</strong>
-        </article>
-
-        <article className="user-management-summary-card">
-          <span>Engineers</span>
-          <strong>{summary.engineers}</strong>
-        </article>
-
-        <article className="user-management-summary-card">
-          <span>Viewers</span>
-          <strong>{summary.viewers}</strong>
-        </article>
-      </section>
-
-      {error && <div className="user-management-alert error">{error}</div>}
-      {success && <div className="user-management-alert success">{success}</div>}
-
-      <section className="user-management-filter-card">
-        <div>
-          <label htmlFor="user-search">Search Users</label>
-          <input
-            id="user-search"
-            type="search"
-            placeholder="Search name, email, or role"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="role-filter">Role</label>
-          <select
-            id="role-filter"
-            value={roleFilter}
-            onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
-          >
-            <option value="all">All Roles</option>
-            {ROLE_OPTIONS.map((role) => (
-              <option key={role.value} value={role.value}>
-                {role.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="status-filter">Status</label>
-          <select
-            id="status-filter"
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value as StatusFilter)
-            }
-          >
-            <option value="all">All Status</option>
-            <option value="approved">Approved</option>
-            <option value="pending">Pending</option>
-          </select>
-        </div>
-      </section>
-
-      <section className="user-management-list-card">
-        <div className="user-management-list-header">
+    <>
+      <div className={`user-management-page ${isUserScrolled ? 'is-user-scrolled' : ''}`}>
+        <section className="user-management-hero">
           <div>
-            <h2>User Accounts</h2>
+            <p className="user-management-eyebrow">Administration</p>
+            <h1>User Management</h1>
             <p>
-              Showing {filteredUsers.length} of {users.length} registered user
-              accounts.
+              Approve user accounts, assign system roles, and manage access to the
+              DILG-PDMU Project Monitoring System.
             </p>
           </div>
-        </div>
+        </section>
 
-        {loading ? (
-          <div className="user-management-state">Loading users...</div>
-        ) : filteredUsers.length === 0 ? (
-          <div className="user-management-state">
-            No users matched your current filters.
+        <section className="user-management-summary-grid">
+          <article className="user-management-summary-card">
+            <span>Total Users</span>
+            <strong>{summary.total}</strong>
+          </article>
+
+          <article className="user-management-summary-card">
+            <span>Approved</span>
+            <strong>{summary.approved}</strong>
+          </article>
+
+          <article className="user-management-summary-card">
+            <span>Pending</span>
+            <strong>{summary.pending}</strong>
+          </article>
+
+          <article className="user-management-summary-card">
+            <span>Admins</span>
+            <strong>{summary.admins}</strong>
+          </article>
+
+          <article className="user-management-summary-card">
+            <span>Engineers</span>
+            <strong>{summary.engineers}</strong>
+          </article>
+
+          <article className="user-management-summary-card">
+            <span>Viewers</span>
+            <strong>{summary.viewers}</strong>
+          </article>
+        </section>
+
+        {error && <div className="user-management-alert error">{error}</div>}
+        {success && <div className="user-management-alert success">{success}</div>}
+
+        <section className="user-management-filter-card">
+          <div>
+            <label htmlFor="user-search">Search Users</label>
+            <input
+              id="user-search"
+              type="search"
+              placeholder="Search name, email, or role"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
           </div>
-        ) : (
-          <>
-            <div className="user-management-table-wrap">
-              <table className="user-management-table">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
 
-                <tbody>
-                  {filteredUsers.map((item) => {
-                    const isCurrentUser = item.id === user?.id
-                    const approved = item.approved === true
-                    const role = normalizeRole(item.role)
+          <div>
+            <label htmlFor="role-filter">Role</label>
+            <select
+              id="role-filter"
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
+            >
+              <option value="all">All Roles</option>
+              {ROLE_OPTIONS.map((role) => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-                    return (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="user-management-person">
-                            <div className="user-management-avatar">
-                              {getInitials(item.full_name, item.email)}
+          <div>
+            <label htmlFor="status-filter">Status</label>
+            <select
+              id="status-filter"
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as StatusFilter)
+              }
+            >
+              <option value="all">All Status</option>
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+        </section>
+
+        <section className="user-management-list-card">
+          <div className="user-management-list-header">
+            <div>
+              <h2>User Accounts</h2>
+              <p>
+                Showing {filteredUsers.length} of {users.length} registered user
+                accounts.
+              </p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="user-management-state">Loading users...</div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="user-management-state">
+              No users matched your current filters.
+            </div>
+          ) : (
+            <>
+              <div className="user-management-table-wrap">
+                <table className="user-management-table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredUsers.map((item) => {
+                      const isCurrentUser = item.id === user?.id
+                      const approved = item.approved === true
+                      const role = normalizeRole(item.role)
+
+                      return (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="user-management-person">
+                              <div className="user-management-avatar">
+                                {getInitials(item.full_name, item.email)}
+                              </div>
+                              <div>
+                                <strong>{item.full_name || 'Unnamed User'}</strong>
+                                {isCurrentUser && <span>Current admin account</span>}
+                              </div>
                             </div>
-                            <div>
-                              <strong>{item.full_name || 'Unnamed User'}</strong>
-                              {isCurrentUser && <span>Current admin account</span>}
+                          </td>
+
+                          <td>{item.email || 'No email'}</td>
+
+                          <td>
+                            <select
+                              className="user-management-role-select"
+                              value={role}
+                              disabled={
+                                isCurrentUser ||
+                                actionLoading === `role-${item.id}`
+                              }
+                              onChange={(event) =>
+                                updateUserRole(item, event.target.value as UserRole)
+                              }
+                            >
+                              {ROLE_OPTIONS.map((roleOption) => (
+                                <option
+                                  key={roleOption.value}
+                                  value={roleOption.value}
+                                >
+                                  {roleOption.label}
+                                </option>
+                              ))}
+                            </select>
+
+                            {isCurrentUser && (
+                              <small className="user-management-note">
+                                Own role locked
+                              </small>
+                            )}
+                          </td>
+
+                          <td>
+                            <span
+                              className={`user-management-status ${
+                                approved ? 'approved' : 'pending'
+                              }`}
+                            >
+                              {approved ? 'Approved' : 'Pending'}
+                            </span>
+                          </td>
+
+                          <td>{formatDate(item.created_at)}</td>
+
+                          <td>
+                            <div className="user-management-actions">
+                              {approved ? (
+                                <button
+                                  type="button"
+                                  className="user-management-button danger"
+                                  disabled={
+                                    isCurrentUser ||
+                                    actionLoading === `revoke-${item.id}`
+                                  }
+                                  onClick={() => updateApproval(item, false)}
+                                >
+                                  {actionLoading === `revoke-${item.id}`
+                                    ? 'Revoking...'
+                                    : 'Revoke'}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="user-management-button success"
+                                  disabled={actionLoading === `approve-${item.id}`}
+                                  onClick={() => updateApproval(item, true)}
+                                >
+                                  {actionLoading === `approve-${item.id}`
+                                    ? 'Approving...'
+                                    : 'Approve'}
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                className="user-management-button primary"
+                                onClick={() => openPasswordModal(item)}
+                              >
+                                Change Password
+                              </button>
                             </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="user-management-mobile-list">
+                {filteredUsers.map((item) => {
+                  const isCurrentUser = item.id === user?.id
+                  const approved = item.approved === true
+                  const role = normalizeRole(item.role)
+
+                  return (
+                    <article className="user-management-mobile-card" key={item.id}>
+                      <div className="user-management-mobile-top">
+                        <div className="user-management-person">
+                          <div className="user-management-avatar">
+                            {getInitials(item.full_name, item.email)}
                           </div>
-                        </td>
+                          <div>
+                            <strong>{item.full_name || 'Unnamed User'}</strong>
+                            <span>{item.email || 'No email'}</span>
+                          </div>
+                        </div>
 
-                        <td>{item.email || 'No email'}</td>
+                        <span
+                          className={`user-management-status ${
+                            approved ? 'approved' : 'pending'
+                          }`}
+                        >
+                          {approved ? 'Approved' : 'Pending'}
+                        </span>
+                      </div>
 
-                        <td>
+                      <div className="user-management-mobile-grid">
+                        <div>
+                          <span>Role</span>
                           <select
                             className="user-management-role-select"
                             value={role}
                             disabled={
-                              isCurrentUser ||
-                              actionLoading === `role-${item.id}`
+                              isCurrentUser || actionLoading === `role-${item.id}`
                             }
                             onChange={(event) =>
                               updateUserRole(item, event.target.value as UserRole)
@@ -561,297 +717,185 @@ export default function UserManagement() {
                               </option>
                             ))}
                           </select>
-
                           {isCurrentUser && (
                             <small className="user-management-note">
                               Own role locked
                             </small>
                           )}
-                        </td>
-
-                        <td>
-                          <span
-                            className={`user-management-status ${
-                              approved ? 'approved' : 'pending'
-                            }`}
-                          >
-                            {approved ? 'Approved' : 'Pending'}
-                          </span>
-                        </td>
-
-                        <td>{formatDate(item.created_at)}</td>
-
-                        <td>
-                          <div className="user-management-actions">
-                            {approved ? (
-                              <button
-                                type="button"
-                                className="user-management-button danger"
-                                disabled={
-                                  isCurrentUser ||
-                                  actionLoading === `revoke-${item.id}`
-                                }
-                                onClick={() => updateApproval(item, false)}
-                              >
-                                {actionLoading === `revoke-${item.id}`
-                                  ? 'Revoking...'
-                                  : 'Revoke'}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="user-management-button success"
-                                disabled={actionLoading === `approve-${item.id}`}
-                                onClick={() => updateApproval(item, true)}
-                              >
-                                {actionLoading === `approve-${item.id}`
-                                  ? 'Approving...'
-                                  : 'Approve'}
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              className="user-management-button primary"
-                              onClick={() => openPasswordModal(item)}
-                            >
-                              Change Password
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="user-management-mobile-list">
-              {filteredUsers.map((item) => {
-                const isCurrentUser = item.id === user?.id
-                const approved = item.approved === true
-                const role = normalizeRole(item.role)
-
-                return (
-                  <article className="user-management-mobile-card" key={item.id}>
-                    <div className="user-management-mobile-top">
-                      <div className="user-management-person">
-                        <div className="user-management-avatar">
-                          {getInitials(item.full_name, item.email)}
                         </div>
+
                         <div>
-                          <strong>{item.full_name || 'Unnamed User'}</strong>
-                          <span>{item.email || 'No email'}</span>
+                          <span>Created</span>
+                          <strong>{formatDate(item.created_at)}</strong>
                         </div>
                       </div>
 
-                      <span
-                        className={`user-management-status ${
-                          approved ? 'approved' : 'pending'
-                        }`}
-                      >
-                        {approved ? 'Approved' : 'Pending'}
-                      </span>
-                    </div>
-
-                    <div className="user-management-mobile-grid">
-                      <div>
-                        <span>Role</span>
-                        <select
-                          className="user-management-role-select"
-                          value={role}
-                          disabled={
-                            isCurrentUser || actionLoading === `role-${item.id}`
-                          }
-                          onChange={(event) =>
-                            updateUserRole(item, event.target.value as UserRole)
-                          }
-                        >
-                          {ROLE_OPTIONS.map((roleOption) => (
-                            <option
-                              key={roleOption.value}
-                              value={roleOption.value}
-                            >
-                              {roleOption.label}
-                            </option>
-                          ))}
-                        </select>
-                        {isCurrentUser && (
-                          <small className="user-management-note">
-                            Own role locked
-                          </small>
+                      <div className="user-management-mobile-actions">
+                        {approved ? (
+                          <button
+                            type="button"
+                            className="user-management-button danger"
+                            disabled={
+                              isCurrentUser || actionLoading === `revoke-${item.id}`
+                            }
+                            onClick={() => updateApproval(item, false)}
+                          >
+                            {actionLoading === `revoke-${item.id}`
+                              ? 'Revoking...'
+                              : 'Revoke'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="user-management-button success"
+                            disabled={actionLoading === `approve-${item.id}`}
+                            onClick={() => updateApproval(item, true)}
+                          >
+                            {actionLoading === `approve-${item.id}`
+                              ? 'Approving...'
+                              : 'Approve'}
+                          </button>
                         )}
-                      </div>
 
-                      <div>
-                        <span>Created</span>
-                        <strong>{formatDate(item.created_at)}</strong>
-                      </div>
-                    </div>
-
-                    <div className="user-management-mobile-actions">
-                      {approved ? (
                         <button
                           type="button"
-                          className="user-management-button danger"
-                          disabled={
-                            isCurrentUser || actionLoading === `revoke-${item.id}`
-                          }
-                          onClick={() => updateApproval(item, false)}
+                          className="user-management-button primary"
+                          onClick={() => openPasswordModal(item)}
                         >
-                          {actionLoading === `revoke-${item.id}`
-                            ? 'Revoking...'
-                            : 'Revoke'}
+                          Change Password
                         </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="user-management-button success"
-                          disabled={actionLoading === `approve-${item.id}`}
-                          onClick={() => updateApproval(item, true)}
-                        >
-                          {actionLoading === `approve-${item.id}`
-                            ? 'Approving...'
-                            : 'Approve'}
-                        </button>
-                      )}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </section>
 
-                      <button
-                        type="button"
-                        className="user-management-button primary"
-                        onClick={() => openPasswordModal(item)}
-                      >
-                        Change Password
-                      </button>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          </>
-        )}
-      </section>
-
-      {passwordUser && (
-        <div
-          className="user-management-modal-backdrop"
-          role="presentation"
-          onClick={closePasswordModal}
-        >
+        {passwordUser && (
           <div
-            className="user-management-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="password-modal-title"
-            onClick={(event) => event.stopPropagation()}
+            className="user-management-modal-backdrop"
+            role="presentation"
+            onClick={closePasswordModal}
           >
-            <div className="user-management-modal-header">
-              <div>
-                <p>Admin Password Reset</p>
-                <h2 id="password-modal-title">Change Password</h2>
+            <div
+              className="user-management-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="password-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="user-management-modal-header">
+                <div>
+                  <p>Admin Password Reset</p>
+                  <h2 id="password-modal-title">Change Password</h2>
+                </div>
+
+                <button
+                  type="button"
+                  className="user-management-modal-close"
+                  onClick={closePasswordModal}
+                  aria-label="Close password modal"
+                >
+                  ×
+                </button>
               </div>
 
-              <button
-                type="button"
-                className="user-management-modal-close"
-                onClick={closePasswordModal}
-                aria-label="Close password modal"
-              >
-                ×
-              </button>
-            </div>
+              <div className="user-management-password-user">
+                <div className="user-management-avatar">
+                  {getInitials(passwordUser.full_name, passwordUser.email)}
+                </div>
 
-            <div className="user-management-password-user">
-              <div className="user-management-avatar">
-                {getInitials(passwordUser.full_name, passwordUser.email)}
+                <div>
+                  <strong>{passwordUser.full_name || 'Unnamed User'}</strong>
+                  <span>{passwordUser.email || 'No email'}</span>
+                </div>
               </div>
 
-              <div>
-                <strong>{passwordUser.full_name || 'Unnamed User'}</strong>
-                <span>{passwordUser.email || 'No email'}</span>
-              </div>
-            </div>
+              <div className="user-management-password-grid">
+                <div>
+                  <label htmlFor="new-password">New Password</label>
+                  <input
+                    id="new-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="Enter new password"
+                  />
+                </div>
 
-            <div className="user-management-password-grid">
-              <div>
-                <label htmlFor="new-password">New Password</label>
+                <div>
+                  <label htmlFor="confirm-password">Confirm Password</label>
+                  <input
+                    id="confirm-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Confirm new password"
+                  />
+                </div>
+              </div>
+
+              <label className="user-management-check">
                 <input
-                  id="new-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  placeholder="Enter new password"
+                  type="checkbox"
+                  checked={showPassword}
+                  onChange={(event) => setShowPassword(event.target.checked)}
                 />
+                <span>Show password</span>
+              </label>
+
+              <div className="user-management-password-tools">
+                <button
+                  type="button"
+                  className="user-management-button secondary"
+                  onClick={handleGeneratePassword}
+                >
+                  Generate Strong Password
+                </button>
+
+                <button
+                  type="button"
+                  className="user-management-button secondary"
+                  disabled={!newPassword}
+                  onClick={handleCopyPassword}
+                >
+                  {copied ? 'Copied' : 'Copy Password'}
+                </button>
               </div>
 
-              <div>
-                <label htmlFor="confirm-password">Confirm Password</label>
-                <input
-                  id="confirm-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  placeholder="Confirm new password"
-                />
+              <div className="user-management-password-rules">
+                Password must have at least 8 characters, uppercase, lowercase,
+                number, and symbol.
               </div>
-            </div>
 
-            <label className="user-management-check">
-              <input
-                type="checkbox"
-                checked={showPassword}
-                onChange={(event) => setShowPassword(event.target.checked)}
-              />
-              <span>Show password</span>
-            </label>
+              <div className="user-management-modal-actions">
+                <button
+                  type="button"
+                  className="user-management-button secondary"
+                  onClick={closePasswordModal}
+                >
+                  Cancel
+                </button>
 
-            <div className="user-management-password-tools">
-              <button
-                type="button"
-                className="user-management-button secondary"
-                onClick={handleGeneratePassword}
-              >
-                Generate Strong Password
-              </button>
-
-              <button
-                type="button"
-                className="user-management-button secondary"
-                disabled={!newPassword}
-                onClick={handleCopyPassword}
-              >
-                {copied ? 'Copied' : 'Copy Password'}
-              </button>
-            </div>
-
-            <div className="user-management-password-rules">
-              Password must have at least 8 characters, uppercase, lowercase,
-              number, and symbol.
-            </div>
-
-            <div className="user-management-modal-actions">
-              <button
-                type="button"
-                className="user-management-button secondary"
-                onClick={closePasswordModal}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="user-management-button primary"
-                disabled={actionLoading === `password-${passwordUser.id}`}
-                onClick={handleChangePassword}
-              >
-                {actionLoading === `password-${passwordUser.id}`
-                  ? 'Changing...'
-                  : 'Change Password'}
-              </button>
+                <button
+                  type="button"
+                  className="user-management-button primary"
+                  disabled={actionLoading === `password-${passwordUser.id}`}
+                  onClick={handleChangePassword}
+                >
+                  {actionLoading === `password-${passwordUser.id}`
+                    ? 'Changing...'
+                    : 'Change Password'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+
+      {portalReady && createPortal(refreshFab, document.body)}
+    </>
   )
 }

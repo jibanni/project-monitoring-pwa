@@ -2,16 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
   Cell,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from 'recharts'
 
 import { supabase } from '../lib/supabase'
@@ -25,33 +20,21 @@ type DrilldownState = {
   projects: ProjectRecord[]
 }
 
-type LguChartItem = {
-  lgu: string
-  count: number
-}
-
-type AccomplishmentChartItem = {
-  name: string
-  physical: number
-  financial: number
-}
-
 const MODAL_CLOSE_DELAY = 190
 
 const CHART_COLORS = [
-  '#1d4ed8',
-  '#f97316',
   '#16a34a',
-  '#dc2626',
+  '#2563eb',
+  '#64748b',
+  '#ef4444',
+  '#f97316',
   '#7c3aed',
   '#0891b2',
   '#ca8a04',
-  '#475569',
 ]
 
 const STATUS_FALLBACK = 'Not Yet Started'
 const RISK_FALLBACK = 'Unspecified'
-const LGU_FALLBACK = 'Unspecified LGU'
 
 function safeText(value: unknown, fallback = 'N/A') {
   if (value === null || value === undefined) return fallback
@@ -81,18 +64,6 @@ function normalizeForCompare(value: unknown) {
     .trim()
 }
 
-function getRiskColor(riskLevel: unknown, fallbackIndex = 0) {
-  const risk = normalizeForCompare(riskLevel)
-
-  if (risk.includes('high')) return '#dc2626'
-  if (risk.includes('moderate') || risk.includes('medium')) return '#f97316'
-  if (risk.includes('low')) return '#16a34a'
-  if (risk.includes('none') || risk.includes('no risk')) return '#1d4ed8'
-  if (risk.includes('unspecified') || risk.includes('n/a')) return '#64748b'
-
-  return CHART_COLORS[fallbackIndex % CHART_COLORS.length]
-}
-
 function formatCount(value: number) {
   return new Intl.NumberFormat('en-PH', {
     maximumFractionDigits: 0,
@@ -105,27 +76,6 @@ function formatPercent(value: unknown) {
   return `${new Intl.NumberFormat('en-PH', {
     maximumFractionDigits: 2,
   }).format(number)}%`
-}
-
-function formatProjectCost(value: unknown) {
-  const amount = asNumber(value)
-
-  if (amount >= 1_000_000_000) {
-    return `Php ${(amount / 1_000_000_000).toFixed(2)}B`
-  }
-
-  if (amount >= 1_000_000) {
-    return `Php ${(amount / 1_000_000).toFixed(2)}M`
-  }
-
-  if (amount >= 1_000) {
-    return `Php ${(amount / 1_000).toFixed(2)}K`
-  }
-
-  return `Php ${new Intl.NumberFormat('en-PH', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount)}`
 }
 
 function formatFullProjectCost(value: unknown) {
@@ -198,19 +148,6 @@ function getLocation(project: ProjectRecord) {
   if (parts.length > 0) return parts.join(', ')
 
   return safeText(project.location ?? project.project_location, 'N/A')
-}
-
-function getLgu(project: ProjectRecord) {
-  return safeText(
-    project.city_municipality ??
-      project.municipality ??
-      project.city ??
-      project.lgu ??
-      project.lgu_name ??
-      project.implementing_lgu ??
-      project.location,
-    LGU_FALLBACK,
-  )
 }
 
 function getStatus(project: ProjectRecord) {
@@ -298,36 +235,6 @@ function getFinancialProgress(project: ProjectRecord) {
   )
 }
 
-function getLatitude(project: ProjectRecord) {
-  return asNumber(
-    project.latest_latitude ??
-      project.latitude ??
-      project.lat ??
-      project.project_latitude ??
-      project.gps_latitude ??
-      project.current_latitude,
-  )
-}
-
-function getLongitude(project: ProjectRecord) {
-  return asNumber(
-    project.latest_longitude ??
-      project.longitude ??
-      project.lng ??
-      project.long ??
-      project.project_longitude ??
-      project.gps_longitude ??
-      project.current_longitude,
-  )
-}
-
-function hasGps(project: ProjectRecord) {
-  const latitude = getLatitude(project)
-  const longitude = getLongitude(project)
-
-  return latitude !== 0 && longitude !== 0
-}
-
 function getUpdatedTime(project: ProjectRecord) {
   const value =
     project.updated_at ??
@@ -359,17 +266,6 @@ function countBy<T extends ProjectRecord>(
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 }
 
-function average(values: number[]) {
-  const validValues = values.filter((value) => Number.isFinite(value))
-
-  if (validValues.length === 0) return 0
-
-  return (
-    validValues.reduce((total, current) => total + current, 0) /
-    validValues.length
-  )
-}
-
 function isStatus(project: ProjectRecord, keywords: string[]) {
   const status = normalizeForCompare(getStatus(project))
 
@@ -382,9 +278,41 @@ function isRisk(project: ProjectRecord, keywords: string[]) {
   return keywords.some((keyword) => risk.includes(keyword))
 }
 
+function getStatusColor(status: unknown, fallbackIndex = 0) {
+  const normalized = normalizeForCompare(status)
+
+  if (normalized.includes('ongoing') || normalized.includes('progress')) {
+    return '#16a34a'
+  }
+
+  if (normalized.includes('complete') || normalized.includes('finished')) {
+    return '#2563eb'
+  }
+
+  if (normalized.includes('not') || normalized.includes('pending')) {
+    return '#64748b'
+  }
+
+  if (normalized.includes('cancel') || normalized.includes('terminate')) {
+    return '#ef4444'
+  }
+
+  return CHART_COLORS[fallbackIndex % CHART_COLORS.length]
+}
+
+function getRiskColor(riskLevel: unknown, fallbackIndex = 0) {
+  const risk = normalizeForCompare(riskLevel)
+
+  if (risk.includes('high')) return '#ef4444'
+  if (risk.includes('moderate') || risk.includes('medium')) return '#f97316'
+  if (risk.includes('low')) return '#16a34a'
+  if (risk.includes('none') || risk.includes('no risk')) return '#2563eb'
+
+  return CHART_COLORS[fallbackIndex % CHART_COLORS.length]
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
-
   const modalCloseTimerRef = useRef<number | null>(null)
 
   const [projects, setProjects] = useState<ProjectRecord[]>([])
@@ -392,6 +320,7 @@ export default function Dashboard() {
   const [errorMessage, setErrorMessage] = useState('')
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
   const [isDrilldownClosing, setIsDrilldownClosing] = useState(false)
+  const [isDashboardScrolled, setIsDashboardScrolled] = useState(false)
 
   useEffect(() => {
     loadProjects()
@@ -400,6 +329,29 @@ export default function Dashboard() {
       if (modalCloseTimerRef.current) {
         window.clearTimeout(modalCloseTimerRef.current)
       }
+    }
+  }, [])
+
+  useEffect(() => {
+    let ticking = false
+
+    function handleScroll() {
+      if (ticking) return
+
+      ticking = true
+
+      requestAnimationFrame(() => {
+        setIsDashboardScrolled(window.scrollY > 28)
+        ticking = false
+      })
+    }
+
+    handleScroll()
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
     }
   }, [])
 
@@ -473,13 +425,6 @@ export default function Dashboard() {
   }
 
   const dashboardData = useMemo(() => {
-    const totalProjects = projects.length
-
-    const totalProjectCost = projects.reduce(
-      (total, project) => total + getProjectCost(project),
-      0,
-    )
-
     const ongoingProjects = projects.filter((project) =>
       isStatus(project, ['ongoing', 'on going', 'in progress', 'implementation']),
     )
@@ -497,79 +442,96 @@ export default function Dashboard() {
       ]),
     )
 
-    const cancelledProjects = projects.filter((project) =>
-      isStatus(project, ['cancelled', 'canceled']),
-    )
-
-    const terminatedProjects = projects.filter((project) =>
-      isStatus(project, ['terminated']),
-    )
-
     const highRiskProjects = projects.filter((project) =>
       isRisk(project, ['high']),
     )
 
-    const moderateRiskProjects = projects.filter((project) =>
-      isRisk(project, ['moderate', 'medium']),
+    const forReviewProjects = projects.filter((project) =>
+      isRisk(project, ['high', 'moderate', 'medium']),
     )
-
-    const lowRiskProjects = projects.filter((project) =>
-      isRisk(project, ['low']),
-    )
-
-    const gpsProjects = projects.filter(hasGps)
 
     const statusData = countBy(projects, getStatus)
     const riskData = countBy(projects, getRiskLevel)
-
-    const lguMap = new Map<string, number>()
-
-    projects.forEach((project) => {
-      const lgu = getLgu(project)
-      lguMap.set(lgu, (lguMap.get(lgu) ?? 0) + 1)
-    })
-
-    const lguData = Array.from(lguMap.entries())
-      .map(([lgu, count]) => ({ lgu, count }))
-      .sort((a, b) => b.count - a.count || a.lgu.localeCompare(b.lgu))
-      .slice(0, 8)
-
-    const averagePhysical = average(projects.map(getPhysicalProgress))
-    const averageFinancial = average(projects.map(getFinancialProgress))
-
-    const accomplishmentData: AccomplishmentChartItem[] = [
-      {
-        name: 'Average',
-        physical: Number(averagePhysical.toFixed(2)),
-        financial: Number(averageFinancial.toFixed(2)),
-      },
-    ]
 
     const latestProjects = [...projects]
       .sort((a, b) => getUpdatedTime(b) - getUpdatedTime(a))
       .slice(0, 5)
 
     return {
-      totalProjects,
-      totalProjectCost,
+      totalProjects: projects.length,
       ongoingProjects,
       completedProjects,
       notStartedProjects,
-      cancelledProjects,
-      terminatedProjects,
       highRiskProjects,
-      moderateRiskProjects,
-      lowRiskProjects,
-      gpsProjects,
+      forReviewProjects,
       statusData,
       riskData,
-      lguData,
-      averagePhysical,
-      averageFinancial,
-      accomplishmentData,
       latestProjects,
     }
   }, [projects])
+
+  const statCards = [
+    {
+      key: 'total',
+      label: 'Total Projects',
+      value: dashboardData.totalProjects,
+      helper: 'All records',
+      className: 'total',
+      title: 'All Projects',
+      subtitle: 'Complete list of enrolled projects.',
+      records: projects,
+    },
+    {
+      key: 'ongoing',
+      label: 'Ongoing',
+      value: dashboardData.ongoingProjects.length,
+      helper: 'Under implementation',
+      className: 'ongoing',
+      title: 'Ongoing Projects',
+      subtitle: 'Projects currently under implementation.',
+      records: dashboardData.ongoingProjects,
+    },
+    {
+      key: 'completed',
+      label: 'Completed',
+      value: dashboardData.completedProjects.length,
+      helper: 'Finished',
+      className: 'completed',
+      title: 'Completed Projects',
+      subtitle: 'Projects tagged as completed.',
+      records: dashboardData.completedProjects,
+    },
+    {
+      key: 'not-started',
+      label: 'Not Started',
+      value: dashboardData.notStartedProjects.length,
+      helper: 'Pending start',
+      className: 'not-started',
+      title: 'Not Yet Started Projects',
+      subtitle: 'Projects that have not yet started implementation.',
+      records: dashboardData.notStartedProjects,
+    },
+    {
+      key: 'high-risk',
+      label: 'High Risk',
+      value: dashboardData.highRiskProjects.length,
+      helper: 'Needs action',
+      className: 'high-risk',
+      title: 'High Risk Projects',
+      subtitle: 'Projects requiring close monitoring and follow-through.',
+      records: dashboardData.highRiskProjects,
+    },
+    {
+      key: 'for-review',
+      label: 'For Review',
+      value: dashboardData.forReviewProjects.length,
+      helper: 'Priority check',
+      className: 'for-review',
+      title: 'Projects for Review',
+      subtitle: 'Projects tagged as high or moderate risk.',
+      records: dashboardData.forReviewProjects,
+    },
+  ]
 
   function renderProjectCard(project: ProjectRecord) {
     const projectId = getProjectId(project)
@@ -600,7 +562,7 @@ export default function Dashboard() {
               navigate(`/projects/${projectId}`)
             }}
           >
-            View Details
+            View
           </button>
         </div>
 
@@ -621,18 +583,18 @@ export default function Dashboard() {
           </div>
 
           <div>
-            <span>Implementing Office</span>
+            <span>Program</span>
+            <strong>{getFundingSource(project)}</strong>
+          </div>
+
+          <div>
+            <span>Office</span>
             <strong>{getImplementingOffice(project)}</strong>
           </div>
 
           <div>
-            <span>Target Completion</span>
+            <span>Target</span>
             <strong>{formatDate(getTargetCompletion(project))}</strong>
-          </div>
-
-          <div>
-            <span>GPS</span>
-            <strong>{hasGps(project) ? 'Available' : 'No GPS'}</strong>
           </div>
         </div>
 
@@ -658,7 +620,7 @@ export default function Dashboard() {
               <strong>{formatPercent(getFinancialProgress(project))}</strong>
             </div>
 
-            <div className="dashboard-progress-track">
+            <div className="dashboard-progress-track financial">
               <span
                 style={{
                   width: `${Math.min(getFinancialProgress(project), 100)}%`,
@@ -695,7 +657,10 @@ export default function Dashboard() {
             <div>
               <p className="dashboard-modal-eyebrow">Dashboard Drilldown</p>
               <h2 id="dashboard-drilldown-title">{drilldown.title}</h2>
-              <p>{drilldown.subtitle}</p>
+              <p>
+                {drilldown.subtitle} Showing {formatCount(drilldown.projects.length)}{' '}
+                record{drilldown.projects.length === 1 ? '' : 's'}.
+              </p>
             </div>
 
             <button
@@ -707,32 +672,6 @@ export default function Dashboard() {
               ×
             </button>
           </header>
-
-          <div className="dashboard-modal-summary-strip">
-            <div>
-              <span>Total Records</span>
-              <strong>{formatCount(drilldown.projects.length)}</strong>
-            </div>
-
-            <div>
-              <span>Total Project Cost</span>
-              <strong>
-                {formatProjectCost(
-                  drilldown.projects.reduce(
-                    (total, project) => total + getProjectCost(project),
-                    0,
-                  ),
-                )}
-              </strong>
-            </div>
-
-            <div>
-              <span>With GPS</span>
-              <strong>
-                {formatCount(drilldown.projects.filter(hasGps).length)}
-              </strong>
-            </div>
-          </div>
 
           <div className="dashboard-modal-body">
             {drilldown.projects.length > 0 ? (
@@ -783,127 +722,94 @@ export default function Dashboard() {
 
   return (
     <>
-      <main className="dashboard-page">
+      <main
+        className={`dashboard-page ${
+          isDashboardScrolled ? 'is-dashboard-scrolled' : ''
+        }`}
+      >
         <section className="dashboard-hero">
           <div>
             <p className="dashboard-eyebrow">DILG Region X</p>
             <h1>PDMU Project Monitoring Dashboard</h1>
             <p>
-              Monitor implementation status, project cost, risk level, GPS
-              coverage, and accomplishment summaries.
+              Field-ready overview of implementation status, risk level, and
+              priority records for monitoring.
             </p>
           </div>
-
-          <div className="dashboard-hero-panel">
-            <span>Total Project Cost</span>
-            <strong>{formatProjectCost(dashboardData.totalProjectCost)}</strong>
-            <small>
-              {formatCount(dashboardData.totalProjects)} enrolled projects
-            </small>
-          </div>
         </section>
 
-        <section className="dashboard-stat-grid">
-          <button
-            type="button"
-            className="dashboard-stat-card"
-            onClick={() =>
-              openDrilldown(
-                'All Projects',
-                'Complete list of enrolled projects.',
-                projects,
-              )
-            }
-          >
-            <span>Total Projects</span>
-            <strong>{formatCount(dashboardData.totalProjects)}</strong>
-            <small>All project records</small>
-          </button>
-
-          <button
-            type="button"
-            className="dashboard-stat-card"
-            onClick={() =>
-              openDrilldown(
-                'Total Project Cost',
-                'All projects included in the total project cost.',
-                projects,
-              )
-            }
-          >
-            <span>Total Project Cost</span>
-            <strong>{formatProjectCost(dashboardData.totalProjectCost)}</strong>
-            <small>Combined project cost</small>
-          </button>
-
-          <button
-            type="button"
-            className="dashboard-stat-card"
-            onClick={() =>
-              openDrilldown(
-                'Ongoing Projects',
-                'Projects currently under implementation.',
-                dashboardData.ongoingProjects,
-              )
-            }
-          >
-            <span>Ongoing</span>
-            <strong>{formatCount(dashboardData.ongoingProjects.length)}</strong>
-            <small>Under implementation</small>
-          </button>
-
-          <button
-            type="button"
-            className="dashboard-stat-card"
-            onClick={() =>
-              openDrilldown(
-                'Completed Projects',
-                'Projects tagged as completed.',
-                dashboardData.completedProjects,
-              )
-            }
-          >
-            <span>Completed</span>
-            <strong>
-              {formatCount(dashboardData.completedProjects.length)}
-            </strong>
-            <small>Finished projects</small>
-          </button>
-
-          <button
-            type="button"
-            className="dashboard-stat-card danger"
-            onClick={() =>
-              openDrilldown(
-                'High Risk Projects',
-                'Projects requiring close monitoring and follow-through.',
-                dashboardData.highRiskProjects,
-              )
-            }
-          >
-            <span>High Risk</span>
-            <strong>{formatCount(dashboardData.highRiskProjects.length)}</strong>
-            <small>Needs attention</small>
-          </button>
-
-          <button
-            type="button"
-            className="dashboard-stat-card"
-            onClick={() =>
-              openDrilldown(
-                'Projects With GPS',
-                'Projects with available latitude and longitude coordinates.',
-                dashboardData.gpsProjects,
-              )
-            }
-          >
-            <span>With GPS</span>
-            <strong>{formatCount(dashboardData.gpsProjects.length)}</strong>
-            <small>Map-ready records</small>
-          </button>
+        <section className="dashboard-stat-grid" aria-label="Dashboard summary cards">
+          {statCards.map((card) => (
+            <button
+              type="button"
+              key={card.key}
+              className={`dashboard-stat-card ${card.className}`}
+              onClick={() =>
+                openDrilldown(card.title, card.subtitle, card.records)
+              }
+            >
+              <span>{card.label}</span>
+              <strong>{formatCount(card.value)}</strong>
+              <small>{card.helper}</small>
+            </button>
+          ))}
         </section>
 
-        <section className="dashboard-main-grid">
+        <section className="dashboard-priority-section">
+          <article className="dashboard-list-card">
+            <div className="dashboard-card-header">
+              <div>
+                <p className="dashboard-card-kicker">Priority Review</p>
+                <h2>High Risk Projects</h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  openDrilldown(
+                    'High Risk Projects',
+                    'Projects requiring close monitoring and follow-through.',
+                    dashboardData.highRiskProjects,
+                  )
+                }
+              >
+                View All
+              </button>
+            </div>
+
+            <div className="dashboard-project-list">
+              {dashboardData.highRiskProjects.slice(0, 5).length > 0 ? (
+                dashboardData.highRiskProjects.slice(0, 5).map((project) => (
+                  <button
+                    type="button"
+                    key={getProjectId(project) || getProjectName(project)}
+                    onClick={() =>
+                      openDrilldown(
+                        getProjectName(project),
+                        'Selected high risk project record.',
+                        [project],
+                      )
+                    }
+                  >
+                    <div>
+                      <strong>{getProjectName(project)}</strong>
+                      <span>{getLocation(project)}</span>
+                    </div>
+
+                    <em>{formatPercent(getPhysicalProgress(project))}</em>
+                  </button>
+                ))
+              ) : (
+                <div className="dashboard-empty-state compact">
+                  <strong>No high risk projects</strong>
+                  <p>No project is currently tagged as high risk.</p>
+                </div>
+              )}
+            </div>
+          </article>
+        </section>
+
+        <section className="dashboard-main-grid dashboard-chart-row">
           <article className="dashboard-chart-card">
             <div className="dashboard-card-header">
               <div>
@@ -916,14 +822,14 @@ export default function Dashboard() {
 
             <div className="dashboard-chart-area">
               {dashboardData.statusData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={dashboardData.statusData}
                       dataKey="count"
                       nameKey="name"
-                      innerRadius={62}
-                      outerRadius={102}
+                      innerRadius="52%"
+                      outerRadius="78%"
                       paddingAngle={2}
                       cursor="pointer"
                       onClick={(entry: any) => {
@@ -942,7 +848,7 @@ export default function Dashboard() {
                       {dashboardData.statusData.map((entry, index) => (
                         <Cell
                           key={entry.name}
-                          fill={CHART_COLORS[index % CHART_COLORS.length]}
+                          fill={getStatusColor(entry.name, index)}
                         />
                       ))}
                     </Pie>
@@ -978,12 +884,7 @@ export default function Dashboard() {
                     )
                   }
                 >
-                  <i
-                    style={{
-                      backgroundColor:
-                        CHART_COLORS[index % CHART_COLORS.length],
-                    }}
-                  />
+                  <i style={{ backgroundColor: getStatusColor(item.name, index) }} />
                   <span>{item.name}</span>
                   <strong>{formatCount(item.count)}</strong>
                 </button>
@@ -999,20 +900,20 @@ export default function Dashboard() {
               </div>
 
               <span>
-                {formatCount(dashboardData.highRiskProjects.length)} high risk
+                {formatCount(dashboardData.highRiskProjects.length)} high
               </span>
             </div>
 
             <div className="dashboard-chart-area">
               {dashboardData.riskData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={dashboardData.riskData}
                       dataKey="count"
                       nameKey="name"
-                      innerRadius={62}
-                      outerRadius={102}
+                      innerRadius="52%"
+                      outerRadius="78%"
                       paddingAngle={2}
                       cursor="pointer"
                       onClick={(entry: any) => {
@@ -1067,248 +968,16 @@ export default function Dashboard() {
                     )
                   }
                 >
-                  <i
-                    style={{
-                      backgroundColor: getRiskColor(item.name, index),
-                    }}
-                  />
+                  <i style={{ backgroundColor: getRiskColor(item.name, index) }} />
                   <span>{item.name}</span>
                   <strong>{formatCount(item.count)}</strong>
                 </button>
               ))}
             </div>
           </article>
-
-          <article className="dashboard-chart-card wide">
-            <div className="dashboard-card-header">
-              <div>
-                <p className="dashboard-card-kicker">LGU Distribution</p>
-                <h2>Top LGUs by Number of Projects</h2>
-              </div>
-
-              <span>Top {dashboardData.lguData.length}</span>
-            </div>
-
-            <div className="dashboard-chart-area tall">
-              {dashboardData.lguData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={340}>
-                  <BarChart
-                    data={dashboardData.lguData}
-                    margin={{
-                      top: 10,
-                      right: 20,
-                      left: 8,
-                      bottom: 24,
-                    }}
-                    onClick={(state: any) => {
-                      const item = state?.activePayload?.[0]
-                        ?.payload as LguChartItem | null
-
-                      if (!item) return
-
-                      openDrilldown(
-                        `${item.lgu} Projects`,
-                        `Projects located in or implemented by ${item.lgu}.`,
-                        projects.filter((project) => getLgu(project) === item.lgu),
-                      )
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-
-                    <XAxis
-                      dataKey="lgu"
-                      interval={0}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fontSize: 11 }}
-                    />
-
-                    <YAxis
-                      allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-
-                    <Tooltip
-                      formatter={(value) => [
-                        formatCount(asNumber(value)),
-                        'Projects',
-                      ]}
-                    />
-
-                    <Bar
-                      dataKey="count"
-                      radius={[10, 10, 0, 0]}
-                      cursor="pointer"
-                      fill="#1d4ed8"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="dashboard-empty-state compact">
-                  <strong>No LGU data</strong>
-                  <p>No LGU records available.</p>
-                </div>
-              )}
-            </div>
-          </article>
-
-          <article className="dashboard-chart-card">
-            <div className="dashboard-card-header">
-              <div>
-                <p className="dashboard-card-kicker">Accomplishment</p>
-                <h2>Average Progress</h2>
-              </div>
-
-              <span>{formatPercent(dashboardData.averagePhysical)} physical</span>
-            </div>
-
-            <div className="dashboard-mini-bars">
-              <button
-                type="button"
-                onClick={() =>
-                  openDrilldown(
-                    'Physical Accomplishment',
-                    'All projects included in the average physical accomplishment.',
-                    projects,
-                  )
-                }
-              >
-                <div>
-                  <span>Average Physical</span>
-                  <strong>{formatPercent(dashboardData.averagePhysical)}</strong>
-                </div>
-
-                <div className="dashboard-progress-track">
-                  <span
-                    style={{
-                      width: `${Math.min(dashboardData.averagePhysical, 100)}%`,
-                    }}
-                  />
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  openDrilldown(
-                    'Financial Accomplishment',
-                    'All projects included in the average financial accomplishment.',
-                    projects,
-                  )
-                }
-              >
-                <div>
-                  <span>Average Financial</span>
-                  <strong>{formatPercent(dashboardData.averageFinancial)}</strong>
-                </div>
-
-                <div className="dashboard-progress-track">
-                  <span
-                    style={{
-                      width: `${Math.min(dashboardData.averageFinancial, 100)}%`,
-                    }}
-                  />
-                </div>
-              </button>
-            </div>
-
-            <div className="dashboard-chart-area small">
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart
-                  data={dashboardData.accomplishmentData}
-                  margin={{
-                    top: 10,
-                    right: 20,
-                    left: 8,
-                    bottom: 10,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} />
-
-                  <YAxis
-                    domain={[0, 100]}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `${value}%`}
-                  />
-
-                  <Tooltip formatter={(value) => [formatPercent(value), '']} />
-
-                  <Bar
-                    dataKey="physical"
-                    name="Physical"
-                    radius={[8, 8, 0, 0]}
-                    fill="#1d4ed8"
-                  />
-
-                  <Bar
-                    dataKey="financial"
-                    name="Financial"
-                    radius={[8, 8, 0, 0]}
-                    fill="#f97316"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </article>
         </section>
 
-        <section className="dashboard-detail-grid">
-          <article className="dashboard-list-card">
-            <div className="dashboard-card-header">
-              <div>
-                <p className="dashboard-card-kicker">Priority Review</p>
-                <h2>High Risk Projects</h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  openDrilldown(
-                    'High Risk Projects',
-                    'Projects requiring close monitoring and follow-through.',
-                    dashboardData.highRiskProjects,
-                  )
-                }
-              >
-                View All
-              </button>
-            </div>
-
-            <div className="dashboard-project-list">
-              {dashboardData.highRiskProjects.slice(0, 5).length > 0 ? (
-                dashboardData.highRiskProjects.slice(0, 5).map((project) => (
-                  <button
-                    type="button"
-                    key={getProjectId(project) || getProjectName(project)}
-                    onClick={() =>
-                      openDrilldown(
-                        getProjectName(project),
-                        'Selected high risk project record.',
-                        [project],
-                      )
-                    }
-                  >
-                    <div>
-                      <strong>{getProjectName(project)}</strong>
-                      <span>{getLocation(project)}</span>
-                    </div>
-
-                    <em>{formatPercent(getPhysicalProgress(project))}</em>
-                  </button>
-                ))
-              ) : (
-                <div className="dashboard-empty-state compact">
-                  <strong>No high risk projects</strong>
-                  <p>No project is currently tagged as high risk.</p>
-                </div>
-              )}
-            </div>
-          </article>
-
+        <section className="dashboard-recent-section">
           <article className="dashboard-list-card">
             <div className="dashboard-card-header">
               <div>
@@ -1360,108 +1029,6 @@ export default function Dashboard() {
               )}
             </div>
           </article>
-        </section>
-
-        <section className="dashboard-bottom-grid">
-          <button
-            type="button"
-            onClick={() =>
-              openDrilldown(
-                'Not Yet Started Projects',
-                'Projects that have not yet started implementation.',
-                dashboardData.notStartedProjects,
-              )
-            }
-          >
-            <span>Not Yet Started</span>
-            <strong>
-              {formatCount(dashboardData.notStartedProjects.length)}
-            </strong>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              openDrilldown(
-                'Moderate Risk Projects',
-                'Projects currently tagged as moderate or medium risk.',
-                dashboardData.moderateRiskProjects,
-              )
-            }
-          >
-            <span>Moderate Risk</span>
-            <strong>
-              {formatCount(dashboardData.moderateRiskProjects.length)}
-            </strong>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              openDrilldown(
-                'Low Risk Projects',
-                'Projects currently tagged as low risk.',
-                dashboardData.lowRiskProjects,
-              )
-            }
-          >
-            <span>Low Risk</span>
-            <strong>{formatCount(dashboardData.lowRiskProjects.length)}</strong>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              openDrilldown(
-                'Cancelled Projects',
-                'Projects tagged as cancelled.',
-                dashboardData.cancelledProjects,
-              )
-            }
-          >
-            <span>Cancelled</span>
-            <strong>
-              {formatCount(dashboardData.cancelledProjects.length)}
-            </strong>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              openDrilldown(
-                'Terminated Projects',
-                'Projects tagged as terminated.',
-                dashboardData.terminatedProjects,
-              )
-            }
-          >
-            <span>Terminated</span>
-            <strong>
-              {formatCount(dashboardData.terminatedProjects.length)}
-            </strong>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              openDrilldown(
-                'GPS Coverage',
-                'Projects with available latitude and longitude coordinates.',
-                dashboardData.gpsProjects,
-              )
-            }
-          >
-            <span>GPS Coverage</span>
-            <strong>
-              {dashboardData.totalProjects > 0
-                ? `${Math.round(
-                    (dashboardData.gpsProjects.length /
-                      dashboardData.totalProjects) *
-                      100,
-                  )}%`
-                : '0%'}
-            </strong>
-          </button>
         </section>
       </main>
 

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { offlineDb } from '../lib/offlineDb'
 import * as offlineSyncService from '../services/offlineSyncService'
 import '../styles/offlineSync.css'
+import '../styles/pageHero.css'
 
 type AnyRecord = Record<string, unknown>
 
@@ -155,13 +156,6 @@ function formatFileSize(value: unknown) {
   }
 
   return `${size} B`
-}
-
-function isProblemRecord(record: AnyRecord) {
-  const status = textValue(record.status || record.sync_status).toLowerCase()
-  const error = textValue(record.error)
-
-  return Boolean(error) || status.includes('fail') || status.includes('error')
 }
 
 function getStatusLabel(record: AnyRecord) {
@@ -321,6 +315,7 @@ export default function OfflineSync() {
   const [lastChecked, setLastChecked] = useState('')
   const [lastSyncMessage, setLastSyncMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [isOfflineScrolled, setIsOfflineScrolled] = useState(false)
 
   const [updateTableName, setUpdateTableName] = useState('')
   const [photoTableName, setPhotoTableName] = useState('')
@@ -344,6 +339,28 @@ export default function OfflineSync() {
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  useEffect(() => {
+    let ticking = false
+
+    function handleScroll() {
+      if (ticking) return
+
+      ticking = true
+
+      window.requestAnimationFrame(() => {
+        setIsOfflineScrolled(window.scrollY > 28)
+        ticking = false
+      })
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
     }
   }, [])
 
@@ -423,23 +440,8 @@ export default function OfflineSync() {
   const pendingPhotosCount = offlinePhotos.length
   const totalPendingCount = pendingUpdatesCount + pendingPhotosCount
 
-  const failedCount = useMemo(() => {
-    return [...offlineUpdates, ...offlinePhotos].filter(isProblemRecord).length
-  }, [offlineUpdates, offlinePhotos])
-
-  const latestUpdateDate = useMemo(() => {
-    const dates = offlineUpdates
-      .map((record) => new Date(textValue(getUpdateDate(record))).getTime())
-      .filter((time) => Number.isFinite(time))
-      .sort((a, b) => b - a)
-
-    if (dates.length === 0) return 'No pending update'
-
-    return formatLongDate(new Date(dates[0]).toISOString())
-  }, [offlineUpdates])
-
   return (
-    <div className="offline-sync-page">
+    <div className={`offline-sync-page ${isOfflineScrolled ? 'is-offline-scrolled' : ''}`}>
       <section className="offline-sync-hero">
         <div>
           <p className="offline-sync-eyebrow">Offline Field Operations</p>
@@ -459,86 +461,6 @@ export default function OfflineSync() {
         </div>
       </section>
 
-      <section className="offline-sync-summary-grid">
-        <div className="offline-sync-summary-card">
-          <span>Pending Updates</span>
-          <strong>{pendingUpdatesCount}</strong>
-        </div>
-
-        <div className="offline-sync-summary-card">
-          <span>Pending Photos</span>
-          <strong>{pendingPhotosCount}</strong>
-        </div>
-
-        <div className="offline-sync-summary-card">
-          <span>Total Pending</span>
-          <strong>{totalPendingCount}</strong>
-        </div>
-
-        <div className="offline-sync-summary-card">
-          <span>Failed Records</span>
-          <strong>{failedCount}</strong>
-        </div>
-
-        <div className="offline-sync-summary-card">
-          <span>Latest Update</span>
-          <strong className="offline-sync-date-value">{latestUpdateDate}</strong>
-        </div>
-      </section>
-
-      <section className="offline-sync-action-card">
-        <div>
-          <h2>Sync Control</h2>
-          <p>
-            {lastChecked
-              ? `Last checked: ${formatDateTime(lastChecked)}`
-              : 'Offline storage has not been checked yet.'}
-          </p>
-
-          {(updateTableName || photoTableName) && (
-            <div className="offline-sync-table-tags">
-              {updateTableName && <span>Updates table: {updateTableName}</span>}
-              {photoTableName && <span>Photos table: {photoTableName}</span>}
-            </div>
-          )}
-        </div>
-
-        <div className="offline-sync-actions">
-          <button type="button" className="secondary" onClick={refreshOfflineData}>
-            Refresh
-          </button>
-
-          <button
-            type="button"
-            className="primary"
-            onClick={syncNow}
-            disabled={!isOnline || syncing || totalPendingCount === 0}
-          >
-            {syncing ? 'Syncing...' : 'Sync Now'}
-          </button>
-        </div>
-      </section>
-
-      {!updateTableName && !photoTableName && (
-        <div className="offline-sync-warning">
-          <strong>Offline storage notice:</strong> No compatible offline update/photo
-          tables were detected from offlineDb.ts. The page is ready, but table names may
-          need to be aligned with your Dexie setup.
-        </div>
-      )}
-
-      {lastSyncMessage && (
-        <div className="offline-sync-success">
-          <strong>Success:</strong> {lastSyncMessage}
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="offline-sync-error">
-          <strong>Notice:</strong> {errorMessage}
-        </div>
-      )}
-
       {loading ? (
         <section className="offline-sync-loading-card">
           <div className="offline-sync-loader" />
@@ -546,135 +468,193 @@ export default function OfflineSync() {
           <p>Checking pending updates and photos saved on this device...</p>
         </section>
       ) : (
-        <section className="offline-sync-workspace">
-          <div className="offline-sync-panel">
-            <div className="offline-sync-panel-header">
-              <div>
-                <h2>Pending Updates</h2>
-                <p>{pendingUpdatesCount} offline inspection update/s found.</p>
+        <>
+          <section className="offline-sync-workspace">
+            <div className="offline-sync-panel">
+              <div className="offline-sync-panel-header">
+                <div>
+                  <p>OFFLINE QUEUE</p>
+                  <h2>Pending Updates</h2>
+                  <span>{pendingUpdatesCount} offline inspection update/s found.</span>
+                </div>
               </div>
+
+              {offlineUpdates.length === 0 ? (
+                <div className="offline-sync-empty">
+                  <h3>No pending offline updates</h3>
+                  <p>Inspection updates saved offline will appear here before syncing.</p>
+                </div>
+              ) : (
+                <div className="offline-sync-list">
+                  {offlineUpdates.map((record, index) => (
+                    <article
+                      key={textValue(record.id) || `update-${index}`}
+                      className="offline-sync-record-card"
+                    >
+                      <div className="offline-sync-record-top">
+                        <div>
+                          <h3>{getUpdateTitle(record)}</h3>
+                          <p>{formatLongDate(getUpdateDate(record))}</p>
+                        </div>
+
+                        <span className={`offline-sync-status ${getStatusClass(record)}`}>
+                          {getStatusLabel(record)}
+                        </span>
+                      </div>
+
+                      <div className="offline-sync-record-grid">
+                        <span>
+                          <strong>Physical</strong>
+                          {formatPercent(getUpdatePhysical(record))}
+                        </span>
+                        <span>
+                          <strong>Financial</strong>
+                          {formatPercent(getUpdateFinancial(record))}
+                        </span>
+                        <span>
+                          <strong>Risk</strong>
+                          {getUpdateRisk(record)}
+                        </span>
+                        <span>
+                          <strong>Project ID</strong>
+                          {textValue(record.project_id) || '-'}
+                        </span>
+                      </div>
+
+                      {textValue(record.issues) && (
+                        <div className="offline-sync-note">
+                          <strong>Issues:</strong> {textValue(record.issues)}
+                        </div>
+                      )}
+
+                      {textValue(record.error) && (
+                        <div className="offline-sync-record-error">
+                          {textValue(record.error)}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {offlineUpdates.length === 0 ? (
-              <div className="offline-sync-empty">
-                <h3>No pending offline updates</h3>
-                <p>Inspection updates saved offline will appear here before syncing.</p>
+            <div className="offline-sync-panel">
+              <div className="offline-sync-panel-header">
+                <div>
+                  <p>PHOTO QUEUE</p>
+                  <h2>Pending Photos</h2>
+                  <span>{pendingPhotosCount} offline photo/s found.</span>
+                </div>
               </div>
-            ) : (
-              <div className="offline-sync-list">
-                {offlineUpdates.map((record, index) => (
-                  <article
-                    key={textValue(record.id) || `update-${index}`}
-                    className="offline-sync-record-card"
-                  >
-                    <div className="offline-sync-record-top">
-                      <div>
-                        <h3>{getUpdateTitle(record)}</h3>
-                        <p>{formatLongDate(getUpdateDate(record))}</p>
+
+              {offlinePhotos.length === 0 ? (
+                <div className="offline-sync-empty">
+                  <h3>No pending offline photos</h3>
+                  <p>Photos captured during offline inspection will appear here.</p>
+                </div>
+              ) : (
+                <div className="offline-sync-list">
+                  {offlinePhotos.map((record, index) => (
+                    <article
+                      key={textValue(record.id) || `photo-${index}`}
+                      className="offline-sync-record-card photo"
+                    >
+                      <div className="offline-sync-record-top">
+                        <div>
+                          <h3>{getPhotoTitle(record)}</h3>
+                          <p>{getPhotoProject(record)}</p>
+                        </div>
+
+                        <span className={`offline-sync-status ${getStatusClass(record)}`}>
+                          {getStatusLabel(record)}
+                        </span>
                       </div>
 
-                      <span className={`offline-sync-status ${getStatusClass(record)}`}>
-                        {getStatusLabel(record)}
-                      </span>
-                    </div>
-
-                    <div className="offline-sync-record-grid">
-                      <span>
-                        <strong>Physical</strong>
-                        {formatPercent(getUpdatePhysical(record))}
-                      </span>
-                      <span>
-                        <strong>Financial</strong>
-                        {formatPercent(getUpdateFinancial(record))}
-                      </span>
-                      <span>
-                        <strong>Risk</strong>
-                        {getUpdateRisk(record)}
-                      </span>
-                      <span>
-                        <strong>Project ID</strong>
-                        {textValue(record.project_id) || '-'}
-                      </span>
-                    </div>
-
-                    {textValue(record.issues) && (
-                      <div className="offline-sync-note">
-                        <strong>Issues:</strong> {textValue(record.issues)}
+                      <div className="offline-sync-record-grid">
+                        <span>
+                          <strong>Date Saved</strong>
+                          {formatLongDate(getPhotoDate(record))}
+                        </span>
+                        <span>
+                          <strong>File Size</strong>
+                          {formatFileSize(getPhotoSize(record))}
+                        </span>
+                        <span>
+                          <strong>Caption</strong>
+                          {textValue(record.caption) || '-'}
+                        </span>
+                        <span>
+                          <strong>Project ID</strong>
+                          {textValue(record.project_id) || '-'}
+                        </span>
                       </div>
-                    )}
 
-                    {textValue(record.error) && (
-                      <div className="offline-sync-record-error">
-                        {textValue(record.error)}
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
+                      {textValue(record.error) && (
+                        <div className="offline-sync-record-error">
+                          {textValue(record.error)}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
 
-          <div className="offline-sync-panel">
-            <div className="offline-sync-panel-header">
-              <div>
-                <h2>Pending Photos</h2>
-                <p>{pendingPhotosCount} offline photo/s found.</p>
-              </div>
+          <section className="offline-sync-action-card">
+            <div>
+              <p>SYNC CONTROL</p>
+              <h2>Sync Control</h2>
+              <span>
+                {lastChecked
+                  ? `Last checked: ${formatDateTime(lastChecked)}`
+                  : 'Offline storage has not been checked yet.'}
+              </span>
+
+              {(updateTableName || photoTableName) && (
+                <div className="offline-sync-table-tags">
+                  {updateTableName && <span>Updates: {updateTableName}</span>}
+                  {photoTableName && <span>Photos: {photoTableName}</span>}
+                </div>
+              )}
             </div>
 
-            {offlinePhotos.length === 0 ? (
-              <div className="offline-sync-empty">
-                <h3>No pending offline photos</h3>
-                <p>Photos captured during offline inspection will appear here.</p>
-              </div>
-            ) : (
-              <div className="offline-sync-list">
-                {offlinePhotos.map((record, index) => (
-                  <article
-                    key={textValue(record.id) || `photo-${index}`}
-                    className="offline-sync-record-card photo"
-                  >
-                    <div className="offline-sync-record-top">
-                      <div>
-                        <h3>{getPhotoTitle(record)}</h3>
-                        <p>{getPhotoProject(record)}</p>
-                      </div>
+            <div className="offline-sync-actions">
+              <button type="button" className="secondary" onClick={refreshOfflineData}>
+                Refresh
+              </button>
 
-                      <span className={`offline-sync-status ${getStatusClass(record)}`}>
-                        {getStatusLabel(record)}
-                      </span>
-                    </div>
+              <button
+                type="button"
+                className="primary"
+                onClick={syncNow}
+                disabled={!isOnline || syncing || totalPendingCount === 0}
+              >
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+            </div>
+          </section>
 
-                    <div className="offline-sync-record-grid">
-                      <span>
-                        <strong>Date Saved</strong>
-                        {formatLongDate(getPhotoDate(record))}
-                      </span>
-                      <span>
-                        <strong>File Size</strong>
-                        {formatFileSize(getPhotoSize(record))}
-                      </span>
-                      <span>
-                        <strong>Caption</strong>
-                        {textValue(record.caption) || '-'}
-                      </span>
-                      <span>
-                        <strong>Project ID</strong>
-                        {textValue(record.project_id) || '-'}
-                      </span>
-                    </div>
+          {!updateTableName && !photoTableName && (
+            <div className="offline-sync-warning">
+              <strong>Offline storage notice:</strong> No compatible offline update/photo
+              tables were detected from offlineDb.ts. The page is ready, but table names may
+              need to be aligned with your Dexie setup.
+            </div>
+          )}
 
-                    {textValue(record.error) && (
-                      <div className="offline-sync-record-error">
-                        {textValue(record.error)}
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+          {lastSyncMessage && (
+            <div className="offline-sync-success">
+              <strong>Success:</strong> {lastSyncMessage}
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="offline-sync-error">
+              <strong>Notice:</strong> {errorMessage}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

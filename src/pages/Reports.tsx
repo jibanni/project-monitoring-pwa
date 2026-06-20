@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import '../styles/reports.css'
+import '../styles/pageHero.css'
 
 type ProjectRow = {
   id: string
@@ -55,25 +57,6 @@ function formatCurrency(value: unknown) {
   )
 }
 
-function formatCompactCurrency(value: unknown) {
-  const amount = toNumber(value)
-  const absAmount = Math.abs(amount)
-
-  if (absAmount >= 1_000_000_000) {
-    return `Php ${(amount / 1_000_000_000).toFixed(2)}B`
-  }
-
-  if (absAmount >= 1_000_000) {
-    return `Php ${(amount / 1_000_000).toFixed(2)}M`
-  }
-
-  if (absAmount >= 1_000) {
-    return `Php ${(amount / 1_000).toFixed(2)}K`
-  }
-
-  return formatCurrency(amount)
-}
-
 function formatPercent(value: unknown) {
   return `${toNumber(value).toFixed(2)}%`
 }
@@ -98,7 +81,9 @@ function getStatusClass(status: string | null) {
   if (normalized.includes('complete')) return 'completed'
   if (normalized.includes('ongoing')) return 'ongoing'
   if (normalized.includes('not')) return 'not-started'
+  if (normalized.includes('suspended')) return 'delayed'
   if (normalized.includes('delayed')) return 'delayed'
+  if (normalized.includes('cancelled') || normalized.includes('terminated')) return 'cancelled'
 
   return 'default'
 }
@@ -119,10 +104,55 @@ function cleanFilename(value: string) {
   return value.replace(/[^a-z0-9-_]+/gi, '-').replace(/-+/g, '-').toLowerCase()
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M10.8 18.1a7.3 7.3 0 1 1 0-14.6 7.3 7.3 0 0 1 0 14.6Z" />
+      <path d="m16.1 16.1 4.4 4.4" />
+    </svg>
+  )
+}
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 6h16" />
+      <path d="M7 12h10" />
+      <path d="M10 18h4" />
+    </svg>
+  )
+}
+
+function PdfIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 3.5h8.4L18 7.1v13.4H6V3.5Z" />
+      <path d="M14 3.8v4h4" />
+      <path d="M8.2 13.3h1.3c.8 0 1.3-.5 1.3-1.2s-.5-1.2-1.3-1.2H8.2v4.4" />
+      <path d="M12.5 10.9v4.4h1.2c1.4 0 2.2-.8 2.2-2.2s-.8-2.2-2.2-2.2h-1.2Z" />
+    </svg>
+  )
+}
+
+function ExcelIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z" />
+      <path d="M8 8h8" />
+      <path d="M8 12h8" />
+      <path d="M8 16h8" />
+      <path d="M12 8v8" />
+    </svg>
+  )
+}
+
 export default function Reports() {
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  const [portalReady, setPortalReady] = useState(false)
+  const [isReportsScrolled, setIsReportsScrolled] = useState(false)
 
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('')
@@ -132,7 +162,33 @@ export default function Reports() {
   const [riskFilter, setRiskFilter] = useState('')
 
   useEffect(() => {
+    setPortalReady(true)
+  }, [])
+
+  useEffect(() => {
     loadProjects()
+  }, [])
+
+  useEffect(() => {
+    let ticking = false
+
+    function handleScroll() {
+      if (ticking) return
+
+      ticking = true
+
+      window.requestAnimationFrame(() => {
+        setIsReportsScrolled(window.scrollY > 28)
+        ticking = false
+      })
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
   }, [])
 
   async function loadProjects() {
@@ -268,30 +324,6 @@ export default function Reports() {
     riskFilter,
   ])
 
-  const totalProjectCost = useMemo(() => {
-    return filteredProjects.reduce((sum, project) => {
-      return sum + toNumber(project.budget)
-    }, 0)
-  }, [filteredProjects])
-
-  const completedCount = useMemo(() => {
-    return filteredProjects.filter((project) =>
-      textValue(project.status).toLowerCase().includes('complete'),
-    ).length
-  }, [filteredProjects])
-
-  const ongoingCount = useMemo(() => {
-    return filteredProjects.filter((project) =>
-      textValue(project.status).toLowerCase().includes('ongoing'),
-    ).length
-  }, [filteredProjects])
-
-  const highRiskCount = useMemo(() => {
-    return filteredProjects.filter((project) =>
-      textValue(project.risk_level).toLowerCase().includes('high'),
-    ).length
-  }, [filteredProjects])
-
   const activeFilterCount = [
     searchTerm,
     provinceFilter,
@@ -300,6 +332,9 @@ export default function Reports() {
     statusFilter,
     riskFilter,
   ].filter(Boolean).length
+
+  const hasActiveSearch = activeFilterCount > 0
+  const reportProjects = hasActiveSearch ? filteredProjects : projects
 
   function generatePdfReport() {
     const doc = new jsPDF({
@@ -323,11 +358,7 @@ export default function Reports() {
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
-    doc.text(`Projects Found: ${filteredProjects.length}`, 14, 41)
-    doc.text(`Total Project Cost: ${formatCurrency(totalProjectCost)}`, 66, 41)
-    doc.text(`Completed: ${completedCount}`, 150, 41)
-    doc.text(`Ongoing: ${ongoingCount}`, 190, 41)
-    doc.text(`High Risk: ${highRiskCount}`, 230, 41)
+    doc.text(`Projects Included: ${reportProjects.length}`, 14, 41)
 
     autoTable(doc, {
       startY: 48,
@@ -346,7 +377,7 @@ export default function Reports() {
           'Last Inspection',
         ],
       ],
-      body: filteredProjects.map((project) => [
+      body: reportProjects.map((project) => [
         textValue(project.project_name) || 'Untitled Project',
         textValue(project.province) || '-',
         textValue(project.municipality) || '-',
@@ -397,7 +428,7 @@ export default function Reports() {
   }
 
   function exportExcelReport() {
-    const rows = filteredProjects.map((project) => ({
+    const rows = reportProjects.map((project) => ({
       Project: textValue(project.project_name) || 'Untitled Project',
       Description: textValue(project.description),
       Province: textValue(project.province),
@@ -422,11 +453,8 @@ export default function Reports() {
     const summaryRows = [
       ['DILG-PDMU Project Monitoring Report'],
       ['Generated', formatLongDate(new Date().toISOString())],
-      ['Projects Found', filteredProjects.length],
-      ['Total Project Cost', totalProjectCost],
-      ['Completed', completedCount],
-      ['Ongoing', ongoingCount],
-      ['High Risk', highRiskCount],
+      ['Projects Included', reportProjects.length],
+      ['Active Filters', activeFilterCount],
       [],
     ]
 
@@ -439,6 +467,32 @@ export default function Reports() {
 
     XLSX.writeFile(workbook, 'dilg-pdmu-project-monitoring-report.xlsx')
   }
+
+  const reportsFabStack = (
+    <div className="reports-fab-stack" aria-label="Report actions">
+      <button
+        type="button"
+        className="reports-fab reports-fab-excel"
+        onClick={exportExcelReport}
+        disabled={loading || projects.length === 0}
+        aria-label="Export Excel"
+        title="Export Excel"
+      >
+        <ExcelIcon />
+      </button>
+
+      <button
+        type="button"
+        className="reports-fab reports-fab-pdf"
+        onClick={generatePdfReport}
+        disabled={loading || projects.length === 0}
+        aria-label="Generate PDF"
+        title="Generate PDF"
+      >
+        <PdfIcon />
+      </button>
+    </div>
+  )
 
   if (loading) {
     return (
@@ -467,284 +521,284 @@ export default function Reports() {
   }
 
   return (
-    <div className="reports-page">
-      <section className="reports-hero">
-        <div>
-          <p className="reports-eyebrow">Reports Module</p>
-          <h1>Project Reports</h1>
-          <p>
-            Generate project monitoring reports by province, LGU, funding source,
-            implementation status, and risk level.
-          </p>
-        </div>
-
-        <div className="reports-hero-actions">
-          <button type="button" onClick={generatePdfReport}>
-            Generate PDF
-          </button>
-          <button type="button" onClick={exportExcelReport}>
-            Export Excel
-          </button>
-        </div>
-      </section>
-
-      <section className="reports-filter-card">
-        <div className="reports-search-field">
-          <label htmlFor="reports-search">Search</label>
-          <input
-            id="reports-search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search project, barangay, LGU, contractor, program..."
-          />
-        </div>
-
-        <div className="reports-filter-grid">
-          <label>
-            Province
-            <select
-              value={provinceFilter}
-              onChange={(event) => {
-                setProvinceFilter(event.target.value)
-                setMunicipalityFilter('')
-              }}
-            >
-              <option value="">All Provinces</option>
-              {provinces.map((province) => (
-                <option key={province} value={province}>
-                  {province}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Municipality / LGU
-            <select
-              value={municipalityFilter}
-              onChange={(event) => setMunicipalityFilter(event.target.value)}
-            >
-              <option value="">All LGUs</option>
-              {municipalities.map((municipality) => (
-                <option key={municipality} value={municipality}>
-                  {municipality}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Program / Funding Source
-            <select
-              value={programFilter}
-              onChange={(event) => setProgramFilter(event.target.value)}
-            >
-              <option value="">All Programs</option>
-              {programs.map((program) => (
-                <option key={program} value={program}>
-                  {program}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Status
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">All Status</option>
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Risk Level
-            <select
-              value={riskFilter}
-              onChange={(event) => setRiskFilter(event.target.value)}
-            >
-              <option value="">All Risk Levels</option>
-              {risks.map((risk) => (
-                <option key={risk} value={risk}>
-                  {risk}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <button type="button" className="reports-clear-btn" onClick={clearFilters}>
-            Clear Filters
-          </button>
-        </div>
-
-        <div className="reports-filter-footer">
-          <span>{activeFilterCount} active filter/s</span>
-          <span>{filteredProjects.length} project/s matched</span>
-        </div>
-      </section>
-
-      <section className="reports-summary-grid">
-        <div className="reports-summary-card">
-          <span>Projects Found</span>
-          <strong>{filteredProjects.length}</strong>
-        </div>
-
-        <div
-          className="reports-summary-card reports-cost-card"
-          title={formatCurrency(totalProjectCost)}
-        >
-          <span>Total Project Cost</span>
-          <strong>{formatCompactCurrency(totalProjectCost)}</strong>
-        </div>
-
-        <div className="reports-summary-card">
-          <span>Completed</span>
-          <strong>{completedCount}</strong>
-        </div>
-
-        <div className="reports-summary-card">
-          <span>Ongoing</span>
-          <strong>{ongoingCount}</strong>
-        </div>
-
-        <div className="reports-summary-card">
-          <span>High Risk</span>
-          <strong>{highRiskCount}</strong>
-        </div>
-      </section>
-
-      <section className="reports-table-card">
-        <div className="reports-table-header">
+    <>
+      <div className={`reports-page ${isReportsScrolled ? 'is-reports-scrolled' : ''}`}>
+        <section className="reports-hero">
           <div>
-            <h2>Report Results</h2>
+            <p className="reports-eyebrow">Reports Module</p>
+            <h1>Project Reports</h1>
             <p>
-              Showing {filteredProjects.length} of {projects.length} total project/s.
+              Generate project monitoring reports by province, LGU, funding source,
+              implementation status, and risk level.
             </p>
           </div>
+        </section>
 
-          <button type="button" onClick={loadProjects}>
-            Refresh Data
-          </button>
-        </div>
+        <section className="reports-filter-card">
+          <div className="reports-search-row">
+            <label className="reports-search-field" htmlFor="reports-search">
+              <SearchIcon />
+              <input
+                id="reports-search"
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search project, LGU, program..."
+              />
+            </label>
 
-        {filteredProjects.length === 0 ? (
-          <div className="reports-empty">
-            <h3>No projects found</h3>
-            <p>Adjust your filters or clear all filters to show available records.</p>
-            <button type="button" onClick={clearFilters}>
-              Clear Filters
+            <button
+              type="button"
+              className={`reports-filter-button ${showFilters ? 'is-active' : ''}`}
+              onClick={() => setShowFilters((current) => !current)}
+              aria-expanded={showFilters}
+              aria-label="Show report filters"
+              title="Show report filters"
+            >
+              <FilterIcon />
+              <span>Filter</span>
             </button>
           </div>
-        ) : (
-          <>
-            <div className="reports-table-wrap">
-              <table className="reports-table">
-                <thead>
-                  <tr>
-                    <th>Project</th>
-                    <th>Location</th>
-                    <th>Funding Source</th>
-                    <th>Project Cost</th>
-                    <th>Status</th>
-                    <th>Risk</th>
-                    <th>Physical</th>
-                    <th>Financial</th>
-                    <th>Last Inspection</th>
-                  </tr>
-                </thead>
 
-                <tbody>
+          {showFilters && (
+            <div className="reports-filter-grid">
+              <label>
+                <span>Province</span>
+                <select
+                  value={provinceFilter}
+                  onChange={(event) => {
+                    setProvinceFilter(event.target.value)
+                    setMunicipalityFilter('')
+                  }}
+                >
+                  <option value="">All Provinces</option>
+                  {provinces.map((province) => (
+                    <option key={province} value={province}>
+                      {province}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Municipality / LGU</span>
+                <select
+                  value={municipalityFilter}
+                  onChange={(event) => setMunicipalityFilter(event.target.value)}
+                >
+                  <option value="">All LGUs</option>
+                  {municipalities.map((municipality) => (
+                    <option key={municipality} value={municipality}>
+                      {municipality}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Program / Funding Source</span>
+                <select
+                  value={programFilter}
+                  onChange={(event) => setProgramFilter(event.target.value)}
+                >
+                  <option value="">All Programs</option>
+                  {programs.map((program) => (
+                    <option key={program} value={program}>
+                      {program}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Status</span>
+                <select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                >
+                  <option value="">All Status</option>
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Risk Level</span>
+                <select
+                  value={riskFilter}
+                  onChange={(event) => setRiskFilter(event.target.value)}
+                >
+                  <option value="">All Risk Levels</option>
+                  {risks.map((risk) => (
+                    <option key={risk} value={risk}>
+                      {risk}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {hasActiveSearch && (
+                <button
+                  type="button"
+                  className="reports-clear-btn"
+                  onClick={clearFilters}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="reports-info-line">
+            {hasActiveSearch ? (
+              <>
+                <span>
+                  {filteredProjects.length} project/s matched from {projects.length} total record/s.
+                </span>
+
+                <span>
+                  {activeFilterCount} active filter/s
+                </span>
+              </>
+            ) : (
+              <span>
+                Search or use the filter button to display report records.
+              </span>
+            )}
+          </div>
+        </section>
+
+        {hasActiveSearch && (
+          <section className="reports-table-card">
+            <div className="reports-table-header">
+              <div>
+                <p>REPORT DATA</p>
+                <h2>Search Results</h2>
+                <span>
+                  Showing {filteredProjects.length} matched project/s.
+                </span>
+              </div>
+            </div>
+
+            {filteredProjects.length === 0 ? (
+              <div className="reports-empty">
+                <h3>No projects found</h3>
+                <p>Adjust your filters or clear all filters to show available records.</p>
+                <button type="button" onClick={clearFilters}>
+                  Clear Filters
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="reports-table-wrap">
+                  <table className="reports-table">
+                    <thead>
+                      <tr>
+                        <th>Project</th>
+                        <th>Location</th>
+                        <th>Funding Source</th>
+                        <th>Project Cost</th>
+                        <th>Status</th>
+                        <th>Risk</th>
+                        <th>Physical</th>
+                        <th>Financial</th>
+                        <th>Last Inspection</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {filteredProjects.map((project) => (
+                        <tr key={project.id}>
+                          <td>
+                            <strong>{textValue(project.project_name) || 'Untitled Project'}</strong>
+                            <span>{textValue(project.project_type) || 'No project type'}</span>
+                          </td>
+                          <td>
+                            <strong>
+                              {textValue(project.municipality) || 'No Municipality'}
+                            </strong>
+                            <span>
+                              {textValue(project.barangay) || 'No Barangay'},{' '}
+                              {textValue(project.province) || 'No Province'}
+                            </span>
+                          </td>
+                          <td>{textValue(project.funding_source) || '-'}</td>
+                          <td>{formatCurrency(project.budget)}</td>
+                          <td>
+                            <span className={`reports-status ${getStatusClass(project.status)}`}>
+                              {textValue(project.status) || 'No Status'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
+                              {textValue(project.risk_level) || 'No Risk'}
+                            </span>
+                          </td>
+                          <td>{formatPercent(project.physical_accomplishment)}</td>
+                          <td>{formatPercent(project.financial_accomplishment)}</td>
+                          <td>{formatLongDate(project.last_inspection_date)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="reports-mobile-list">
                   {filteredProjects.map((project) => (
-                    <tr key={project.id}>
-                      <td>
-                        <strong>{textValue(project.project_name) || 'Untitled Project'}</strong>
-                        <span>{textValue(project.project_type) || 'No project type'}</span>
-                      </td>
-                      <td>
-                        <strong>
-                          {textValue(project.municipality) || 'No Municipality'}
-                        </strong>
-                        <span>
+                    <article key={project.id} className="reports-mobile-card">
+                      <div>
+                        <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
+                        <p>
                           {textValue(project.barangay) || 'No Barangay'},{' '}
+                          {textValue(project.municipality) || 'No Municipality'},{' '}
                           {textValue(project.province) || 'No Province'}
-                        </span>
-                      </td>
-                      <td>{textValue(project.funding_source) || '-'}</td>
-                      <td>{formatCurrency(project.budget)}</td>
-                      <td>
+                        </p>
+                      </div>
+
+                      <div className="reports-mobile-badges">
                         <span className={`reports-status ${getStatusClass(project.status)}`}>
                           {textValue(project.status) || 'No Status'}
                         </span>
-                      </td>
-                      <td>
                         <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
                           {textValue(project.risk_level) || 'No Risk'}
                         </span>
-                      </td>
-                      <td>{formatPercent(project.physical_accomplishment)}</td>
-                      <td>{formatPercent(project.financial_accomplishment)}</td>
-                      <td>{formatLongDate(project.last_inspection_date)}</td>
-                    </tr>
+                      </div>
+
+                      <div className="reports-mobile-grid">
+                        <span>
+                          <strong>Funding</strong>
+                          {textValue(project.funding_source) || '-'}
+                        </span>
+                        <span>
+                          <strong>Cost</strong>
+                          {formatCurrency(project.budget)}
+                        </span>
+                        <span>
+                          <strong>Physical</strong>
+                          {formatPercent(project.physical_accomplishment)}
+                        </span>
+                        <span>
+                          <strong>Financial</strong>
+                          {formatPercent(project.financial_accomplishment)}
+                        </span>
+                        <span>
+                          <strong>Last Inspection</strong>
+                          {formatLongDate(project.last_inspection_date)}
+                        </span>
+                      </div>
+                    </article>
                   ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="reports-mobile-list">
-              {filteredProjects.map((project) => (
-                <article key={project.id} className="reports-mobile-card">
-                  <div>
-                    <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
-                    <p>
-                      {textValue(project.barangay) || 'No Barangay'},{' '}
-                      {textValue(project.municipality) || 'No Municipality'},{' '}
-                      {textValue(project.province) || 'No Province'}
-                    </p>
-                  </div>
-
-                  <div className="reports-mobile-badges">
-                    <span className={`reports-status ${getStatusClass(project.status)}`}>
-                      {textValue(project.status) || 'No Status'}
-                    </span>
-                    <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
-                      {textValue(project.risk_level) || 'No Risk'}
-                    </span>
-                  </div>
-
-                  <div className="reports-mobile-grid">
-                    <span>
-                      <strong>Funding</strong>
-                      {textValue(project.funding_source) || '-'}
-                    </span>
-                    <span>
-                      <strong>Cost</strong>
-                      {formatCurrency(project.budget)}
-                    </span>
-                    <span>
-                      <strong>Physical</strong>
-                      {formatPercent(project.physical_accomplishment)}
-                    </span>
-                    <span>
-                      <strong>Financial</strong>
-                      {formatPercent(project.financial_accomplishment)}
-                    </span>
-                    <span>
-                      <strong>Last Inspection</strong>
-                      {formatLongDate(project.last_inspection_date)}
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </>
+                </div>
+              </>
+            )}
+          </section>
         )}
-      </section>
-    </div>
+      </div>
+
+      {portalReady && createPortal(reportsFabStack, document.body)}
+    </>
   )
 }

@@ -1,29 +1,73 @@
 .pu-page {
-  width: min(100%, 1440px);
+  --pu-header-offset: var(--app-header-live-h, var(--current-header-h, 82px));
+  --pu-hero-compact-h: 56px;
+
+  position: relative;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0;
   color: #172033;
+  overflow: visible;
 }
 
 .pu-hero {
+  position: sticky;
+  top: calc(var(--pu-header-offset) + 10px);
+  z-index: 900;
+
+  overflow: hidden;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1.25rem;
-  border-radius: 24px;
-  background:
-    linear-gradient(135deg, rgba(9, 48, 92, 0.96), rgba(13, 77, 132, 0.92)),
-    #0b3769;
+  gap: 20px;
+
+  min-height: 132px;
+  padding: 30px 32px;
+  border-radius: 30px;
+
   color: #ffffff;
-  box-shadow: 0 18px 45px rgba(15, 35, 70, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 34%),
+    linear-gradient(135deg, #123f73 0%, #18599d 56%, #2368b5 100%);
+  box-shadow: 0 22px 48px rgba(15, 48, 87, 0.2);
+
+  transform: translateZ(0);
+  transition:
+    top 0.2s ease,
+    min-height 0.2s ease,
+    max-height 0.2s ease,
+    padding 0.2s ease,
+    border-radius 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.pu-hero::after {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 240px;
+  height: 240px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.11);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.pu-hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .pu-hero h1 {
+  max-width: 900px;
   margin: 0.35rem 0 0.5rem;
-  font-size: clamp(1.45rem, 3vw, 2.35rem);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  color: #ffffff;
+  font-size: clamp(2.3rem, 6vw, 4rem);
+  font-weight: 950;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
 }
 
 .pu-eyebrow {
@@ -69,6 +113,52 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.pu-page.is-pu-scrolled {
+  padding-top: var(--pu-hero-compact-h);
+}
+
+.pu-page.is-pu-scrolled .pu-hero {
+  position: fixed;
+  top: calc(var(--pu-header-offset) - 1px);
+  left: 0;
+  right: 0;
+  z-index: 899;
+
+  width: 100%;
+  max-width: none;
+  min-height: var(--pu-hero-compact-h);
+  max-height: var(--pu-hero-compact-h);
+  margin: 0;
+  padding: 0 20px;
+  border-radius: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+
+  box-shadow: none;
+}
+
+.pu-page.is-pu-scrolled .pu-hero::after,
+.pu-page.is-pu-scrolled .pu-eyebrow,
+.pu-page.is-pu-scrolled .pu-location-line,
+.pu-page.is-pu-scrolled .pu-hero-status {
+  display: none;
+}
+
+.pu-page.is-pu-scrolled .pu-hero h1 {
+  max-width: 100%;
+  overflow: hidden;
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.08rem, 4vw, 1.38rem);
+  font-weight: 950;
+  line-height: 1.1;
+  letter-spacing: -0.018em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .pu-badge {
@@ -146,11 +236,28 @@
 
 .pu-summary-card {
   min-width: 0;
-  padding: 1rem;
+  padding: 0.85rem 0.9rem;
   border: 1px solid #e6ebf3;
+  border-top: 4px solid #174b87;
   border-radius: 20px;
   background: #ffffff;
   box-shadow: 0 10px 30px rgba(15, 35, 70, 0.07);
+}
+
+.pu-summary-card:nth-child(1) {
+  border-top-color: #1d4ed8;
+}
+
+.pu-summary-card:nth-child(2) {
+  border-top-color: #f97316;
+}
+
+.pu-summary-card:nth-child(3) {
+  border-top-color: #174b87;
+}
+
+.pu-summary-card:nth-child(4) {
+  border-top-color: #16a34a;
 }
 
 .pu-summary-card span {
@@ -167,8 +274,12 @@
   display: block;
   overflow-wrap: anywhere;
   color: #0f172a;
-  font-size: clamp(1.05rem, 2vw, 1.45rem);
+  font-size: clamp(0.95rem, 2vw, 1.25rem);
   line-height: 1.15;
+}
+
+.pu-progress-summary strong {
+  font-size: clamp(0.92rem, 2vw, 1.12rem);
 }
 
 .pu-content-grid {
@@ -179,8 +290,74 @@
   margin-top: 1rem;
 }
 
+.pu-back-fab {
+  position: fixed;
+  right: max(0.85rem, env(safe-area-inset-right));
+  bottom: calc(5.2rem + env(safe-area-inset-bottom));
+  z-index: 2147480500;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+
+  color: #ffffff;
+  background: linear-gradient(135deg, #334155, #64748b);
+  line-height: 0;
+  box-shadow:
+    0 18px 34px rgba(15, 23, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    filter 0.16s ease;
+}
+
+.pu-back-fab:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 22px 42px rgba(15, 23, 42, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  filter: brightness(1.03);
+}
+
+.pu-back-fab:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.pu-back-fab svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+  flex: 0 0 auto;
+  margin: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: translateX(-1px);
+}
+
+
 .pu-form-card,
 .pu-side-card,
+.pu-loading-card,
+.pu-empty-card {
+  border: 1px solid #e6ebf3;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 14px 36px rgba(15, 35, 70, 0.08);
+}
+
 .pu-loading-card,
 .pu-empty-card {
   border: 1px solid #e6ebf3;
@@ -378,15 +555,18 @@
 }
 
 .pu-gps-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: 1rem;
   margin: 1rem 0;
   padding: 1rem;
   border: 1px solid #bfdbfe;
   border-radius: 20px;
   background: #eff6ff;
+}
+
+.pu-gps-simple-card {
+  grid-template-columns: minmax(0, 1fr) 230px;
+  align-items: center;
 }
 
 .pu-gps-card p {
@@ -397,7 +577,7 @@
 
 .pu-gps-actions {
   display: grid;
-  flex: 0 0 230px;
+  width: 100%;
   gap: 0.55rem;
 }
 
@@ -750,6 +930,63 @@
   font-weight: 800;
 }
 
+.pu-back-fab {
+  position: fixed;
+  right: max(0.85rem, env(safe-area-inset-right));
+  bottom: calc(5.2rem + env(safe-area-inset-bottom));
+  z-index: 2147480500;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+
+  color: #ffffff;
+  background: linear-gradient(135deg, #334155, #64748b);
+  line-height: 0;
+  box-shadow:
+    0 18px 34px rgba(15, 23, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    filter 0.16s ease;
+}
+
+.pu-back-fab:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 22px 42px rgba(15, 23, 42, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  filter: brightness(1.03);
+}
+
+.pu-back-fab:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.pu-back-fab svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+  flex: 0 0 auto;
+  margin: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: translateX(-1px);
+}
+
 .pu-loading-card,
 .pu-empty-card {
   display: grid;
@@ -796,13 +1033,33 @@
 }
 
 @media (max-width: 900px) {
-  .pu-page {
-    padding: 0.75rem;
+  .pu-hero {
+    top: calc(var(--pu-header-offset) + 8px);
+    display: grid;
+    min-height: 124px;
+    padding: 24px 22px;
+    border-radius: 28px;
   }
 
-  .pu-hero {
-    display: grid;
-    border-radius: 20px;
+  .pu-hero h1 {
+    font-size: clamp(2.05rem, 9vw, 3rem);
+    letter-spacing: -0.04em;
+  }
+
+  .pu-page.is-pu-scrolled {
+    padding-top: 52px;
+  }
+
+  .pu-page.is-pu-scrolled .pu-hero {
+    top: calc(var(--pu-header-offset) - 1px);
+    min-height: 52px;
+    max-height: 52px;
+    padding: 0 16px;
+    border-radius: 0;
+  }
+
+  .pu-page.is-pu-scrolled .pu-hero h1 {
+    font-size: 1.12rem;
   }
 
   .pu-hero-status {
@@ -824,6 +1081,10 @@
   .pu-photo-header,
   .pu-card-header {
     display: grid;
+  }
+
+  .pu-gps-simple-card {
+    grid-template-columns: 1fr;
   }
 
   .pu-gps-actions {
@@ -861,10 +1122,6 @@
 }
 
 @media (max-width: 560px) {
-  .pu-page {
-    padding: 0.6rem;
-  }
-
   .pu-hero,
   .pu-form-card,
   .pu-side-card,
@@ -872,8 +1129,38 @@
     border-radius: 18px;
   }
 
+  .pu-hero {
+    padding: 22px 20px;
+  }
+
+  .pu-hero h1 {
+    font-size: 2.05rem;
+  }
+
+  .pu-page.is-pu-scrolled .pu-hero h1 {
+    font-size: 1.02rem;
+  }
+
   .pu-summary-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .pu-summary-card {
+    min-height: 86px;
+    padding: 0.75rem 0.7rem;
+  }
+
+  .pu-summary-card span {
+    font-size: 0.66rem;
+  }
+
+  .pu-summary-card strong {
+    font-size: 0.9rem;
+  }
+
+  .pu-progress-summary strong {
+    font-size: 0.86rem;
   }
 
   .pu-long-date-field {
@@ -896,3 +1183,248 @@
     font-size: 16px;
   }
 }
+
+/* EMERGENCY LAYOUT SAFETY OVERRIDES */
+.pu-form-card,
+.pu-side-card {
+  position: relative !important;
+  inset: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: auto !important;
+  display: block !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 1rem !important;
+  border-radius: 24px !important;
+  color: inherit !important;
+  background: #ffffff !important;
+  box-shadow: 0 14px 36px rgba(15, 35, 70, 0.08) !important;
+}
+
+.pu-back-fab {
+  position: fixed !important;
+  left: max(0.9rem, env(safe-area-inset-left)) !important;
+  right: auto !important;
+  bottom: calc(5.2rem + env(safe-area-inset-bottom)) !important;
+  z-index: 2147480500 !important;
+}
+
+.pu-content-grid {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.pu-side-panel {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* =========================================================
+   FINAL OVERRIDE — PROJECT UPDATES BACK FAB RIGHT SIDE
+   Keeps the back button fixed on the lower-right side.
+========================================================= */
+
+.pu-back-fab {
+  position: fixed !important;
+  left: auto !important;
+  right: max(18px, env(safe-area-inset-right)) !important;
+  bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  z-index: 2147480500 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 56px !important;
+  height: 56px !important;
+  min-width: 56px !important;
+  min-height: 56px !important;
+  padding: 0 !important;
+
+  border: 0 !important;
+  border-radius: 999px !important;
+
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #334155, #64748b) !important;
+  box-shadow:
+    0 18px 34px rgba(15, 23, 42, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+
+  transform: none !important;
+}
+
+.pu-back-fab svg {
+  display: block !important;
+  width: 24px !important;
+  height: 24px !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  transform: translateX(-1px) !important;
+  stroke: currentColor !important;
+}
+
+@media (max-width: 480px) {
+  .pu-back-fab {
+    right: max(16px, env(safe-area-inset-right)) !important;
+    bottom: calc(94px + env(safe-area-inset-bottom)) !important;
+    width: 54px !important;
+    height: 54px !important;
+    min-width: 54px !important;
+    min-height: 54px !important;
+  }
+}
+
+/* =========================================================
+   FINAL HERO STICKY / MERGE OVERRIDE
+   Keeps Project Updates hero directly attached under fixed header
+   when compact, without affecting form cards or side cards.
+========================================================= */
+
+.pu-page {
+  --pu-header-expanded-offset: var(--app-header-live-h, var(--app-header-h, 82px));
+  --pu-header-compact-offset: var(--current-header-h, var(--app-header-live-h, var(--app-header-h, 82px)));
+  --pu-hero-compact-h: 54px;
+}
+
+.pu-hero {
+  position: sticky !important;
+  top: calc(var(--pu-header-expanded-offset) + 10px) !important;
+  z-index: 2147481200 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border-radius: 30px !important;
+}
+
+.pu-page.is-pu-scrolled {
+  padding-top: var(--pu-hero-compact-h) !important;
+}
+
+.pu-page.is-pu-scrolled .pu-hero {
+  position: fixed !important;
+  top: var(--pu-header-compact-offset) !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 2147481500 !important;
+
+  width: 100vw !important;
+  max-width: 100vw !important;
+  min-height: var(--pu-hero-compact-h) !important;
+  max-height: var(--pu-hero-compact-h) !important;
+  height: var(--pu-hero-compact-h) !important;
+
+  margin: 0 !important;
+  padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left)) !important;
+  border-radius: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 0 !important;
+
+  box-shadow: 0 10px 24px rgba(15, 48, 87, 0.16) !important;
+}
+
+.pu-page.is-pu-scrolled .pu-hero > div:first-child {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.pu-page.is-pu-scrolled .pu-hero::after,
+.pu-page.is-pu-scrolled .pu-eyebrow,
+.pu-page.is-pu-scrolled .pu-location-line,
+.pu-page.is-pu-scrolled .pu-hero-status {
+  display: none !important;
+}
+
+.pu-page.is-pu-scrolled .pu-hero h1 {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  color: #ffffff !important;
+  font-size: clamp(1.05rem, 4.5vw, 1.42rem) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.025em !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-back-fab {
+  left: auto !important;
+  right: max(18px, env(safe-area-inset-right)) !important;
+  bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  z-index: 2147480500 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 56px !important;
+  height: 56px !important;
+  min-width: 56px !important;
+  min-height: 56px !important;
+  padding: 0 !important;
+
+  border: 0 !important;
+  border-radius: 999px !important;
+
+  transform: none !important;
+}
+
+.pu-back-fab svg {
+  display: block !important;
+  width: 24px !important;
+  height: 24px !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  transform: translateX(-1px) !important;
+  stroke: currentColor !important;
+}
+
+@media (max-width: 900px) {
+  .pu-page {
+    --pu-hero-compact-h: 52px;
+  }
+
+  .pu-hero {
+    top: calc(var(--pu-header-expanded-offset) + 8px) !important;
+  }
+
+  .pu-page.is-pu-scrolled .pu-hero {
+    top: var(--pu-header-compact-offset) !important;
+    min-height: var(--pu-hero-compact-h) !important;
+    max-height: var(--pu-hero-compact-h) !important;
+    height: var(--pu-hero-compact-h) !important;
+    padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right)) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .pu-hero {
+    border-radius: 28px !important;
+  }
+
+  .pu-page.is-pu-scrolled .pu-hero {
+    border-radius: 0 !important;
+  }
+
+  .pu-page.is-pu-scrolled .pu-hero h1 {
+    font-size: clamp(1rem, 4.2vw, 1.16rem) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .pu-back-fab {
+    right: max(16px, env(safe-area-inset-right)) !important;
+    bottom: calc(94px + env(safe-area-inset-bottom)) !important;
+    width: 54px !important;
+    height: 54px !important;
+    min-width: 54px !important;
+    min-height: 54px !important;
+  }
+}
+

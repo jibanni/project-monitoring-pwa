@@ -428,6 +428,14 @@ async function updateCachedProject(projectId: string, patch: Partial<ProjectReco
   await projectsTable.update(projectId, patch)
 }
 
+function IconBack() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M15 18 9 12l6-6" />
+    </svg>
+  )
+}
+
 export default function ProjectUpdates() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -461,6 +469,7 @@ export default function ProjectUpdates() {
   const [gpsLoading, setGpsLoading] = useState(false)
   const [gpsMessage, setGpsMessage] = useState('')
   const [photoInputs, setPhotoInputs] = useState<PhotoInput[]>([])
+  const [isUpdateScrolled, setIsUpdateScrolled] = useState(false)
 
   const currentPhysical = useMemo(
     () => clampProgress(project?.physical_accomplishment),
@@ -472,42 +481,12 @@ export default function ProjectUpdates() {
     [project?.financial_accomplishment]
   )
 
-  const projectCoordinateStatus = useMemo(() => {
-    return normalizeCoordinatePair(project?.latitude, project?.longitude)
-  }, [project?.latitude, project?.longitude])
-
-  const previousGpsRecord = useMemo(() => {
-    for (const update of recentUpdates) {
-      const coordinates = normalizeCoordinatePair(
-        update.inspection_latitude,
-        update.inspection_longitude
-      )
-
-      if (
-        coordinates.isValid &&
-        coordinates.latitude !== null &&
-        coordinates.longitude !== null
-      ) {
-        return {
-          update,
-          latitude: coordinates.latitude,
-          longitude: coordinates.longitude,
-          wasSwapped: coordinates.wasSwapped,
-        }
-      }
-    }
-
-    return null
-  }, [recentUpdates])
-
   const inspectionCoordinateStatus = useMemo(() => {
     return normalizeCoordinatePair(inspectionLatitude, inspectionLongitude)
   }, [inspectionLatitude, inspectionLongitude])
 
   const hasInspectionCoordinates =
     inspectionLatitude.trim() !== '' || inspectionLongitude.trim() !== ''
-
-  const canUseProjectCoordinates = Boolean(projectCoordinateStatus.isValid)
 
   useEffect(() => {
     function handleOnline() {
@@ -538,6 +517,29 @@ export default function ProjectUpdates() {
   useEffect(() => {
     loadData()
   }, [id, online])
+
+  useEffect(() => {
+    let ticking = false
+
+    function handleScroll() {
+      if (ticking) return
+
+      ticking = true
+
+      requestAnimationFrame(() => {
+        setIsUpdateScrolled(window.scrollY > 28)
+        ticking = false
+      })
+    }
+
+    handleScroll()
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
 
   useEffect(() => {
     photoInputsRef.current = photoInputs
@@ -777,55 +779,6 @@ export default function ProjectUpdates() {
         timeout: 20000,
         maximumAge: 0,
       }
-    )
-  }
-
-  function useProjectCoordinates() {
-    if (
-      !projectCoordinateStatus.isValid ||
-      projectCoordinateStatus.latitude === null ||
-      projectCoordinateStatus.longitude === null
-    ) {
-      setErrorMessage(
-        projectCoordinateStatus.reason ||
-          'This project has no valid saved project site coordinates.'
-      )
-      return
-    }
-
-    setInspectionLatitude(projectCoordinateStatus.latitude.toFixed(7))
-    setInspectionLongitude(projectCoordinateStatus.longitude.toFixed(7))
-    setErrorMessage('')
-
-    if (projectCoordinateStatus.wasSwapped) {
-      setGpsMessage(
-        `Project coordinates appeared reversed, so they were corrected to Latitude ${projectCoordinateStatus.latitude.toFixed(
-          7
-        )}, Longitude ${projectCoordinateStatus.longitude.toFixed(7)}.`
-      )
-      return
-    }
-
-    setGpsMessage(
-      `Project site coordinates were copied: Latitude ${projectCoordinateStatus.latitude.toFixed(
-        7
-      )}, Longitude ${projectCoordinateStatus.longitude.toFixed(7)}.`
-    )
-  }
-
-  function usePreviousGps() {
-    if (!previousGpsRecord) {
-      setErrorMessage('No previous valid inspection GPS was found for this project.')
-      return
-    }
-
-    setInspectionLatitude(previousGpsRecord.latitude.toFixed(7))
-    setInspectionLongitude(previousGpsRecord.longitude.toFixed(7))
-    setErrorMessage('')
-    setGpsMessage(
-      `Previous inspection GPS was copied: Latitude ${previousGpsRecord.latitude.toFixed(
-        7
-      )}, Longitude ${previousGpsRecord.longitude.toFixed(7)}.`
     )
   }
 
@@ -1177,12 +1130,9 @@ export default function ProjectUpdates() {
   }
 
   return (
-    <div className="pu-page">
+    <div className={`pu-page ${isUpdateScrolled ? 'is-pu-scrolled' : ''}`}>
       <section className="pu-hero">
         <div>
-          <Link className="pu-back-link" to={`/projects/${id}`}>
-            ← Back to Project Details
-          </Link>
           <p className="pu-eyebrow">Project Update Form</p>
           <h1>{project?.project_name || 'Project Update'}</h1>
 
@@ -1217,11 +1167,11 @@ export default function ProjectUpdates() {
       )}
 
       <section className="pu-summary-grid">
-        <div className="pu-summary-card">
+        <div className="pu-summary-card pu-progress-summary">
           <span>Current Physical</span>
           <strong>{formatPercent(currentPhysical)}</strong>
         </div>
-        <div className="pu-summary-card">
+        <div className="pu-summary-card pu-progress-summary">
           <span>Current Financial</span>
           <strong>{formatPercent(currentFinancial)}</strong>
         </div>
@@ -1358,73 +1308,25 @@ export default function ProjectUpdates() {
             </label>
           </div>
 
-          <div className="pu-gps-card">
+          <div className="pu-gps-card pu-gps-simple-card">
             <div>
               <p className="pu-eyebrow">GPS Capture</p>
               <h3>Inspection Location</h3>
               <p>
-                Capture or update the actual inspection GPS. Coordinates must
-                be within the Mindanao project map range.
+                Tap once while you are at the project site. The app will fill in
+                the latitude and longitude below. Manual encoding is available
+                only when device GPS is unavailable.
               </p>
             </div>
 
-            <div className="pu-gps-actions">
-              <button
-                type="button"
-                className="pu-gps-btn"
-                onClick={captureGps}
-                disabled={gpsLoading || saving}
-              >
-                {gpsLoading ? 'Updating GPS...' : 'Update GPS'}
-              </button>
-
-              <button
-                type="button"
-                className="pu-coordinate-btn"
-                onClick={useProjectCoordinates}
-                disabled={!canUseProjectCoordinates || saving}
-              >
-                Use Project Coordinates
-              </button>
-            </div>
-          </div>
-
-          <div className="pu-gps-card">
-            <div>
-              <p className="pu-eyebrow">Previous GPS</p>
-              <h3>Last Recorded Inspection GPS</h3>
-              {previousGpsRecord ? (
-                <p>
-                  Date: {formatLongDate(previousGpsRecord.update.inspection_date)}
-                  <br />
-                  Latitude: {previousGpsRecord.latitude.toFixed(7)}
-                  <br />
-                  Longitude: {previousGpsRecord.longitude.toFixed(7)}
-                </p>
-              ) : (
-                <p>No previous valid inspection GPS was found for this project.</p>
-              )}
-            </div>
-
-            <div className="pu-gps-actions">
-              <button
-                type="button"
-                className="pu-coordinate-btn"
-                onClick={usePreviousGps}
-                disabled={!previousGpsRecord || saving}
-              >
-                Use Previous GPS
-              </button>
-
-              <button
-                type="button"
-                className="pu-gps-btn"
-                onClick={captureGps}
-                disabled={gpsLoading || saving}
-              >
-                {gpsLoading ? 'Updating GPS...' : 'Update GPS'}
-              </button>
-            </div>
+            <button
+              type="button"
+              className="pu-gps-btn"
+              onClick={captureGps}
+              disabled={gpsLoading || saving}
+            >
+              {gpsLoading ? 'Capturing GPS...' : 'Capture Current GPS'}
+            </button>
           </div>
 
           {gpsMessage && <div className="pu-gps-message">{gpsMessage}</div>}
@@ -1680,6 +1582,16 @@ export default function ProjectUpdates() {
           </div>
         </aside>
       </div>
+
+      <button
+        type="button"
+        className="pu-back-fab"
+        onClick={() => navigate(`/projects/${id}`)}
+        aria-label="Back to project details"
+        title="Back to Project Details"
+      >
+        <IconBack />
+      </button>
     </div>
   )
 }

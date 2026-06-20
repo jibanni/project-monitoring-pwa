@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import '../styles/editProject.css'
+import '../styles/pageHero.css'
 
 const MINDANAO_BOUNDS = {
   minLat: 4,

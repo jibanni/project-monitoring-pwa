@@ -98,6 +98,8 @@ function getStatusClass(status: string | null) {
   if (normalized.includes('ongoing')) return 'ongoing'
   if (normalized.includes('not')) return 'not-started'
   if (normalized.includes('delayed')) return 'delayed'
+  if (normalized.includes('cancel')) return 'cancelled'
+  if (normalized.includes('terminate')) return 'terminated'
 
   return 'default'
 }
@@ -124,6 +126,38 @@ function getProjectCardClass(risk: string | null) {
   return 'project-card'
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10.8 4.2a6.6 6.6 0 1 0 0 13.2 6.6 6.6 0 0 0 0-13.2Zm0 2a4.6 4.6 0 1 1 0 9.2 4.6 4.6 0 0 1 0-9.2Zm5.2 10.6 3.4 3.4a1 1 0 0 0 1.4-1.4l-3.4-3.4a1 1 0 0 0-1.4 1.4Z" />
+    </svg>
+  )
+}
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 6.25A1.25 1.25 0 0 1 5.25 5h13.5a1.25 1.25 0 0 1 .95 2.06l-5.2 6.1v4.36a1.2 1.2 0 0 1-.66 1.07l-3 1.5A1.2 1.2 0 0 1 9.1 19.02v-5.86l-5.2-6.1A1.25 1.25 0 0 1 4 6.25Z" />
+    </svg>
+  )
+}
+
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M17.7 7.2A7.8 7.8 0 0 0 4.6 11h2.1a5.8 5.8 0 0 1 9.6-2.35L14 11h6V5l-2.3 2.2ZM6.3 16.8A7.8 7.8 0 0 0 19.4 13h-2.1a5.8 5.8 0 0 1-9.6 2.35L10 13H4v6l2.3-2.2Z" />
+    </svg>
+  )
+}
+
+function AddIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5Z" />
+    </svg>
+  )
+}
+
 export default function Projects() {
   const navigate = useNavigate()
   const { isAdmin, isEngineer } = useAuth()
@@ -138,9 +172,32 @@ export default function Projects() {
   const [programFilter, setProgramFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [riskFilter, setRiskFilter] = useState('')
+  const [isRegistryScrolled, setIsRegistryScrolled] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   useEffect(() => {
     loadProjects()
+  }, [])
+
+  useEffect(() => {
+    let ticking = false
+
+    function handleScroll() {
+      if (ticking) return
+
+      ticking = true
+      requestAnimationFrame(() => {
+        setIsRegistryScrolled(window.scrollY > 28)
+        ticking = false
+      })
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
   }, [])
 
   async function loadProjects() {
@@ -224,9 +281,10 @@ export default function Projects() {
         project.province,
         project.funding_source,
         project.project_type,
+        project.implementing_office,
+        project.contractor,
         project.status,
         project.risk_level,
-        project.contractor,
       ]
         .map(textValue)
         .join(' ')
@@ -295,6 +353,15 @@ export default function Projects() {
     textValue(project.risk_level).toLowerCase().includes('high'),
   ).length
 
+  const activeFilterCount = [
+    searchTerm,
+    provinceFilter,
+    municipalityFilter,
+    programFilter,
+    statusFilter,
+    riskFilter,
+  ].filter(Boolean).length
+
   const canUpdate = isAdmin || isEngineer
 
   if (loading) {
@@ -324,35 +391,49 @@ export default function Projects() {
   }
 
   return (
-    <div className="projects-page">
-      <section className="projects-hero">
-        <div>
-          <p className="projects-eyebrow">Project Register</p>
-          <h1>Projects</h1>
+    <div
+      className={`projects-page ${
+        isRegistryScrolled ? 'is-registry-scrolled' : ''
+      } ${filtersOpen ? 'filters-open' : ''}`}
+    >
+      <section className="projects-hero projects-registry-hero">
+        <div className="projects-hero-copy">
+          <p className="projects-eyebrow">Project Workspace</p>
+          <h1>Project Registry</h1>
           <p>
             Mobile-first project monitoring cards for field inspection, validation,
             and progress tracking.
           </p>
         </div>
-
-        <div className="projects-hero-actions">
-          <button type="button" className="projects-refresh-btn" onClick={loadProjects}>
-            Refresh
-          </button>
-
-          {isAdmin && (
-            <button
-              type="button"
-              className="projects-add-btn"
-              onClick={() => navigate('/projects/create')}
-            >
-              Add Project
-            </button>
-          )}
-        </div>
       </section>
 
-      <section className="projects-summary-grid">
+      <div className="projects-hero-spacer" aria-hidden="true" />
+
+      <div className="projects-floating-actions" aria-label="Project Registry actions">
+        <button
+          type="button"
+          className="projects-floating-btn refresh"
+          onClick={loadProjects}
+          aria-label="Refresh projects"
+          title="Refresh projects"
+        >
+          <RefreshIcon />
+        </button>
+
+        {isAdmin && (
+          <button
+            type="button"
+            className="projects-floating-btn add"
+            onClick={() => navigate('/projects/create')}
+            aria-label="Add project"
+            title="Add project"
+          >
+            <AddIcon />
+          </button>
+        )}
+      </div>
+
+      <section className="projects-summary-grid" aria-label="Project summary">
         <div className="projects-summary-card">
           <span>Total Projects</span>
           <strong>{filteredProjects.length}</strong>
@@ -378,124 +459,145 @@ export default function Projects() {
           <strong>{highRiskCount}</strong>
         </div>
 
-        <div className="projects-summary-card projects-cost-card">
+        <div className="projects-summary-card projects-cost-card" title={formatCurrency(totalCost)}>
           <span>Filtered Project Cost</span>
           <strong>{formatCompactCurrency(totalCost)}</strong>
         </div>
       </section>
 
-      <section className="projects-filter-card">
-        <div className="projects-filter-header">
-          <div>
-            <h2>Filters</h2>
-            <p>Search by project name, LGU, program, contractor, status, or risk.</p>
-          </div>
+      <section className="projects-filter-card" aria-label="Search and filters">
+        <div className="projects-search-shell">
+          <span className="projects-search-icon" aria-hidden="true">
+            <SearchIcon />
+          </span>
 
-          <button type="button" className="projects-clear-btn" onClick={clearFilters}>
-            Clear Filters
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search project, LGU, program, status..."
+            aria-label="Search projects"
+          />
+
+          <button
+            type="button"
+            className={`projects-filter-toggle ${filtersOpen ? 'active' : ''}`}
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-label="Open project filters"
+            aria-expanded={filtersOpen}
+          >
+            <FilterIcon />
+            {activeFilterCount > 0 && (
+              <span className="projects-filter-badge">{activeFilterCount}</span>
+            )}
           </button>
         </div>
 
-        <div className="projects-filter-grid">
-          <label>
-            Search
-            <input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search project, LGU, program..."
-            />
-          </label>
+        <div className="projects-filter-panel" hidden={!filtersOpen}>
+          <div className="projects-filter-panel-header">
+            <div>
+              <p className="projects-section-eyebrow">Advanced Filters</p>
+              <h2>Refine records</h2>
+            </div>
 
-          <label>
-            Province
-            <select
-              value={provinceFilter}
-              onChange={(event) => {
-                setProvinceFilter(event.target.value)
-                setMunicipalityFilter('')
-              }}
-            >
-              <option value="">All Provinces</option>
-              {provinces.map((province) => (
-                <option key={province} value={province}>
-                  {province}
-                </option>
-              ))}
-            </select>
-          </label>
+            {activeFilterCount > 0 && (
+              <button type="button" className="projects-clear-btn" onClick={clearFilters}>
+                Clear
+              </button>
+            )}
+          </div>
 
-          <label>
-            LGU / Municipality
-            <select
-              value={municipalityFilter}
-              onChange={(event) => setMunicipalityFilter(event.target.value)}
-            >
-              <option value="">All LGUs</option>
-              {municipalities.map((municipality) => (
-                <option key={municipality} value={municipality}>
-                  {municipality}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="projects-filter-grid">
+            <label>
+              Province
+              <select
+                value={provinceFilter}
+                onChange={(event) => {
+                  setProvinceFilter(event.target.value)
+                  setMunicipalityFilter('')
+                }}
+              >
+                <option value="">All Provinces</option>
+                {provinces.map((province) => (
+                  <option key={province} value={province}>
+                    {province}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label>
-            Program
-            <select
-              value={programFilter}
-              onChange={(event) => setProgramFilter(event.target.value)}
-            >
-              <option value="">All Programs</option>
-              {programs.map((program) => (
-                <option key={program} value={program}>
-                  {program}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label>
+              LGU / Municipality
+              <select
+                value={municipalityFilter}
+                onChange={(event) => setMunicipalityFilter(event.target.value)}
+              >
+                <option value="">All LGUs</option>
+                {municipalities.map((municipality) => (
+                  <option key={municipality} value={municipality}>
+                    {municipality}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label>
-            Status
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">All Status</option>
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label>
+              Program
+              <select
+                value={programFilter}
+                onChange={(event) => setProgramFilter(event.target.value)}
+              >
+                <option value="">All Programs</option>
+                {programs.map((program) => (
+                  <option key={program} value={program}>
+                    {program}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label>
-            Risk
-            <select
-              value={riskFilter}
-              onChange={(event) => setRiskFilter(event.target.value)}
-            >
-              <option value="">All Risk Levels</option>
-              {risks.map((risk) => (
-                <option key={risk} value={risk}>
-                  {risk}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label>
+              Status
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+              >
+                <option value="">All Status</option>
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Risk
+              <select
+                value={riskFilter}
+                onChange={(event) => setRiskFilter(event.target.value)}
+              >
+                <option value="">All Risk Levels</option>
+                {risks.map((risk) => (
+                  <option key={risk} value={risk}>
+                    {risk}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
       </section>
 
       <section className="projects-list-card">
         <div className="projects-list-header">
           <div>
+            <p className="projects-section-eyebrow">Records</p>
             <h2>Project Cards</h2>
-            <p>
-              Showing {filteredProjects.length} of {projects.length} project records.
-            </p>
           </div>
 
-          <span className="projects-count-pill">{filteredProjects.length} records</span>
+          <span className="projects-count-pill">
+            {filteredProjects.length} / {projects.length}
+          </span>
         </div>
 
         {filteredProjects.length === 0 ? (
@@ -506,17 +608,29 @@ export default function Projects() {
         ) : (
           <div className="projects-card-grid">
             {filteredProjects.map((project) => {
-              const physical = Math.min(100, Math.max(0, toNumber(project.physical_accomplishment)))
-              const financial = Math.min(100, Math.max(0, toNumber(project.financial_accomplishment)))
+              const physical = Math.min(
+                100,
+                Math.max(0, toNumber(project.physical_accomplishment)),
+              )
+              const financial = Math.min(
+                100,
+                Math.max(0, toNumber(project.financial_accomplishment)),
+              )
 
               return (
                 <article key={project.id} className={getProjectCardClass(project.risk_level)}>
                   <div className="project-card-header">
-                    <div>
+                    <div className="project-card-main">
                       <p className="project-location">
-                        {textValue(project.province) || 'No Province'}
+                        {textValue(project.funding_source || project.project_type) ||
+                          'No Program'}
                       </p>
                       <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
+                      <p className="project-address">
+                        {textValue(project.barangay) || 'No Barangay'},{' '}
+                        {textValue(project.municipality) || 'No Municipality'},{' '}
+                        {textValue(project.province) || 'No Province'}
+                      </p>
                     </div>
 
                     <div className="project-badges">
@@ -531,35 +645,30 @@ export default function Projects() {
 
                   <div className="project-info-grid">
                     <div className="project-info-item">
-                      <span>Program</span>
-                      <strong>
-                        {textValue(project.funding_source || project.project_type) || '-'}
-                      </strong>
-                    </div>
-
-                    <div className="project-info-item">
-                      <span>Project Type</span>
-                      <strong>{textValue(project.project_type) || '-'}</strong>
-                    </div>
-
-                    <div className="project-info-item">
-                      <span>Location</span>
-                      <strong>
-                        {textValue(project.barangay) || 'No Barangay'},{' '}
-                        {textValue(project.municipality) || 'No Municipality'}
-                      </strong>
-                    </div>
-
-                    <div className="project-info-item">
                       <span>Project Cost</span>
                       <strong>{formatCurrency(project.budget)}</strong>
+                    </div>
+
+                    <div className="project-info-item">
+                      <span>Target Date</span>
+                      <strong>{formatLongDate(project.target_completion_date)}</strong>
+                    </div>
+
+                    <div className="project-info-item">
+                      <span>Implementing Office</span>
+                      <strong>{textValue(project.implementing_office) || '-'}</strong>
+                    </div>
+
+                    <div className="project-info-item">
+                      <span>Contractor</span>
+                      <strong>{textValue(project.contractor) || '-'}</strong>
                     </div>
                   </div>
 
                   <div className="project-progress-group">
                     <div className="project-progress-row">
                       <div className="project-progress-label">
-                        <span>Physical Accomplishment</span>
+                        <span>Physical</span>
                         <strong>{formatPercent(physical)}</strong>
                       </div>
                       <div className="project-progress-track">
@@ -572,7 +681,7 @@ export default function Projects() {
 
                     <div className="project-progress-row">
                       <div className="project-progress-label">
-                        <span>Financial Accomplishment</span>
+                        <span>Financial</span>
                         <strong>{formatPercent(financial)}</strong>
                       </div>
                       <div className="project-progress-track">
@@ -592,14 +701,16 @@ export default function Projects() {
                   <div className="project-actions">
                     <button
                       type="button"
+                      className="project-view-btn"
                       onClick={() => navigate(`/projects/${project.id}`)}
                     >
-                      View Details
+                      View
                     </button>
 
                     {canUpdate && (
                       <button
                         type="button"
+                        className="project-update-btn"
                         onClick={() => navigate(`/projects/${project.id}/updates`)}
                       >
                         Update

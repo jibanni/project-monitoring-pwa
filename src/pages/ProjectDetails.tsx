@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { offlineDb } from '../lib/offlineDb'
 import '../styles/projectDetails.css'
+import '../styles/pageHero.css'
 
 function toNumber(value: unknown): number {
   if (value === null || value === undefined || value === '') return 0
@@ -64,7 +65,6 @@ function formatDate(value: unknown) {
 
 function getDisplayValue(value: unknown, fallback = '-') {
   const displayValue = String(value ?? '').trim()
-
   return displayValue || fallback
 }
 
@@ -85,6 +85,67 @@ function sanitizeFileName(value: string) {
     .trim()
 }
 
+function IconBack() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M15 18 9 12l6-6" />
+      <path d="M9 12h10" />
+    </svg>
+  )
+}
+
+function IconPdf() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 2.75h8.1L19 7.65V21.25H6V2.75Z" />
+      <path d="M14 2.75V8h5" />
+      <path d="M8.8 15.8h6.4" />
+      <path d="M8.8 18.15h4.6" />
+      <path d="M8.8 11.4h6.4" />
+    </svg>
+  )
+}
+
+function IconUpdate() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
+function IconMap() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 18.5 4.75 20V6L9 4.5l6 2 4.25-1.5v14L15 20.5l-6-2Z" />
+      <path d="M9 4.5v14" />
+      <path d="M15 6.5v14" />
+    </svg>
+  )
+}
+
+function IconEdit() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4.75 19.25 6 14.5 16.7 3.8a2.12 2.12 0 0 1 3 3L9 17.5l-4.25 1.75Z" />
+      <path d="m14.9 5.6 3.5 3.5" />
+    </svg>
+  )
+}
+
+function IconDelete() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5.5 7.25h13" />
+      <path d="M9.5 7.25V5.1h5v2.15" />
+      <path d="M7.25 7.25 8 20h8l.75-12.75" />
+      <path d="M10.25 10.75v5.75" />
+      <path d="M13.75 10.75v5.75" />
+    </svg>
+  )
+}
+
 export default function ProjectDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -100,6 +161,7 @@ export default function ProjectDetails() {
   useEffect(() => {
     setPhotosExpanded(false)
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   async function loadOfflineData() {
@@ -344,6 +406,8 @@ export default function ProjectDetails() {
   }
 
   async function handleDelete() {
+    if (!id) return
+
     if (!isAdmin) {
       alert('You are not allowed to delete projects.')
       return
@@ -365,9 +429,7 @@ export default function ProjectDetails() {
       return
     }
 
-    if (id) {
-      await offlineDb.projects.delete(id)
-    }
+    await offlineDb.projects.delete(id)
 
     alert('Project deleted successfully')
     navigate('/projects')
@@ -448,12 +510,8 @@ export default function ProjectDetails() {
 
       <header className="pd-hero">
         <div className="pd-hero-main">
-          <button type="button" className="pd-back-btn" onClick={goBackToProjects}>
-            ← Back to Projects
-          </button>
-
           <div className="pd-title-block">
-            <p className="pd-eyebrow">Project Details</p>
+            <p className="pd-eyebrow">DETAILS</p>
             <h1>{getDisplayValue(project.project_name, 'Untitled Project')}</h1>
 
             <div className="pd-hero-meta">
@@ -473,34 +531,6 @@ export default function ProjectDetails() {
           </span>
         </div>
       </header>
-
-      <section className="pd-action-grid" aria-label="Project actions">
-        <button type="button" className="pd-primary-btn" onClick={generatePdfReport}>
-          Generate PDF
-        </button>
-
-        {(isAdmin || isEngineer) && (
-          <button type="button" className="pd-accent-btn" onClick={goToAddUpdate}>
-            Add Update
-          </button>
-        )}
-
-        <button type="button" className="pd-secondary-btn" onClick={goToMap}>
-          View GIS Map
-        </button>
-
-        {isAdmin && dataSource === 'online' && (
-          <button type="button" className="pd-secondary-btn" onClick={goToEditProject}>
-            Edit Project
-          </button>
-        )}
-
-        {isAdmin && dataSource === 'online' && (
-          <button type="button" className="pd-danger-btn" onClick={handleDelete}>
-            Delete Project
-          </button>
-        )}
-      </section>
 
       <section className="pd-summary-grid">
         <article className="pd-summary-card">
@@ -786,7 +816,7 @@ export default function ProjectDetails() {
                   type="button"
                   className="pd-feature-photo-card"
                   style={{
-                    backgroundImage: `linear-gradient(180deg, rgba(15, 23, 42, 0.03), rgba(15, 23, 42, 0.88)), url("${primaryPhoto.photo_url}")`,
+                    backgroundImage: `linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.9)), url("${primaryPhoto.photo_url}")`,
                   }}
                   onClick={() => setPhotosExpanded((current) => !current)}
                   aria-expanded={photosExpanded}
@@ -862,6 +892,74 @@ export default function ProjectDetails() {
           </section>
         </aside>
       </main>
+
+      <div className="pd-fab-stack" aria-label="Project quick actions">
+        <button
+          type="button"
+          className="pd-fab pd-fab-back"
+          onClick={goBackToProjects}
+          aria-label="Back to projects"
+          title="Back to Projects"
+        >
+          <IconBack />
+        </button>
+
+        <button
+          type="button"
+          className="pd-fab pd-fab-pdf"
+          onClick={generatePdfReport}
+          aria-label="Generate PDF report"
+          title="Generate PDF"
+        >
+          <IconPdf />
+        </button>
+
+        {(isAdmin || isEngineer) && (
+          <button
+            type="button"
+            className="pd-fab pd-fab-update"
+            onClick={goToAddUpdate}
+            aria-label="Add project update"
+            title="Add Update"
+          >
+            <IconUpdate />
+          </button>
+        )}
+
+        <button
+          type="button"
+          className="pd-fab pd-fab-map"
+          onClick={goToMap}
+          aria-label="View GIS map"
+          title="GIS Map"
+        >
+          <IconMap />
+        </button>
+
+        {isAdmin && dataSource === 'online' && (
+          <button
+            type="button"
+            className="pd-fab pd-fab-edit"
+            onClick={goToEditProject}
+            aria-label="Edit project"
+            title="Edit Project"
+          >
+            <IconEdit />
+          </button>
+        )}
+
+        {isAdmin && dataSource === 'online' && (
+          <button
+            type="button"
+            className="pd-fab pd-fab-delete"
+            onClick={handleDelete}
+            aria-label="Delete project"
+            title="Delete Project"
+          >
+            <IconDelete />
+          </button>
+        )}
+      </div>
     </div>
   )
 }

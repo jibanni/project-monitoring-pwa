@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import '../styles/auth.css'
 
@@ -12,6 +12,14 @@ type ProfileRow = {
   email: string | null
   role: string | null
   approved: boolean | null
+}
+
+type LocationState = {
+  from?: {
+    pathname?: string
+    search?: string
+    hash?: string
+  }
 }
 
 function cleanEmail(value: string) {
@@ -38,6 +46,7 @@ function getFriendlyLoginError(message: string) {
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -47,6 +56,21 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState('')
 
   const isLoading = loginState === 'loading'
+
+  const redirectPath = useMemo(() => {
+    const state = location.state as LocationState | null
+    const from = state?.from
+
+    if (
+      from?.pathname &&
+      from.pathname !== '/login' &&
+      from.pathname !== '/register'
+    ) {
+      return `${from.pathname}${from.search || ''}${from.hash || ''}`
+    }
+
+    return '/dashboard'
+  }, [location.state])
 
   const canSubmit = useMemo(() => {
     return cleanEmail(email).length > 0 && password.length > 0 && !isLoading
@@ -75,10 +99,11 @@ export default function Login() {
       setLoginState('loading')
       setErrorMessage('')
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      })
+      const { data: authData, error: authError } =
+        await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        })
 
       if (authError) {
         throw authError
@@ -123,7 +148,7 @@ export default function Login() {
       }
 
       setLoginState('success')
-      navigate('/', { replace: true })
+      navigate(redirectPath, { replace: true })
     } catch (error) {
       console.error(error)
 
@@ -140,62 +165,33 @@ export default function Login() {
   return (
     <main className="auth-page">
       <section className="auth-shell">
-        <div className="auth-brand-panel">
-          <div className="auth-brand-main">
-            <div className="auth-brand-copy">
-              <div className="auth-logo-row auth-logo-row-large">
-                <img src="/dilg-logo.png" alt="DILG Logo" />
-                <img src="/bagong-pilipinas-logo.png" alt="Bagong Pilipinas Logo" />
-              </div>
-
-              <p className="auth-eyebrow">DILG Region X</p>
-
-              <h1>PDMU Project Monitoring System</h1>
-
-              <p>
-                Secure access portal for project monitoring, field inspection updates,
-                GIS mapping, reports, and offline synchronization.
-              </p>
+        <aside className="auth-brand-panel">
+          <div className="auth-brand-inner">
+            <div className="auth-logo-row">
+              <img src="/dilg-logo.png" alt="DILG Logo" />
+              <img src="/bagong-pilipinas-logo.png" alt="Bagong Pilipinas Logo" />
             </div>
 
-            <div className="auth-feature-list">
-              <div>
-                <strong>Field Updates</strong>
-                <span>Capture progress, findings, photos, and GPS data.</span>
-              </div>
+            <p className="auth-eyebrow">DILG Region X</p>
 
-              <div>
-                <strong>GIS Monitoring</strong>
-                <span>View project locations using validated coordinates.</span>
-              </div>
+            <h1>PDMU Project Monitoring System</h1>
 
-              <div>
-                <strong>Offline Ready</strong>
-                <span>Save updates during inspections and sync later.</span>
-              </div>
-            </div>
+            <p>
+              Project monitoring, field updates, GIS mapping, reports, and offline
+              synchronization in one secure platform.
+            </p>
           </div>
 
           <p className="auth-brand-credit">
             Creator and Developer: Engr. Jay Vanny Orabao and ChatGPT
           </p>
-        </div>
+        </aside>
 
-        <div className="auth-form-panel">
+        <section className="auth-form-panel">
           <div className="auth-form-card">
-            <div className="auth-mobile-brand">
-              <div className="auth-logo-row compact">
-                <img src="/dilg-logo.png" alt="DILG Logo" />
-                <img src="/bagong-pilipinas-logo.png" alt="Bagong Pilipinas Logo" />
-              </div>
-
-              <p>DILG - PDMU PROJECT MONITORING SYSTEM</p>
-            </div>
-
             <div className="auth-form-header">
-              <p className="auth-eyebrow">Account Access</p>
               <h2>Login</h2>
-              <p>Sign in using your approved DILG-PDMU project monitoring account.</p>
+              <p>Use your approved DILG-PDMU account.</p>
             </div>
 
             {errorMessage && (
@@ -206,31 +202,31 @@ export default function Login() {
 
             {loginState === 'success' && (
               <div className="auth-alert success" role="status">
-                Login successful. Redirecting to dashboard...
+                Login successful. Redirecting...
               </div>
             )}
 
             <form className="auth-form" onSubmit={handleSubmit}>
               <label>
-                Email Address
+                <span>Email Address</span>
                 <input
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="Enter your email address"
+                  placeholder="Email address"
                   autoComplete="email"
                   disabled={isLoading}
                 />
               </label>
 
               <label>
-                Password
+                <span>Password</span>
                 <div className="auth-password-field">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Enter your password"
+                    placeholder="Password"
                     autoComplete="current-password"
                     disabled={isLoading}
                   />
@@ -245,41 +241,32 @@ export default function Login() {
                 </div>
               </label>
 
-              <div className="auth-options-row">
-                <label className="auth-check">
-                  <input
-                    type="checkbox"
-                    checked={rememberEmail}
-                    onChange={(event) => setRememberEmail(event.target.checked)}
-                    disabled={isLoading}
-                  />
-                  Remember email
-                </label>
-              </div>
+              <label className="auth-check">
+                <input
+                  type="checkbox"
+                  checked={rememberEmail}
+                  onChange={(event) => setRememberEmail(event.target.checked)}
+                  disabled={isLoading}
+                />
+                <span>Remember email</span>
+              </label>
 
               <button type="submit" className="auth-submit-btn" disabled={!canSubmit}>
-                {isLoading ? 'Signing in...' : 'Login'}
+                {isLoading ? 'Logging in...' : 'Login'}
               </button>
             </form>
 
-            <div className="auth-divider">
-              <span />
-              <p>Need access?</p>
-              <span />
-            </div>
-
-            <div className="auth-footer">
+            <div className="auth-register-box">
               <p>
                 No account yet? <Link to="/register">Register for approval</Link>
               </p>
-              <small>Accounts must be approved before accessing the monitoring system.</small>
             </div>
 
-            <p className="auth-mobile-credit">
-              Creator and Developer: Engr. Jay Vanny Orabao and ChatGPT
+            <p className="auth-footnote">
+              Accounts must be approved before accessing the system.
             </p>
           </div>
-        </div>
+        </section>
       </section>
     </main>
   )
