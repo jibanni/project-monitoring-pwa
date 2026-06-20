@@ -384,18 +384,6 @@ async function getOfflineTable(tableNames: string[]) {
   return null
 }
 
-async function addToFirstAvailableOfflineTable(tableNames: string[], record: any) {
-  const table = await getOfflineTable(tableNames)
-
-  if (!table?.add) {
-    throw new Error(
-      'No compatible offline table was found. Please check offlineDb.ts table names.'
-    )
-  }
-
-  await table.add(record)
-  return true
-}
 
 async function readOfflineTable(tableNames: string[]) {
   const table = await getOfflineTable(tableNames)
@@ -1037,12 +1025,36 @@ export default function ProjectUpdates() {
     const localUpdateId = makeLocalId()
     const currentTimestamp = new Date().toISOString()
     const latestCoordinatePatch = buildLatestCoordinatePatch()
+    const projectName = project?.project_name || 'Untitled Project'
+
+    const updateTable = await getOfflineTable(offlineUpdateTables)
+
+    if (!updateTable?.add) {
+      throw new Error(
+        'No compatible offline update table was found. Please check offlineDb.ts table names.'
+      )
+    }
+
+    const offlineUpdateRecord = {
+      ...updatePayload,
+      local_id: localUpdateId,
+      project_name: projectName,
+      status: projectStatus,
+      synced: false,
+      sync_status: 'pending',
+      is_offline: true,
+      error: '',
+    }
+
+    const offlineUpdateId = await updateTable.add(offlineUpdateRecord)
 
     const offlinePhotoRecords = photoInputs.map((photo, index) => ({
-      id: makeLocalId(),
-      project_id: projectId,
-      project_update_id: localUpdateId,
+      offline_update_id: offlineUpdateId,
       local_update_id: localUpdateId,
+      project_update_id: localUpdateId,
+      project_id: projectId,
+      project_name: projectName,
+      file_blob: photo.file,
       file: photo.file,
       file_name: photo.file.name,
       file_type: photo.file.type,
@@ -1050,24 +1062,21 @@ export default function ProjectUpdates() {
       caption:
         cleanText(photo.caption) ||
         `Project update photo ${index + 1}`,
+      created_at: new Date().toISOString(),
       uploaded_at: new Date().toISOString(),
+      synced: false,
       sync_status: 'pending',
       is_offline: true,
+      error: '',
     }))
 
-    const offlineUpdateRecord = {
-      ...updatePayload,
-      id: localUpdateId,
-      local_id: localUpdateId,
-      status: projectStatus,
-      sync_status: 'pending',
-      is_offline: true,
-      offline_photos: offlinePhotoRecords,
-    }
-
-    await addToFirstAvailableOfflineTable(offlineUpdateTables, offlineUpdateRecord)
-
     const photoTable = await getOfflineTable(offlinePhotoTables)
+
+    if (offlinePhotoRecords.length > 0 && !photoTable?.add && !photoTable?.bulkAdd) {
+      throw new Error(
+        'No compatible offline photo table was found. Please check offlineDb.ts table names.'
+      )
+    }
 
     if (photoTable?.bulkAdd && offlinePhotoRecords.length > 0) {
       await photoTable.bulkAdd(offlinePhotoRecords)

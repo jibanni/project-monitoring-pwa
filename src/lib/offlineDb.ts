@@ -14,7 +14,14 @@ export type OfflineProject = {
   project_type?: string
   funding_source?: string
   implementing_office?: string
+  contractor?: string
+  budget?: number | string
+  start_date?: string
+  target_completion_date?: string
+  latitude?: number | string | null
+  longitude?: number | string | null
   last_inspection_date?: string
+  updated_at?: string
   cached_at: string
 }
 
@@ -23,39 +30,68 @@ export type CachedUserProfile = UserProfile & {
 }
 
 export type OfflineProjectUpdate = {
-  id?: number
+  id?: number | string
+  local_id?: string
+  online_update_id?: string
+
   project_id: string
+  project_name?: string
+  engineer_id?: string | null
+
   inspection_date: string
   status: string
   physical_accomplishment: number
   financial_accomplishment: number
   risk_level: string
-  issues: string
-  recommendations: string
-  remarks: string
+  issues: string | null
+  recommendations: string | null
+  remarks: string | null
   inspection_latitude: number | null
   inspection_longitude: number | null
+
   created_at: string
-  synced: boolean
+  updated_at?: string
+
+  synced?: boolean
+  sync_status?: 'pending' | 'syncing' | 'uploading_photos' | 'synced' | 'failed' | string
+  is_offline?: boolean
+  error?: string
 }
 
 export type OfflineProjectPhoto = {
-  id?: number
-  offline_update_id: number
+  id?: number | string
+  offline_update_id?: number | string
+  local_update_id?: string
+  project_update_id?: string
+
   project_id: string
+  project_name?: string
+
   file_name: string
   file_type: string
-  file_blob: Blob
+  file_size?: number
+
+  /* Current expected field */
+  file_blob?: Blob
+
+  /* Legacy ProjectUpdates.tsx field. Kept so old pending photos can still sync. */
+  file?: Blob | File
+
   caption: string
-  created_at: string
-  synced: boolean
+  created_at?: string
+  uploaded_at?: string
+
+  synced?: boolean
+  sync_status?: 'pending' | 'syncing' | 'synced' | 'failed' | string
+  is_offline?: boolean
+  error?: string
 }
 
 class OfflineDatabase extends Dexie {
   projects!: Table<OfflineProject, string>
   user_profiles!: Table<CachedUserProfile, string>
-  project_updates!: Table<OfflineProjectUpdate, number>
-  project_photos!: Table<OfflineProjectPhoto, number>
+  project_updates!: Table<OfflineProjectUpdate, number | string>
+  project_photos!: Table<OfflineProjectPhoto, number | string>
 
   constructor() {
     super('project_monitoring_offline_db')
@@ -63,12 +99,18 @@ class OfflineDatabase extends Dexie {
     this.version(4).stores({
       projects: 'id,status,municipality,risk_level',
       user_profiles: 'id,email,role,approved',
+      project_updates: '++id, project_id, inspection_date, status, risk_level, synced',
+      project_photos: '++id, offline_update_id, project_id, synced',
+    })
 
+    /* Version 5 keeps existing data and adds indexes used by the fixed sync flow. */
+    this.version(5).stores({
+      projects: 'id,status,municipality,risk_level',
+      user_profiles: 'id,email,role,approved',
       project_updates:
-        '++id, project_id, inspection_date, status, risk_level, synced',
-
+        '++id, local_id, online_update_id, project_id, inspection_date, status, risk_level, synced, sync_status',
       project_photos:
-        '++id, offline_update_id, project_id, synced',
+        '++id, offline_update_id, local_update_id, project_update_id, project_id, synced, sync_status',
     })
   }
 }

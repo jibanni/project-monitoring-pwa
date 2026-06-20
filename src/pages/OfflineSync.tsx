@@ -1,92 +1,19 @@
-import { useEffect, useState } from 'react'
-import { offlineDb } from '../lib/offlineDb'
+import { useEffect, useMemo, useState } from 'react'
+import { offlineDb, type OfflineProjectPhoto, type OfflineProjectUpdate } from '../lib/offlineDb'
 import * as offlineSyncService from '../services/offlineSyncService'
 import '../styles/offlineSync.css'
 import '../styles/pageHero.css'
 
-type AnyRecord = Record<string, unknown>
+type ProjectNameMap = Record<string, string>
 
-type OfflineUpdateRecord = AnyRecord & {
-  id?: string | number
-  project_id?: string
-  project_name?: string
-  inspection_date?: string
-  physical_accomplishment?: number | string
-  financial_accomplishment?: number | string
-  risk_level?: string
-  issues?: string
-  recommendations?: string
-  remarks?: string
-  created_at?: string
-  updated_at?: string
-  status?: string
-  sync_status?: string
-  error?: string
+type HydratedOfflineUpdate = OfflineProjectUpdate & {
+  display_project_name?: string
+  pending_photo_count?: number
 }
 
-type OfflinePhotoRecord = AnyRecord & {
-  id?: string | number
-  project_id?: string
-  project_update_id?: string
-  project_name?: string
-  filename?: string
-  file_name?: string
-  name?: string
-  caption?: string
-  size?: number
-  file_size?: number
-  created_at?: string
-  uploaded_at?: string
-  status?: string
-  sync_status?: string
-  error?: string
+type HydratedOfflinePhoto = OfflineProjectPhoto & {
+  display_project_name?: string
 }
-
-type TableInfo = {
-  name: string
-  table: {
-    toArray: () => Promise<AnyRecord[]>
-    count?: () => Promise<number>
-  }
-}
-
-const UPDATE_TABLE_CANDIDATES = [
-  'pendingUpdates',
-  'offlineUpdates',
-  'projectUpdates',
-  'project_updates',
-  'updates',
-]
-
-const PHOTO_TABLE_CANDIDATES = [
-  'pendingPhotos',
-  'offlinePhotos',
-  'projectPhotos',
-  'project_photos',
-  'photos',
-]
-
-const SYNC_ALL_FUNCTION_CANDIDATES = [
-  'syncAllOfflineData',
-  'syncOfflineData',
-  'syncPendingOfflineData',
-  'syncPendingData',
-  'syncAll',
-]
-
-const SYNC_UPDATE_FUNCTION_CANDIDATES = [
-  'syncPendingUpdates',
-  'syncOfflineUpdates',
-  'syncProjectUpdates',
-  'syncUpdates',
-]
-
-const SYNC_PHOTO_FUNCTION_CANDIDATES = [
-  'syncPendingPhotos',
-  'syncOfflinePhotos',
-  'syncProjectPhotos',
-  'syncPhotos',
-]
 
 function textValue(value: unknown) {
   if (value === null || value === undefined) return ''
@@ -113,9 +40,9 @@ function formatLongDate(value: unknown) {
 
   if (!rawValue) return 'No date'
 
-  const date = new Date(rawValue)
+  const date = new Date(rawValue.length <= 10 ? `${rawValue}T00:00:00` : rawValue)
 
-  if (Number.isNaN(date.getTime())) return 'No date'
+  if (Number.isNaN(date.getTime())) return rawValue
 
   return date.toLocaleDateString('en-US', {
     month: 'long',
@@ -131,7 +58,7 @@ function formatDateTime(value: unknown) {
 
   const date = new Date(rawValue)
 
-  if (Number.isNaN(date.getTime())) return 'No date'
+  if (Number.isNaN(date.getTime())) return rawValue
 
   return date.toLocaleString('en-US', {
     month: 'long',
@@ -158,17 +85,54 @@ function formatFileSize(value: unknown) {
   return `${size} B`
 }
 
-function getStatusLabel(record: AnyRecord) {
-  const status = textValue(record.status || record.sync_status)
+function isPendingRecord(record: {
+  synced?: boolean
+  sync_status?: string
+  is_offline?: boolean
+}) {
+  const status = textValue(record.sync_status).toLowerCase()
 
-  if (status) return status
+  return (
+    record.synced === false ||
+    record.is_offline === true ||
+    status === '' ||
+    status === 'pending' ||
+    status === 'failed' ||
+    status === 'syncing' ||
+    status === 'uploading_photos'
+  )
+}
 
+function hasKey(value: unknown) {
+  return value !== null && value !== undefined && textValue(value) !== ''
+}
+
+function keysMatch(a: unknown, b: unknown) {
+  if (!hasKey(a) || !hasKey(b)) return false
+  return String(a) === String(b)
+}
+
+function getStatusLabel(record: { synced?: boolean; sync_status?: string; error?: string }) {
+  const status = textValue(record.sync_status)
+
+  if (status) {
+    if (status === 'pending') return 'Pending'
+    if (status === 'syncing') return 'Syncing'
+    if (status === 'uploading_photos') return 'Uploading Photos'
+    if (status === 'failed') return 'Failed'
+    if (status === 'synced') return 'Synced'
+
+    return status
+  }
+
+  if (record.synced === false) return 'Pending'
+  if (record.synced === true) return 'Synced'
   if (textValue(record.error)) return 'Failed'
 
   return 'Pending'
 }
 
-function getStatusClass(record: AnyRecord) {
+function getStatusClass(record: { synced?: boolean; sync_status?: string; error?: string }) {
   const status = getStatusLabel(record).toLowerCase()
 
   if (status.includes('sync') || status.includes('success')) return 'synced'
@@ -178,134 +142,55 @@ function getStatusClass(record: AnyRecord) {
   return 'pending'
 }
 
-function getNestedText(record: AnyRecord, keys: string[]) {
-  for (const key of keys) {
-    const directValue = textValue(record[key])
-
-    if (directValue) return directValue
-  }
-
-  const payload = record.payload as AnyRecord | undefined
-  const data = record.data as AnyRecord | undefined
-  const project = record.project as AnyRecord | undefined
-
-  for (const source of [payload, data, project]) {
-    if (!source) continue
-
-    for (const key of keys) {
-      const nestedValue = textValue(source[key])
-
-      if (nestedValue) return nestedValue
-    }
-  }
-
-  return ''
+function getUpdateLocalId(record: OfflineProjectUpdate) {
+  return textValue(record.local_id) || textValue(record.id)
 }
 
-function findDexieTable(candidateNames: string[]): TableInfo | null {
-  const db = offlineDb as unknown as Record<string, unknown>
-
-  for (const name of candidateNames) {
-    const possibleTable = db[name] as TableInfo['table'] | undefined
-
-    if (possibleTable && typeof possibleTable.toArray === 'function') {
-      return {
-        name,
-        table: possibleTable,
-      }
-    }
-  }
-
-  return null
+function getUpdateDate(record: OfflineProjectUpdate) {
+  return record.inspection_date || record.created_at || record.updated_at
 }
 
-async function readTable(tableInfo: TableInfo | null) {
-  if (!tableInfo) return []
-
-  try {
-    const rows = await tableInfo.table.toArray()
-    return rows
-  } catch (error) {
-    console.error(`Unable to read offline table: ${tableInfo.name}`, error)
-    return []
-  }
-}
-
-function getServiceObjects() {
-  const moduleObject = offlineSyncService as unknown as Record<string, unknown>
-  const defaultObject = moduleObject.default as Record<string, unknown> | undefined
-
-  return [moduleObject, defaultObject].filter(Boolean) as Record<string, unknown>[]
-}
-
-function findServiceFunction(candidateNames: string[]) {
-  const serviceObjects = getServiceObjects()
-
-  for (const serviceObject of serviceObjects) {
-    for (const name of candidateNames) {
-      const possibleFunction = serviceObject[name]
-
-      if (typeof possibleFunction === 'function') {
-        return possibleFunction as () => Promise<unknown>
-      }
-    }
-  }
-
-  return null
-}
-
-function getUpdateTitle(record: OfflineUpdateRecord) {
+function getUpdateTitle(record: HydratedOfflineUpdate) {
   return (
-    getNestedText(record, ['project_name', 'name', 'title']) ||
+    textValue(record.display_project_name) ||
+    textValue(record.project_name) ||
     `Project ${textValue(record.project_id) || 'Update'}`
   )
 }
 
-function getUpdateDate(record: OfflineUpdateRecord) {
+function getPhotoTitle(record: HydratedOfflinePhoto) {
+  return textValue(record.file_name) || `Offline Photo ${textValue(record.id) || ''}`.trim()
+}
+
+function getPhotoProject(record: HydratedOfflinePhoto) {
   return (
-    record.inspection_date ||
-    record.created_at ||
-    record.updated_at ||
-    getNestedText(record, ['inspection_date', 'created_at', 'updated_at'])
-  )
-}
-
-function getUpdateRisk(record: OfflineUpdateRecord) {
-  return getNestedText(record, ['risk_level']) || 'No Risk'
-}
-
-function getUpdatePhysical(record: OfflineUpdateRecord) {
-  return getNestedText(record, ['physical_accomplishment'])
-}
-
-function getUpdateFinancial(record: OfflineUpdateRecord) {
-  return getNestedText(record, ['financial_accomplishment'])
-}
-
-function getPhotoTitle(record: OfflinePhotoRecord) {
-  return (
-    getNestedText(record, ['filename', 'file_name', 'name']) ||
-    `Offline Photo ${textValue(record.id) || ''}`.trim()
-  )
-}
-
-function getPhotoProject(record: OfflinePhotoRecord) {
-  return (
-    getNestedText(record, ['project_name', 'project_title']) ||
+    textValue(record.display_project_name) ||
+    textValue(record.project_name) ||
     `Project ${textValue(record.project_id) || 'Photo'}`
   )
 }
 
-function getPhotoDate(record: OfflinePhotoRecord) {
-  return (
-    record.created_at ||
-    record.uploaded_at ||
-    getNestedText(record, ['created_at', 'uploaded_at'])
-  )
+function getPhotoDate(record: OfflineProjectPhoto) {
+  return record.created_at || record.uploaded_at
 }
 
-function getPhotoSize(record: OfflinePhotoRecord) {
-  return record.size || record.file_size || getNestedText(record, ['size', 'file_size'])
+function getPhotoSize(record: OfflineProjectPhoto) {
+  return record.file_size || (record.file_blob as Blob | undefined)?.size || (record.file as Blob | undefined)?.size
+}
+
+function getLinkedPhotos(update: OfflineProjectUpdate, photos: OfflineProjectPhoto[]) {
+  const updateId = update.id
+  const localId = getUpdateLocalId(update)
+
+  return photos.filter((photo) => {
+    return (
+      keysMatch(photo.offline_update_id, updateId) ||
+      keysMatch(photo.offline_update_id, localId) ||
+      keysMatch(photo.local_update_id, localId) ||
+      keysMatch(photo.project_update_id, localId) ||
+      keysMatch(photo.project_update_id, update.online_update_id)
+    )
+  })
 }
 
 export default function OfflineSync() {
@@ -317,10 +202,8 @@ export default function OfflineSync() {
   const [errorMessage, setErrorMessage] = useState('')
   const [isOfflineScrolled, setIsOfflineScrolled] = useState(false)
 
-  const [updateTableName, setUpdateTableName] = useState('')
-  const [photoTableName, setPhotoTableName] = useState('')
-  const [offlineUpdates, setOfflineUpdates] = useState<OfflineUpdateRecord[]>([])
-  const [offlinePhotos, setOfflinePhotos] = useState<OfflinePhotoRecord[]>([])
+  const [offlineUpdates, setOfflineUpdates] = useState<HydratedOfflineUpdate[]>([])
+  const [offlinePhotos, setOfflinePhotos] = useState<HydratedOfflinePhoto[]>([])
 
   useEffect(() => {
     refreshOfflineData()
@@ -364,24 +247,52 @@ export default function OfflineSync() {
     }
   }, [])
 
+  const totalPendingCount = useMemo(() => {
+    return offlineUpdates.length + offlinePhotos.length
+  }, [offlinePhotos.length, offlineUpdates.length])
+
+  async function getProjectNameMap(): Promise<ProjectNameMap> {
+    const projects = await offlineDb.projects.toArray()
+
+    return projects.reduce<ProjectNameMap>((map, project) => {
+      map[project.id] = project.project_name || `Project ${project.id}`
+      return map
+    }, {})
+  }
+
   async function refreshOfflineData() {
     try {
       setLoading(true)
       setErrorMessage('')
 
-      const updateTable = findDexieTable(UPDATE_TABLE_CANDIDATES)
-      const photoTable = findDexieTable(PHOTO_TABLE_CANDIDATES)
-
-      setUpdateTableName(updateTable?.name || '')
-      setPhotoTableName(photoTable?.name || '')
-
-      const [updates, photos] = await Promise.all([
-        readTable(updateTable),
-        readTable(photoTable),
+      const [projectNameMap, allUpdates, allPhotos] = await Promise.all([
+        getProjectNameMap(),
+        offlineDb.project_updates.toArray(),
+        offlineDb.project_photos.toArray(),
       ])
 
-      setOfflineUpdates(updates as OfflineUpdateRecord[])
-      setOfflinePhotos(photos as OfflinePhotoRecord[])
+      const pendingUpdates = allUpdates.filter(isPendingRecord)
+      const pendingPhotos = allPhotos.filter(isPendingRecord)
+
+      const hydratedUpdates = pendingUpdates.map((update) => {
+        const linkedPhotos = getLinkedPhotos(update, pendingPhotos)
+
+        return {
+          ...update,
+          display_project_name:
+            projectNameMap[update.project_id] || update.project_name || '',
+          pending_photo_count: linkedPhotos.length,
+        }
+      })
+
+      const hydratedPhotos = pendingPhotos.map((photo) => ({
+        ...photo,
+        display_project_name:
+          projectNameMap[photo.project_id] || photo.project_name || '',
+      }))
+
+      setOfflineUpdates(hydratedUpdates)
+      setOfflinePhotos(hydratedPhotos)
       setLastChecked(new Date().toISOString())
     } catch (error) {
       console.error(error)
@@ -402,35 +313,16 @@ export default function OfflineSync() {
         return
       }
 
-      const syncAllFunction = findServiceFunction(SYNC_ALL_FUNCTION_CANDIDATES)
-
-      if (syncAllFunction) {
-        await syncAllFunction()
-      } else {
-        const syncUpdatesFunction = findServiceFunction(SYNC_UPDATE_FUNCTION_CANDIDATES)
-        const syncPhotosFunction = findServiceFunction(SYNC_PHOTO_FUNCTION_CANDIDATES)
-
-        if (!syncUpdatesFunction && !syncPhotosFunction) {
-          setErrorMessage(
-            'No compatible sync function was found in offlineSyncService.ts. Please check the service export name.',
-          )
-          return
-        }
-
-        if (syncUpdatesFunction) {
-          await syncUpdatesFunction()
-        }
-
-        if (syncPhotosFunction) {
-          await syncPhotosFunction()
-        }
-      }
+      const result = await offlineSyncService.syncOfflineUpdates()
 
       await refreshOfflineData()
-      setLastSyncMessage('Offline records were synced successfully.')
-    } catch (error) {
+      setLastSyncMessage(result?.message || 'Offline records were synced successfully.')
+    } catch (error: any) {
       console.error(error)
-      setErrorMessage('Sync failed. Please check your connection and Supabase permissions.')
+      await refreshOfflineData()
+      setErrorMessage(
+        error?.message || 'Sync failed. Please check your connection and Supabase permissions.',
+      )
     } finally {
       setSyncing(false)
     }
@@ -438,7 +330,6 @@ export default function OfflineSync() {
 
   const pendingUpdatesCount = offlineUpdates.length
   const pendingPhotosCount = offlinePhotos.length
-  const totalPendingCount = pendingUpdatesCount + pendingPhotosCount
 
   return (
     <div className={`offline-sync-page ${isOfflineScrolled ? 'is-offline-scrolled' : ''}`}>
@@ -488,7 +379,7 @@ export default function OfflineSync() {
                 <div className="offline-sync-list">
                   {offlineUpdates.map((record, index) => (
                     <article
-                      key={textValue(record.id) || `update-${index}`}
+                      key={textValue(record.id) || textValue(record.local_id) || `update-${index}`}
                       className="offline-sync-record-card"
                     >
                       <div className="offline-sync-record-top">
@@ -505,19 +396,19 @@ export default function OfflineSync() {
                       <div className="offline-sync-record-grid">
                         <span>
                           <strong>Physical</strong>
-                          {formatPercent(getUpdatePhysical(record))}
+                          {formatPercent(record.physical_accomplishment)}
                         </span>
                         <span>
                           <strong>Financial</strong>
-                          {formatPercent(getUpdateFinancial(record))}
+                          {formatPercent(record.financial_accomplishment)}
                         </span>
                         <span>
                           <strong>Risk</strong>
-                          {getUpdateRisk(record)}
+                          {textValue(record.risk_level) || 'No Risk'}
                         </span>
                         <span>
-                          <strong>Project ID</strong>
-                          {textValue(record.project_id) || '-'}
+                          <strong>Photos</strong>
+                          {record.pending_photo_count || 0} pending
                         </span>
                       </div>
 
@@ -561,8 +452,8 @@ export default function OfflineSync() {
                     >
                       <div className="offline-sync-record-top">
                         <div>
-                          <h3>{getPhotoTitle(record)}</h3>
-                          <p>{getPhotoProject(record)}</p>
+                          <h3>{getPhotoProject(record)}</h3>
+                          <p>{getPhotoTitle(record)}</p>
                         </div>
 
                         <span className={`offline-sync-status ${getStatusClass(record)}`}>
@@ -611,12 +502,10 @@ export default function OfflineSync() {
                   : 'Offline storage has not been checked yet.'}
               </span>
 
-              {(updateTableName || photoTableName) && (
-                <div className="offline-sync-table-tags">
-                  {updateTableName && <span>Updates: {updateTableName}</span>}
-                  {photoTableName && <span>Photos: {photoTableName}</span>}
-                </div>
-              )}
+              <div className="offline-sync-table-tags">
+                <span>Updates: project_updates</span>
+                <span>Photos: project_photos</span>
+              </div>
             </div>
 
             <div className="offline-sync-actions">
@@ -634,14 +523,6 @@ export default function OfflineSync() {
               </button>
             </div>
           </section>
-
-          {!updateTableName && !photoTableName && (
-            <div className="offline-sync-warning">
-              <strong>Offline storage notice:</strong> No compatible offline update/photo
-              tables were detected from offlineDb.ts. The page is ready, but table names may
-              need to be aligned with your Dexie setup.
-            </div>
-          )}
 
           {lastSyncMessage && (
             <div className="offline-sync-success">
