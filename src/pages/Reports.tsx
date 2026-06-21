@@ -19,6 +19,7 @@ type ProjectRow = {
   status: string | null
   project_type: string | null
   funding_source: string | null
+  funding_year?: number | string | null
   implementing_office: string | null
   contractor: string | null
   budget: number | string | null
@@ -81,6 +82,19 @@ function formatLongDate(value: string | null | undefined) {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+function formatFundingYear(value: unknown) {
+  const year = textValue(value)
+  return year ? `FY ${year}` : ''
+}
+
+function formatFundingDisplay(project: ProjectRow) {
+  const year = formatFundingYear(project.funding_year)
+  const source = textValue(project.funding_source || project.project_type)
+
+  if (year && source) return `${year} · ${source}`
+  return year || source || '-'
 }
 
 function getStatusClass(status: string | null) {
@@ -169,6 +183,7 @@ export default function Reports() {
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('')
   const [municipalityFilter, setMunicipalityFilter] = useState('')
+  const [fundingYearFilter, setFundingYearFilter] = useState('')
   const [programFilter, setProgramFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [riskFilter, setRiskFilter] = useState('')
@@ -228,6 +243,7 @@ export default function Reports() {
     setSearchTerm('')
     setProvinceFilter('')
     setMunicipalityFilter('')
+    setFundingYearFilter('')
     setProgramFilter('')
     setStatusFilter('')
     setRiskFilter('')
@@ -251,6 +267,13 @@ export default function Reports() {
       ),
     ).sort()
   }, [projects, provinceFilter])
+
+
+  const fundingYears = useMemo(() => {
+    return Array.from(
+      new Set(projects.map((project) => textValue(project.funding_year)).filter(Boolean)),
+    ).sort((a, b) => Number(b) - Number(a))
+  }, [projects])
 
   const programs = useMemo(() => {
     return Array.from(
@@ -282,6 +305,7 @@ export default function Reports() {
         project.barangay,
         project.municipality,
         project.province,
+        project.funding_year,
         project.funding_source,
         project.project_type,
         project.status,
@@ -305,6 +329,10 @@ export default function Reports() {
         ? textValue(project.municipality) === municipalityFilter
         : true
 
+      const fundingYearMatches = fundingYearFilter
+        ? textValue(project.funding_year) === fundingYearFilter
+        : true
+
       const programMatches = programFilter
         ? textValue(project.funding_source || project.project_type) === programFilter
         : true
@@ -321,6 +349,7 @@ export default function Reports() {
         searchMatches &&
         provinceMatches &&
         municipalityMatches &&
+        fundingYearMatches &&
         programMatches &&
         statusMatches &&
         riskMatches
@@ -331,6 +360,7 @@ export default function Reports() {
     searchTerm,
     provinceFilter,
     municipalityFilter,
+    fundingYearFilter,
     programFilter,
     statusFilter,
     riskFilter,
@@ -340,6 +370,7 @@ export default function Reports() {
     searchTerm,
     provinceFilter,
     municipalityFilter,
+    fundingYearFilter,
     programFilter,
     statusFilter,
     riskFilter,
@@ -380,6 +411,7 @@ export default function Reports() {
           'Province',
           'Municipality',
           'Barangay',
+          'FY',
           'Funding Source',
           'Cost',
           'Status',
@@ -399,7 +431,8 @@ export default function Reports() {
           textValue(project.province) || '-',
           textValue(project.municipality) || '-',
           textValue(project.barangay) || '-',
-          textValue(project.funding_source || project.project_type) || '-',
+          formatFundingYear(project.funding_year) || '-',
+        textValue(project.funding_source || project.project_type) || '-',
           formatCurrency(project.budget),
           textValue(project.status) || '-',
           getComputedRiskLevel(project),
@@ -461,7 +494,8 @@ export default function Reports() {
         Province: textValue(project.province),
         Municipality: textValue(project.municipality),
         Barangay: textValue(project.barangay),
-        'Funding Source': textValue(project.funding_source),
+        'Funding Year': formatFundingYear(project.funding_year),
+      'Funding Source': textValue(project.funding_source),
         'Project Type': textValue(project.project_type),
         'Implementing Office': textValue(project.implementing_office),
         Contractor: textValue(project.contractor),
@@ -626,6 +660,21 @@ export default function Reports() {
               </label>
 
               <label>
+                <span>Funding Year</span>
+                <select
+                  value={fundingYearFilter}
+                  onChange={(event) => setFundingYearFilter(event.target.value)}
+                >
+                  <option value="">All Funding Years</option>
+                  {fundingYears.map((year) => (
+                    <option key={year} value={year}>
+                      FY {year}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 <span>Program / Funding Source</span>
                 <select
                   value={programFilter}
@@ -760,7 +809,7 @@ export default function Reports() {
                                 {textValue(project.province) || 'No Province'}
                               </span>
                             </td>
-                            <td>{textValue(project.funding_source) || '-'}</td>
+                            <td>{formatFundingDisplay(project)}</td>
                             <td>{formatCurrency(project.budget)}</td>
                             <td>
                               <span className={`reports-status ${getStatusClass(project.status)}`}>
@@ -815,7 +864,7 @@ export default function Reports() {
                         <div className="reports-mobile-grid">
                           <span>
                             <strong>Funding</strong>
-                            {textValue(project.funding_source) || '-'}
+                            {formatFundingDisplay(project)}
                           </span>
                           <span>
                             <strong>Cost</strong>

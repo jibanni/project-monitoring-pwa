@@ -70,6 +70,20 @@ function getDisplayValue(value: unknown, fallback = '-') {
   return displayValue || fallback
 }
 
+function formatFundingYear(value: unknown) {
+  const year = getDisplayValue(value, '')
+  return year ? `FY ${year}` : '-'
+}
+
+function formatFundingDisplay(project: any) {
+  const year = getDisplayValue(project?.funding_year, '')
+  const source = getDisplayValue(project?.funding_source, '')
+
+  if (year && source) return `FY ${year} · ${source}`
+  if (year) return `FY ${year}`
+  return source || '-'
+}
+
 function normalizeClassName(value: unknown) {
   const normalized = String(value ?? '')
     .trim()
@@ -282,6 +296,7 @@ export default function ProjectDetails() {
         risk_level: onlineProject.risk_level || '',
         project_type: onlineProject.project_type || '',
         funding_source: onlineProject.funding_source || '',
+        funding_year: onlineProject.funding_year || '',
         implementing_office: onlineProject.implementing_office || '',
         contractor: onlineProject.contractor || '',
         budget: onlineProject.budget || 0,
@@ -327,6 +342,7 @@ export default function ProjectDetails() {
         ['Project Name', project.project_name || '-'],
         ['Description', project.description || '-'],
         ['Project Type', project.project_type || '-'],
+        ['Funding Year', formatFundingYear(project.funding_year)],
         ['Funding Source', project.funding_source || '-'],
         ['Implementing Office', project.implementing_office || '-'],
         ['Contractor', project.contractor || '-'],
@@ -629,8 +645,13 @@ export default function ProjectDetails() {
               </div>
 
               <div className="pd-info-item">
+                <span>Funding Year</span>
+                <strong>{formatFundingYear(project.funding_year)}</strong>
+              </div>
+
+              <div className="pd-info-item">
                 <span>Funding Source</span>
-                <strong>{getDisplayValue(project.funding_source)}</strong>
+                <strong>{formatFundingDisplay(project)}</strong>
               </div>
 
               <div className="pd-info-item">

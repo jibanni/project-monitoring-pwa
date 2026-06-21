@@ -192,7 +192,28 @@ function getFundingSource(project: ProjectRecord) {
   )
 }
 
+function getFundingYear(project: ProjectRecord) {
+  const rawValue = safeText(project.funding_year ?? project.fiscal_year ?? project.fy, '')
 
+  if (!rawValue) return ''
+
+  const cleanValue = rawValue.replace(/^FY\s*/i, '').trim()
+  const yearNumber = Number(cleanValue)
+
+  if (Number.isFinite(yearNumber)) {
+    return `FY ${Math.trunc(yearNumber)}`
+  }
+
+  return rawValue.toUpperCase().startsWith('FY') ? rawValue : `FY ${rawValue}`
+}
+
+function getFundingDisplay(project: ProjectRecord) {
+  const year = getFundingYear(project)
+  const source = getFundingSource(project)
+
+  if (year && source !== 'N/A') return `${year} · ${source}`
+  return year || source
+}
 
 function getPhysicalProgress(project: ProjectRecord) {
   return asNumber(
@@ -524,7 +545,7 @@ export default function Dashboard() {
         <div className="dashboard-modal-project-main">
           <div>
             <p className="dashboard-modal-project-kicker">
-              {getFundingSource(project)}
+              {getFundingDisplay(project)}
             </p>
             <h3>{getProjectName(project)}</h3>
             <p className="dashboard-modal-project-location">
@@ -564,7 +585,7 @@ export default function Dashboard() {
 
           <div>
             <span>Program</span>
-            <strong>{getFundingSource(project)}</strong>
+            <strong>{getFundingDisplay(project)}</strong>
           </div>
 
           <div>

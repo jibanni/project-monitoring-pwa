@@ -1363,3 +1363,112 @@
 .pm-map-shell.is-map-fullscreen ~ * {
   pointer-events: none;
 }
+/* FINAL FIX — GIS MAP FLOATING ACTION BUTTONS */
+.pm-map-floating-actions {
+  position: fixed !important;
+  right: max(18px, env(safe-area-inset-right)) !important;
+  bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  z-index: 2147483600 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 12px !important;
+  pointer-events: auto !important;
+}
+
+.pm-map-fab {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: #ffffff !important;
+  line-height: 0 !important;
+  cursor: pointer !important;
+  box-shadow:
+    0 18px 34px rgba(15, 23, 42, 0.22),
+    0 7px 16px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.pm-map-fab svg {
+  display: block !important;
+  width: 25px !important;
+  height: 25px !important;
+  margin: 0 !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.35 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+.pm-map-fab-fullscreen {
+  background: linear-gradient(135deg, #0b4f86, #2563eb) !important;
+}
+
+.pm-map-fab-refocus {
+  background: linear-gradient(135deg, #123f73, #18599d) !important;
+}
+
+.pm-map-fab-refresh {
+  background: linear-gradient(135deg, #f97316, #fb923c) !important;
+}
+
+.pm-map-fab:active {
+  transform: scale(0.97) !important;
+}
+
+.pm-map-fab:disabled {
+  opacity: 0.65 !important;
+  cursor: wait !important;
+}
+
+/* Keep FAB visible even when map is fullscreen */
+.pm-map-shell.is-map-fullscreen ~ .pm-map-floating-actions,
+.pm-map-page .pm-map-floating-actions {
+  z-index: 2147483600 !important;
+}
+
+/* Fullscreen map shell */
+.pm-map-shell.is-map-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  z-index: 2147483000 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: #ffffff !important;
+}
+
+.pm-map-shell.is-map-fullscreen .pm-leaflet-map {
+  width: 100% !important;
+  height: 100dvh !important;
+  border-radius: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .pm-map-floating-actions {
+    right: max(16px, env(safe-area-inset-right)) !important;
+    bottom: calc(94px + env(safe-area-inset-bottom)) !important;
+    gap: 10px !important;
+  }
+
+  .pm-map-fab {
+    width: 54px !important;
+    height: 54px !important;
+    min-width: 54px !important;
+    min-height: 54px !important;
+  }
+
+  .pm-map-fab svg {
+    width: 23px !important;
+    height: 23px !important;
+  }
+}

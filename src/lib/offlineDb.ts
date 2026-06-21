@@ -16,6 +16,7 @@ export type OfflineProject = {
   risk_level: string
   project_type?: string
   funding_source?: string
+  funding_year?: number | string | null
   implementing_office?: string
   contractor?: string
   budget?: number | string

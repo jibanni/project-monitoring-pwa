@@ -12,6 +12,7 @@ type ProjectRow = {
   status: string | null
   project_type: string | null
   funding_source: string | null
+  funding_year?: number | string | null
   implementing_office: string | null
   contractor: string | null
   budget: number | string | null
@@ -95,6 +96,29 @@ function formatLongDate(value: string | null | undefined) {
   })
 }
 
+function formatFundingYear(value: unknown) {
+  const rawValue = textValue(value)
+
+  if (!rawValue) return ''
+
+  const cleanValue = rawValue.replace(/^FY\s*/i, '').trim()
+  const yearNumber = Number(cleanValue)
+
+  if (Number.isFinite(yearNumber)) {
+    return `FY ${Math.trunc(yearNumber)}`
+  }
+
+  return rawValue.toUpperCase().startsWith('FY') ? rawValue : `FY ${rawValue}`
+}
+
+function formatFundingDisplay(project: ProjectRow) {
+  const year = formatFundingYear(project.funding_year)
+  const source = textValue(project.funding_source || project.project_type)
+
+  if (year && source) return `${year} · ${source}`
+  return year || source || 'No Program'
+}
+
 function getStatusClass(status: string | null) {
   const normalized = textValue(status).toLowerCase()
 
@@ -176,6 +200,7 @@ export default function Projects() {
   const [provinceFilter, setProvinceFilter] = useState('')
   const [municipalityFilter, setMunicipalityFilter] = useState('')
   const [programFilter, setProgramFilter] = useState('')
+  const [fundingYearFilter, setFundingYearFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [riskFilter, setRiskFilter] = useState('')
   const [isRegistryScrolled, setIsRegistryScrolled] = useState(false)
@@ -232,6 +257,7 @@ export default function Projects() {
     setProvinceFilter('')
     setMunicipalityFilter('')
     setProgramFilter('')
+    setFundingYearFilter('')
     setStatusFilter('')
     setRiskFilter('')
   }
@@ -265,6 +291,12 @@ export default function Projects() {
     ).sort()
   }, [projects])
 
+  const fundingYears = useMemo(() => {
+    return Array.from(
+      new Set(projects.map((project) => textValue(project.funding_year)).filter(Boolean)),
+    ).sort((a, b) => Number(b) - Number(a))
+  }, [projects])
+
   const statuses = useMemo(() => {
     return Array.from(
       new Set(projects.map((project) => textValue(project.status)).filter(Boolean)),
@@ -285,6 +317,7 @@ export default function Projects() {
         project.barangay,
         project.municipality,
         project.province,
+        project.funding_year,
         project.funding_source,
         project.project_type,
         project.implementing_office,
@@ -312,6 +345,10 @@ export default function Projects() {
         ? textValue(project.funding_source || project.project_type) === programFilter
         : true
 
+      const fundingYearMatches = fundingYearFilter
+        ? textValue(project.funding_year) === fundingYearFilter
+        : true
+
       const statusMatches = statusFilter
         ? textValue(project.status) === statusFilter
         : true
@@ -325,6 +362,7 @@ export default function Projects() {
         provinceMatches &&
         municipalityMatches &&
         programMatches &&
+        fundingYearMatches &&
         statusMatches &&
         riskMatches
       )
@@ -335,6 +373,7 @@ export default function Projects() {
     provinceFilter,
     municipalityFilter,
     programFilter,
+    fundingYearFilter,
     statusFilter,
     riskFilter,
   ])
@@ -364,6 +403,7 @@ export default function Projects() {
     provinceFilter,
     municipalityFilter,
     programFilter,
+    fundingYearFilter,
     statusFilter,
     riskFilter,
   ].filter(Boolean).length
@@ -562,6 +602,21 @@ export default function Projects() {
             </label>
 
             <label>
+              Funding Year
+              <select
+                value={fundingYearFilter}
+                onChange={(event) => setFundingYearFilter(event.target.value)}
+              >
+                <option value="">All Funding Years</option>
+                {fundingYears.map((year) => (
+                  <option key={year} value={year}>
+                    {formatFundingYear(year)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
               Status
               <select
                 value={statusFilter}
@@ -629,8 +684,7 @@ export default function Projects() {
                   <div className="project-card-header">
                     <div className="project-card-main">
                       <p className="project-location">
-                        {textValue(project.funding_source || project.project_type) ||
-                          'No Program'}
+                        {formatFundingDisplay(project)}
                       </p>
                       <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
                       <p className="project-address">

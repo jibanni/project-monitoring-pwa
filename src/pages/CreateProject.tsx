@@ -31,6 +31,7 @@ type ProjectInsert = {
   status: string
   project_type: string
   funding_source: string
+  funding_year: number | null
   implementing_office: string | null
   contractor: string | null
   budget: number
@@ -68,6 +69,8 @@ const PROJECT_TYPE_OPTIONS = [
   'Evacuation Facility',
   'Other Infrastructure',
 ]
+
+const FUNDING_YEAR_OPTIONS = [2023, 2024, 2025, 2026, 2027, 2028]
 
 const FUNDING_SOURCE_OPTIONS = [
   'RAPID Growth Project',
@@ -256,6 +259,7 @@ export default function CreateProject() {
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState('Not Yet Started')
   const [projectType, setProjectType] = useState('Road')
+  const [fundingYear, setFundingYear] = useState(String(new Date().getFullYear()))
   const [fundingSource, setFundingSource] = useState('RAPID Growth Project')
   const [implementingOffice, setImplementingOffice] = useState('')
   const [contractor, setContractor] = useState('')
@@ -302,6 +306,7 @@ export default function CreateProject() {
       textValue(description).length > 0 &&
       textValue(status).length > 0 &&
       textValue(projectType).length > 0 &&
+      textValue(fundingYear).length > 0 &&
       textValue(fundingSource).length > 0 &&
       textValue(barangay).length > 0 &&
       textValue(municipality).length > 0 &&
@@ -313,6 +318,7 @@ export default function CreateProject() {
     description,
     status,
     projectType,
+    fundingYear,
     fundingSource,
     barangay,
     municipality,
@@ -408,6 +414,7 @@ export default function CreateProject() {
       status,
       project_type: projectType,
       funding_source: fundingSource,
+      funding_year: Number(fundingYear),
       implementing_office: cleanText(implementingOffice),
       contractor: cleanText(contractor),
       budget: toNumber(projectCost),
@@ -544,6 +551,20 @@ export default function CreateProject() {
                 {PROJECT_TYPE_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Funding Year <strong>*</strong>
+              <select
+                value={fundingYear}
+                onChange={(event) => setFundingYear(event.target.value)}
+              >
+                {FUNDING_YEAR_OPTIONS.map((year) => (
+                  <option key={year} value={year}>
+                    FY {year}
                   </option>
                 ))}
               </select>

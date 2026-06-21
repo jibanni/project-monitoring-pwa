@@ -21,6 +21,7 @@ type ProjectForm = {
   status: string
   project_type: string
   funding_source: string
+  funding_year: string
   implementing_office: string
   contractor: string
   budget: string
@@ -54,6 +55,7 @@ const emptyForm: ProjectForm = {
   status: 'Not Yet Started',
   project_type: '',
   funding_source: '',
+  funding_year: '',
   implementing_office: '',
   contractor: '',
   budget: '',
@@ -72,6 +74,19 @@ const emptyForm: ProjectForm = {
   risk_level: 'None',
   last_inspection_date: '',
 }
+
+const fundingYearOptions = [2023, 2024, 2025, 2026, 2027, 2028]
+
+const FUNDING_SOURCE_OPTIONS = [
+  'RAPID Growth Project',
+  'LGSF-FALGU',
+  'LGSF-GEF',
+  'LGSF-SBDP',
+  'LGSF-SAFPB',
+  'SALINTUBIG',
+  'CMGP / KALSADA',
+  'Other',
+]
 
 const statusOptions = [
   'Not Yet Started',
@@ -356,6 +371,7 @@ export default function EditProject() {
       status: data.status || 'Not Yet Started',
       project_type: data.project_type || '',
       funding_source: data.funding_source || '',
+      funding_year: numberInputValue(data.funding_year),
       implementing_office: data.implementing_office || '',
       contractor: data.contractor || '',
       budget: numberInputValue(data.budget),
@@ -457,6 +473,7 @@ export default function EditProject() {
       status: cleanText(form.status) || 'Not Yet Started',
       project_type: cleanText(form.project_type),
       funding_source: cleanText(form.funding_source),
+      funding_year: cleanText(form.funding_year) ? Number(form.funding_year) : null,
       implementing_office: cleanText(form.implementing_office),
       contractor: cleanText(form.contractor),
       budget: toNullableNumber(form.budget) ?? 0,
@@ -567,6 +584,11 @@ export default function EditProject() {
         </div>
 
         <div className="edit-project-summary-card">
+          <span>Funding Year</span>
+          <strong>{form.funding_year ? `FY ${form.funding_year}` : 'No FY'}</strong>
+        </div>
+
+        <div className="edit-project-summary-card">
           <span>Risk Level</span>
           <strong>{computedRiskLevel}</strong>
         </div>
@@ -661,13 +683,33 @@ export default function EditProject() {
             </label>
 
             <label className="edit-project-field">
+              <span>Funding Year</span>
+              <select
+                value={form.funding_year}
+                onChange={(event) => updateField('funding_year', event.target.value)}
+              >
+                <option value="">No funding year</option>
+                {fundingYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    FY {year}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="edit-project-field">
               <span>Funding Source / Program</span>
-              <input
-                type="text"
+              <select
                 value={form.funding_source}
                 onChange={(event) => updateField('funding_source', event.target.value)}
-                placeholder="LGSF-FALGU, SBDP, SAFPB, etc."
-              />
+              >
+                <option value="">Select funding source</option>
+                {FUNDING_SOURCE_OPTIONS.map((source) => (
+                  <option key={source} value={source}>
+                    {source}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="edit-project-field">

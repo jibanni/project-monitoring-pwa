@@ -39,9 +39,10 @@ type ProjectRecord = {
   status: string | null
   project_type: string | null
   funding_source: string | null
+  funding_year?: number | string | null
   implementing_office: string | null
   contractor: string | null
-  budget: number | null
+  budget: number | string | null
   start_date: string | null
   target_completion_date: string | null
   barangay: string | null
@@ -49,8 +50,8 @@ type ProjectRecord = {
   province: string | null
   latitude: number | string | null
   longitude: number | string | null
-  physical_accomplishment: number | null
-  financial_accomplishment: number | null
+  physical_accomplishment: number | string | null
+  financial_accomplishment: number | string | null
   risk_level: string | null
   last_inspection_date: string | null
   target_physical_accomplishment?: number | string | null
@@ -90,10 +91,15 @@ type CoordinateCandidate = {
   latestUpdateGps: ProjectUpdateRecord | null
 }
 
-function toNumber(value: number | string | null | undefined) {
+function normalizeText(value: unknown) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+function toNumber(value: unknown) {
   if (value === null || value === undefined || value === '') return null
 
-  const parsed = Number(value)
+  const parsed = Number(String(value).replace(/,/g, '').trim())
 
   return Number.isFinite(parsed) ? parsed : null
 }
@@ -104,10 +110,6 @@ function toTimestamp(value: string | null | undefined) {
   const parsed = new Date(value).getTime()
 
   return Number.isFinite(parsed) ? parsed : 0
-}
-
-function normalizeText(value: string | null | undefined) {
-  return (value || '').trim()
 }
 
 function isValidMindanaoCoordinate(latitude: number | null, longitude: number | null) {
@@ -234,7 +236,7 @@ function buildMapProject(
   }
 }
 
-function formatPhpCompact(value: number | null | undefined) {
+function formatPhpCompact(value: unknown) {
   const amount = Number(value || 0)
 
   if (!Number.isFinite(amount) || amount <= 0) return 'Php 0'
@@ -257,7 +259,7 @@ function formatPhpCompact(value: number | null | undefined) {
   })}`
 }
 
-function formatPhpFull(value: number | null | undefined) {
+function formatPhpFull(value: unknown) {
   const amount = Number(value || 0)
 
   if (!Number.isFinite(amount) || amount <= 0) return 'Php 0.00'
@@ -268,7 +270,7 @@ function formatPhpFull(value: number | null | undefined) {
   })}`
 }
 
-function formatPercent(value: number | null | undefined) {
+function formatPercent(value: unknown) {
   const amount = Number(value || 0)
 
   if (!Number.isFinite(amount)) return '0%'
@@ -277,6 +279,32 @@ function formatPercent(value: number | null | undefined) {
     minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   })}%`
+}
+
+function formatFundingYear(value: unknown) {
+  const rawValue = String(value ?? '').trim()
+
+  if (!rawValue) return ''
+
+  const cleanValue = rawValue.replace(/^FY\s*/i, '').trim()
+  const yearNumber = Number(cleanValue)
+
+  if (Number.isFinite(yearNumber)) {
+    return `FY ${Math.trunc(yearNumber)}`
+  }
+
+  return rawValue.toUpperCase().startsWith('FY') ? rawValue : `FY ${rawValue}`
+}
+
+function getFundingLabel(project: ProjectRecord) {
+  const year = formatFundingYear(project.funding_year)
+  const source = normalizeText(project.funding_source)
+
+  if (year && source) return `${year} · ${source}`
+  if (year) return year
+  if (source) return source
+
+  return 'Not specified'
 }
 
 function getProjectLocation(project: ProjectRecord) {
@@ -502,34 +530,31 @@ function MapResizeWatcher({ trigger }: { trigger: unknown }) {
 
 export default function ProjectMap() {
   const { isAdmin, isEngineer } = useAuth()
+  const canUpdateProject = Boolean(isAdmin || isEngineer)
 
   const [projects, setProjects] = useState<MapProject[]>([])
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [loadError, setLoadError] = useState('')
-  const [updateGpsWarning, setUpdateGpsWarning] = useState('')
-  const [isHeroCompact, setIsHeroCompact] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
+  const [isMapScrolled, setIsMapScrolled] = useState(false)
   const [focusSignal, setFocusSignal] = useState(0)
   const [isMapFullscreen, setIsMapFullscreen] = useState(false)
 
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('All')
   const [municipalityFilter, setMunicipalityFilter] = useState('All')
+  const [fundingYearFilter, setFundingYearFilter] = useState('All')
   const [programFilter, setProgramFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
   const [riskFilter, setRiskFilter] = useState('All')
-
-  const canUpdateProject = isAdmin || isEngineer
 
   useEffect(() => {
     setPortalReady(true)
   }, [])
 
   useEffect(() => {
-    loadMapProjects()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadProjects()
   }, [])
 
   useEffect(() => {
@@ -541,12 +566,13 @@ export default function ProjectMap() {
       ticking = true
 
       window.requestAnimationFrame(() => {
-        setIsHeroCompact(window.scrollY > 28)
+        setIsMapScrolled(window.scrollY > 28)
         ticking = false
       })
     }
 
     handleScroll()
+
     window.addEventListener('scroll', handleScroll, { passive: true })
 
     return () => {
@@ -554,118 +580,64 @@ export default function ProjectMap() {
     }
   }, [])
 
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsMapFullscreen(false)
-      }
-    }
-
-    if (isMapFullscreen) {
-      document.body.classList.add('pm-map-fullscreen-lock')
-    } else {
-      document.body.classList.remove('pm-map-fullscreen-lock')
-    }
-
-    window.addEventListener('keydown', handleEscape)
-
-    return () => {
-      document.body.classList.remove('pm-map-fullscreen-lock')
-      window.removeEventListener('keydown', handleEscape)
-    }
-  }, [isMapFullscreen])
-
-  async function loadMapProjects(isManualRefresh = false) {
-    if (isManualRefresh) {
-      setRefreshing(true)
-    } else {
+  async function loadProjects() {
+    try {
       setLoading(true)
-    }
+      setErrorMessage('')
 
-    setLoadError('')
-    setUpdateGpsWarning('')
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .order('updated_at', { ascending: false })
 
-    const { data: projectData, error: projectError } = await supabase
-      .from('projects')
-      .select(
-        `
-          id,
-          project_name,
-          description,
-          status,
-          project_type,
-          funding_source,
-          implementing_office,
-          contractor,
-          budget,
-          start_date,
-          target_completion_date,
-          barangay,
-          municipality,
-          province,
-          latitude,
-          longitude,
-          physical_accomplishment,
-          financial_accomplishment,
-          target_physical_accomplishment,
-          target_physical_as_of,
-          target_physical_source,
-          risk_level,
-          last_inspection_date,
-          updated_at
-        `,
+      if (projectError) throw projectError
+
+      const { data: updateData, error: updateError } = await supabase
+        .from('project_updates')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (updateError) throw updateError
+
+      const updateMap = new Map<string, ProjectUpdateRecord[]>()
+
+      for (const update of (updateData || []) as unknown as ProjectUpdateRecord[]) {
+        if (!update.project_id) continue
+
+        const currentUpdates = updateMap.get(update.project_id) || []
+        currentUpdates.push(update)
+        updateMap.set(update.project_id, currentUpdates)
+      }
+
+      const mappedProjects = ((projectData || []) as unknown as ProjectRecord[]).map((project) =>
+        buildMapProject(project, updateMap.get(project.id) || []),
       )
-      .order('updated_at', { ascending: false })
 
-    if (projectError) {
-      setLoadError(projectError.message || 'Unable to load project map records.')
-      setProjects([])
+      setProjects(mappedProjects)
+    } catch (error: any) {
+      console.error(error)
+      setErrorMessage(
+        error?.message || 'Unable to load GIS map records. Please try again.',
+      )
+    } finally {
       setLoading(false)
-      setRefreshing(false)
-      return
     }
+  }
 
-    const { data: updateData, error: updateError } = await supabase
-      .from('project_updates')
-      .select(
-        `
-          id,
-          project_id,
-          inspection_date,
-          inspection_latitude,
-          inspection_longitude,
-          created_at
-        `,
-      )
-      .order('created_at', { ascending: false })
-
-    if (updateError) {
-      setUpdateGpsWarning(
-        updateError.message ||
-          'Project records loaded, but latest inspection GPS records could not be loaded.',
-      )
-    }
-
-    const updatesByProject = new Map<string, ProjectUpdateRecord[]>()
-
-    ;((updateData || []) as ProjectUpdateRecord[]).forEach((update) => {
-      const currentUpdates = updatesByProject.get(update.project_id) || []
-      currentUpdates.push(update)
-      updatesByProject.set(update.project_id, currentUpdates)
-    })
-
-    const mappedProjects = ((projectData || []) as ProjectRecord[]).map((project) =>
-      buildMapProject(project, updatesByProject.get(project.id) || []),
-    )
-
-    setProjects(mappedProjects)
-    setLoading(false)
-    setRefreshing(false)
+  function clearFilters() {
+    setSearchTerm('')
+    setProvinceFilter('All')
+    setMunicipalityFilter('All')
+    setFundingYearFilter('All')
+    setProgramFilter('All')
+    setStatusFilter('All')
+    setRiskFilter('All')
   }
 
   const filterOptions = useMemo(() => {
     const provinces = new Set<string>()
     const municipalities = new Set<string>()
+    const fundingYears = new Set<string>()
     const programs = new Set<string>()
     const statuses = new Set<string>()
     const risks = new Set<string>()
@@ -675,16 +647,23 @@ export default function ProjectMap() {
       if (normalizeText(project.municipality)) {
         municipalities.add(normalizeText(project.municipality))
       }
+
+      const fundingYear = formatFundingYear(project.funding_year)
+      if (fundingYear) fundingYears.add(fundingYear)
+
       if (normalizeText(project.funding_source)) {
         programs.add(normalizeText(project.funding_source))
       }
+
       if (normalizeText(project.status)) statuses.add(normalizeText(project.status))
+
       risks.add(getComputedRiskLevel(project))
     })
 
     return {
       provinces: ['All', ...Array.from(provinces).sort()],
       municipalities: ['All', ...Array.from(municipalities).sort()],
+      fundingYears: ['All', ...Array.from(fundingYears).sort()],
       programs: ['All', ...Array.from(programs).sort()],
       statuses: ['All', ...Array.from(statuses).sort()],
       risks: ['All', ...Array.from(risks).sort()],
@@ -695,10 +674,13 @@ export default function ProjectMap() {
     const query = searchTerm.trim().toLowerCase()
 
     return projects.filter((project) => {
+      const projectFundingYear = formatFundingYear(project.funding_year)
+
       const searchable = [
         project.project_name,
         project.description,
         project.project_type,
+        projectFundingYear,
         project.funding_source,
         project.implementing_office,
         project.contractor,
@@ -716,6 +698,8 @@ export default function ProjectMap() {
         provinceFilter === 'All' || normalizeText(project.province) === provinceFilter
       const matchesMunicipality =
         municipalityFilter === 'All' || normalizeText(project.municipality) === municipalityFilter
+      const matchesFundingYear =
+        fundingYearFilter === 'All' || projectFundingYear === fundingYearFilter
       const matchesProgram =
         programFilter === 'All' || normalizeText(project.funding_source) === programFilter
       const matchesStatus =
@@ -727,6 +711,7 @@ export default function ProjectMap() {
         matchesSearch &&
         matchesProvince &&
         matchesMunicipality &&
+        matchesFundingYear &&
         matchesProgram &&
         matchesStatus &&
         matchesRisk
@@ -737,62 +722,49 @@ export default function ProjectMap() {
     searchTerm,
     provinceFilter,
     municipalityFilter,
+    fundingYearFilter,
     programFilter,
     statusFilter,
     riskFilter,
   ])
 
-  const displayedProjects = useMemo(
-    () =>
-      filteredProjects.filter(
-        (project) => project.displayLatitude !== null && project.displayLongitude !== null,
-      ),
-    [filteredProjects],
-  )
+  const displayedProjects = useMemo(() => {
+    return filteredProjects.filter(
+      (project) => project.displayLatitude !== null && project.displayLongitude !== null,
+    )
+  }, [filteredProjects])
 
-  const coordinateIssueProjects = useMemo(
-    () =>
-      filteredProjects.filter(
-        (project) => project.displayLatitude === null || project.displayLongitude === null,
-      ),
-    [filteredProjects],
-  )
+  const coordinateIssueProjects = useMemo(() => {
+    return filteredProjects.filter(
+      (project) => project.displayLatitude === null || project.displayLongitude === null,
+    )
+  }, [filteredProjects])
 
   const hasActiveFilters =
     searchTerm.trim() !== '' ||
     provinceFilter !== 'All' ||
     municipalityFilter !== 'All' ||
+    fundingYearFilter !== 'All' ||
     programFilter !== 'All' ||
     statusFilter !== 'All' ||
     riskFilter !== 'All'
 
-  function clearFilters() {
-    setSearchTerm('')
-    setProvinceFilter('All')
-    setMunicipalityFilter('All')
-    setProgramFilter('All')
-    setStatusFilter('All')
-    setRiskFilter('All')
-  }
-
   const mapFabs = (
-    <div className="gis-map-fab-stack">
+    <div className="pm-map-floating-actions" aria-label="GIS map actions">
       <button
         type="button"
-        className="gis-fullscreen-fab-final"
+        className="pm-map-fab pm-map-fab-fullscreen"
         onClick={() => setIsMapFullscreen((current) => !current)}
-        disabled={loading}
-        aria-label={isMapFullscreen ? 'Exit full screen map' : 'Open full screen map'}
-        title={isMapFullscreen ? 'Exit full screen' : 'Full screen map'}
+        aria-label={isMapFullscreen ? 'Exit fullscreen map' : 'Open fullscreen map'}
+        title={isMapFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
       >
         {isMapFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
       </button>
 
       <button
         type="button"
-        className="gis-refocus-fab-final"
+        className="pm-map-fab pm-map-fab-refocus"
         onClick={() => setFocusSignal((current) => current + 1)}
-        disabled={loading}
         aria-label="Refocus map"
         title="Refocus map"
       >
@@ -801,11 +773,11 @@ export default function ProjectMap() {
 
       <button
         type="button"
-        className="gis-refresh-fab-final"
-        onClick={() => loadMapProjects(true)}
-        disabled={loading || refreshing}
-        aria-label="Refresh map"
-        title="Refresh map"
+        className="pm-map-fab pm-map-fab-refresh"
+        onClick={loadProjects}
+        disabled={loading}
+        aria-label="Refresh GIS map"
+        title="Refresh"
       >
         <RefreshIcon />
       </button>
@@ -814,33 +786,32 @@ export default function ProjectMap() {
 
   return (
     <>
-      <main className={`pm-map-page ${isHeroCompact ? 'is-map-scrolled' : ''}`}>
-        <section className={`pm-map-hero ${isHeroCompact ? 'is-compact' : ''}`}>
+      <main className={`pm-map-page ${isMapScrolled ? 'is-map-scrolled' : ''}`}>
+        <section className="pm-map-hero">
           <div>
-            <p className="pm-map-eyebrow">DILG-PDMU GIS Monitoring</p>
+            <p className="pm-map-eyebrow">GIS Mapping</p>
             <h1>Project GIS Map</h1>
-            <p>Latest valid coordinates from project creation, editing, or updates.</p>
+            <p>
+              View mapped infrastructure projects using the latest project or
+              inspection GPS coordinates.
+            </p>
           </div>
         </section>
 
-        {loadError && <div className="pm-map-alert pm-map-alert-error">{loadError}</div>}
-
-        {updateGpsWarning && (
-          <div className="pm-map-alert pm-map-alert-warning">{updateGpsWarning}</div>
+        {errorMessage && (
+          <div className="pm-map-alert pm-map-alert-error">{errorMessage}</div>
         )}
 
         <section className="pm-map-summary-grid">
-          <article className="pm-map-summary-card">
+          <div className="pm-map-summary-card">
             <span>Total Projects</span>
-            <strong>{filteredProjects.length}</strong>
-            <p>Filtered records</p>
-          </article>
+            <strong>{projects.length}</strong>
+          </div>
 
-          <article className="pm-map-summary-card">
+          <div className="pm-map-summary-card">
             <span>Displayed</span>
             <strong>{displayedProjects.length}</strong>
-            <p>Shown on map</p>
-          </article>
+          </div>
         </section>
 
         <section className="pm-map-filter-card">
@@ -851,7 +822,7 @@ export default function ProjectMap() {
                 type="search"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search project, LGU, program..."
+                placeholder="Search project, LGU, FY, program..."
               />
             </label>
 
@@ -859,11 +830,10 @@ export default function ProjectMap() {
               type="button"
               className={`pm-map-filter-button ${showFilters ? 'is-active' : ''}`}
               onClick={() => setShowFilters((current) => !current)}
-              aria-expanded={showFilters}
-              aria-pressed={showFilters}
+              aria-label="Show filters"
+              title="Show filters"
             >
               <FilterIcon />
-              <span>Filter</span>
             </button>
           </div>
 
@@ -873,7 +843,10 @@ export default function ProjectMap() {
                 <span>Province</span>
                 <select
                   value={provinceFilter}
-                  onChange={(event) => setProvinceFilter(event.target.value)}
+                  onChange={(event) => {
+                    setProvinceFilter(event.target.value)
+                    setMunicipalityFilter('All')
+                  }}
                 >
                   {filterOptions.provinces.map((province) => (
                     <option key={province} value={province}>
@@ -884,7 +857,7 @@ export default function ProjectMap() {
               </label>
 
               <label>
-                <span>LGU / Municipality</span>
+                <span>Municipality / LGU</span>
                 <select
                   value={municipalityFilter}
                   onChange={(event) => setMunicipalityFilter(event.target.value)}
@@ -892,6 +865,20 @@ export default function ProjectMap() {
                   {filterOptions.municipalities.map((municipality) => (
                     <option key={municipality} value={municipality}>
                       {municipality}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Funding Year</span>
+                <select
+                  value={fundingYearFilter}
+                  onChange={(event) => setFundingYearFilter(event.target.value)}
+                >
+                  {filterOptions.fundingYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
                     </option>
                   ))}
                 </select>
@@ -1045,7 +1032,7 @@ export default function ProjectMap() {
                             <dl>
                               <div>
                                 <dt>Program</dt>
-                                <dd>{project.funding_source || 'Not specified'}</dd>
+                                <dd>{getFundingLabel(project)}</dd>
                               </div>
 
                               <div>
@@ -1104,50 +1091,51 @@ export default function ProjectMap() {
                     const varianceInfo = getTargetPhysicalInfo(project)
 
                     return (
-                    <article className="pm-map-project-card" key={project.id}>
-                      <div>
-                        <span>{project.province || 'No Province'}</span>
-                        <h3>{project.project_name || 'Untitled Project'}</h3>
-                        <p>{getProjectLocation(project)}</p>
-                      </div>
-
-                      <div className="pm-map-project-meta">
-                        <span className={getStatusClass(project.status)}>
-                          {project.status || 'No Status'}
-                        </span>
-
-                        <span className={getRiskClass(getComputedRiskLevel(project))}>
-                          {getComputedRiskLevel(project)}
-                        </span>
-                      </div>
-
-                      <dl>
+                      <article className="pm-map-project-card" key={project.id}>
                         <div>
-                          <dt>Variance</dt>
-                          <dd className={`pm-map-variance ${varianceInfo.className}`}>
-                            {varianceInfo.compactLabel}
-                          </dd>
+                          <span>{project.province || 'No Province'}</span>
+                          <h3>{project.project_name || 'Untitled Project'}</h3>
+                          <p>{getProjectLocation(project)}</p>
+                          <p>{getFundingLabel(project)}</p>
                         </div>
 
-                        <div>
-                          <dt>As of</dt>
-                          <dd>{varianceInfo.asOfLabel.replace('As of ', '')}</dd>
+                        <div className="pm-map-project-meta">
+                          <span className={getStatusClass(project.status)}>
+                            {project.status || 'No Status'}
+                          </span>
+
+                          <span className={getRiskClass(getComputedRiskLevel(project))}>
+                            {getComputedRiskLevel(project)}
+                          </span>
                         </div>
 
-                        <div>
-                          <dt>Project Cost</dt>
-                          <dd>{formatPhpCompact(project.budget)}</dd>
+                        <dl>
+                          <div>
+                            <dt>Variance</dt>
+                            <dd className={`pm-map-variance ${varianceInfo.className}`}>
+                              {varianceInfo.compactLabel}
+                            </dd>
+                          </div>
+
+                          <div>
+                            <dt>As of</dt>
+                            <dd>{varianceInfo.asOfLabel.replace('As of ', '')}</dd>
+                          </div>
+
+                          <div>
+                            <dt>Project Cost</dt>
+                            <dd>{formatPhpCompact(project.budget)}</dd>
+                          </div>
+                        </dl>
+
+                        <div className="pm-map-project-actions">
+                          <Link to={`/projects/${project.id}`}>View</Link>
+
+                          {canUpdateProject && (
+                            <Link to={`/projects/${project.id}/updates`}>Update GPS</Link>
+                          )}
                         </div>
-                      </dl>
-
-                      <div className="pm-map-project-actions">
-                        <Link to={`/projects/${project.id}`}>View</Link>
-
-                        {canUpdateProject && (
-                          <Link to={`/projects/${project.id}/updates`}>Update GPS</Link>
-                        )}
-                      </div>
-                    </article>
+                      </article>
                     )
                   })
                 )}
