@@ -1147,3 +1147,129 @@
   border-color: #fecaca !important;
 }
 
+
+/* =========================================================
+   FINAL MOBILE SMOOTHNESS PASS — PROJECT REGISTRY
+   Purpose: smoother real-phone scrolling without changing layout.
+   Keeps the approved 3-column summary, filter/search layout,
+   project cards, FABs, and hero behavior.
+========================================================= */
+
+.projects-page {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: auto;
+}
+
+.projects-card-grid {
+  align-items: stretch;
+}
+
+.project-card,
+.projects-summary-card,
+.projects-filter-card,
+.projects-list-card {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.project-card {
+  contain: layout paint;
+}
+
+.project-progress-fill {
+  will-change: width;
+}
+
+.projects-floating-actions,
+.projects-floating-btn {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .project-actions button:hover,
+  .projects-floating-btn:hover,
+  .projects-floating-btn:active {
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .projects-page {
+    gap: 13px;
+  }
+
+  .projects-hero,
+  .projects-registry-hero {
+    transition:
+      min-height 0.12s ease,
+      max-height 0.12s ease,
+      padding 0.12s ease,
+      border-radius 0.12s ease !important;
+    box-shadow: 0 12px 24px rgba(15, 48, 87, 0.14) !important;
+    will-change: auto !important;
+  }
+
+  .projects-page.is-registry-scrolled .projects-hero,
+  .projects-page.is-registry-scrolled .projects-registry-hero {
+    transition: none !important;
+    box-shadow: none !important;
+  }
+
+  .projects-summary-card {
+    box-shadow: 0 8px 18px rgba(15, 48, 87, 0.055) !important;
+  }
+
+  .projects-filter-card,
+  .projects-list-card {
+    box-shadow: 0 10px 22px rgba(15, 48, 87, 0.055) !important;
+  }
+
+  .project-card {
+    box-shadow: 0 8px 18px rgba(15, 48, 87, 0.052) !important;
+    transition: none !important;
+  }
+
+  .project-actions button {
+    transition:
+      background 0.12s ease,
+      opacity 0.12s ease !important;
+  }
+
+  .projects-floating-btn {
+    box-shadow:
+      0 12px 22px rgba(15, 23, 42, 0.18),
+      0 4px 10px rgba(15, 23, 42, 0.12) !important;
+    transition:
+      opacity 0.12s ease,
+      filter 0.12s ease !important;
+  }
+
+  .projects-search-shell,
+  .projects-filter-toggle,
+  .projects-filter-grid select {
+    transition:
+      border-color 0.12s ease,
+      box-shadow 0.12s ease,
+      background 0.12s ease !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .projects-card-grid {
+    gap: 12px !important;
+  }
+
+  .project-card {
+    gap: 13px !important;
+    padding: 16px !important;
+    border-radius: 22px !important;
+  }
+
+  .project-info-item {
+    border-radius: 14px !important;
+  }
+}
+

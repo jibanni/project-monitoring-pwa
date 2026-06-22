@@ -218,7 +218,10 @@ export default function Projects() {
 
       ticking = true
       requestAnimationFrame(() => {
-        setIsRegistryScrolled(window.scrollY > 28)
+        const nextScrolled = window.scrollY > 44
+        setIsRegistryScrolled((current) =>
+          current === nextScrolled ? current : nextScrolled,
+        )
         ticking = false
       })
     }
