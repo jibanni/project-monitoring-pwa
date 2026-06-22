@@ -2155,3 +2155,123 @@
     height: 26px !important;
   }
 }
+
+
+/* =========================================================
+   FINAL GIS MAP SMOOTHNESS PASS
+   Mobile-safe: keeps existing layout, features, colors, and FAB order.
+========================================================= */
+.pm-map-page {
+  scroll-behavior: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pm-map-hero,
+.pm-map-summary-card,
+.pm-map-filter-card,
+.pm-map-main-card,
+.pm-map-list-card,
+.pm-map-review-card,
+.pm-map-project-card,
+.pm-map-review-item,
+.pm-map-fab {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.pm-map-shell,
+.pm-leaflet-map,
+.pm-map-shell .leaflet-container {
+  touch-action: pan-x pan-y;
+}
+
+.pm-map-project-list,
+.pm-map-review-list {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.pm-map-fab {
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition:
+    transform 0.1s ease,
+    filter 0.1s ease !important;
+}
+
+.pm-map-fab:active {
+  transform: scale(0.96) !important;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .pm-map-summary-card,
+  .pm-map-filter-card,
+  .pm-map-card,
+  .pm-map-list-card,
+  .pm-map-review-card,
+  .pm-map-project-card,
+  .pm-map-review-item {
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  .pm-map-shell .leaflet-control-zoom,
+  .leaflet-popup-content-wrapper {
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16) !important;
+  }
+
+  .pm-map-hero {
+    box-shadow: 0 12px 26px rgba(15, 48, 87, 0.14) !important;
+    transition:
+      min-height 0.12s ease,
+      max-height 0.12s ease,
+      padding 0.12s ease,
+      border-radius 0.12s ease,
+      margin 0.12s ease !important;
+  }
+
+  .pm-map-page.is-map-scrolled .pm-map-hero {
+    box-shadow: none !important;
+  }
+
+  .pm-map-filter-button,
+  .pm-map-clear-button,
+  .pm-map-project-actions a,
+  .pm-map-review-item a,
+  .pm-map-popup a {
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .pm-map-fab {
+    box-shadow:
+      0 12px 24px rgba(15, 23, 42, 0.2),
+      0 5px 12px rgba(15, 23, 42, 0.12) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .pm-map-page.is-map-scrolled {
+    padding-top: calc(var(--pm-map-hero-compact-h) + 10px) !important;
+  }
+
+  .pm-map-summary-card,
+  .pm-map-filter-card,
+  .pm-map-main-card,
+  .pm-map-list-card,
+  .pm-map-review-card {
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  .pm-map-project-card,
+  .pm-map-review-item {
+    box-shadow: none !important;
+  }
+
+  .pm-marker span {
+    box-shadow: 0 7px 14px rgba(15, 23, 42, 0.22) !important;
+  }
+
+  .pm-map-floating-actions {
+    gap: 10px !important;
+  }
+}

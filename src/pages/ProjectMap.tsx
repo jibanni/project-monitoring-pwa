@@ -502,15 +502,21 @@ function MapResizeWatcher({ trigger }: { trigger: unknown }) {
   const map = useMap()
 
   useEffect(() => {
+    let animationFrame = 0
+
     const resizeMap = () => {
-      map.invalidateSize()
+      if (animationFrame) return
+
+      animationFrame = window.requestAnimationFrame(() => {
+        map.invalidateSize({ pan: false })
+        animationFrame = 0
+      })
     }
 
     resizeMap()
 
-    const timeoutOne = window.setTimeout(resizeMap, 160)
+    const timeoutOne = window.setTimeout(resizeMap, 180)
     const timeoutTwo = window.setTimeout(resizeMap, 520)
-    const timeoutThree = window.setTimeout(resizeMap, 1000)
 
     const container = map.getContainer()
     const observer =
@@ -525,9 +531,9 @@ function MapResizeWatcher({ trigger }: { trigger: unknown }) {
     window.visualViewport?.addEventListener('resize', resizeMap)
 
     return () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame)
       window.clearTimeout(timeoutOne)
       window.clearTimeout(timeoutTwo)
-      window.clearTimeout(timeoutThree)
       observer?.disconnect()
       window.removeEventListener('resize', resizeMap)
       window.removeEventListener('orientationchange', resizeMap)
@@ -575,6 +581,7 @@ export default function ProjectMap() {
 
   useEffect(() => {
     let ticking = false
+    const scrollThreshold = 44
 
     function handleScroll() {
       if (ticking) return
@@ -582,7 +589,12 @@ export default function ProjectMap() {
       ticking = true
 
       window.requestAnimationFrame(() => {
-        setIsMapScrolled(window.scrollY > 28)
+        const nextScrolled = window.scrollY > scrollThreshold
+
+        setIsMapScrolled((current) =>
+          current === nextScrolled ? current : nextScrolled,
+        )
+
         ticking = false
       })
     }
