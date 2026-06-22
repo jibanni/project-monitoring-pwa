@@ -1387,3 +1387,227 @@
     padding: 14px;
   }
 }
+
+/* =========================================================
+   FINAL REQUEST — SHORTER DASHBOARD DRILLDOWN WINDOW
+   - Header position remains below the DILG main banner.
+   - Lower project list area is shortened so only one project is initially visible.
+   - Additional projects scroll inside the lower section.
+========================================================= */
+.dashboard-drilldown-modal {
+  max-height: min(
+    64dvh,
+    calc(100dvh - var(--app-header-live-h, var(--current-header-h, 82px)) - 58px),
+    560px
+  ) !important;
+}
+
+.dashboard-modal-body {
+  flex: 0 1 auto !important;
+  max-height: 320px !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  scrollbar-gutter: stable !important;
+}
+
+.dashboard-modal-project-card {
+  scroll-margin-top: 12px !important;
+}
+
+@supports not (height: 100dvh) {
+  .dashboard-drilldown-modal {
+    max-height: min(
+      64vh,
+      calc(100vh - var(--app-header-live-h, var(--current-header-h, 82px)) - 58px),
+      560px
+    ) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-drilldown-modal {
+    max-height: min(
+      66dvh,
+      calc(100dvh - var(--app-header-live-h, var(--current-header-h, 74px)) - 44px),
+      500px
+    ) !important;
+  }
+
+  .dashboard-modal-body {
+    max-height: 286px !important;
+    padding: 10px !important;
+  }
+
+  .dashboard-modal-project-card {
+    padding: 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .dashboard-modal-project-card + .dashboard-modal-project-card {
+    margin-top: 10px !important;
+  }
+
+  .dashboard-modal-project-grid {
+    gap: 8px !important;
+    margin-top: 12px !important;
+  }
+
+  .dashboard-modal-project-grid div {
+    padding: 10px !important;
+    border-radius: 13px !important;
+  }
+
+  .dashboard-modal-progress-row {
+    gap: 10px !important;
+    margin-top: 12px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-drilldown-modal {
+    max-height: min(
+      68dvh,
+      calc(100dvh - var(--app-header-live-h, var(--current-header-h, 74px)) - 36px),
+      470px
+    ) !important;
+  }
+
+  .dashboard-modal-body {
+    max-height: 262px !important;
+  }
+}
+
+
+/* =========================================================
+   FINAL REQUEST V2 — SLIGHTLY TALLER DASHBOARD DRILLDOWN
+   - Keeps the header below the fixed DILG banner.
+   - Makes the modal body taller than V1 while still scrollable.
+   - Shows roughly one full project plus a hint of the next item on phones.
+========================================================= */
+.dashboard-drilldown-modal {
+  max-height: min(
+    72dvh,
+    calc(100dvh - var(--app-header-live-h, var(--current-header-h, 82px)) - 44px),
+    640px
+  ) !important;
+}
+
+.dashboard-modal-body {
+  max-height: 390px !important;
+}
+
+@supports not (height: 100dvh) {
+  .dashboard-drilldown-modal {
+    max-height: min(
+      72vh,
+      calc(100vh - var(--app-header-live-h, var(--current-header-h, 82px)) - 44px),
+      640px
+    ) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-drilldown-modal {
+    max-height: min(
+      74dvh,
+      calc(100dvh - var(--app-header-live-h, var(--current-header-h, 74px)) - 34px),
+      560px
+    ) !important;
+  }
+
+  .dashboard-modal-body {
+    max-height: 350px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-drilldown-modal {
+    max-height: min(
+      75dvh,
+      calc(100dvh - var(--app-header-live-h, var(--current-header-h, 74px)) - 30px),
+      530px
+    ) !important;
+  }
+
+  .dashboard-modal-body {
+    max-height: 326px !important;
+  }
+}
+
+/* =========================================================
+   FINAL REQUEST V3 — TALLER AND LOWER DASHBOARD DRILLDOWN
+   - Moves the modal lower by centering it within the area below the fixed DILG header.
+   - Makes the modal taller than V2 while keeping internal scrolling.
+   - Header remains safely below the main banner.
+========================================================= */
+.dashboard-modal-backdrop {
+  --dashboard-modal-top-offset: calc(var(--app-header-live-h, var(--current-header-h, 82px)) + 10px);
+  inset: var(--dashboard-modal-top-offset) 0 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 18px !important;
+}
+
+.dashboard-drilldown-modal {
+  width: min(980px, calc(100vw - 20px)) !important;
+  max-height: min(
+    82dvh,
+    calc(100dvh - var(--app-header-live-h, var(--current-header-h, 82px)) - 42px),
+    720px
+  ) !important;
+}
+
+.dashboard-modal-body {
+  flex: 1 1 auto !important;
+  max-height: 500px !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  scrollbar-gutter: stable !important;
+}
+
+@supports not (height: 100dvh) {
+  .dashboard-drilldown-modal {
+    max-height: min(
+      82vh,
+      calc(100vh - var(--app-header-live-h, var(--current-header-h, 82px)) - 42px),
+      720px
+    ) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-modal-backdrop {
+    --dashboard-modal-top-offset: calc(var(--app-header-live-h, var(--current-header-h, 74px)) + 8px);
+    align-items: center !important;
+    padding: 14px 8px 16px !important;
+  }
+
+  .dashboard-drilldown-modal {
+    width: calc(100vw - 16px) !important;
+    max-height: min(
+      80dvh,
+      calc(100dvh - var(--app-header-live-h, var(--current-header-h, 74px)) - 36px),
+      640px
+    ) !important;
+    border-radius: 22px !important;
+  }
+
+  .dashboard-modal-body {
+    max-height: 430px !important;
+    padding: 12px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-drilldown-modal {
+    max-height: min(
+      79dvh,
+      calc(100dvh - var(--app-header-live-h, var(--current-header-h, 74px)) - 34px),
+      610px
+    ) !important;
+  }
+
+  .dashboard-modal-body {
+    max-height: 404px !important;
+  }
+}

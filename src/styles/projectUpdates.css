@@ -1686,3 +1686,196 @@ body > .pu-back-fab svg {
   border-color: #fecaca !important;
 }
 
+
+/* =========================================================
+   FIELD MODE — ADD UPDATE SIMPLE FIELD WORKFLOW
+   Keeps all details, but makes GPS / Photo / Save faster on phone.
+========================================================= */
+
+.pu-field-mode-note {
+  display: block;
+  margin-top: 0.28rem;
+  max-width: 620px;
+  color: #64748b;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.pu-field-action-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0.85rem 0 1rem;
+  padding: 0.85rem;
+  border: 1px solid #dbeafe;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 42%),
+    #f8fbff;
+}
+
+.pu-action-btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  min-height: 64px;
+  width: 100%;
+  border: 0;
+  border-radius: 18px;
+  padding: 0.75rem 0.85rem;
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.98rem;
+  font-weight: 950;
+  line-height: 1.1;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow:
+    0 14px 28px rgba(15, 35, 70, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    filter 0.16s ease;
+}
+
+.pu-action-btn span {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+}
+
+.pu-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 18px 34px rgba(15, 35, 70, 0.17),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  filter: brightness(1.03);
+}
+
+.pu-action-btn:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.pu-action-btn:disabled,
+.pu-action-btn:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+.pu-action-gps {
+  background: linear-gradient(135deg, #0b3769, #2563eb);
+}
+
+.pu-action-photo {
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+}
+
+.pu-action-save {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.pu-action-photo input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.pu-gps-simple-card {
+  border-color: #fed7aa !important;
+  background:
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.1), transparent 42%),
+    #fff7ed !important;
+}
+
+.pu-gps-simple-card .pu-gps-btn {
+  min-height: 60px !important;
+  border-color: #f97316 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+  font-size: 1rem !important;
+  box-shadow: 0 14px 28px rgba(249, 115, 22, 0.22) !important;
+}
+
+.pu-photo-picker {
+  min-height: 58px !important;
+  border-radius: 18px !important;
+  font-size: 0.98rem !important;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.18) !important;
+}
+
+.pu-submit-bar .pu-primary-btn {
+  min-height: 58px !important;
+  border-color: #f97316 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+  font-size: 1rem !important;
+  box-shadow: 0 14px 28px rgba(249, 115, 22, 0.22) !important;
+}
+
+.pu-submit-bar .pu-secondary-btn {
+  min-height: 58px !important;
+  border-radius: 18px !important;
+}
+
+.pu-textarea-grid .pu-field textarea {
+  min-height: 150px !important;
+}
+
+.pu-textarea-grid .pu-full-field textarea {
+  min-height: 170px !important;
+}
+
+@media (max-width: 900px) {
+  .pu-field-action-strip {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+    padding: 0.75rem;
+    border-radius: 20px;
+  }
+
+  .pu-action-btn {
+    min-height: 62px;
+  }
+
+  .pu-card-header {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .pu-field-action-strip {
+    margin-top: 0.75rem;
+  }
+
+  .pu-action-btn,
+  .pu-gps-simple-card .pu-gps-btn,
+  .pu-photo-picker,
+  .pu-submit-bar .pu-primary-btn,
+  .pu-submit-bar .pu-secondary-btn {
+    min-height: 60px !important;
+    border-radius: 17px !important;
+  }
+
+  .pu-textarea-grid .pu-field textarea {
+    min-height: 132px !important;
+  }
+
+  .pu-textarea-grid .pu-full-field textarea {
+    min-height: 150px !important;
+  }
+}
+

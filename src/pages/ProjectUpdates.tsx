@@ -1290,7 +1290,10 @@ export default function ProjectUpdates() {
           <div className="pu-card-header">
             <div>
               <p className="pu-eyebrow">Inspection Details</p>
-              <h2>Submit Project Update</h2>
+              <h2>Field Update</h2>
+              <span className="pu-field-mode-note">
+                Progress, GPS, photos, issues, recommendations, and remarks in one field workflow.
+              </span>
             </div>
 
             <div className="pu-save-mode">
@@ -1311,6 +1314,43 @@ export default function ProjectUpdates() {
                 Offline
               </button>
             </div>
+          </div>
+
+          <div className="pu-field-action-strip" aria-label="Field quick actions">
+            <button
+              type="button"
+              className="pu-action-btn pu-action-gps"
+              onClick={captureGps}
+              disabled={gpsLoading || saving}
+            >
+              {gpsLoading ? 'Capturing GPS...' : 'Update GPS'}
+              <span>Use while on site</span>
+            </button>
+
+            <label className="pu-action-btn pu-action-photo">
+              Add Photo
+              <span>{photoInputs.length}/{MAX_PHOTOS_PER_UPDATE} selected</span>
+              <input
+                type="file"
+                accept="image/*,.heic,.heif"
+                multiple
+                onChange={handlePhotoSelect}
+                disabled={saving || photoInputs.length >= MAX_PHOTOS_PER_UPDATE}
+              />
+            </label>
+
+            <button
+              type="submit"
+              className="pu-action-btn pu-action-save"
+              disabled={saving || (saveMode === 'online' && !online)}
+            >
+              {saving
+                ? 'Saving...'
+                : saveMode === 'online'
+                  ? 'Save Online'
+                  : 'Save Offline'}
+              <span>{saveMode === 'online' ? 'Submit now' : 'Save for sync'}</span>
+            </button>
           </div>
 
           <div className="pu-form-grid">
@@ -1441,7 +1481,7 @@ export default function ProjectUpdates() {
               onClick={captureGps}
               disabled={gpsLoading || saving}
             >
-              {gpsLoading ? 'Capturing GPS...' : 'Capture Current GPS'}
+              {gpsLoading ? 'Capturing GPS...' : 'Update GPS'}
             </button>
           </div>
 
