@@ -169,6 +169,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const headerRef = useRef<HTMLElement | null>(null)
+  const lastMobilePointerNavRef = useRef(0)
 
   const user = auth?.user
   const profile = auth?.profile
@@ -251,9 +252,16 @@ export default function Layout({ children }: LayoutProps) {
       ticking = true
 
       window.requestAnimationFrame(() => {
-        const nextScrolled = window.scrollY > 24
+        const scrollY = window.scrollY
 
-        setIsScrolled((current) => (current === nextScrolled ? current : nextScrolled))
+        setIsScrolled((current) => {
+          if (current) {
+            return scrollY > 10
+          }
+
+          return scrollY > 36
+        })
+
         ticking = false
       })
     }
@@ -470,11 +478,17 @@ export default function Layout({ children }: LayoutProps) {
                 onPointerDown={(event) => {
                   if (event.pointerType === 'touch' || event.pointerType === 'pen') {
                     event.preventDefault()
+                    lastMobilePointerNavRef.current = Date.now()
                     navigateMobile(item)
                   }
                 }}
                 onClick={(event) => {
                   event.preventDefault()
+
+                  if (Date.now() - lastMobilePointerNavRef.current < 450) {
+                    return
+                  }
+
                   navigateMobile(item)
                 }}
               >

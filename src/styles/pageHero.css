@@ -585,3 +585,74 @@ a[class*='fab'] svg {
     padding-top: 52px !important;
   }
 }
+
+/* =========================================================
+   FINAL GLOBAL HERO SMOOTHNESS PASS
+   Purpose: reduce sticky hero flicker and repaint cost on phones.
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .dashboard-hero,
+  .pm-map-hero,
+  .reports-hero,
+  .offline-sync-hero,
+  .user-management-hero,
+  .create-project-hero,
+  .edit-project-hero,
+  .pu-hero {
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    contain: layout paint !important;
+    transition:
+      min-height 0.1s ease,
+      max-height 0.1s ease,
+      padding 0.1s ease,
+      border-radius 0.1s ease !important;
+  }
+
+  .app-scrolled .dashboard-hero,
+  .app-scrolled .pm-map-hero,
+  .app-scrolled .reports-hero,
+  .app-scrolled .offline-sync-hero,
+  .app-scrolled .user-management-hero,
+  .app-scrolled .create-project-hero,
+  .app-scrolled .edit-project-hero,
+  .app-scrolled .pu-hero {
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    contain: layout style paint !important;
+  }
+
+  .app-scrolled .dashboard-hero h1,
+  .app-scrolled .pm-map-hero h1,
+  .app-scrolled .reports-hero h1,
+  .app-scrolled .offline-sync-hero h1,
+  .app-scrolled .user-management-hero h1,
+  .app-scrolled .create-project-hero h1,
+  .app-scrolled .edit-project-hero h1,
+  .app-scrolled .pu-hero h1 {
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
+  }
+
+  .dashboard-hero::before,
+  .dashboard-hero::after,
+  .pm-map-hero::before,
+  .pm-map-hero::after,
+  .reports-hero::before,
+  .reports-hero::after,
+  .offline-sync-hero::before,
+  .offline-sync-hero::after,
+  .user-management-hero::before,
+  .user-management-hero::after,
+  .create-project-hero::before,
+  .create-project-hero::after,
+  .edit-project-hero::before,
+  .edit-project-hero::after,
+  .pu-hero::before,
+  .pu-hero::after {
+    will-change: auto !important;
+  }
+}

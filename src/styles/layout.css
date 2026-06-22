@@ -1150,3 +1150,141 @@ body > .app-header.app-header-scrolled .app-brand-unit {
     }
   }
 }
+
+/* =========================================================
+   FINAL GLOBAL MOBILE SMOOTHNESS PASS
+   Purpose: lighter real-phone scrolling without changing UI.
+   ========================================================= */
+
+@media (max-width: 900px) {
+  html,
+  body,
+  #root {
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  body {
+    overscroll-behavior-y: contain !important;
+  }
+
+  body > .app-header,
+  body > .app-header.app-header-scrolled {
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    contain: layout style paint !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14) !important;
+  }
+
+  .app-main {
+    isolation: isolate !important;
+  }
+
+  .app-mobile-nav,
+  .app-mobile-nav-scroll {
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+  }
+
+  .app-mobile-nav {
+    contain: layout style paint !important;
+  }
+
+  .app-mobile-nav-scroll {
+    box-shadow:
+      0 10px 24px rgba(15, 23, 42, 0.18),
+      0 4px 10px rgba(15, 23, 42, 0.11) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .app-mobile-nav-item,
+  .app-mobile-nav-icon,
+  .app-mobile-nav-label {
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+  }
+
+  .app-mobile-nav-item:active {
+    transform: scale(0.985) !important;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  .app-nav-link,
+  .app-logout-button,
+  .app-brand-logo-wrap,
+  .app-brand-logo {
+    will-change: auto !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* =========================================================
+   FINAL MOBILE NAV SHADOW POLISH
+   Softer rounded shadow; removes the heavy rectangular band
+   under the iOS-style bottom navigation.
+========================================================= */
+
+@media (max-width: 900px) {
+  .app-mobile-nav {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 7px !important;
+    height: 74px !important;
+    overflow: visible !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    filter: drop-shadow(0 10px 16px rgba(15, 23, 42, 0.16)) !important;
+    -webkit-filter: drop-shadow(0 10px 16px rgba(15, 23, 42, 0.16)) !important;
+  }
+
+  .app-mobile-nav-scroll {
+    border: 1px solid rgba(226, 232, 240, 0.94) !important;
+    border-radius: 28px !important;
+    background: rgba(255, 255, 255, 0.985) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .app-mobile-nav-item.active {
+    background: #fff7ed !important;
+    color: #ea580c !important;
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-mobile-nav {
+    left: 7px !important;
+    right: 7px !important;
+    bottom: 7px !important;
+    height: 72px !important;
+    filter: drop-shadow(0 9px 14px rgba(15, 23, 42, 0.15)) !important;
+    -webkit-filter: drop-shadow(0 9px 14px rgba(15, 23, 42, 0.15)) !important;
+  }
+
+  .app-mobile-nav-scroll {
+    border-radius: 24px !important;
+  }
+}
