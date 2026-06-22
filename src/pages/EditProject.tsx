@@ -572,8 +572,11 @@ export default function EditProject() {
           </div>
 
           <div className="edit-project-hero-actions">
-            <Link to="/projects" className="edit-project-button edit-project-button-secondary">
-              Back to Projects
+            <Link
+              to={id ? `/projects/${id}` : '/projects'}
+              className="edit-project-button edit-project-button-secondary"
+            >
+              Back to Project Details
             </Link>
           </div>
         </section>
@@ -1023,9 +1026,9 @@ export default function EditProject() {
               <button
                 type="button"
                 className="edit-project-fab edit-project-fab-back"
-                onClick={() => navigate('/projects')}
-                aria-label="Back to projects"
-                title="Back to Projects"
+                onClick={() => navigate(`/projects/${id}`)}
+                aria-label="Back to project details"
+                title="Back to Project Details"
               >
                 <IconBack />
               </button>

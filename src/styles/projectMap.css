@@ -1627,3 +1627,185 @@
     width: 100%;
   }
 }
+
+
+/* =========================================================
+   FINAL GIS COORDINATE CHECK COMPACT SCROLL
+   - Keeps Needs GPS Review compact on mobile
+   - Allows all coordinate issue records to scroll inside the card
+   - Does not touch map size, fullscreen FAB, refocus FAB, or refresh FAB
+========================================================= */
+.pm-map-review-card {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  max-height: 392px !important;
+  padding: 14px !important;
+  overflow: hidden !important;
+}
+
+.pm-map-review-card .pm-map-card-header {
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  margin-bottom: 10px !important;
+  padding-bottom: 10px !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.92) !important;
+}
+
+.pm-map-review-card .pm-map-card-header p {
+  margin-bottom: 2px !important;
+  font-size: 0.64rem !important;
+  letter-spacing: 0.14em !important;
+}
+
+.pm-map-review-card .pm-map-card-header h2 {
+  font-size: 1rem !important;
+  line-height: 1.05 !important;
+}
+
+.pm-map-review-card .pm-map-card-header > strong {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 38px !important;
+  height: 34px !important;
+  padding: 0 10px !important;
+  border-radius: 999px !important;
+  color: #b91c1c !important;
+  background: #fee2e2 !important;
+  border: 1px solid #fecaca !important;
+  font-size: 0.9rem !important;
+  font-weight: 950 !important;
+}
+
+.pm-map-review-list {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-right: 4px !important;
+  scrollbar-width: thin !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.pm-map-review-list::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.pm-map-review-list::-webkit-scrollbar-thumb {
+  border-radius: 999px !important;
+  background: rgba(15, 71, 127, 0.24) !important;
+}
+
+.pm-map-review-item {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 68px !important;
+  gap: 8px !important;
+  align-items: center !important;
+  min-height: auto !important;
+  padding: 10px !important;
+  border-radius: 16px !important;
+}
+
+.pm-map-review-item > div:first-child span {
+  margin-bottom: 3px !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.12em !important;
+}
+
+.pm-map-review-item h3 {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  margin-bottom: 3px !important;
+  font-size: 0.84rem !important;
+  line-height: 1.16 !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+}
+
+.pm-map-review-item p {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  font-size: 0.72rem !important;
+  line-height: 1.25 !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+}
+
+.pm-map-review-item a {
+  min-width: 0 !important;
+  width: 68px !important;
+  min-height: 34px !important;
+  border-radius: 12px !important;
+  font-size: 0.74rem !important;
+}
+
+.pm-map-review-list .pm-map-empty {
+  min-height: 110px !important;
+  padding: 14px !important;
+}
+
+@media (max-width: 1100px) {
+  .pm-map-review-card {
+    max-height: 360px !important;
+  }
+
+  .pm-map-review-list {
+    max-height: 272px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .pm-map-review-card {
+    max-height: 318px !important;
+    padding: 12px !important;
+    border-radius: 22px !important;
+  }
+
+  .pm-map-review-card .pm-map-card-header {
+    margin-bottom: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .pm-map-review-card .pm-map-card-header h2 {
+    font-size: 0.92rem !important;
+  }
+
+  .pm-map-review-card .pm-map-card-header > strong {
+    min-width: 34px !important;
+    height: 30px !important;
+    padding: 0 9px !important;
+    font-size: 0.82rem !important;
+  }
+
+  .pm-map-review-list {
+    max-height: 236px !important;
+    gap: 7px !important;
+  }
+
+  .pm-map-review-item {
+    grid-template-columns: minmax(0, 1fr) 62px !important;
+    padding: 9px !important;
+    border-radius: 15px !important;
+  }
+
+  .pm-map-review-item h3 {
+    font-size: 0.8rem !important;
+  }
+
+  .pm-map-review-item p {
+    font-size: 0.69rem !important;
+  }
+
+  .pm-map-review-item a {
+    width: 62px !important;
+    min-height: 32px !important;
+    font-size: 0.7rem !important;
+  }
+}

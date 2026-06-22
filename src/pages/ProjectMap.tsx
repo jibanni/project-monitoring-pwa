@@ -1213,7 +1213,7 @@ export default function ProjectMap() {
                     All filtered projects have usable coordinates.
                   </div>
                 ) : (
-                  coordinateIssueProjects.slice(0, 12).map((project) => (
+                  coordinateIssueProjects.map((project) => (
                     <article className="pm-map-review-item" key={project.id}>
                       <div>
                         <span>{project.province || 'No Province'}</span>

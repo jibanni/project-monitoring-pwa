@@ -333,7 +333,6 @@ export default function ProjectDetails() {
   }
 
   const latestUpdate = updates.length > 0 ? updates[0] : null
-  const latestProjectUpdates = updates.slice(0, 3)
   const displayedPhotos = photos.slice(0, 5)
   const primaryPhoto = displayedPhotos.length > 0 ? displayedPhotos[0] : null
   const expandedPhotos = displayedPhotos.slice(1, 5)
@@ -803,80 +802,6 @@ export default function ProjectDetails() {
           <section className="pd-card">
             <div className="pd-section-header">
               <div>
-                <p className="pd-section-eyebrow">History</p>
-                <h2>Update History</h2>
-              </div>
-
-              <span className="pd-section-chip">
-                Latest {latestProjectUpdates.length} of {updates.length}
-              </span>
-            </div>
-
-            {updates.length === 0 ? (
-              <div className="pd-empty-inline">No update history available.</div>
-            ) : (
-              <div className="pd-history-list">
-                {latestProjectUpdates.map((update) => (
-                  <article key={update.id} className="pd-history-card">
-                    <div className="pd-history-top">
-                      <div>
-                        <span>Inspection Date</span>
-                        <strong>{formatDate(update.inspection_date)}</strong>
-                      </div>
-
-                      <span
-                        className={`pd-risk-badge pd-risk-${normalizeClassName(
-                          update.risk_level,
-                        )}`}
-                      >
-                        {getDisplayValue(update.risk_level, 'No Risk')}
-                      </span>
-                    </div>
-
-                    <div className="pd-history-progress">
-                      <div>
-                        <span>Physical</span>
-                        <strong>{formatPercent(update.physical_accomplishment)}</strong>
-                      </div>
-
-                      <div>
-                        <span>Financial</span>
-                        <strong>{formatPercent(update.financial_accomplishment)}</strong>
-                      </div>
-                    </div>
-
-                    <div className="pd-note-grid pd-history-note-grid">
-                      <div className="pd-note-box">
-                        <span>Issues / Findings</span>
-                        <p>{getDisplayValue(update.issues, 'No issues encoded.')}</p>
-                      </div>
-
-                      <div className="pd-note-box">
-                        <span>Recommendations</span>
-                        <p>
-                          {getDisplayValue(
-                            update.recommendations,
-                            'No recommendations encoded.',
-                          )}
-                        </p>
-                      </div>
-
-                      <div className="pd-note-box">
-                        <span>Remarks</span>
-                        <p>{getDisplayValue(update.remarks, 'No remarks encoded.')}</p>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-
-        <aside className="pd-side-column">
-          <section className="pd-card">
-            <div className="pd-section-header">
-              <div>
                 <p className="pd-section-eyebrow">Location</p>
                 <h2>Project Site</h2>
               </div>
@@ -907,6 +832,9 @@ export default function ProjectDetails() {
             </div>
           </section>
 
+        </div>
+
+        <aside className="pd-side-column">
           <section className="pd-card">
             <div className="pd-section-header">
               <div>
@@ -1004,6 +932,78 @@ export default function ProjectDetails() {
               </div>
             )}
           </section>
+          <section className="pd-card pd-history-section">
+            <div className="pd-section-header">
+              <div>
+                <p className="pd-section-eyebrow">History</p>
+                <h2>Update History</h2>
+              </div>
+
+              <span className="pd-section-chip">
+                {updates.length} record{updates.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            {updates.length === 0 ? (
+              <div className="pd-empty-inline">No update history available.</div>
+            ) : (
+              <div className="pd-history-list">
+                {updates.map((update) => (
+                  <article key={update.id} className="pd-history-card">
+                    <div className="pd-history-top">
+                      <div>
+                        <span>Inspection Date</span>
+                        <strong>{formatDate(update.inspection_date)}</strong>
+                      </div>
+
+                      <span
+                        className={`pd-risk-badge pd-risk-${normalizeClassName(
+                          update.risk_level,
+                        )}`}
+                      >
+                        {getDisplayValue(update.risk_level, 'No Risk')}
+                      </span>
+                    </div>
+
+                    <div className="pd-history-progress">
+                      <div>
+                        <span>Physical</span>
+                        <strong>{formatPercent(update.physical_accomplishment)}</strong>
+                      </div>
+
+                      <div>
+                        <span>Financial</span>
+                        <strong>{formatPercent(update.financial_accomplishment)}</strong>
+                      </div>
+                    </div>
+
+                    <div className="pd-note-grid pd-history-note-grid">
+                      <div className="pd-note-box">
+                        <span>Issues / Findings</span>
+                        <p>{getDisplayValue(update.issues, 'No issues encoded.')}</p>
+                      </div>
+
+                      <div className="pd-note-box">
+                        <span>Recommendations</span>
+                        <p>
+                          {getDisplayValue(
+                            update.recommendations,
+                            'No recommendations encoded.',
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="pd-note-box">
+                        <span>Remarks</span>
+                        <p>{getDisplayValue(update.remarks, 'No remarks encoded.')}</p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
         </aside>
       </main>
 

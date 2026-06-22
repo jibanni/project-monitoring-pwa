@@ -2539,3 +2539,89 @@ body > .pd-viewport-titlebar h1 {
   background: #eff6ff;
   border-color: #bfdbfe;
 }
+
+/* =========================================================
+   FINAL STANDARD RISK COLORS — DILG PDMU
+   None / No Risk = Green
+   Low = Yellow
+   Moderate = Orange
+   High = Red
+   Project Details only. Mobile-safe override.
+========================================================= */
+.pd-risk-none,
+.pd-risk-no-risk,
+.pd-risk-neutral,
+.pd-risk-unknown {
+  color: #166534 !important;
+  background: #dcfce7 !important;
+  border-color: #bbf7d0 !important;
+}
+
+.pd-risk-low {
+  color: #854d0e !important;
+  background: #fef9c3 !important;
+  border-color: #fde68a !important;
+}
+
+.pd-risk-medium,
+.pd-risk-moderate {
+  color: #c2410c !important;
+  background: #ffedd5 !important;
+  border-color: #fed7aa !important;
+}
+
+.pd-risk-high,
+.pd-risk-critical {
+  color: #b91c1c !important;
+  background: #fee2e2 !important;
+  border-color: #fecaca !important;
+}
+
+
+
+/* =========================================================
+   PROJECT DETAILS ORDER FIX — SITE ABOVE, HISTORY AT BOTTOM
+   - Project Site sits in the main column.
+   - Update History sits lower in the side column and scrolls internally.
+========================================================= */
+.pd-history-section {
+  order: 99;
+}
+
+.pd-history-section .pd-history-list {
+  max-height: min(520px, 58vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
+  scrollbar-width: thin;
+}
+
+.pd-history-section .pd-history-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.pd-history-section .pd-history-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.35);
+}
+
+.pd-history-section .pd-history-card {
+  margin-right: 0.12rem;
+}
+
+@media (max-width: 760px) {
+  .pd-history-section {
+    order: 99;
+  }
+
+  .pd-history-section .pd-history-list {
+    max-height: 460px;
+    padding-right: 0.18rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .pd-history-section .pd-history-list {
+    max-height: 420px;
+  }
+}
