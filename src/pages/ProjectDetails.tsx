@@ -202,7 +202,12 @@ export default function ProjectDetails() {
       ticking = true
 
       window.requestAnimationFrame(() => {
-        setIsHeroCompact(window.scrollY > 28)
+        const nextCompact = window.scrollY > 48
+
+        setIsHeroCompact((current) =>
+          current === nextCompact ? current : nextCompact,
+        )
+
         ticking = false
       })
     }

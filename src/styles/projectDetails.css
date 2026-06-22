@@ -2625,3 +2625,121 @@ body > .pd-viewport-titlebar h1 {
     max-height: 420px;
   }
 }
+
+/* =========================================================
+   FINAL PROJECT DETAILS SMOOTHNESS PASS
+   Purpose: smoother real-phone scrolling without layout change.
+   - Less sensitive compact hero trigger is handled in ProjectDetails.tsx
+   - Mobile shadows/transitions are lighter
+   - Photo/gallery hover effects are disabled on touch devices
+   - Cards retain the same layout and spacing
+========================================================= */
+
+.pd-page {
+  scroll-behavior: auto !important;
+  overscroll-behavior-y: contain !important;
+}
+
+.pd-card,
+.pd-summary-card,
+.pd-history-card,
+.pd-photo-card,
+.pd-photo-expanded-panel,
+.pd-feature-photo-card {
+  backface-visibility: hidden !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
+.pd-hero {
+  transition:
+    min-height 0.14s ease,
+    max-height 0.14s ease,
+    padding 0.14s ease,
+    border-radius 0.14s ease,
+    box-shadow 0.14s ease !important;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .pd-fab,
+  .pd-primary-btn,
+  .pd-accent-btn,
+  .pd-secondary-btn,
+  .pd-danger-btn,
+  .pd-photo-card,
+  .pd-feature-photo-card,
+  .pd-photo-collapse-btn,
+  .pd-photo-expand-pill {
+    transition: none !important;
+  }
+
+  .pd-fab:hover,
+  .pd-primary-btn:hover,
+  .pd-accent-btn:hover,
+  .pd-secondary-btn:hover,
+  .pd-danger-btn:hover,
+  .pd-photo-card:hover,
+  .pd-feature-photo-card:hover,
+  .pd-photo-collapse-btn:hover {
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .pd-page {
+    background: #f5f7fb !important;
+  }
+
+  .pd-hero {
+    box-shadow: 0 12px 26px rgba(15, 59, 120, 0.16) !important;
+    will-change: auto !important;
+  }
+
+  .app-project-details-route.app-scrolled .pd-hero {
+    box-shadow: 0 7px 16px rgba(15, 48, 87, 0.12) !important;
+  }
+
+  .pd-summary-card,
+  .pd-card,
+  .pd-history-card,
+  .pd-photo-card,
+  .pd-photo-expanded-panel,
+  .pd-loading-state,
+  .pd-empty-state {
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.045) !important;
+  }
+
+  .pd-feature-photo-card {
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  .pd-feature-photo-card:hover,
+  .pd-photo-card:hover {
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  .pd-main-column,
+  .pd-side-column,
+  .pd-history-list,
+  .pd-photo-holder {
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  body > .pd-fab-stack .pd-fab {
+    transition: none !important;
+    box-shadow:
+      0 11px 22px rgba(15, 23, 42, 0.2),
+      0 4px 9px rgba(15, 23, 42, 0.12) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .pd-card,
+  .pd-summary-card,
+  .pd-history-card,
+  .pd-photo-expanded-panel {
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.04) !important;
+  }
+}
+
