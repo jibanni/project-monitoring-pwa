@@ -89,12 +89,26 @@ const FUNDING_SOURCE_OPTIONS = [
 ]
 
 const statusOptions = [
+  'Under Review',
+  'Under Procurement',
   'Not Yet Started',
   'Ongoing',
-  'Completed',
   'Suspended',
-  'Cancelled',
   'Terminated',
+  'Completed',
+]
+
+const PROJECT_TYPE_OPTIONS = [
+  'Road',
+  'Bridge',
+  'Water Supply',
+  'Building',
+  'Drainage / Flood Control',
+  'Evacuation Facility',
+  'Rural Electrification',
+  'Vehicle',
+  'Non Infra',
+  'Other Infrastructure',
 ]
 
 function cleanText(value: string) {
@@ -321,6 +335,14 @@ export default function EditProject() {
     if (!form.status || statusOptions.includes(form.status)) return statusOptions
     return [form.status, ...statusOptions]
   }, [form.status])
+
+  const mergedProjectTypeOptions = useMemo(() => {
+    if (!form.project_type || PROJECT_TYPE_OPTIONS.includes(form.project_type)) {
+      return PROJECT_TYPE_OPTIONS
+    }
+
+    return [form.project_type, ...PROJECT_TYPE_OPTIONS]
+  }, [form.project_type])
 
 
   useEffect(() => {
@@ -674,12 +696,17 @@ export default function EditProject() {
 
             <label className="edit-project-field">
               <span>Project Type</span>
-              <input
-                type="text"
+              <select
                 value={form.project_type}
                 onChange={(event) => updateField('project_type', event.target.value)}
-                placeholder="Road, Water System, Building, etc."
-              />
+              >
+                <option value="">Select project type</option>
+                {mergedProjectTypeOptions.map((projectType) => (
+                  <option key={projectType} value={projectType}>
+                    {projectType}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="edit-project-field">

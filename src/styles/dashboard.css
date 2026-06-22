@@ -1157,3 +1157,233 @@
 .dashboard-slippage-em.on-track {
   color: #0f477f !important;
 }
+
+/* =========================================================
+   FINAL STANDARD RISK COLORS — DILG PDMU
+   None / No Risk = Green
+   Low = Yellow
+   Moderate = Orange
+   High = Red
+   Dashboard visual badges/cards only. Mobile-safe override.
+========================================================= */
+.dashboard-stat-card.no-risk,
+.dashboard-stat-card.none-risk,
+.dashboard-stat-card.neutral-risk {
+  border-top-color: #16a34a !important;
+}
+
+.dashboard-stat-card.no-risk::after,
+.dashboard-stat-card.none-risk::after,
+.dashboard-stat-card.neutral-risk::after {
+  background: #16a34a !important;
+}
+
+.dashboard-stat-card.low-risk {
+  border-top-color: #facc15 !important;
+}
+
+.dashboard-stat-card.low-risk::after {
+  background: #facc15 !important;
+}
+
+.dashboard-stat-card.moderate-risk,
+.dashboard-stat-card.medium-risk,
+.dashboard-stat-card.for-review {
+  border-top-color: #f97316 !important;
+}
+
+.dashboard-stat-card.moderate-risk::after,
+.dashboard-stat-card.medium-risk::after,
+.dashboard-stat-card.for-review::after {
+  background: #f97316 !important;
+}
+
+.dashboard-stat-card.high-risk,
+.dashboard-stat-card.critical-risk {
+  border-top-color: #ef4444 !important;
+}
+
+.dashboard-stat-card.high-risk::after,
+.dashboard-stat-card.critical-risk::after {
+  background: #ef4444 !important;
+}
+
+.dashboard-risk-none,
+.dashboard-risk-no-risk,
+.dashboard-risk-neutral,
+.dashboard-risk-unknown,
+.dashboard-modal-risk.none,
+.dashboard-modal-risk.no-risk,
+.dashboard-modal-risk.neutral,
+.dashboard-modal-risk.unknown {
+  color: #166534 !important;
+  background: #dcfce7 !important;
+  border-color: #bbf7d0 !important;
+}
+
+.dashboard-risk-low,
+.dashboard-modal-risk.low {
+  color: #854d0e !important;
+  background: #fef9c3 !important;
+  border-color: #fde68a !important;
+}
+
+.dashboard-risk-medium,
+.dashboard-risk-moderate,
+.dashboard-modal-risk.medium,
+.dashboard-modal-risk.moderate {
+  color: #c2410c !important;
+  background: #ffedd5 !important;
+  border-color: #fed7aa !important;
+}
+
+.dashboard-risk-high,
+.dashboard-risk-critical,
+.dashboard-modal-risk.high,
+.dashboard-modal-risk.critical {
+  color: #b91c1c !important;
+  background: #fee2e2 !important;
+  border-color: #fecaca !important;
+}
+
+
+
+/* =========================================================
+   FINAL DASHBOARD PRIORITY + DRILLDOWN MOBILE FIX
+   - Priority Review list scrolls inside the card.
+   - Drilldown modal starts below the fixed DILG main banner.
+   - Drilldown body scrolls internally.
+========================================================= */
+.dashboard-priority-section .dashboard-list-card {
+  display: flex;
+  flex-direction: column;
+  max-height: 430px;
+}
+
+.dashboard-priority-section .dashboard-card-header {
+  flex: 0 0 auto;
+}
+
+.dashboard-priority-section .dashboard-project-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 286px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 14px;
+  scrollbar-width: thin;
+}
+
+.dashboard-priority-section .dashboard-project-list::-webkit-scrollbar,
+.dashboard-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dashboard-priority-section .dashboard-project-list::-webkit-scrollbar-track,
+.dashboard-modal-body::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.6);
+  border-radius: 999px;
+}
+
+.dashboard-priority-section .dashboard-project-list::-webkit-scrollbar-thumb,
+.dashboard-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
+  border-radius: 999px;
+}
+
+.dashboard-modal-backdrop {
+  --dashboard-modal-top-offset: calc(var(--app-header-live-h, var(--current-header-h, 82px)) + 10px);
+
+  inset: var(--dashboard-modal-top-offset) 0 0;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 14px 18px 18px;
+}
+
+.dashboard-drilldown-modal {
+  max-height: calc(100dvh - var(--app-header-live-h, var(--current-header-h, 82px)) - 34px);
+}
+
+.dashboard-modal-header {
+  flex: 0 0 auto;
+}
+
+.dashboard-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@supports not (height: 100dvh) {
+  .dashboard-drilldown-modal {
+    max-height: calc(100vh - var(--app-header-live-h, var(--current-header-h, 82px)) - 34px);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-priority-section .dashboard-list-card {
+    max-height: 390px;
+  }
+
+  .dashboard-priority-section .dashboard-project-list {
+    max-height: 248px;
+    padding-right: 10px;
+  }
+
+  .dashboard-modal-backdrop {
+    --dashboard-modal-top-offset: calc(var(--app-header-live-h, var(--current-header-h, 74px)) + 8px);
+
+    align-items: flex-start;
+    padding: 10px 10px 14px;
+  }
+
+  .dashboard-drilldown-modal {
+    width: 100%;
+    max-height: calc(100dvh - var(--app-header-live-h, var(--current-header-h, 74px)) - 24px);
+    border-radius: 22px;
+  }
+
+  .dashboard-modal-header {
+    padding: 16px 16px 14px;
+  }
+
+  .dashboard-modal-header h2 {
+    font-size: clamp(1.12rem, 5.2vw, 1.55rem);
+  }
+
+  .dashboard-modal-header p:not(.dashboard-modal-eyebrow) {
+    margin-top: 6px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .dashboard-modal-close {
+    width: 40px;
+    height: 40px;
+    font-size: 1.6rem;
+  }
+
+  .dashboard-modal-body {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-priority-section .dashboard-list-card {
+    max-height: 372px;
+  }
+
+  .dashboard-priority-section .dashboard-project-list {
+    max-height: 236px;
+  }
+
+  .dashboard-drilldown-modal {
+    max-height: calc(100dvh - var(--app-header-live-h, var(--current-header-h, 74px)) - 20px);
+    border-radius: 20px;
+  }
+
+  .dashboard-modal-header {
+    padding: 14px;
+  }
+}

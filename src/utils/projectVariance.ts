@@ -1,200 +1,184 @@
-export type ProjectVarianceInput = {
-  start_date?: unknown
-  target_completion_date?: unknown
-  physical_accomplishment?: unknown
-  target_physical_accomplishment?: unknown
-  target_physical_as_of?: unknown
-  target_physical_source?: unknown
-  last_inspection_date?: unknown
-  updated_at?: unknown
-  created_at?: unknown
+type ProjectLike = {
+  physical_accomplishment?: number | string | null
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
+  start_date?: string | null
+  target_completion_date?: string | null
+  last_inspection_date?: string | null
+  inspection_date?: string | null
 }
 
-export type ProjectVarianceInfo = {
+export type TargetPhysicalInfo = {
+  physical: number
   actualPhysical: number
   targetPhysical: number
   variance: number
-  asOfDate: string
-  source: 'manual' | 'auto'
-  className: 'ahead' | 'behind' | 'on-track'
   label: string
   compactLabel: string
-  statusText: string
+  className: 'ahead' | 'behind' | 'on-track'
   asOfLabel: string
+  sourceLabel: string
 }
 
-function textValue(value: unknown) {
-  if (value === null || value === undefined) return ''
-  return String(value).trim()
-}
-
-export function toProgressNumber(value: unknown) {
+function toNumber(value: unknown): number {
   if (value === null || value === undefined || value === '') return 0
 
   const parsed =
     typeof value === 'number'
       ? value
-      : Number(String(value).replace(/,/g, '').trim())
+      : Number(String(value).replace(/,/g, '').replace('%', '').trim())
 
-  if (!Number.isFinite(parsed)) return 0
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function hasValue(value: unknown): boolean {
+  return value !== null && value !== undefined && String(value).trim() !== ''
+}
+
+export function clampProgress(value: unknown): number {
+  const parsed = toNumber(value)
+
   if (parsed < 0) return 0
   if (parsed > 100) return 100
 
   return parsed
 }
 
-function parseDate(value: unknown) {
-  const text = textValue(value)
-  if (!text) return null
-
-  const date = new Date(text.length <= 10 ? `${text}T00:00:00` : text)
-  if (Number.isNaN(date.getTime())) return null
-
-  return date
+export function roundVariance(value: unknown): number {
+  const parsed = toNumber(value)
+  return Math.round(parsed * 100) / 100
 }
 
-function toDateInput(value: unknown) {
-  const date = parseDate(value)
-  if (!date) return ''
+function formatNumberForPercent(value: number, decimalPlaces = 2): string {
+  const rounded = roundVariance(value)
 
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
-function getTodayInput() {
-  return toDateInput(new Date().toISOString())
-}
-
-function hasManualTarget(project: ProjectVarianceInput) {
-  return textValue(project.target_physical_accomplishment) !== ''
-}
-
-export function getAutoTargetPhysical(
-  project: ProjectVarianceInput | null | undefined,
-  asOfOverride?: unknown,
-) {
-  if (!project) return 0
-
-  const startDate = parseDate(project.start_date)
-  const targetDate = parseDate(project.target_completion_date)
-  const asOfDate =
-    parseDate(asOfOverride) ||
-    parseDate(project.target_physical_as_of) ||
-    parseDate(project.last_inspection_date) ||
-    new Date()
-
-  if (!startDate || !targetDate) {
-    return toProgressNumber(project.physical_accomplishment)
+  if (Number.isInteger(rounded)) {
+    return rounded.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })
   }
 
-  const totalDuration = targetDate.getTime() - startDate.getTime()
-
-  if (totalDuration <= 0) {
-    return asOfDate.getTime() >= startDate.getTime() ? 100 : 0
-  }
-
-  const elapsed = asOfDate.getTime() - startDate.getTime()
-  const percent = (elapsed / totalDuration) * 100
-
-  return toProgressNumber(percent)
-}
-
-export function formatProgressInput(value: unknown) {
-  const numberValue = toProgressNumber(value)
-  return Number.isInteger(numberValue)
-    ? String(numberValue)
-    : numberValue.toFixed(2).replace(/\.00$/, '')
-}
-
-export function formatSignedVariance(value: unknown) {
-  const parsed = Number(value)
-  const numberValue = Number.isFinite(parsed) ? parsed : 0
-  const rounded = Math.abs(numberValue) < 0.005 ? 0 : numberValue
-  const formatted = Math.abs(rounded).toLocaleString('en-PH', {
+  return rounded.toLocaleString('en-US', {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: decimalPlaces,
   })
-
-  if (rounded > 0) return `+${formatted}%`
-  if (rounded < 0) return `-${formatted}%`
-  return '0%'
 }
 
-export function formatAsOfDate(value: unknown) {
-  const date = parseDate(value)
+export function formatSignedVariance(value: unknown, decimalPlaces = 2): string {
+  const variance = roundVariance(value)
 
-  if (!date) return 'No date'
+  if (!Number.isFinite(variance) || variance === 0) return '0%'
 
-  return date.toLocaleDateString('en-PH', {
+  const sign = variance > 0 ? '+' : ''
+  return `${sign}${formatNumberForPercent(variance, decimalPlaces)}%`
+}
+
+export function formatProgressInput(value: unknown): string {
+  if (!hasValue(value)) return ''
+
+  const progress = clampProgress(value)
+
+  if (Number.isInteger(progress)) {
+    return String(progress)
+  }
+
+  return String(roundVariance(progress))
+}
+
+function formatLongDate(value?: string | null): string {
+  if (!value) return 'No date'
+
+  const normalized = value.length <= 10 ? `${value}T00:00:00` : value
+  const date = new Date(normalized)
+
+  if (Number.isNaN(date.getTime())) return 'No date'
+
+  return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   })
 }
 
-export function getVarianceClassName(value: unknown): ProjectVarianceInfo['className'] {
-  const parsed = Number(value)
-  const numberValue = Number.isFinite(parsed) ? parsed : 0
+export function getRiskLevelFromVariance(
+  value: unknown,
+): 'None' | 'Low' | 'Moderate' | 'High' {
+  const variance = roundVariance(value)
 
-  if (numberValue < -0.004) return 'behind'
-  if (numberValue > 0.004) return 'ahead'
-
-  return 'on-track'
-}
-
-export function getTargetPhysicalInfo(
-  project: ProjectVarianceInput | null | undefined,
-  asOfOverride?: unknown,
-): ProjectVarianceInfo {
-  const safeProject = project || {}
-  const actualPhysical = toProgressNumber(safeProject.physical_accomplishment)
-  const asOfDate =
-    toDateInput(asOfOverride) ||
-    toDateInput(safeProject.target_physical_as_of) ||
-    toDateInput(safeProject.last_inspection_date) ||
-    toDateInput(safeProject.updated_at) ||
-    getTodayInput()
-  const source: ProjectVarianceInfo['source'] = hasManualTarget(safeProject)
-    ? 'manual'
-    : 'auto'
-  const targetPhysical = source === 'manual'
-    ? toProgressNumber(safeProject.target_physical_accomplishment)
-    : getAutoTargetPhysical(safeProject, asOfDate)
-  const variance = actualPhysical - targetPhysical
-  const className = getVarianceClassName(variance)
-  const compactVariance = formatSignedVariance(variance)
-  const statusText = ''
-
-  return {
-    actualPhysical,
-    targetPhysical,
-    variance,
-    asOfDate,
-    source,
-    className,
-    label: compactVariance,
-    compactLabel: compactVariance,
-    statusText,
-    asOfLabel: `As of ${formatAsOfDate(asOfDate)}`,
-  }
-}
-
-export type ComputedRiskLevel = 'None' | 'Low' | 'Moderate' | 'High'
-
-export function getRiskLevelFromVariance(value: unknown): ComputedRiskLevel {
-  const parsed = Number(value)
-  const variance = Number.isFinite(parsed) ? parsed : 0
-
-  if (variance >= 0) return 'None'
+  if (!Number.isFinite(variance) || variance >= 0) return 'None'
   if (variance >= -5) return 'Low'
   if (variance > -10) return 'Moderate'
 
   return 'High'
 }
 
-export function getComputedRiskLevel(project: ProjectVarianceInput | null | undefined): ComputedRiskLevel {
+export function getComputedRiskLevel(
+  project?: ProjectLike | null,
+): 'None' | 'Low' | 'Moderate' | 'High' {
   return getRiskLevelFromVariance(getTargetPhysicalInfo(project).variance)
+}
+
+/*
+  Compatibility function only.
+  Target Physical is now manual-only.
+  This no longer computes time-elapsed target.
+*/
+export function getAutoTargetPhysical(project?: ProjectLike | null): number {
+  if (!project) return 0
+
+  if (hasValue(project.target_physical_accomplishment)) {
+    return clampProgress(project.target_physical_accomplishment)
+  }
+
+  return 0
+}
+
+export function getTargetPhysicalInfo(
+  project?: ProjectLike | null,
+  asOfDate?: string | null,
+): TargetPhysicalInfo {
+  const actualPhysical = clampProgress(project?.physical_accomplishment)
+
+  const targetPhysical = hasValue(project?.target_physical_accomplishment)
+    ? clampProgress(project?.target_physical_accomplishment)
+    : 0
+
+  const variance = roundVariance(actualPhysical - targetPhysical)
+
+  let className: TargetPhysicalInfo['className'] = 'on-track'
+
+  if (variance > 0) className = 'ahead'
+  if (variance < 0) className = 'behind'
+
+  const dateSource =
+    asOfDate ||
+    project?.target_physical_as_of ||
+    project?.inspection_date ||
+    project?.last_inspection_date ||
+    null
+
+  return {
+    physical: actualPhysical,
+    actualPhysical,
+    targetPhysical,
+    variance,
+    label: formatSignedVariance(variance),
+    compactLabel: formatSignedVariance(variance),
+    className,
+    asOfLabel: dateSource ? `As of ${formatLongDate(dateSource)}` : 'As of inspection',
+    sourceLabel: 'Manual target',
+  }
+}
+
+export function getVarianceClassName(
+  value: unknown,
+): 'ahead' | 'behind' | 'on-track' {
+  const variance = roundVariance(value)
+
+  if (variance > 0) return 'ahead'
+  if (variance < 0) return 'behind'
+
+  return 'on-track'
 }

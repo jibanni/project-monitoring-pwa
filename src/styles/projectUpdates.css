@@ -1640,3 +1640,49 @@ body > .pu-back-fab svg {
   background: #eff6ff !important;
   border-color: #bfdbfe !important;
 }
+
+/* =========================================================
+   FINAL STANDARD RISK COLORS — DILG PDMU
+   None / No Risk = Green
+   Low = Yellow
+   Moderate = Orange
+   High = Red
+   Project Updates only. Mobile-safe override.
+========================================================= */
+.pu-risk-none,
+.pu-risk-no-risk,
+.pu-risk-neutral,
+.pu-risk-unknown,
+.pu-readonly-risk .pu-badge-neutral,
+.pu-hero-status .pu-badge-neutral:last-child {
+  color: #166534 !important;
+  background: #dcfce7 !important;
+  border-color: #bbf7d0 !important;
+}
+
+.pu-risk-low,
+.pu-readonly-risk .pu-badge-success,
+.pu-hero-status .pu-badge-success:last-child {
+  color: #854d0e !important;
+  background: #fef9c3 !important;
+  border-color: #fde68a !important;
+}
+
+.pu-risk-medium,
+.pu-risk-moderate,
+.pu-readonly-risk .pu-badge-warning,
+.pu-hero-status .pu-badge-warning:last-child {
+  color: #c2410c !important;
+  background: #ffedd5 !important;
+  border-color: #fed7aa !important;
+}
+
+.pu-risk-high,
+.pu-risk-critical,
+.pu-readonly-risk .pu-badge-danger,
+.pu-hero-status .pu-badge-danger:last-child {
+  color: #b91c1c !important;
+  background: #fee2e2 !important;
+  border-color: #fecaca !important;
+}
+

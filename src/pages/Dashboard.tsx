@@ -305,8 +305,8 @@ function getRiskColor(riskLevel: unknown, fallbackIndex = 0) {
 
   if (risk.includes('high')) return '#ef4444'
   if (risk.includes('moderate') || risk.includes('medium')) return '#f97316'
-  if (risk.includes('low')) return '#16a34a'
-  if (risk.includes('none') || risk.includes('no risk')) return '#2563eb'
+  if (risk.includes('low')) return '#facc15'
+  if (risk.includes('none') || risk.includes('no risk')) return '#16a34a'
 
   return CHART_COLORS[fallbackIndex % CHART_COLORS.length]
 }

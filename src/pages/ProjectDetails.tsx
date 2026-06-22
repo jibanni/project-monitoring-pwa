@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { offlineDb } from '../lib/offlineDb'
 import { getTargetPhysicalInfo } from '../utils/projectVariance'
+import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
 import '../styles/projectDetails.css'
 import '../styles/pageHero.css'
 
@@ -71,16 +72,21 @@ function getDisplayValue(value: unknown, fallback = '-') {
 }
 
 function formatFundingYear(value: unknown) {
-  const year = getDisplayValue(value, '')
-  return year ? `FY ${year}` : '-'
+  const rawValue = getDisplayValue(value, '')
+
+  if (!rawValue) return '-'
+
+  const cleaned = rawValue.replace(/^FY\s*/i, '').trim()
+
+  return cleaned ? `FY ${cleaned}` : '-'
 }
 
 function formatFundingDisplay(project: any) {
   const year = getDisplayValue(project?.funding_year, '')
   const source = getDisplayValue(project?.funding_source, '')
 
-  if (year && source) return `FY ${year} · ${source}`
-  if (year) return `FY ${year}`
+  if (year && source) return `${formatFundingYear(year)} · ${source}`
+  if (year) return formatFundingYear(year)
   return source || '-'
 }
 
@@ -93,7 +99,6 @@ function normalizeClassName(value: unknown) {
 
   return normalized || 'unknown'
 }
-
 
 function getRiskLevelFromVariance(variance: number) {
   if (!Number.isFinite(variance) || variance >= 0) return 'None'
@@ -262,21 +267,33 @@ export default function ProjectDetails() {
         .eq('project_id', id)
         .order('created_at', { ascending: false })
 
+      if (projectResult.error) {
+        throw projectResult.error
+      }
+
+      if (updatesResult.error) {
+        throw updatesResult.error
+      }
+
+      await cleanupProjectPhotos(id, 5)
+
       const photosResult = await supabase
         .from('project_photos')
         .select('*')
         .eq('project_id', id)
         .order('uploaded_at', { ascending: false })
+        .limit(5)
 
-      if (projectResult.error) {
-        throw projectResult.error
+      if (photosResult.error) {
+        throw photosResult.error
       }
 
       const onlineProject = projectResult.data
+      const latestPhotos = photosResult.data || []
 
       setProject(onlineProject)
       setUpdates(updatesResult.data || [])
-      setPhotos(photosResult.data || [])
+      setPhotos(latestPhotos)
       setDataSource('online')
 
       await offlineDb.projects.put({
@@ -315,10 +332,30 @@ export default function ProjectDetails() {
     }
   }
 
+  const latestUpdate = updates.length > 0 ? updates[0] : null
+  const latestProjectUpdates = updates.slice(0, 3)
+  const displayedPhotos = photos.slice(0, 5)
+  const primaryPhoto = displayedPhotos.length > 0 ? displayedPhotos[0] : null
+  const expandedPhotos = displayedPhotos.slice(1, 5)
+
+  const physicalProgress = useMemo(
+    () => clampPercent(project?.physical_accomplishment),
+    [project],
+  )
+
+  const financialProgress = useMemo(
+    () => clampPercent(project?.financial_accomplishment),
+    [project],
+  )
+
+  const statusClass = normalizeClassName(project?.status)
+  const varianceInfo = getTargetPhysicalInfo(project)
+  const computedRiskLevel = getRiskLevelFromVariance(varianceInfo.variance)
+  const riskClass = normalizeClassName(computedRiskLevel)
+
   function generatePdfReport() {
     if (!project) return
 
-    const latestUpdate = updates.length > 0 ? updates[0] : null
     const doc = new jsPDF('p', 'mm', 'a4')
 
     doc.setFontSize(14)
@@ -367,9 +404,12 @@ export default function ProjectDetails() {
       head: [['Implementation Status', 'Details']],
       body: [
         ['Status', project.status || '-'],
-        ['Risk Level', project.risk_level || '-'],
+        ['Risk Level', computedRiskLevel],
         ['Physical Accomplishment', `${project.physical_accomplishment || 0}%`],
-        ['Target Physical Accomplishment', `${getTargetPhysicalInfo(project).targetPhysical}%`],
+        [
+          'Target Physical Accomplishment',
+          `${getTargetPhysicalInfo(project).targetPhysical}%`,
+        ],
         ['Variance', getTargetPhysicalInfo(project).label],
         ['Financial Accomplishment', `${project.financial_accomplishment || 0}%`],
         ['Last Inspection Date', project.last_inspection_date || '-'],
@@ -435,11 +475,14 @@ export default function ProjectDetails() {
       })
     }
 
-    if (photos.length > 0) {
+    if (displayedPhotos.length > 0) {
       autoTable(doc, {
         startY: (doc as any).lastAutoTable.finalY + 8,
         head: [['Photo Caption', 'Photo URL']],
-        body: photos.map((photo) => [photo.caption || '-', photo.photo_url || '-']),
+        body: displayedPhotos.map((photo) => [
+          photo.caption || '-',
+          photo.photo_url || '-',
+        ]),
         styles: {
           fontSize: 7,
           cellPadding: 2,
@@ -478,21 +521,41 @@ export default function ProjectDetails() {
       return
     }
 
-    const confirmed = window.confirm('Are you sure you want to delete this project?')
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this project? This will also delete its photos and update records.',
+    )
 
     if (!confirmed) return
 
-    const { error } = await supabase.from('projects').delete().eq('id', id)
+    try {
+      await deleteProjectPhotos(id)
 
-    if (error) {
-      alert(error.message)
-      return
+      const updatesDeleteResult = await supabase
+        .from('project_updates')
+        .delete()
+        .eq('project_id', id)
+
+      if (updatesDeleteResult.error) {
+        throw updatesDeleteResult.error
+      }
+
+      const projectDeleteResult = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id)
+
+      if (projectDeleteResult.error) {
+        throw projectDeleteResult.error
+      }
+
+      await offlineDb.projects.delete(id)
+
+      alert('Project deleted successfully.')
+      navigate('/projects')
+    } catch (error: any) {
+      console.error(error)
+      alert(error?.message || 'Unable to delete project. Please try again.')
     }
-
-    await offlineDb.projects.delete(id)
-
-    alert('Project deleted successfully')
-    navigate('/projects')
   }
 
   function goBackToProjects() {
@@ -510,28 +573,9 @@ export default function ProjectDetails() {
   }
 
   function goToMap() {
-    navigate('/map')
+    if (!id) return
+    navigate(`/map?projectId=${encodeURIComponent(id)}&from=details`)
   }
-
-  const latestUpdate = updates.length > 0 ? updates[0] : null
-  const latestProjectUpdates = updates.slice(0, 3)
-  const primaryPhoto = photos.length > 0 ? photos[0] : null
-  const expandedPhotos = photos.slice(1, 5)
-
-  const physicalProgress = useMemo(
-    () => clampPercent(project?.physical_accomplishment),
-    [project],
-  )
-
-  const financialProgress = useMemo(
-    () => clampPercent(project?.financial_accomplishment),
-    [project],
-  )
-
-  const statusClass = normalizeClassName(project?.status)
-  const varianceInfo = getTargetPhysicalInfo(project)
-  const computedRiskLevel = getRiskLevelFromVariance(varianceInfo.variance)
-  const riskClass = normalizeClassName(computedRiskLevel)
 
   if (loading) {
     return (
@@ -870,7 +914,7 @@ export default function ProjectDetails() {
                 <h2>Photo Gallery</h2>
               </div>
 
-              <span className="pd-section-chip">{photos.length} photos</span>
+              <span className="pd-section-chip">{displayedPhotos.length} photos</span>
             </div>
 
             {dataSource === 'offline' ? (
@@ -878,7 +922,7 @@ export default function ProjectDetails() {
                 Online photo gallery is not available while offline. Newly captured offline
                 photos can be viewed from the Offline Sync page before syncing.
               </div>
-            ) : photos.length === 0 || !primaryPhoto ? (
+            ) : displayedPhotos.length === 0 || !primaryPhoto ? (
               <div className="pd-empty-inline">No photos uploaded yet.</div>
             ) : (
               <div className="pd-photo-holder">
@@ -975,71 +1019,71 @@ export default function ProjectDetails() {
       {portalReady
         ? createPortal(
             <div className="pd-fab-stack" aria-label="Project quick actions">
-        <button
-          type="button"
-          className="pd-fab pd-fab-back"
-          onClick={goBackToProjects}
-          aria-label="Back to projects"
-          title="Back to Projects"
-        >
-          <IconBack />
-        </button>
+              <button
+                type="button"
+                className="pd-fab pd-fab-back"
+                onClick={goBackToProjects}
+                aria-label="Back to projects"
+                title="Back to Projects"
+              >
+                <IconBack />
+              </button>
 
-        <button
-          type="button"
-          className="pd-fab pd-fab-pdf"
-          onClick={generatePdfReport}
-          aria-label="Generate PDF report"
-          title="Generate PDF"
-        >
-          <IconPdf />
-        </button>
+              <button
+                type="button"
+                className="pd-fab pd-fab-pdf"
+                onClick={generatePdfReport}
+                aria-label="Generate PDF report"
+                title="Generate PDF"
+              >
+                <IconPdf />
+              </button>
 
-        {(isAdmin || isEngineer) && (
-          <button
-            type="button"
-            className="pd-fab pd-fab-update"
-            onClick={goToAddUpdate}
-            aria-label="Add project update"
-            title="Add Update"
-          >
-            <IconUpdate />
-          </button>
-        )}
+              {(isAdmin || isEngineer) && (
+                <button
+                  type="button"
+                  className="pd-fab pd-fab-update"
+                  onClick={goToAddUpdate}
+                  aria-label="Add project update"
+                  title="Add Update"
+                >
+                  <IconUpdate />
+                </button>
+              )}
 
-        <button
-          type="button"
-          className="pd-fab pd-fab-map"
-          onClick={goToMap}
-          aria-label="View GIS map"
-          title="GIS Map"
-        >
-          <IconMap />
-        </button>
+              <button
+                type="button"
+                className="pd-fab pd-fab-map"
+                onClick={goToMap}
+                aria-label="View GIS map"
+                title="GIS Map"
+              >
+                <IconMap />
+              </button>
 
-        {isAdmin && dataSource === 'online' && (
-          <button
-            type="button"
-            className="pd-fab pd-fab-edit"
-            onClick={goToEditProject}
-            aria-label="Edit project"
-            title="Edit Project"
-          >
-            <IconEdit />
-          </button>
-        )}
+              {isAdmin && dataSource === 'online' && (
+                <button
+                  type="button"
+                  className="pd-fab pd-fab-edit"
+                  onClick={goToEditProject}
+                  aria-label="Edit project"
+                  title="Edit Project"
+                >
+                  <IconEdit />
+                </button>
+              )}
 
-        {isAdmin && dataSource === 'online' && (
-          <button
-            type="button"
-            className="pd-fab pd-fab-delete"
-            onClick={handleDelete}
-            aria-label="Delete project"
-            title="Delete Project"
-          >
-            <IconDelete />
-          </button>
-        )}
+              {isAdmin && dataSource === 'online' && (
+                <button
+                  type="button"
+                  className="pd-fab pd-fab-delete"
+                  onClick={handleDelete}
+                  aria-label="Delete project"
+                  title="Delete Project"
+                >
+                  <IconDelete />
+                </button>
+              )}
             </div>,
             document.body,
           )

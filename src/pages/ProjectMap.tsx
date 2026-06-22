@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   MapContainer,
   Marker,
@@ -428,6 +428,16 @@ function ExitFullscreenIcon() {
   )
 }
 
+
+function BackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M15 18 9 12l6-6" />
+      <path d="M9 12h10" />
+    </svg>
+  )
+}
+
 function focusMapToProjectSet(map: L.Map, projects: MapProject[]) {
   map.invalidateSize()
 
@@ -531,6 +541,8 @@ function MapResizeWatcher({ trigger }: { trigger: unknown }) {
 export default function ProjectMap() {
   const { isAdmin, isEngineer } = useAuth()
   const canUpdateProject = Boolean(isAdmin || isEngineer)
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const [projects, setProjects] = useState<MapProject[]>([])
   const [loading, setLoading] = useState(true)
@@ -548,6 +560,10 @@ export default function ProjectMap() {
   const [programFilter, setProgramFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
   const [riskFilter, setRiskFilter] = useState('All')
+
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const selectedProjectId = searchParams.get('projectId') || ''
+  const selectedProjectMode = selectedProjectId.trim().length > 0
 
   useEffect(() => {
     setPortalReady(true)
@@ -670,7 +686,16 @@ export default function ProjectMap() {
     }
   }, [projects])
 
+  const selectedProject = useMemo(() => {
+    if (!selectedProjectId) return null
+    return projects.find((project) => project.id === selectedProjectId) || null
+  }, [projects, selectedProjectId])
+
   const filteredProjects = useMemo(() => {
+    if (selectedProjectMode) {
+      return selectedProject ? [selectedProject] : []
+    }
+
     const query = searchTerm.trim().toLowerCase()
 
     return projects.filter((project) => {
@@ -719,6 +744,8 @@ export default function ProjectMap() {
     })
   }, [
     projects,
+    selectedProject,
+    selectedProjectMode,
     searchTerm,
     provinceFilter,
     municipalityFilter,
@@ -741,16 +768,29 @@ export default function ProjectMap() {
   }, [filteredProjects])
 
   const hasActiveFilters =
-    searchTerm.trim() !== '' ||
+    !selectedProjectMode &&
+    (searchTerm.trim() !== '' ||
     provinceFilter !== 'All' ||
     municipalityFilter !== 'All' ||
     fundingYearFilter !== 'All' ||
     programFilter !== 'All' ||
     statusFilter !== 'All' ||
-    riskFilter !== 'All'
+    riskFilter !== 'All')
 
   const mapFabs = (
     <div className="pm-map-floating-actions" aria-label="GIS map actions">
+      {selectedProjectMode && (
+        <button
+          type="button"
+          className="pm-map-fab pm-map-fab-back"
+          onClick={() => navigate(`/projects/${selectedProjectId}`)}
+          aria-label="Back to project details"
+          title="Back to Project Details"
+        >
+          <BackIcon />
+        </button>
+      )}
+
       <button
         type="button"
         className="pm-map-fab pm-map-fab-fullscreen"
@@ -789,11 +829,12 @@ export default function ProjectMap() {
       <main className={`pm-map-page ${isMapScrolled ? 'is-map-scrolled' : ''}`}>
         <section className="pm-map-hero">
           <div>
-            <p className="pm-map-eyebrow">GIS Mapping</p>
-            <h1>Project GIS Map</h1>
+            <p className="pm-map-eyebrow">{selectedProjectMode ? 'Selected GIS View' : 'GIS Mapping'}</p>
+            <h1>{selectedProjectMode ? selectedProject?.project_name || 'Selected Project Map' : 'Project GIS Map'}</h1>
             <p>
-              View mapped infrastructure projects using the latest project or
-              inspection GPS coordinates.
+              {selectedProjectMode
+                ? 'Focused map view for the selected project record.'
+                : 'View mapped infrastructure projects using the latest project or inspection GPS coordinates.'}
             </p>
           </div>
         </section>
@@ -804,8 +845,8 @@ export default function ProjectMap() {
 
         <section className="pm-map-summary-grid">
           <div className="pm-map-summary-card">
-            <span>Total Projects</span>
-            <strong>{projects.length}</strong>
+            <span>{selectedProjectMode ? 'Selected Project' : 'Total Projects'}</span>
+            <strong>{selectedProjectMode ? (selectedProject ? 1 : 0) : projects.length}</strong>
           </div>
 
           <div className="pm-map-summary-card">
@@ -814,7 +855,20 @@ export default function ProjectMap() {
           </div>
         </section>
 
-        <section className="pm-map-filter-card">
+        {selectedProjectMode ? (
+          <section className="pm-map-selected-card">
+            <div>
+              <span>Selected Project Map</span>
+              <strong>{selectedProject?.project_name || 'Selected project not found'}</strong>
+              <p>{selectedProject ? getProjectLocation(selectedProject) : 'The selected project may have been deleted or is not available.'}</p>
+            </div>
+
+            <button type="button" onClick={() => navigate('/map')}>
+              Show All GIS Records
+            </button>
+          </section>
+        ) : (
+          <section className="pm-map-filter-card">
           <div className="pm-map-search-row">
             <label className="pm-map-search-field">
               <SearchIcon />
@@ -937,14 +991,15 @@ export default function ProjectMap() {
               )}
             </div>
           )}
-        </section>
+          </section>
+        )}
 
         <section className="pm-map-workspace">
           <div className="pm-map-card pm-map-main-card">
             <div className="pm-map-card-header">
               <div>
                 <p>GIS View</p>
-                <h2>Displayed Projects</h2>
+                <h2>{selectedProjectMode ? 'Selected Project' : 'Displayed Projects'}</h2>
               </div>
 
               <span>
@@ -1078,8 +1133,8 @@ export default function ProjectMap() {
             <section className="pm-map-list-card">
               <div className="pm-map-card-header">
                 <div>
-                  <p>Mapped Records</p>
-                  <h2>Displayed Projects</h2>
+                  <p>{selectedProjectMode ? 'Selected Record' : 'Mapped Records'}</p>
+                  <h2>{selectedProjectMode ? 'Selected Project' : 'Displayed Projects'}</h2>
                 </div>
               </div>
 

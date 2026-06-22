@@ -5,6 +5,7 @@ import {
   type OfflineProjectUpdate,
 } from '../lib/offlineDb'
 import { getComputedRiskLevel } from '../utils/projectVariance'
+import { cleanupProjectPhotos } from './photoService'
 
 const PHOTO_BUCKET = 'project-photos'
 
@@ -430,6 +431,10 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
         },
         onlineProjectUpdateId,
       )
+
+      if (uploadedPhotoCount > 0) {
+        await cleanupProjectPhotos(update.project_id, 5)
+      }
 
       syncedPhotoCount += uploadedPhotoCount
 

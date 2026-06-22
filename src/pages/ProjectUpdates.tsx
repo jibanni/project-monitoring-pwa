@@ -3,11 +3,11 @@ import { createPortal } from 'react-dom'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { cleanupProjectPhotos } from '../services/photoService'
 import { offlineDb } from '../lib/offlineDb'
 import { useAuth } from '../context/AuthContext'
 import {
   formatProgressInput,
-  getAutoTargetPhysical,
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
 import '../styles/projectUpdates.css'
@@ -99,11 +99,13 @@ const MAX_PHOTOS_PER_UPDATE = 10
 const RECENT_UPDATE_LIMIT = 4
 
 const statusOptions = [
+  'Under Review',
+  'Under Procurement',
   'Not Yet Started',
   'Ongoing',
-  'Completed',
   'Suspended',
-  'Delayed',
+  'Terminated',
+  'Completed',
 ]
 
 const offlineUpdateTables = [
@@ -343,10 +345,12 @@ function getStatusClass(status?: string | null) {
 
   if (normalized.includes('completed')) return 'pu-badge-success'
   if (normalized.includes('ongoing')) return 'pu-badge-primary'
-  if (normalized.includes('delayed') || normalized.includes('suspended')) {
+  if (normalized.includes('under review')) return 'pu-badge-warning'
+  if (normalized.includes('under procurement')) return 'pu-badge-warning'
+  if (normalized.includes('suspended') || normalized.includes('terminated')) {
     return 'pu-badge-danger'
   }
-  if (normalized.includes('not yet')) return 'pu-badge-warning'
+  if (normalized.includes('not yet')) return 'pu-badge-neutral'
 
   return 'pu-badge-neutral'
 }
@@ -455,7 +459,7 @@ export default function ProjectUpdates() {
   const [projectStatus, setProjectStatus] = useState('Ongoing')
   const [physicalAccomplishment, setPhysicalAccomplishment] = useState('')
   const [targetPhysicalAccomplishment, setTargetPhysicalAccomplishment] = useState('')
-  const [targetPhysicalSource, setTargetPhysicalSource] = useState<'auto' | 'manual'>('auto')
+  const targetPhysicalSource = 'manual' as const
   const [financialAccomplishment, setFinancialAccomplishment] = useState('')
   const [issues, setIssues] = useState('')
   const [recommendations, setRecommendations] = useState('')
@@ -488,7 +492,7 @@ export default function ProjectUpdates() {
             : physicalAccomplishment,
         target_physical_accomplishment: targetPhysicalAccomplishment,
         target_physical_as_of: inspectionDate,
-        target_physical_source: targetPhysicalSource,
+        target_physical_source: 'manual',
       },
       inspectionDate,
     )
@@ -543,14 +547,6 @@ export default function ProjectUpdates() {
   }, [online])
 
   useEffect(() => {
-    if (targetPhysicalSource !== 'auto' || !project) return
-
-    setTargetPhysicalAccomplishment(
-      formatProgressInput(getAutoTargetPhysical(project, inspectionDate)),
-    )
-  }, [project, inspectionDate, targetPhysicalSource])
-
-  useEffect(() => {
     loadData()
   }, [id, online])
 
@@ -592,37 +588,26 @@ export default function ProjectUpdates() {
 
   function applyTargetPhysicalFromProject(projectRecord: ProjectRecord | null) {
     if (!projectRecord) {
-      setTargetPhysicalSource('auto')
       setTargetPhysicalAccomplishment('0')
       return
     }
 
     const storedTarget = String(projectRecord.target_physical_accomplishment ?? '').trim()
-    const storedSource = String(projectRecord.target_physical_source || '').toLowerCase()
 
-    if (storedTarget && storedSource !== 'auto') {
-      setTargetPhysicalSource('manual')
+    if (storedTarget) {
       setTargetPhysicalAccomplishment(formatProgressInput(storedTarget))
       return
     }
 
-    setTargetPhysicalSource('auto')
     setTargetPhysicalAccomplishment(
-      formatProgressInput(getAutoTargetPhysical(projectRecord, inspectionDate)),
+      formatProgressInput(projectRecord.physical_accomplishment ?? 0),
     )
   }
 
   function handleTargetPhysicalChange(value: string) {
-    setTargetPhysicalSource('manual')
     setTargetPhysicalAccomplishment(value)
   }
 
-  function resetTargetPhysicalToAuto() {
-    setTargetPhysicalSource('auto')
-    setTargetPhysicalAccomplishment(
-      formatProgressInput(getAutoTargetPhysical(project, inspectionDate)),
-    )
-  }
 
   async function loadData() {
     if (!id) return
@@ -937,7 +922,7 @@ export default function ProjectUpdates() {
       inspection_date: inspectionDate,
       physical_accomplishment: clampProgress(physicalAccomplishment),
       target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
-      target_physical_source: targetPhysicalSource,
+      target_physical_source: 'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: autoRiskLevel,
       issues: cleanText(issues),
@@ -1029,7 +1014,7 @@ export default function ProjectUpdates() {
       physical_accomplishment: clampProgress(physicalAccomplishment),
       target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
       target_physical_as_of: inspectionDate,
-      target_physical_source: targetPhysicalSource,
+      target_physical_source: 'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: autoRiskLevel,
       last_inspection_date: inspectionDate,
@@ -1101,6 +1086,8 @@ export default function ProjectUpdates() {
       if (photoInsertError) {
         throw photoInsertError
       }
+
+      await cleanupProjectPhotos(projectId, 5)
     }
   }
 
@@ -1178,7 +1165,7 @@ export default function ProjectUpdates() {
       physical_accomplishment: clampProgress(physicalAccomplishment),
       target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
       target_physical_as_of: inspectionDate,
-      target_physical_source: targetPhysicalSource,
+      target_physical_source: 'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: autoRiskLevel,
       last_inspection_date: inspectionDate,
@@ -1200,9 +1187,8 @@ export default function ProjectUpdates() {
     setGpsMessage('')
     setInspectionLatitude('')
     setInspectionLongitude('')
-    setTargetPhysicalSource('auto')
     setTargetPhysicalAccomplishment(
-      formatProgressInput(getAutoTargetPhysical(project, todayInputValue())),
+      formatProgressInput(physicalAccomplishment || project?.physical_accomplishment || 0),
     )
 
     photoInputs.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
@@ -1399,7 +1385,7 @@ export default function ProjectUpdates() {
                 inputMode="decimal"
                 value={targetPhysicalAccomplishment}
                 onChange={(event) => handleTargetPhysicalChange(event.target.value)}
-                placeholder="Auto target"
+                placeholder="Example: 75.50"
                 required
               />
             </label>
@@ -1436,14 +1422,6 @@ export default function ProjectUpdates() {
               <span>Variance</span>
               <strong>{targetVarianceInfo.label}</strong>
             </div>
-
-            <button
-              type="button"
-              onClick={resetTargetPhysicalToAuto}
-              disabled={saving || targetPhysicalSource === 'auto'}
-            >
-              Use Auto Target
-            </button>
           </div>
 
           <div className="pu-gps-card pu-gps-simple-card">

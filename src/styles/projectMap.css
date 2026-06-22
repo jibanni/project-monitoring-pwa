@@ -1472,3 +1472,158 @@
     height: 23px !important;
   }
 }
+
+/* =========================================================
+   FINAL STANDARD RISK COLORS — DILG PDMU
+   None / No Risk = Green
+   Low = Yellow
+   Moderate = Orange
+   High = Red
+   GIS Map only. Mobile-safe override.
+========================================================= */
+.pm-legend-neutral,
+.pm-legend-none,
+.pm-legend-no-risk {
+  background: #16a34a !important;
+}
+
+.pm-legend-low {
+  background: #facc15 !important;
+}
+
+.pm-legend-moderate,
+.pm-legend-medium {
+  background: #f97316 !important;
+}
+
+.pm-legend-high,
+.pm-legend-critical {
+  background: #dc2626 !important;
+}
+
+.pm-marker-neutral span,
+.pm-marker-none span,
+.pm-marker-no-risk span {
+  background: #16a34a !important;
+}
+
+.pm-marker-low span {
+  background: #facc15 !important;
+}
+
+.pm-marker-moderate span,
+.pm-marker-medium span {
+  background: #f97316 !important;
+}
+
+.pm-marker-high span,
+.pm-marker-critical span {
+  background: #dc2626 !important;
+}
+
+.pm-risk-neutral,
+.pm-risk-none,
+.pm-risk-no-risk,
+.pm-risk-unknown {
+  color: #166534 !important;
+  background: #dcfce7 !important;
+  border-color: #bbf7d0 !important;
+}
+
+.pm-risk-low {
+  color: #854d0e !important;
+  background: #fef9c3 !important;
+  border-color: #fde68a !important;
+}
+
+.pm-risk-moderate,
+.pm-risk-medium {
+  color: #c2410c !important;
+  background: #ffedd5 !important;
+  border-color: #fed7aa !important;
+}
+
+.pm-risk-high,
+.pm-risk-critical {
+  color: #b91c1c !important;
+  background: #fee2e2 !important;
+  border-color: #fecaca !important;
+}
+
+/* Selected project GIS mode — mobile-safe additions */
+.pm-map-selected-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 1px solid rgba(191, 219, 254, 0.95);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.98), rgba(255, 255, 255, 0.98));
+  box-shadow:
+    0 14px 30px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.pm-map-selected-card div {
+  min-width: 0;
+}
+
+.pm-map-selected-card span {
+  display: block;
+  margin-bottom: 4px;
+  color: #f97316;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.pm-map-selected-card strong {
+  display: block;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 1.02rem;
+  font-weight: 950;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-map-selected-card p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+.pm-map-selected-card button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 15px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #16467a, #1d64a8);
+  font-size: 0.84rem;
+  font-weight: 950;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pm-map-fab-back {
+  background: linear-gradient(135deg, #475569, #334155) !important;
+}
+
+@media (max-width: 640px) {
+  .pm-map-selected-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pm-map-selected-card button {
+    width: 100%;
+  }
+}

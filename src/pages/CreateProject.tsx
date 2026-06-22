@@ -53,11 +53,13 @@ type ProjectInsert = {
 }
 
 const STATUS_OPTIONS = [
+  'Under Review',
+  'Under Procurement',
   'Not Yet Started',
   'Ongoing',
-  'Completed',
   'Suspended',
   'Terminated',
+  'Completed',
 ]
 
 const PROJECT_TYPE_OPTIONS = [
@@ -67,6 +69,9 @@ const PROJECT_TYPE_OPTIONS = [
   'Building',
   'Drainage / Flood Control',
   'Evacuation Facility',
+  'Rural Electrification',
+  'Vehicle',
+  'Non Infra',
   'Other Infrastructure',
 ]
 
