@@ -3,10 +3,25 @@ export type Region10Province = {
   lgus: string[]
 }
 
-export const REGION10_PROVINCES: Region10Province[] = [
+function uniqueList(values: string[]) {
+  const seen = new Set<string>()
+
+  return values.filter((value) => {
+    const cleanValue = String(value || '').trim()
+    const key = cleanValue.toLowerCase()
+
+    if (!cleanValue || seen.has(key)) return false
+
+    seen.add(key)
+    return true
+  })
+}
+
+const RAW_REGION10_PROVINCES: Region10Province[] = [
   {
     province: 'Bukidnon',
     lgus: [
+      'PLGU Bukidnon',
       'Baungon',
       'Cabanglasan',
       'Damulog',
@@ -34,6 +49,7 @@ export const REGION10_PROVINCES: Region10Province[] = [
   {
     province: 'Camiguin',
     lgus: [
+      'PLGU Camiguin',
       'Catarman',
       'Guinsiliban',
       'Mahinog',
@@ -44,6 +60,7 @@ export const REGION10_PROVINCES: Region10Province[] = [
   {
     province: 'Lanao del Norte',
     lgus: [
+      'PLGU Lanao del Norte',
       'Bacolod',
       'Baloi',
       'Baroy',
@@ -71,6 +88,7 @@ export const REGION10_PROVINCES: Region10Province[] = [
   {
     province: 'Misamis Occidental',
     lgus: [
+      'PLGU Misamis Occidental',
       'Aloran',
       'Baliangao',
       'Bonifacio',
@@ -93,6 +111,7 @@ export const REGION10_PROVINCES: Region10Province[] = [
   {
     province: 'Misamis Oriental',
     lgus: [
+      'PLGU Misamis Oriental',
       'Alubijid',
       'Balingasag',
       'Balingoan',
@@ -122,6 +141,13 @@ export const REGION10_PROVINCES: Region10Province[] = [
   },
 ]
 
+export const REGION10_PROVINCES: Region10Province[] = RAW_REGION10_PROVINCES.map(
+  (province) => ({
+    ...province,
+    lgus: uniqueList(province.lgus),
+  }),
+)
+
 export const REGION10_HUCS = ['Cagayan de Oro City', 'Iligan City']
 
 export type Region10ComponentCity = {
@@ -140,8 +166,8 @@ export const REGION10_COMPONENT_CITY_RECORDS: Region10ComponentCity[] =
       })),
   )
 
-export const REGION10_COMPONENT_CITIES = REGION10_COMPONENT_CITY_RECORDS.map(
-  (item) => item.city,
+export const REGION10_COMPONENT_CITIES = uniqueList(
+  REGION10_COMPONENT_CITY_RECORDS.map((item) => item.city),
 )
 
 export const REGION10_PROVINCE_NAMES = REGION10_PROVINCES.map((item) => item.province)
@@ -168,5 +194,5 @@ export function getRegion10ComponentCitiesByProvince(province: string) {
 }
 
 export function getAllRegion10Lgus() {
-  return REGION10_PROVINCES.flatMap((item) => item.lgus)
+  return uniqueList(REGION10_PROVINCES.flatMap((item) => item.lgus))
 }
