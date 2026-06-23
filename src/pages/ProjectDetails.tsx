@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { offlineDb } from '../lib/offlineDb'
 import { getTargetPhysicalInfo } from '../utils/projectVariance'
+import { canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
 import '../styles/projectDetails.css'
 import '../styles/pageHero.css'
@@ -178,7 +179,8 @@ function IconDelete() {
 export default function ProjectDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { isAdmin, isEngineer } = useAuth()
+  const auth = useAuth() as any
+  const { isAdmin } = auth
 
   const [project, setProject] = useState<any>(null)
   const [updates, setUpdates] = useState<any[]>([])
@@ -188,6 +190,7 @@ export default function ProjectDetails() {
   const [photosExpanded, setPhotosExpanded] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const [isHeroCompact, setIsHeroCompact] = useState(false)
+  const [accessDenied, setAccessDenied] = useState(false)
 
   useEffect(() => {
     setPortalReady(true)
@@ -224,7 +227,15 @@ export default function ProjectDetails() {
     setPhotosExpanded(false)
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [
+    id,
+    auth?.profile?.id,
+    auth?.profile?.role,
+    auth?.profile?.province,
+    auth?.profile?.municipality,
+    auth?.poEngineerLguAssignments?.length,
+    auth?.roEngineerProvinceAssignments?.length,
+  ])
 
   async function loadOfflineData() {
     if (!id) return
@@ -235,6 +246,16 @@ export default function ProjectDetails() {
       .equals(id)
       .toArray()
 
+    if (cachedProject && !canViewProject(cachedProject, auth)) {
+      setAccessDenied(true)
+      setProject(null)
+      setUpdates([])
+      setPhotos([])
+      setDataSource('offline')
+      return
+    }
+
+    setAccessDenied(false)
     setProject(cachedProject || null)
     setUpdates(
       pendingUpdates.sort((a, b) =>
@@ -280,6 +301,19 @@ export default function ProjectDetails() {
         throw updatesResult.error
       }
 
+      const onlineProject = projectResult.data
+
+      if (!canViewProject(onlineProject, auth)) {
+        setAccessDenied(true)
+        setProject(null)
+        setUpdates([])
+        setPhotos([])
+        setDataSource('online')
+        return
+      }
+
+      setAccessDenied(false)
+
       await cleanupProjectPhotos(id, 5)
 
       const photosResult = await supabase
@@ -293,7 +327,6 @@ export default function ProjectDetails() {
         throw photosResult.error
       }
 
-      const onlineProject = projectResult.data
       const latestPhotos = photosResult.data || []
 
       setProject(onlineProject)
@@ -356,6 +389,7 @@ export default function ProjectDetails() {
   const varianceInfo = getTargetPhysicalInfo(project)
   const computedRiskLevel = getRiskLevelFromVariance(varianceInfo.variance)
   const riskClass = normalizeClassName(computedRiskLevel)
+  const canUpdateCurrentProject = project ? canUpdateProject(project, auth) : false
 
   function generatePdfReport() {
     if (!project) return
@@ -587,6 +621,23 @@ export default function ProjectDetails() {
         <div className="pd-loading-state">
           <h2>Loading project details...</h2>
           <p>Please wait while the project record is being prepared.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="pd-page">
+        <div className="pd-empty-state">
+          <h2>Project access restricted</h2>
+          <p>
+            This project is outside your assigned Area of Responsibility. Please
+            contact the system administrator if access is needed.
+          </p>
+          <button type="button" className="pd-secondary-btn" onClick={goBackToProjects}>
+            Back to Projects
+          </button>
         </div>
       </div>
     )
@@ -1044,7 +1095,7 @@ export default function ProjectDetails() {
                 <IconPdf />
               </button>
 
-              {(isAdmin || isEngineer) && (
+              {canUpdateCurrentProject && (
                 <button
                   type="button"
                   className="pd-fab pd-fab-update"

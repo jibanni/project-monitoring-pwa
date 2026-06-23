@@ -10,6 +10,7 @@ import {
   formatProgressInput,
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
+import { canUpdateProject } from '../utils/aorAccess'
 import '../styles/projectUpdates.css'
 
 type ProjectRecord = {
@@ -442,11 +443,10 @@ export default function ProjectUpdates() {
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const photoInputsRef = useRef<PhotoInput[]>([])
 
-  const canSubmit = Boolean(auth?.isAdmin || auth?.isEngineer)
-
   const [project, setProject] = useState<ProjectRecord | null>(null)
   const [recentUpdates, setRecentUpdates] = useState<ProjectUpdateRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [accessDenied, setAccessDenied] = useState(false)
   const [saving, setSaving] = useState(false)
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -516,6 +516,26 @@ export default function ProjectUpdates() {
   const hasInspectionCoordinates =
     inspectionLatitude.trim() !== '' || inspectionLongitude.trim() !== ''
 
+  const canSubmit = useMemo(() => {
+    if (!project) {
+      return Boolean(auth?.isAdmin || auth?.isROEngineer || auth?.isPOEngineer || auth?.isEngineer)
+    }
+
+    return canUpdateProject(project, auth)
+  }, [
+    project,
+    auth?.profile?.id,
+    auth?.profile?.role,
+    auth?.profile?.province,
+    auth?.profile?.municipality,
+    auth?.isAdmin,
+    auth?.isROEngineer,
+    auth?.isPOEngineer,
+    auth?.isEngineer,
+    auth?.poEngineerLguAssignments?.length,
+    auth?.roEngineerProvinceAssignments?.length,
+  ])
+
   useEffect(() => {
     setPortalReady(true)
   }, [])
@@ -548,7 +568,16 @@ export default function ProjectUpdates() {
 
   useEffect(() => {
     loadData()
-  }, [id, online])
+  }, [
+    id,
+    online,
+    auth?.profile?.id,
+    auth?.profile?.role,
+    auth?.profile?.province,
+    auth?.profile?.municipality,
+    auth?.poEngineerLguAssignments?.length,
+    auth?.roEngineerProvinceAssignments?.length,
+  ])
 
   useEffect(() => {
     let ticking = false
@@ -627,19 +656,29 @@ export default function ProjectUpdates() {
           throw projectError
         }
 
-        setProject(projectData as ProjectRecord)
-        applyTargetPhysicalFromProject(projectData as ProjectRecord)
-        setProjectStatus(projectData?.status || 'Ongoing')
+        const onlineProject = projectData as ProjectRecord
+
+        if (!canUpdateProject(onlineProject, auth)) {
+          setAccessDenied(true)
+          setProject(null)
+          setRecentUpdates([])
+          return
+        }
+
+        setAccessDenied(false)
+        setProject(onlineProject)
+        applyTargetPhysicalFromProject(onlineProject)
+        setProjectStatus(onlineProject?.status || 'Ongoing')
         setPhysicalAccomplishment(
-          projectData?.physical_accomplishment !== null &&
-            projectData?.physical_accomplishment !== undefined
-            ? String(projectData.physical_accomplishment)
+          onlineProject?.physical_accomplishment !== null &&
+            onlineProject?.physical_accomplishment !== undefined
+            ? String(onlineProject.physical_accomplishment)
             : ''
         )
         setFinancialAccomplishment(
-          projectData?.financial_accomplishment !== null &&
-            projectData?.financial_accomplishment !== undefined
-            ? String(projectData.financial_accomplishment)
+          onlineProject?.financial_accomplishment !== null &&
+            onlineProject?.financial_accomplishment !== undefined
+            ? String(onlineProject.financial_accomplishment)
             : ''
         )
 
@@ -680,6 +719,14 @@ export default function ProjectUpdates() {
     const cachedProject = await getCachedProject(id)
 
     if (cachedProject) {
+      if (!canUpdateProject(cachedProject, auth)) {
+        setAccessDenied(true)
+        setProject(null)
+        setRecentUpdates([])
+        return
+      }
+
+      setAccessDenied(false)
       setProject(cachedProject)
       applyTargetPhysicalFromProject(cachedProject as ProjectRecord)
       setProjectStatus(cachedProject?.status || 'Ongoing')
@@ -960,6 +1007,12 @@ export default function ProjectUpdates() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    if (!canSubmit) {
+      setErrorMessage('You are not allowed to update this project based on your assigned AOR.')
+      setMessage('')
+      return
+    }
+
     const validationError = validateForm()
 
     if (validationError) {
@@ -1206,6 +1259,24 @@ export default function ProjectUpdates() {
     )
   }
 
+  if (accessDenied) {
+    return (
+      <div className="pu-page">
+        <div className="pu-empty-card">
+          <p className="pu-eyebrow">AOR Restricted</p>
+          <h2>Project update access is restricted.</h2>
+          <p>
+            This project is outside your assigned Area of Responsibility. Please
+            contact the system administrator if access is needed.
+          </p>
+          <Link className="pu-secondary-btn" to={`/projects/${id}`}>
+            Back to Project Details
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   if (!canSubmit) {
     return (
       <div className="pu-page">
@@ -1213,8 +1284,8 @@ export default function ProjectUpdates() {
           <p className="pu-eyebrow">Unauthorized</p>
           <h2>Project update access is restricted.</h2>
           <p>
-            Only Admin and Engineer accounts can submit project inspection
-            updates.
+            Only Admin, RO Engineer, or assigned PO Engineer accounts can submit
+            project inspection updates within their assigned AOR.
           </p>
           <Link className="pu-secondary-btn" to={`/projects/${id}`}>
             Back to Project Details
