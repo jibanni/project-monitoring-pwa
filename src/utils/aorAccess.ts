@@ -57,10 +57,10 @@ export function getCanonicalRole(role: string | null | undefined) {
   if (value === 'ard' || value === 'assistant regional director') return 'ARD'
   if (value === 'pd' || value === 'provincial director') return 'PD'
   if (value === 'cd' || value === 'city director') return 'CD'
-  if (value === 'clgoo') return 'CLGOO'
-  if (value === 'mlgoo') return 'MLGOO'
+  if (value === 'clgoo' || value === 'city local government operations officer') return 'CLGOO'
+  if (value === 'mlgoo' || value === 'municipal local government operations officer') return 'MLGOO'
   if (value === 'peo' || value === 'project evaluation officer') return 'PEO'
-  if (value === 'pdmu chief' || value === 'pdmu') return 'PDMU Chief'
+  if (value === 'pdmu chief' || value === 'pdmu chief/head' || value === 'pdmu head' || value === 'pdmu') return 'PDMU Chief'
   if (value === 'viewer') return 'Viewer'
 
   return String(role || '').trim()

@@ -4,9 +4,10 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import { filterProjectsByAor } from '../utils/aorAccess'
 import {
   formatSignedVariance,
-  getComputedRiskLevel,
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
 import '../styles/reports.css'
@@ -19,7 +20,6 @@ type ProjectRow = {
   status: string | null
   project_type: string | null
   funding_source: string | null
-  funding_year?: number | string | null
   implementing_office: string | null
   contractor: string | null
   budget: number | string | null
@@ -84,19 +84,6 @@ function formatLongDate(value: string | null | undefined) {
   })
 }
 
-function formatFundingYear(value: unknown) {
-  const year = textValue(value)
-  return year ? `FY ${year}` : ''
-}
-
-function formatFundingDisplay(project: ProjectRow) {
-  const year = formatFundingYear(project.funding_year)
-  const source = textValue(project.funding_source || project.project_type)
-
-  if (year && source) return `${year} · ${source}`
-  return year || source || '-'
-}
-
 function getStatusClass(status: string | null) {
   const normalized = textValue(status).toLowerCase()
 
@@ -128,6 +115,231 @@ function cleanFilename(value: string) {
 
 function getProjectVariance(project: ProjectRow) {
   return getTargetPhysicalInfo(project)
+}
+
+
+function sameText(left: unknown, right: unknown) {
+  const leftKey = textValue(left).toLowerCase().replace(/\s+/g, ' ')
+  const rightKey = textValue(right).toLowerCase().replace(/\s+/g, ' ')
+
+  return Boolean(leftKey && rightKey && leftKey === rightKey)
+}
+
+function getCanonicalReportRole(role: unknown) {
+  const value = textValue(role).toLowerCase().replace(/\s+/g, ' ')
+
+  if (value === 'admin') return 'Admin'
+  if (value === 'ro engineer' || value === 'ro engineers') return 'RO Engineer'
+  if (value === 'engineer' || value === 'po engineer' || value === 'po engineers') return 'PO Engineer'
+  if (value === 'rd' || value === 'regional director') return 'RD'
+  if (value === 'ard' || value === 'assistant regional director') return 'ARD'
+  if (value === 'pdmu chief' || value === 'pdmu chief/head' || value === 'pdmu head' || value === 'pdmu') return 'PDMU Chief'
+  if (value === 'pd' || value === 'provincial director') return 'PD'
+  if (value === 'cd' || value === 'city director') return 'CD'
+  if (value === 'clgoo' || value === 'city local government operations officer') return 'CLGOO'
+  if (value === 'mlgoo' || value === 'municipal local government operations officer') return 'MLGOO'
+  if (value === 'peo' || value === 'project evaluation officer') return 'PEO'
+  if (value === 'viewer') return 'Viewer'
+
+  return textValue(role)
+}
+
+function reportProjectMatchesProvince(project: ProjectRow, province: unknown) {
+  return sameText(project.province, province)
+}
+
+function reportProjectMatchesMunicipality(project: ProjectRow, municipality: unknown) {
+  return sameText(project.municipality, municipality)
+}
+
+function getStrictReportAorProjects(projects: ProjectRow[], auth: ReturnType<typeof useAuth>) {
+  const profile = auth.profile
+
+  if (!profile || profile.approved !== true || profile.is_active === false) return []
+
+  const role = getCanonicalReportRole(profile.role)
+
+  if (auth.isAdmin || role === 'Admin' || role === 'RD' || role === 'ARD' || role === 'PDMU Chief') {
+    return projects
+  }
+
+  if (auth.isROEngineer || role === 'RO Engineer') {
+    const assignments = (auth.roEngineerProvinceAssignments || []).filter(
+      (assignment) => assignment.is_active !== false,
+    )
+
+    if (assignments.length > 0) {
+      return projects.filter((project) =>
+        assignments.some((assignment) =>
+          reportProjectMatchesProvince(project, assignment.province),
+        ),
+      )
+    }
+
+    return projects.filter((project) =>
+      reportProjectMatchesProvince(project, profile.province),
+    )
+  }
+
+  if (auth.isPOEngineer || auth.isEngineer || role === 'PO Engineer') {
+    const assignments = (auth.poEngineerLguAssignments || []).filter(
+      (assignment) => assignment.is_active !== false,
+    )
+
+    if (assignments.length > 0) {
+      return projects.filter((project) =>
+        assignments.some(
+          (assignment) =>
+            reportProjectMatchesProvince(project, assignment.province) &&
+            reportProjectMatchesMunicipality(project, assignment.municipality),
+        ),
+      )
+    }
+
+    return projects.filter(
+      (project) =>
+        reportProjectMatchesProvince(project, profile.province) &&
+        reportProjectMatchesMunicipality(project, profile.municipality),
+    )
+  }
+
+  if (auth.isPD || auth.isPEO || role === 'PD' || role === 'PEO') {
+    return projects.filter((project) =>
+      reportProjectMatchesProvince(project, profile.province),
+    )
+  }
+
+  if (auth.isCD || role === 'CD') {
+    return projects.filter((project) =>
+      reportProjectMatchesMunicipality(project, profile.huc),
+    )
+  }
+
+  if (auth.isCLGOO || role === 'CLGOO') {
+    return projects.filter((project) =>
+      reportProjectMatchesMunicipality(project, profile.city),
+    )
+  }
+
+  if (auth.isMLGOO || role === 'MLGOO') {
+    return projects.filter((project) =>
+      reportProjectMatchesMunicipality(project, profile.municipality),
+    )
+  }
+
+  return filterProjectsByAor(projects, auth)
+}
+
+
+
+function uniqueSortedTextValues(values: unknown[]) {
+  return Array.from(new Set(values.map(textValue).filter(Boolean))).sort()
+}
+
+function getActiveReportPoAssignments(auth: ReturnType<typeof useAuth>) {
+  return (auth.poEngineerLguAssignments || []).filter(
+    (assignment) => assignment.is_active !== false,
+  )
+}
+
+function getActiveReportRoAssignments(auth: ReturnType<typeof useAuth>) {
+  return (auth.roEngineerProvinceAssignments || []).filter(
+    (assignment) => assignment.is_active !== false,
+  )
+}
+
+function getReportProvinceOptions(
+  aorProjects: ProjectRow[],
+  auth: ReturnType<typeof useAuth>,
+) {
+  const profile = auth.profile
+  const role = getCanonicalReportRole(profile?.role)
+
+  if (!profile || profile.approved !== true || profile.is_active === false) return []
+
+  if (auth.isAdmin || role === 'Admin' || role === 'RD' || role === 'ARD' || role === 'PDMU Chief') {
+    return uniqueSortedTextValues(aorProjects.map((project) => project.province))
+  }
+
+  if (auth.isROEngineer || role === 'RO Engineer') {
+    const assignments = getActiveReportRoAssignments(auth)
+    const assignedProvinces = uniqueSortedTextValues(
+      assignments.map((assignment) => assignment.province),
+    )
+
+    return assignedProvinces.length > 0
+      ? assignedProvinces
+      : uniqueSortedTextValues([profile.province])
+  }
+
+  if (auth.isPOEngineer || auth.isEngineer || role === 'PO Engineer') {
+    const assignments = getActiveReportPoAssignments(auth)
+    const assignedProvinces = uniqueSortedTextValues(
+      assignments.map((assignment) => assignment.province),
+    )
+
+    return assignedProvinces.length > 0
+      ? assignedProvinces
+      : uniqueSortedTextValues([profile.province])
+  }
+
+  if (auth.isPD || auth.isPEO || role === 'PD' || role === 'PEO') {
+    return uniqueSortedTextValues([profile.province])
+  }
+
+  const aorProjectProvinces = uniqueSortedTextValues(
+    aorProjects.map((project) => project.province),
+  )
+
+  if (aorProjectProvinces.length > 0) return aorProjectProvinces
+
+  return uniqueSortedTextValues([profile.province])
+}
+
+function getReportMunicipalityOptions(
+  aorProjects: ProjectRow[],
+  auth: ReturnType<typeof useAuth>,
+  provinceFilter: string,
+) {
+  const profile = auth.profile
+  const role = getCanonicalReportRole(profile?.role)
+
+  if (!profile || profile.approved !== true || profile.is_active === false) return []
+
+  if (auth.isPOEngineer || auth.isEngineer || role === 'PO Engineer') {
+    const assignments = getActiveReportPoAssignments(auth)
+    const assignedMunicipalities = uniqueSortedTextValues(
+      assignments
+        .filter((assignment) =>
+          provinceFilter ? sameText(assignment.province, provinceFilter) : true,
+        )
+        .map((assignment) => assignment.municipality),
+    )
+
+    return assignedMunicipalities.length > 0
+      ? assignedMunicipalities
+      : uniqueSortedTextValues([profile.municipality])
+  }
+
+  if (auth.isCD || role === 'CD') {
+    return uniqueSortedTextValues([profile.huc])
+  }
+
+  if (auth.isCLGOO || role === 'CLGOO') {
+    return uniqueSortedTextValues([profile.city])
+  }
+
+  if (auth.isMLGOO || role === 'MLGOO') {
+    return uniqueSortedTextValues([profile.municipality])
+  }
+
+  return uniqueSortedTextValues(
+    aorProjects
+      .filter((project) =>
+        provinceFilter ? sameText(project.province, provinceFilter) : true,
+      )
+      .map((project) => project.municipality),
+  )
 }
 
 function SearchIcon() {
@@ -173,6 +385,8 @@ function ExcelIcon() {
 }
 
 export default function Reports() {
+  const auth = useAuth()
+
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -183,7 +397,6 @@ export default function Reports() {
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('')
   const [municipalityFilter, setMunicipalityFilter] = useState('')
-  const [fundingYearFilter, setFundingYearFilter] = useState('')
   const [programFilter, setProgramFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [riskFilter, setRiskFilter] = useState('')
@@ -243,73 +456,92 @@ export default function Reports() {
     setSearchTerm('')
     setProvinceFilter('')
     setMunicipalityFilter('')
-    setFundingYearFilter('')
     setProgramFilter('')
     setStatusFilter('')
     setRiskFilter('')
   }
 
+  const aorProjects = useMemo(() => {
+    return getStrictReportAorProjects(projects, auth)
+  }, [projects, auth])
+
   const provinces = useMemo(() => {
-    return Array.from(
-      new Set(projects.map((project) => textValue(project.province)).filter(Boolean)),
-    ).sort()
-  }, [projects])
+    return getReportProvinceOptions(aorProjects, auth)
+  }, [aorProjects, auth])
 
   const municipalities = useMemo(() => {
-    return Array.from(
-      new Set(
-        projects
-          .filter((project) =>
-            provinceFilter ? textValue(project.province) === provinceFilter : true,
-          )
-          .map((project) => textValue(project.municipality))
-          .filter(Boolean),
-      ),
-    ).sort()
-  }, [projects, provinceFilter])
-
-
-  const fundingYears = useMemo(() => {
-    return Array.from(
-      new Set(projects.map((project) => textValue(project.funding_year)).filter(Boolean)),
-    ).sort((a, b) => Number(b) - Number(a))
-  }, [projects])
+    return getReportMunicipalityOptions(aorProjects, auth, provinceFilter)
+  }, [aorProjects, auth, provinceFilter])
 
   const programs = useMemo(() => {
     return Array.from(
       new Set(
-        projects
+        aorProjects
           .map((project) => textValue(project.funding_source || project.project_type))
           .filter(Boolean),
       ),
     ).sort()
-  }, [projects])
+  }, [aorProjects])
 
   const statuses = useMemo(() => {
     return Array.from(
-      new Set(projects.map((project) => textValue(project.status)).filter(Boolean)),
+      new Set(aorProjects.map((project) => textValue(project.status)).filter(Boolean)),
     ).sort()
-  }, [projects])
+  }, [aorProjects])
 
   const risks = useMemo(() => {
     return Array.from(
-      new Set(projects.map((project) => getComputedRiskLevel(project)).filter(Boolean)),
+      new Set(aorProjects.map((project) => textValue(project.risk_level)).filter(Boolean)),
     ).sort()
-  }, [projects])
+  }, [aorProjects])
+
+  useEffect(() => {
+    if (provinceFilter && !provinces.includes(provinceFilter)) {
+      setProvinceFilter('')
+      setMunicipalityFilter('')
+      return
+    }
+
+    if (municipalityFilter && !municipalities.includes(municipalityFilter)) {
+      setMunicipalityFilter('')
+    }
+
+    if (programFilter && !programs.includes(programFilter)) {
+      setProgramFilter('')
+    }
+
+    if (statusFilter && !statuses.includes(statusFilter)) {
+      setStatusFilter('')
+    }
+
+    if (riskFilter && !risks.includes(riskFilter)) {
+      setRiskFilter('')
+    }
+  }, [
+    provinceFilter,
+    provinces,
+    municipalityFilter,
+    municipalities,
+    programFilter,
+    programs,
+    statusFilter,
+    statuses,
+    riskFilter,
+    risks,
+  ])
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((project) => {
+    return aorProjects.filter((project) => {
       const searchableText = [
         project.project_name,
         project.description,
         project.barangay,
         project.municipality,
         project.province,
-        project.funding_year,
         project.funding_source,
         project.project_type,
         project.status,
-        getComputedRiskLevel(project),
+        project.risk_level,
         project.contractor,
         project.implementing_office,
       ]
@@ -322,15 +554,11 @@ export default function Reports() {
         : true
 
       const provinceMatches = provinceFilter
-        ? textValue(project.province) === provinceFilter
+        ? sameText(project.province, provinceFilter)
         : true
 
       const municipalityMatches = municipalityFilter
-        ? textValue(project.municipality) === municipalityFilter
-        : true
-
-      const fundingYearMatches = fundingYearFilter
-        ? textValue(project.funding_year) === fundingYearFilter
+        ? sameText(project.municipality, municipalityFilter)
         : true
 
       const programMatches = programFilter
@@ -342,25 +570,23 @@ export default function Reports() {
         : true
 
       const riskMatches = riskFilter
-        ? getComputedRiskLevel(project) === riskFilter
+        ? textValue(project.risk_level) === riskFilter
         : true
 
       return (
         searchMatches &&
         provinceMatches &&
         municipalityMatches &&
-        fundingYearMatches &&
         programMatches &&
         statusMatches &&
         riskMatches
       )
     })
   }, [
-    projects,
+    aorProjects,
     searchTerm,
     provinceFilter,
     municipalityFilter,
-    fundingYearFilter,
     programFilter,
     statusFilter,
     riskFilter,
@@ -370,14 +596,13 @@ export default function Reports() {
     searchTerm,
     provinceFilter,
     municipalityFilter,
-    fundingYearFilter,
     programFilter,
     statusFilter,
     riskFilter,
   ].filter(Boolean).length
 
   const hasActiveSearch = activeFilterCount > 0
-  const reportProjects = hasActiveSearch ? filteredProjects : projects
+  const reportProjects = hasActiveSearch ? filteredProjects : aorProjects
 
   function generatePdfReport() {
     const doc = new jsPDF({
@@ -398,20 +623,20 @@ export default function Reports() {
     doc.text('Department of the Interior and Local Government Region X', 14, 22)
     doc.text('Project Development and Management Unit', 14, 27)
     doc.text(`Generated: ${generatedDate}`, 14, 32)
+    doc.text('Scope: Records are filtered according to the logged-in user AOR.', 14, 37)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
-    doc.text(`Projects Included: ${reportProjects.length}`, 14, 41)
+    doc.text(`Projects Included: ${reportProjects.length}`, 14, 44)
 
     autoTable(doc, {
-      startY: 48,
+      startY: 51,
       head: [
         [
           'Project',
           'Province',
           'Municipality',
           'Barangay',
-          'FY',
           'Funding Source',
           'Cost',
           'Status',
@@ -431,11 +656,10 @@ export default function Reports() {
           textValue(project.province) || '-',
           textValue(project.municipality) || '-',
           textValue(project.barangay) || '-',
-          formatFundingYear(project.funding_year) || '-',
-        textValue(project.funding_source || project.project_type) || '-',
+          textValue(project.funding_source || project.project_type) || '-',
           formatCurrency(project.budget),
           textValue(project.status) || '-',
-          getComputedRiskLevel(project),
+          textValue(project.risk_level) || '-',
           formatPercent(varianceInfo.actualPhysical),
           formatPercent(varianceInfo.targetPhysical),
           formatSignedVariance(varianceInfo.variance),
@@ -494,14 +718,13 @@ export default function Reports() {
         Province: textValue(project.province),
         Municipality: textValue(project.municipality),
         Barangay: textValue(project.barangay),
-        'Funding Year': formatFundingYear(project.funding_year),
-      'Funding Source': textValue(project.funding_source),
+        'Funding Source': textValue(project.funding_source),
         'Project Type': textValue(project.project_type),
         'Implementing Office': textValue(project.implementing_office),
         Contractor: textValue(project.contractor),
         'Project Cost': toNumber(project.budget),
         Status: textValue(project.status),
-        'Risk Level': getComputedRiskLevel(project),
+        'Risk Level': textValue(project.risk_level),
         'Actual Physical': Number(varianceInfo.actualPhysical.toFixed(2)),
         'Target Physical': Number(varianceInfo.targetPhysical.toFixed(2)),
         Variance: Number(varianceInfo.variance.toFixed(2)),
@@ -517,6 +740,7 @@ export default function Reports() {
     const summaryRows = [
       ['DILG-PDMU Project Monitoring Report'],
       ['Generated', formatLongDate(new Date().toISOString())],
+      ['Scope', 'Records are filtered according to the logged-in user AOR.'],
       ['Projects Included', reportProjects.length],
       ['Active Filters', activeFilterCount],
       [],
@@ -538,7 +762,7 @@ export default function Reports() {
         type="button"
         className="reports-fab reports-fab-excel"
         onClick={exportExcelReport}
-        disabled={loading || projects.length === 0}
+        disabled={loading || aorProjects.length === 0}
         aria-label="Export Excel"
         title="Export Excel"
       >
@@ -549,7 +773,7 @@ export default function Reports() {
         type="button"
         className="reports-fab reports-fab-pdf"
         onClick={generatePdfReport}
-        disabled={loading || projects.length === 0}
+        disabled={loading || aorProjects.length === 0}
         aria-label="Generate PDF"
         title="Generate PDF"
       >
@@ -635,7 +859,7 @@ export default function Reports() {
                     setMunicipalityFilter('')
                   }}
                 >
-                  <option value="">All Provinces</option>
+                  <option value="">Available Provinces</option>
                   {provinces.map((province) => (
                     <option key={province} value={province}>
                       {province}
@@ -650,25 +874,10 @@ export default function Reports() {
                   value={municipalityFilter}
                   onChange={(event) => setMunicipalityFilter(event.target.value)}
                 >
-                  <option value="">All LGUs</option>
+                  <option value="">Available LGUs</option>
                   {municipalities.map((municipality) => (
                     <option key={municipality} value={municipality}>
                       {municipality}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Funding Year</span>
-                <select
-                  value={fundingYearFilter}
-                  onChange={(event) => setFundingYearFilter(event.target.value)}
-                >
-                  <option value="">All Funding Years</option>
-                  {fundingYears.map((year) => (
-                    <option key={year} value={year}>
-                      FY {year}
                     </option>
                   ))}
                 </select>
@@ -735,7 +944,7 @@ export default function Reports() {
             {hasActiveSearch ? (
               <>
                 <span>
-                  {filteredProjects.length} project/s matched from {projects.length} total record/s.
+                  {filteredProjects.length} project/s matched from {aorProjects.length} available AOR record/s.
                 </span>
 
                 <span>
@@ -744,7 +953,7 @@ export default function Reports() {
               </>
             ) : (
               <span>
-                Search or use the filter button to display report records.
+                Search or use the filter button to display report records. Available AOR records: {aorProjects.length}.
               </span>
             )}
           </div>
@@ -809,7 +1018,7 @@ export default function Reports() {
                                 {textValue(project.province) || 'No Province'}
                               </span>
                             </td>
-                            <td>{formatFundingDisplay(project)}</td>
+                            <td>{textValue(project.funding_source) || '-'}</td>
                             <td>{formatCurrency(project.budget)}</td>
                             <td>
                               <span className={`reports-status ${getStatusClass(project.status)}`}>
@@ -817,8 +1026,8 @@ export default function Reports() {
                               </span>
                             </td>
                             <td>
-                              <span className={`reports-risk ${getRiskClass(getComputedRiskLevel(project))}`}>
-                                {getComputedRiskLevel(project)}
+                              <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
+                                {textValue(project.risk_level) || 'No Risk'}
                               </span>
                             </td>
                             <td>{formatPercent(varianceInfo.actualPhysical)}</td>
@@ -856,15 +1065,15 @@ export default function Reports() {
                           <span className={`reports-status ${getStatusClass(project.status)}`}>
                             {textValue(project.status) || 'No Status'}
                           </span>
-                          <span className={`reports-risk ${getRiskClass(getComputedRiskLevel(project))}`}>
-                            {getComputedRiskLevel(project)}
+                          <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
+                            {textValue(project.risk_level) || 'No Risk'}
                           </span>
                         </div>
 
                         <div className="reports-mobile-grid">
                           <span>
                             <strong>Funding</strong>
-                            {formatFundingDisplay(project)}
+                            {textValue(project.funding_source) || '-'}
                           </span>
                           <span>
                             <strong>Cost</strong>
