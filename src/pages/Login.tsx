@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import '../styles/auth.css'
 
@@ -12,14 +12,7 @@ type ProfileRow = {
   email: string | null
   role: string | null
   approved: boolean | null
-}
-
-type LocationState = {
-  from?: {
-    pathname?: string
-    search?: string
-    hash?: string
-  }
+  is_active?: boolean | null
 }
 
 function cleanEmail(value: string) {
@@ -46,7 +39,6 @@ function getFriendlyLoginError(message: string) {
 
 export default function Login() {
   const navigate = useNavigate()
-  const location = useLocation()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -56,21 +48,6 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState('')
 
   const isLoading = loginState === 'loading'
-
-  const redirectPath = useMemo(() => {
-    const state = location.state as LocationState | null
-    const from = state?.from
-
-    if (
-      from?.pathname &&
-      from.pathname !== '/login' &&
-      from.pathname !== '/register'
-    ) {
-      return `${from.pathname}${from.search || ''}${from.hash || ''}`
-    }
-
-    return '/dashboard'
-  }, [location.state])
 
   const canSubmit = useMemo(() => {
     return cleanEmail(email).length > 0 && password.length > 0 && !isLoading
@@ -123,7 +100,7 @@ export default function Login() {
 
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, full_name, email, role, approved')
+        .select('id, full_name, email, role, approved, is_active')
         .eq('id', userId)
         .single()
 
@@ -140,15 +117,16 @@ export default function Login() {
         return
       }
 
-      const role = String(profile.role || '').toLowerCase()
-
-      if (!['admin', 'engineer', 'viewer'].includes(role)) {
+      if (profile.is_active === false) {
         navigate('/unauthorized', { replace: true })
         return
       }
 
       setLoginState('success')
-      navigate(redirectPath, { replace: true })
+
+      // After successful login, always start from Dashboard.
+      // Role/page restrictions are handled by ProtectedRoute and the AOR guards.
+      navigate('/dashboard', { replace: true })
     } catch (error) {
       console.error(error)
 
