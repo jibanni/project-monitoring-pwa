@@ -164,6 +164,37 @@ function AppIcon({ type }: AppIconProps) {
   )
 }
 
+
+function normalizeRoleValue(role: unknown) {
+  return String(role ?? '').trim().toLowerCase()
+}
+
+function isRole(role: unknown, allowed: string[]) {
+  const current = normalizeRoleValue(role)
+  return allowed.some((item) => current === normalizeRoleValue(item))
+}
+
+function getCompactRoleLabel(role: unknown, fallback: string) {
+  const current = normalizeRoleValue(role || fallback)
+
+  if (current === 'admin') return 'Admin'
+  if (current === 'ro engineer' || current === 'ro engineers') return 'RO'
+  if (current === 'po engineer' || current === 'po engineers' || current === 'engineer') return 'PO'
+  if (current === 'regional director' || current === 'rd') return 'RD'
+  if (current === 'assistant regional director' || current === 'ard') return 'ARD'
+  if (current === 'pdmu chief' || current === 'pdmu chief/head' || current === 'pdmu head') {
+    return 'Chief'
+  }
+  if (current === 'provincial director' || current === 'pd') return 'PD'
+  if (current === 'city director' || current === 'cd') return 'CD'
+  if (current === 'clgoo') return 'CLGOO'
+  if (current === 'mlgoo') return 'MLGOO'
+  if (current === 'project evaluation officer' || current === 'peo') return 'PEO'
+  if (current === 'viewer') return 'Viewer'
+
+  return fallback || 'User'
+}
+
 export default function Layout({ children }: LayoutProps) {
   const auth = useAuth() as any
   const navigate = useNavigate()
@@ -176,8 +207,12 @@ export default function Layout({ children }: LayoutProps) {
 
   const profileRole = profile?.role || user?.user_metadata?.role || ''
 
-  const isAdmin = Boolean(auth?.isAdmin) || profileRole === 'Admin'
-  const isEngineer = Boolean(auth?.isEngineer) || profileRole === 'Engineer'
+  const isAdmin = Boolean(auth?.isAdmin) || isRole(profileRole, ['Admin'])
+  const isEngineer =
+    Boolean(auth?.isEngineer) ||
+    Boolean(auth?.isPOEngineer) ||
+    Boolean(auth?.isROEngineer) ||
+    isRole(profileRole, ['Engineer', 'PO Engineer', 'PO Engineers', 'RO Engineer', 'RO Engineers'])
 
   const signOutFn = auth?.signOut || auth?.logout
 
@@ -290,9 +325,10 @@ export default function Layout({ children }: LayoutProps) {
     user?.email ||
     'DILG User'
 
-  const displayRole =
-    profileRole ||
-    (isAdmin ? 'Admin' : isEngineer ? 'Engineer' : 'Viewer')
+  const displayRole = getCompactRoleLabel(
+    profileRole,
+    isAdmin ? 'Admin' : isEngineer ? 'PO' : 'Viewer',
+  )
 
   const initials = getInitials(String(displayName))
 

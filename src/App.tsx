@@ -23,6 +23,7 @@ const ProjectMap = lazy(() => import('./pages/ProjectMap'))
 const OfflineSync = lazy(() => import('./pages/OfflineSync'))
 const Reports = lazy(() => import('./pages/Reports'))
 const UserManagement = lazy(() => import('./pages/UserManagement'))
+const UserAccess = lazy(() => import('./pages/UserAccess'))
 
 type ProtectedRouteProps = ComponentProps<typeof ProtectedRoute>
 
@@ -156,7 +157,7 @@ function App() {
           <Route
             path="/offline-sync"
             element={
-              <ProtectedLayout allowedRoles={['Admin', 'Engineer']}>
+              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'Engineer']}>
                 <OfflineSync />
               </ProtectedLayout>
             }
@@ -192,7 +193,7 @@ function App() {
           <Route
             path="/projects/:id/updates"
             element={
-              <ProtectedLayout allowedRoles={['Admin', 'Engineer']}>
+              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'Engineer']}>
                 <ProjectUpdates />
               </ProtectedLayout>
             }
@@ -203,6 +204,15 @@ function App() {
             element={
               <ProtectedLayout allowedRoles={['Admin']}>
                 <UserManagement />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/users/:userId/access"
+            element={
+              <ProtectedLayout allowedRoles={['Admin']}>
+                <UserAccess />
               </ProtectedLayout>
             }
           />
