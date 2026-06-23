@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { offlineDb } from '../lib/offlineDb'
 import { getTargetPhysicalInfo } from '../utils/projectVariance'
-import { canUpdateProject, canViewProject } from '../utils/aorAccess'
+import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
 import '../styles/projectDetails.css'
 import '../styles/pageHero.css'
@@ -390,6 +390,7 @@ export default function ProjectDetails() {
   const computedRiskLevel = getRiskLevelFromVariance(varianceInfo.variance)
   const riskClass = normalizeClassName(computedRiskLevel)
   const canUpdateCurrentProject = project ? canUpdateProject(project, auth) : false
+  const canEditCurrentProject = project ? canEditProjectRecord(project, auth) : false
 
   function generatePdfReport() {
     if (!project) return
@@ -1117,7 +1118,7 @@ export default function ProjectDetails() {
                 <IconMap />
               </button>
 
-              {isAdmin && dataSource === 'online' && (
+              {canEditCurrentProject && dataSource === 'online' && (
                 <button
                   type="button"
                   className="pd-fab pd-fab-edit"

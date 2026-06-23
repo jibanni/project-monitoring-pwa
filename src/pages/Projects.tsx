@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
-import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor } from '../utils/aorAccess'
+import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
 import '../styles/projects.css'
 
 type ProjectRow = {
@@ -193,6 +193,8 @@ export default function Projects() {
   const navigate = useNavigate()
   const auth = useAuth() as any
   const isAdmin = Boolean(auth?.isAdmin)
+  const role = getCanonicalRole(auth?.profile?.role)
+  const isROEngineer = Boolean(auth?.isROEngineer) || role === 'RO Engineer'
 
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -417,7 +419,7 @@ export default function Projects() {
     riskFilter,
   ].filter(Boolean).length
 
-  const canCreateProject = isAdmin
+  const canCreateProject = isAdmin || isROEngineer
 
   if (loading) {
     return (

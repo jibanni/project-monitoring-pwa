@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { canEditProjectRecord, getCanonicalRole } from '../utils/aorAccess'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/editProject.css'
 import '../styles/pageHero.css'
@@ -252,7 +253,6 @@ function formatPercent(value: string) {
   })}%`
 }
 
-
 function IconBack() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -277,7 +277,7 @@ function IconDetails() {
 export default function EditProject() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { isAdmin } = useAuth()
+  const auth = useAuth()
 
   const [form, setForm] = useState<ProjectForm>(emptyForm)
   const [loading, setLoading] = useState(true)
@@ -285,6 +285,9 @@ export default function EditProject() {
   const [pageError, setPageError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [portalReady, setPortalReady] = useState(false)
+
+  const role = getCanonicalRole(auth.profile?.role)
+  const canAccessEditRoute = auth.isAdmin || auth.isROEngineer || role === 'RO Engineer'
 
   const coordinateStatus = useMemo(
     () => analyzeCoordinates(form.latitude, form.longitude),
@@ -330,7 +333,6 @@ export default function EditProject() {
     form.last_inspection_date,
   ])
 
-
   const mergedStatusOptions = useMemo(() => {
     if (!form.status || statusOptions.includes(form.status)) return statusOptions
     return [form.status, ...statusOptions]
@@ -344,19 +346,18 @@ export default function EditProject() {
     return [form.project_type, ...PROJECT_TYPE_OPTIONS]
   }, [form.project_type])
 
-
   useEffect(() => {
     setPortalReady(true)
   }, [])
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!canAccessEditRoute) {
       navigate('/unauthorized', { replace: true })
       return
     }
 
     loadProject()
-  }, [id, isAdmin, navigate])
+  }, [id, canAccessEditRoute])
 
   async function loadProject() {
     if (!id) {
@@ -384,6 +385,11 @@ export default function EditProject() {
     if (!data) {
       setPageError('Project record was not found.')
       setLoading(false)
+      return
+    }
+
+    if (!canEditProjectRecord(data, auth)) {
+      navigate('/unauthorized', { replace: true })
       return
     }
 
@@ -443,6 +449,9 @@ export default function EditProject() {
       return 'Project status is required.'
     }
 
+    if (!canEditProjectRecord({ province: form.province, municipality: form.municipality }, auth)) {
+      return 'RO Engineer accounts can edit project master records only within their assigned province AOR.'
+    }
 
     if (form.budget.trim()) {
       const amount = Number(form.budget)
@@ -536,7 +545,7 @@ export default function EditProject() {
     }, 700)
   }
 
-  if (!isAdmin) {
+  if (!canAccessEditRoute) {
     return null
   }
 
@@ -652,7 +661,7 @@ export default function EditProject() {
               <h2>Project Profile</h2>
             </div>
 
-            <span className="edit-project-section-badge">Admin Editable</span>
+            <span className="edit-project-section-badge">Admin / RO Engineer Editable</span>
           </div>
 
           <div className="edit-project-grid">

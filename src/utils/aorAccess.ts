@@ -96,6 +96,23 @@ function getActiveRoAssignments(auth: AorAuthLike | null | undefined) {
   )
 }
 
+function uniqueTextValues(values: unknown[]) {
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  values.forEach((value) => {
+    const text = String(value ?? '').trim()
+    const key = textKey(text)
+
+    if (!text || seen.has(key)) return
+
+    seen.add(key)
+    result.push(text)
+  })
+
+  return result
+}
+
 function hasRegionalView(role: string) {
   return role === 'Admin' || role === 'RD' || role === 'ARD' || role === 'PDMU Chief'
 }
@@ -165,6 +182,52 @@ function canViewByAorLevel(project: AorProjectLike, profile: AorProfileLike) {
   if (profile.province && projectMatchesProvince(project, profile.province)) return true
 
   return false
+}
+
+export function getRoEngineerAllowedProvinces(auth: AorAuthLike | null | undefined) {
+  const profile = auth?.profile
+  const role = getCanonicalRole(profile?.role)
+
+  if (!profile || !isActiveApproved(profile)) return []
+  if (!auth?.isROEngineer && role !== 'RO Engineer') return []
+
+  const assignmentProvinces = getActiveRoAssignments(auth).map(
+    (assignment) => assignment.province,
+  )
+
+  const provinces = uniqueTextValues(assignmentProvinces)
+
+  if (provinces.length > 0) return provinces
+
+  return uniqueTextValues([profile.province])
+}
+
+export function canCreateProjectInAor(
+  project: AorProjectLike,
+  auth: AorAuthLike | null | undefined,
+) {
+  const profile = auth?.profile
+
+  if (!profile) return false
+  if (!isActiveApproved(profile)) return false
+
+  const role = getCanonicalRole(profile.role)
+  const currentAuth: AorAuthLike = auth || { profile }
+
+  if (currentAuth.isAdmin || role === 'Admin') return true
+
+  if (currentAuth.isROEngineer || role === 'RO Engineer') {
+    return canAccessRoProvince(project, currentAuth)
+  }
+
+  return false
+}
+
+export function canEditProjectRecord(
+  project: AorProjectLike,
+  auth: AorAuthLike | null | undefined,
+) {
+  return canCreateProjectInAor(project, auth)
 }
 
 export function canViewProject(project: AorProjectLike, auth: AorAuthLike | null | undefined) {

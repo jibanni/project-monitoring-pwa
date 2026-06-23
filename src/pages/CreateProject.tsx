@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { canCreateProjectInAor, getCanonicalRole, getRoEngineerAllowedProvinces } from '../utils/aorAccess'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/createProject.css'
 import '../styles/pageHero.css'
@@ -258,7 +259,7 @@ function cleanText(value: string) {
 
 export default function CreateProject() {
   const navigate = useNavigate()
-  const { isAdmin } = useAuth()
+  const auth = useAuth()
 
   const [projectName, setProjectName] = useState('')
   const [description, setDescription] = useState('')
@@ -283,6 +284,17 @@ export default function CreateProject() {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
+  const role = getCanonicalRole(auth.profile?.role)
+  const isROCreator = auth.isROEngineer || role === 'RO Engineer'
+  const canAccessCreate = auth.isAdmin || isROCreator
+  const roAllowedProvinces = useMemo(() => getRoEngineerAllowedProvinces(auth), [auth])
+
+  useEffect(() => {
+    if (!auth.isAdmin && isROCreator && roAllowedProvinces.length === 1 && !province) {
+      setProvince(roAllowedProvinces[0])
+    }
+  }, [auth.isAdmin, isROCreator, province, roAllowedProvinces])
+
   const coordinateStatus = useMemo(() => {
     return getCoordinateStatus(latitude, longitude)
   }, [latitude, longitude])
@@ -303,7 +315,6 @@ export default function CreateProject() {
       target_physical_source: 'auto',
     })
   }, [startDate, targetCompletionDate, physicalAccomplishment])
-
 
   const canSubmit = useMemo(() => {
     return (
@@ -401,8 +412,18 @@ export default function CreateProject() {
     setErrorMessage('')
     setSuccessMessage('')
 
+    if (!canAccessCreate) {
+      setErrorMessage('Only Admin and RO Engineer accounts can create project master records.')
+      return
+    }
+
     if (!canSubmit) {
       setErrorMessage('Please complete all required fields before saving.')
+      return
+    }
+
+    if (!canCreateProjectInAor({ province, municipality }, auth)) {
+      setErrorMessage('RO Engineer accounts can create projects only within their assigned province AOR.')
       return
     }
 
@@ -466,12 +487,12 @@ export default function CreateProject() {
     }
   }
 
-  if (!isAdmin) {
+  if (!canAccessCreate) {
     return (
       <div className="create-project-page">
         <section className="create-project-access-card">
-          <h1>Admin Access Required</h1>
-          <p>Only Admin users can create new projects.</p>
+          <h1>Access Required</h1>
+          <p>Only Admin and RO Engineer users can create new projects.</p>
           <button type="button" onClick={() => navigate('/projects')}>
             Back to Projects
           </button>
@@ -637,11 +658,31 @@ export default function CreateProject() {
           <div className="create-project-grid">
             <label>
               Province <strong>*</strong>
-              <input
-                value={province}
-                onChange={(event) => setProvince(event.target.value)}
-                placeholder="Example: Bukidnon"
-              />
+              {auth.isAdmin ? (
+                <input
+                  value={province}
+                  onChange={(event) => setProvince(event.target.value)}
+                  placeholder="Example: Bukidnon"
+                />
+              ) : (
+                <select
+                  value={province}
+                  onChange={(event) => setProvince(event.target.value)}
+                  disabled={roAllowedProvinces.length <= 1}
+                >
+                  {roAllowedProvinces.length === 0 && (
+                    <option value="">No assigned province</option>
+                  )}
+                  {roAllowedProvinces.length > 1 && (
+                    <option value="">Select assigned province</option>
+                  )}
+                  {roAllowedProvinces.map((provinceName) => (
+                    <option key={provinceName} value={provinceName}>
+                      {provinceName}
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
 
             <label>
@@ -663,9 +704,18 @@ export default function CreateProject() {
             </label>
 
             <div className="create-project-location-note">
-              <strong>Mindanao GPS Range</strong>
-              <span>Latitude: 4 to 10.8</span>
-              <span>Longitude: 119 to 127.8</span>
+              <strong>{auth.isAdmin ? 'Mindanao GPS Range' : 'RO Engineer AOR'}</strong>
+              {auth.isAdmin ? (
+                <>
+                  <span>Latitude: 4 to 10.8</span>
+                  <span>Longitude: 119 to 127.8</span>
+                </>
+              ) : (
+                <>
+                  <span>Create is limited to assigned province/s only.</span>
+                  <span>{roAllowedProvinces.join(', ') || 'No assigned province'}</span>
+                </>
+              )}
             </div>
 
             <label>

@@ -166,7 +166,7 @@ function App() {
           <Route
             path="/projects/create"
             element={
-              <ProtectedLayout allowedRoles={['Admin']}>
+              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer']}>
                 <CreateProject />
               </ProtectedLayout>
             }
@@ -184,7 +184,7 @@ function App() {
           <Route
             path="/projects/:id/edit"
             element={
-              <ProtectedLayout allowedRoles={['Admin']}>
+              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer']}>
                 <EditProject />
               </ProtectedLayout>
             }
