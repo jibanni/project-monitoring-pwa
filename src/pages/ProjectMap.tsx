@@ -14,6 +14,10 @@ import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
+import {
+  canUpdateProject as canUpdateProjectByAor,
+  filterProjectsByAor,
+} from '../utils/aorAccess'
 import '../styles/projectMap.css'
 import '../styles/pageHero.css'
 
@@ -545,8 +549,7 @@ function MapResizeWatcher({ trigger }: { trigger: unknown }) {
 }
 
 export default function ProjectMap() {
-  const { isAdmin, isEngineer } = useAuth()
-  const canUpdateProject = Boolean(isAdmin || isEngineer)
+  const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -575,9 +578,6 @@ export default function ProjectMap() {
     setPortalReady(true)
   }, [])
 
-  useEffect(() => {
-    loadProjects()
-  }, [])
 
   useEffect(() => {
     let ticking = false
@@ -640,8 +640,9 @@ export default function ProjectMap() {
       const mappedProjects = ((projectData || []) as unknown as ProjectRecord[]).map((project) =>
         buildMapProject(project, updateMap.get(project.id) || []),
       )
+      const aorFilteredProjects = filterProjectsByAor(mappedProjects, auth)
 
-      setProjects(mappedProjects)
+      setProjects(aorFilteredProjects)
     } catch (error: any) {
       console.error(error)
       setErrorMessage(
@@ -651,6 +652,23 @@ export default function ProjectMap() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadProjects()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    auth.profile?.id,
+    auth.profile?.role,
+    auth.profile?.approved,
+    auth.profile?.is_active,
+    auth.profile?.aor_level,
+    auth.profile?.province,
+    auth.profile?.huc,
+    auth.profile?.city,
+    auth.profile?.municipality,
+    auth.poEngineerLguAssignments?.length,
+    auth.roEngineerProvinceAssignments?.length,
+  ])
 
   function clearFilters() {
     setSearchTerm('')
@@ -872,7 +890,7 @@ export default function ProjectMap() {
             <div>
               <span>Selected Project Map</span>
               <strong>{selectedProject?.project_name || 'Selected project not found'}</strong>
-              <p>{selectedProject ? getProjectLocation(selectedProject) : 'The selected project may have been deleted or is not available.'}</p>
+              <p>{selectedProject ? getProjectLocation(selectedProject) : 'The selected project may have been deleted, is not available, or is outside your assigned AOR.'}</p>
             </div>
 
             <button type="button" onClick={() => navigate('/map')}>
@@ -1198,7 +1216,7 @@ export default function ProjectMap() {
                         <div className="pm-map-project-actions">
                           <Link to={`/projects/${project.id}`}>View</Link>
 
-                          {canUpdateProject && (
+                          {canUpdateProjectByAor(project, auth) && (
                             <Link to={`/projects/${project.id}/updates`}>Update GPS</Link>
                           )}
                         </div>
