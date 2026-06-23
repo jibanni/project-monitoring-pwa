@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
+import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor } from '../utils/aorAccess'
 import '../styles/projects.css'
 
 type ProjectRow = {
@@ -190,7 +191,8 @@ function AddIcon() {
 
 export default function Projects() {
   const navigate = useNavigate()
-  const { isAdmin, isEngineer } = useAuth()
+  const auth = useAuth() as any
+  const isAdmin = Boolean(auth?.isAdmin)
 
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -265,16 +267,20 @@ export default function Projects() {
     setRiskFilter('')
   }
 
+  const allowedProjects = useMemo(() => {
+    return filterProjectsByAor(projects, auth)
+  }, [projects, auth])
+
   const provinces = useMemo(() => {
     return Array.from(
-      new Set(projects.map((project) => textValue(project.province)).filter(Boolean)),
+      new Set(allowedProjects.map((project) => textValue(project.province)).filter(Boolean)),
     ).sort()
-  }, [projects])
+  }, [allowedProjects])
 
   const municipalities = useMemo(() => {
     return Array.from(
       new Set(
-        projects
+        allowedProjects
           .filter((project) =>
             provinceFilter ? textValue(project.province) === provinceFilter : true,
           )
@@ -282,38 +288,38 @@ export default function Projects() {
           .filter(Boolean),
       ),
     ).sort()
-  }, [projects, provinceFilter])
+  }, [allowedProjects, provinceFilter])
 
   const programs = useMemo(() => {
     return Array.from(
       new Set(
-        projects
+        allowedProjects
           .map((project) => textValue(project.funding_source || project.project_type))
           .filter(Boolean),
       ),
     ).sort()
-  }, [projects])
+  }, [allowedProjects])
 
   const fundingYears = useMemo(() => {
     return Array.from(
-      new Set(projects.map((project) => textValue(project.funding_year)).filter(Boolean)),
+      new Set(allowedProjects.map((project) => textValue(project.funding_year)).filter(Boolean)),
     ).sort((a, b) => Number(b) - Number(a))
-  }, [projects])
+  }, [allowedProjects])
 
   const statuses = useMemo(() => {
     return Array.from(
-      new Set(projects.map((project) => textValue(project.status)).filter(Boolean)),
+      new Set(allowedProjects.map((project) => textValue(project.status)).filter(Boolean)),
     ).sort()
-  }, [projects])
+  }, [allowedProjects])
 
   const risks = useMemo(() => {
     return Array.from(
-      new Set(projects.map((project) => getComputedRiskLevel(project)).filter(Boolean)),
+      new Set(allowedProjects.map((project) => getComputedRiskLevel(project)).filter(Boolean)),
     ).sort()
-  }, [projects])
+  }, [allowedProjects])
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((project) => {
+    return allowedProjects.filter((project) => {
       const searchableText = [
         project.project_name,
         project.description,
@@ -371,7 +377,7 @@ export default function Projects() {
       )
     })
   }, [
-    projects,
+    allowedProjects,
     searchTerm,
     provinceFilter,
     municipalityFilter,
@@ -411,7 +417,7 @@ export default function Projects() {
     riskFilter,
   ].filter(Boolean).length
 
-  const canUpdate = isAdmin || isEngineer
+  const canCreateProject = isAdmin
 
   if (loading) {
     return (
@@ -469,7 +475,7 @@ export default function Projects() {
           <RefreshIcon />
         </button>
 
-        {isAdmin && (
+        {canCreateProject && (
           <button
             type="button"
             className="projects-floating-btn add"
@@ -774,7 +780,7 @@ export default function Projects() {
                       View
                     </button>
 
-                    {canUpdate && (
+                    {canUpdateProjectByAor(project, auth) && (
                       <button
                         type="button"
                         className="project-update-btn"
