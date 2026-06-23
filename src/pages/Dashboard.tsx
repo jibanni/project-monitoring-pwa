@@ -10,6 +10,8 @@ import {
 } from 'recharts'
 
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import { filterProjectsByAor } from '../utils/aorAccess'
 import {
   formatSignedVariance,
   getComputedRiskLevel,
@@ -305,14 +307,15 @@ function getRiskColor(riskLevel: unknown, fallbackIndex = 0) {
 
   if (risk.includes('high')) return '#ef4444'
   if (risk.includes('moderate') || risk.includes('medium')) return '#f97316'
-  if (risk.includes('low')) return '#facc15'
-  if (risk.includes('none') || risk.includes('no risk')) return '#16a34a'
+  if (risk.includes('low')) return '#16a34a'
+  if (risk.includes('none') || risk.includes('no risk')) return '#2563eb'
 
   return CHART_COLORS[fallbackIndex % CHART_COLORS.length]
 }
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const auth = useAuth()
   const modalCloseTimerRef = useRef<number | null>(null)
 
   const [projects, setProjects] = useState<ProjectRecord[]>([])
@@ -424,16 +427,20 @@ export default function Dashboard() {
     }, MODAL_CLOSE_DELAY)
   }
 
+  const visibleProjects = useMemo(() => {
+    return filterProjectsByAor(projects, auth)
+  }, [projects, auth])
+
   const dashboardData = useMemo(() => {
-    const ongoingProjects = projects.filter((project) =>
+    const ongoingProjects = visibleProjects.filter((project) =>
       isStatus(project, ['ongoing', 'on going', 'in progress', 'implementation']),
     )
 
-    const completedProjects = projects.filter((project) =>
+    const completedProjects = visibleProjects.filter((project) =>
       isStatus(project, ['completed', 'complete', 'finished']),
     )
 
-    const notStartedProjects = projects.filter((project) =>
+    const notStartedProjects = visibleProjects.filter((project) =>
       isStatus(project, [
         'not yet started',
         'not started',
@@ -442,23 +449,23 @@ export default function Dashboard() {
       ]),
     )
 
-    const highRiskProjects = projects.filter((project) =>
+    const highRiskProjects = visibleProjects.filter((project) =>
       isRisk(project, ['high']),
     )
 
-    const forReviewProjects = projects.filter((project) =>
+    const forReviewProjects = visibleProjects.filter((project) =>
       isRisk(project, ['high', 'moderate', 'medium']),
     )
 
-    const statusData = countBy(projects, getStatus)
-    const riskData = countBy(projects, getRiskLevel)
+    const statusData = countBy(visibleProjects, getStatus)
+    const riskData = countBy(visibleProjects, getRiskLevel)
 
-    const latestProjects = [...projects]
+    const latestProjects = [...visibleProjects]
       .sort((a, b) => getUpdatedTime(b) - getUpdatedTime(a))
       .slice(0, 5)
 
     return {
-      totalProjects: projects.length,
+      totalProjects: visibleProjects.length,
       ongoingProjects,
       completedProjects,
       notStartedProjects,
@@ -468,7 +475,7 @@ export default function Dashboard() {
       riskData,
       latestProjects,
     }
-  }, [projects])
+  }, [visibleProjects])
 
   const statCards = [
     {
@@ -479,7 +486,7 @@ export default function Dashboard() {
       className: 'total',
       title: 'All Projects',
       subtitle: 'Complete list of enrolled projects.',
-      records: projects,
+      records: visibleProjects,
     },
     {
       key: 'ongoing',
@@ -843,7 +850,7 @@ export default function Dashboard() {
                       cursor="pointer"
                       onClick={(entry: any) => {
                         const name = safeText(entry?.name, '')
-                        const selected = projects.filter(
+                        const selected = visibleProjects.filter(
                           (project) => getStatus(project) === name,
                         )
 
@@ -887,7 +894,7 @@ export default function Dashboard() {
                     openDrilldown(
                       `${item.name} Projects`,
                       `Projects currently categorized as ${item.name}.`,
-                      projects.filter(
+                      visibleProjects.filter(
                         (project) => getStatus(project) === item.name,
                       ),
                     )
@@ -927,7 +934,7 @@ export default function Dashboard() {
                       cursor="pointer"
                       onClick={(entry: any) => {
                         const name = safeText(entry?.name, '')
-                        const selected = projects.filter(
+                        const selected = visibleProjects.filter(
                           (project) => getRiskLevel(project) === name,
                         )
 
@@ -971,7 +978,7 @@ export default function Dashboard() {
                     openDrilldown(
                       `${item.name} Risk Projects`,
                       `Projects currently tagged as ${item.name} risk.`,
-                      projects.filter(
+                      visibleProjects.filter(
                         (project) => getRiskLevel(project) === item.name,
                       ),
                     )
