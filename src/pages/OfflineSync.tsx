@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { offlineDb, type OfflineProjectPhoto, type OfflineProjectUpdate } from '../lib/offlineDb'
 import * as offlineSyncService from '../services/offlineSyncService'
+import { useAuth } from '../context/AuthContext'
+import { canUpdateProject, type AorProjectLike } from '../utils/aorAccess'
 import '../styles/offlineSync.css'
 import '../styles/pageHero.css'
 
 type ProjectNameMap = Record<string, string>
+type OfflineProjectAorMap = Record<string, AorProjectLike>
+
+type ProjectLookup = {
+  names: ProjectNameMap
+  aor: OfflineProjectAorMap
+}
 
 type HydratedOfflineUpdate = OfflineProjectUpdate & {
   display_project_name?: string
@@ -193,7 +201,72 @@ function getLinkedPhotos(update: OfflineProjectUpdate, photos: OfflineProjectPho
   })
 }
 
+function getLinkedUpdate(photo: OfflineProjectPhoto, updates: OfflineProjectUpdate[]) {
+  return updates.find((update) => {
+    const updateId = update.id
+    const localId = getUpdateLocalId(update)
+
+    return (
+      keysMatch(photo.offline_update_id, updateId) ||
+      keysMatch(photo.offline_update_id, localId) ||
+      keysMatch(photo.local_update_id, localId) ||
+      keysMatch(photo.project_update_id, localId) ||
+      keysMatch(photo.project_update_id, update.online_update_id)
+    )
+  })
+}
+
+function getAorProjectFromRecord(
+  record: OfflineProjectUpdate | OfflineProjectPhoto,
+  projectAorMap: OfflineProjectAorMap,
+  allUpdates: OfflineProjectUpdate[] = [],
+): AorProjectLike {
+  const projectId = textValue(record.project_id)
+
+  if (projectId && projectAorMap[projectId]) {
+    return projectAorMap[projectId]
+  }
+
+  const linkedUpdate = getLinkedUpdate(record as OfflineProjectPhoto, allUpdates)
+  const linkedProjectId = textValue(linkedUpdate?.project_id)
+
+  if (linkedProjectId && projectAorMap[linkedProjectId]) {
+    return projectAorMap[linkedProjectId]
+  }
+
+  return {
+    province: (record as any).province || (linkedUpdate as any)?.province,
+    municipality: (record as any).municipality || (linkedUpdate as any)?.municipality,
+  }
+}
+
+function canSyncOfflineRecord(
+  record: OfflineProjectUpdate | OfflineProjectPhoto,
+  projectAorMap: OfflineProjectAorMap,
+  auth: unknown,
+  allUpdates: OfflineProjectUpdate[] = [],
+) {
+  const project = getAorProjectFromRecord(record, projectAorMap, allUpdates)
+  return canUpdateProject(project, auth as any)
+}
+
+function canUseOfflineSync(auth: unknown) {
+  const currentAuth = auth as any
+  return Boolean(
+    currentAuth?.isAdmin ||
+      currentAuth?.isROEngineer ||
+      currentAuth?.isPOEngineer ||
+      currentAuth?.isEngineer,
+  )
+}
+
+function isAdminAuth(auth: unknown) {
+  return Boolean((auth as any)?.isAdmin)
+}
+
 export default function OfflineSync() {
+  const auth = useAuth()
+
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -201,9 +274,13 @@ export default function OfflineSync() {
   const [lastSyncMessage, setLastSyncMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [isOfflineScrolled, setIsOfflineScrolled] = useState(false)
+  const [blockedPendingCount, setBlockedPendingCount] = useState(0)
 
   const [offlineUpdates, setOfflineUpdates] = useState<HydratedOfflineUpdate[]>([])
   const [offlinePhotos, setOfflinePhotos] = useState<HydratedOfflinePhoto[]>([])
+
+  const userCanUseOfflineSync = useMemo(() => canUseOfflineSync(auth), [auth])
+  const userIsAdmin = useMemo(() => isAdminAuth(auth), [auth])
 
   useEffect(() => {
     refreshOfflineData()
@@ -251,13 +328,31 @@ export default function OfflineSync() {
     return offlineUpdates.length + offlinePhotos.length
   }, [offlinePhotos.length, offlineUpdates.length])
 
-  async function getProjectNameMap(): Promise<ProjectNameMap> {
+  const canSyncCurrentQueue = useMemo(() => {
+    if (!userCanUseOfflineSync) return false
+    if (userIsAdmin) return true
+    return blockedPendingCount === 0
+  }, [blockedPendingCount, userCanUseOfflineSync, userIsAdmin])
+
+  async function getProjectLookup(): Promise<ProjectLookup> {
     const projects = await offlineDb.projects.toArray()
 
-    return projects.reduce<ProjectNameMap>((map, project) => {
-      map[project.id] = project.project_name || `Project ${project.id}`
-      return map
-    }, {})
+    return projects.reduce<ProjectLookup>(
+      (lookup, project: any) => {
+        const projectId = textValue(project.id)
+
+        if (!projectId) return lookup
+
+        lookup.names[projectId] = project.project_name || `Project ${projectId}`
+        lookup.aor[projectId] = {
+          province: project.province,
+          municipality: project.municipality,
+        }
+
+        return lookup
+      },
+      { names: {}, aor: {} },
+    )
   }
 
   async function refreshOfflineData() {
@@ -265,8 +360,8 @@ export default function OfflineSync() {
       setLoading(true)
       setErrorMessage('')
 
-      const [projectNameMap, allUpdates, allPhotos] = await Promise.all([
-        getProjectNameMap(),
+      const [projectLookup, allUpdates, allPhotos] = await Promise.all([
+        getProjectLookup(),
         offlineDb.project_updates.toArray(),
         offlineDb.project_photos.toArray(),
       ])
@@ -274,25 +369,36 @@ export default function OfflineSync() {
       const pendingUpdates = allUpdates.filter(isPendingRecord)
       const pendingPhotos = allPhotos.filter(isPendingRecord)
 
-      const hydratedUpdates = pendingUpdates.map((update) => {
-        const linkedPhotos = getLinkedPhotos(update, pendingPhotos)
+      const allowedUpdates = pendingUpdates.filter((update) =>
+        canSyncOfflineRecord(update, projectLookup.aor, auth),
+      )
+      const allowedPhotos = pendingPhotos.filter((photo) =>
+        canSyncOfflineRecord(photo, projectLookup.aor, auth, pendingUpdates),
+      )
+
+      const hiddenPendingCount =
+        pendingUpdates.length - allowedUpdates.length + pendingPhotos.length - allowedPhotos.length
+
+      const hydratedUpdates = allowedUpdates.map((update) => {
+        const linkedPhotos = getLinkedPhotos(update, allowedPhotos)
 
         return {
           ...update,
           display_project_name:
-            projectNameMap[update.project_id] || update.project_name || '',
+            projectLookup.names[update.project_id] || update.project_name || '',
           pending_photo_count: linkedPhotos.length,
         }
       })
 
-      const hydratedPhotos = pendingPhotos.map((photo) => ({
+      const hydratedPhotos = allowedPhotos.map((photo) => ({
         ...photo,
         display_project_name:
-          projectNameMap[photo.project_id] || photo.project_name || '',
+          projectLookup.names[photo.project_id] || photo.project_name || '',
       }))
 
       setOfflineUpdates(hydratedUpdates)
       setOfflinePhotos(hydratedPhotos)
+      setBlockedPendingCount(Math.max(0, hiddenPendingCount))
       setLastChecked(new Date().toISOString())
     } catch (error) {
       console.error(error)
@@ -308,8 +414,20 @@ export default function OfflineSync() {
       setErrorMessage('')
       setLastSyncMessage('')
 
+      if (!userCanUseOfflineSync) {
+        setErrorMessage('You do not have permission to use Offline Sync.')
+        return
+      }
+
       if (!navigator.onLine) {
         setErrorMessage('You are currently offline. Please connect to the internet before syncing.')
+        return
+      }
+
+      if (!canSyncCurrentQueue) {
+        setErrorMessage(
+          'This device has pending offline records outside your assigned AOR. For safety, sync is blocked. Please log in using the correct AOR account or an Admin account to sync those records.',
+        )
         return
       }
 
@@ -331,6 +449,25 @@ export default function OfflineSync() {
   const pendingUpdatesCount = offlineUpdates.length
   const pendingPhotosCount = offlinePhotos.length
 
+  if (!userCanUseOfflineSync) {
+    return (
+      <div className="offline-sync-page">
+        <section className="offline-sync-hero">
+          <div>
+            <p className="offline-sync-eyebrow">Offline Field Operations</p>
+            <h1>Offline Sync</h1>
+            <p>Offline Sync is limited to Admin, RO Engineer, and PO Engineer accounts.</p>
+          </div>
+        </section>
+
+        <section className="offline-sync-loading-card">
+          <h2>Access Restricted</h2>
+          <p>Your current account can view records based on AOR but cannot sync offline field updates.</p>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className={`offline-sync-page ${isOfflineScrolled ? 'is-offline-scrolled' : ''}`}>
       <section className="offline-sync-hero">
@@ -339,7 +476,7 @@ export default function OfflineSync() {
           <h1>Offline Sync</h1>
           <p>
             Review pending inspection updates and photos saved on this device, then
-            sync them to Supabase when internet connection is available.
+            sync only records allowed under your assigned AOR.
           </p>
         </div>
 
@@ -366,14 +503,14 @@ export default function OfflineSync() {
                 <div>
                   <p>OFFLINE QUEUE</p>
                   <h2>Pending Updates</h2>
-                  <span>{pendingUpdatesCount} offline inspection update/s found.</span>
+                  <span>{pendingUpdatesCount} AOR-allowed offline inspection update/s found.</span>
                 </div>
               </div>
 
               {offlineUpdates.length === 0 ? (
                 <div className="offline-sync-empty">
                   <h3>No pending offline updates</h3>
-                  <p>Inspection updates saved offline will appear here before syncing.</p>
+                  <p>Inspection updates saved offline within your assigned AOR will appear here before syncing.</p>
                 </div>
               ) : (
                 <div className="offline-sync-list">
@@ -434,14 +571,14 @@ export default function OfflineSync() {
                 <div>
                   <p>PHOTO QUEUE</p>
                   <h2>Pending Photos</h2>
-                  <span>{pendingPhotosCount} offline photo/s found.</span>
+                  <span>{pendingPhotosCount} AOR-allowed offline photo/s found.</span>
                 </div>
               </div>
 
               {offlinePhotos.length === 0 ? (
                 <div className="offline-sync-empty">
                   <h3>No pending offline photos</h3>
-                  <p>Photos captured during offline inspection will appear here.</p>
+                  <p>Photos captured during offline inspection within your assigned AOR will appear here.</p>
                 </div>
               ) : (
                 <div className="offline-sync-list">
@@ -505,6 +642,7 @@ export default function OfflineSync() {
               <div className="offline-sync-table-tags">
                 <span>Updates: project_updates</span>
                 <span>Photos: project_photos</span>
+                <span>AOR hidden: {blockedPendingCount}</span>
               </div>
             </div>
 
@@ -517,12 +655,18 @@ export default function OfflineSync() {
                 type="button"
                 className="primary"
                 onClick={syncNow}
-                disabled={!isOnline || syncing || totalPendingCount === 0}
+                disabled={!isOnline || syncing || totalPendingCount === 0 || !canSyncCurrentQueue}
               >
                 {syncing ? 'Syncing...' : 'Sync Now'}
               </button>
             </div>
           </section>
+
+          {blockedPendingCount > 0 && !userIsAdmin && (
+            <div className="offline-sync-error">
+              <strong>AOR Lock:</strong> {blockedPendingCount} pending offline record/s on this device are outside your assigned AOR. They are hidden and cannot be synced by this account.
+            </div>
+          )}
 
           {lastSyncMessage && (
             <div className="offline-sync-success">

@@ -1,6 +1,8 @@
 export type AorProjectLike = {
   province?: unknown
   municipality?: unknown
+  city?: unknown
+  huc?: unknown
 }
 
 export type AorProfileLike = {
@@ -17,6 +19,8 @@ export type AorProfileLike = {
 export type AorAssignmentLike = {
   province?: string | null
   municipality?: string | null
+  city?: string | null
+  huc?: string | null
   is_active?: boolean | null
 }
 
@@ -45,6 +49,10 @@ export function textKey(value: unknown) {
     .replace(/\s+/g, ' ')
 }
 
+function displayText(value: unknown) {
+  return String(value ?? '').trim()
+}
+
 export function getCanonicalRole(role: string | null | undefined) {
   const value = textKey(role)
 
@@ -60,10 +68,17 @@ export function getCanonicalRole(role: string | null | undefined) {
   if (value === 'clgoo' || value === 'city local government operations officer') return 'CLGOO'
   if (value === 'mlgoo' || value === 'municipal local government operations officer') return 'MLGOO'
   if (value === 'peo' || value === 'project evaluation officer') return 'PEO'
-  if (value === 'pdmu chief' || value === 'pdmu chief/head' || value === 'pdmu head' || value === 'pdmu') return 'PDMU Chief'
+  if (
+    value === 'pdmu chief' ||
+    value === 'pdmu chief/head' ||
+    value === 'pdmu head' ||
+    value === 'pdmu'
+  ) {
+    return 'PDMU Chief'
+  }
   if (value === 'viewer') return 'Viewer'
 
-  return String(role || '').trim()
+  return displayText(role)
 }
 
 function isActiveApproved(profile: AorProfileLike | null | undefined) {
@@ -73,7 +88,25 @@ function isActiveApproved(profile: AorProfileLike | null | undefined) {
 function sameText(left: unknown, right: unknown) {
   const leftKey = textKey(left)
   const rightKey = textKey(right)
+
   return Boolean(leftKey && rightKey && leftKey === rightKey)
+}
+
+function uniqueCleanValues(values: unknown[]) {
+  const seen = new Set<string>()
+  const output: string[] = []
+
+  values.forEach((value) => {
+    const label = displayText(value)
+    const key = textKey(label)
+
+    if (!key || seen.has(key)) return
+
+    seen.add(key)
+    output.push(label)
+  })
+
+  return output
 }
 
 function projectMatchesProvince(project: AorProjectLike, province: unknown) {
@@ -82,6 +115,14 @@ function projectMatchesProvince(project: AorProjectLike, province: unknown) {
 
 function projectMatchesMunicipality(project: AorProjectLike, municipality: unknown) {
   return sameText(project.municipality, municipality)
+}
+
+function projectMatchesCity(project: AorProjectLike, city: unknown) {
+  return sameText(project.municipality, city) || sameText(project.city, city)
+}
+
+function projectMatchesHuc(project: AorProjectLike, huc: unknown) {
+  return sameText(project.municipality, huc) || sameText(project.huc, huc)
 }
 
 function getActivePoAssignments(auth: AorAuthLike | null | undefined) {
@@ -96,53 +137,58 @@ function getActiveRoAssignments(auth: AorAuthLike | null | undefined) {
   )
 }
 
-function uniqueTextValues(values: unknown[]) {
-  const seen = new Set<string>()
-  const result: string[] = []
-
-  values.forEach((value) => {
-    const text = String(value ?? '').trim()
-    const key = textKey(text)
-
-    if (!text || seen.has(key)) return
-
-    seen.add(key)
-    result.push(text)
-  })
-
-  return result
-}
-
 function hasRegionalView(role: string) {
   return role === 'Admin' || role === 'RD' || role === 'ARD' || role === 'PDMU Chief'
 }
 
-function canAccessRoProvince(project: AorProjectLike, auth: AorAuthLike) {
+export function getRoEngineerAllowedProvinces(auth: AorAuthLike | null | undefined) {
   const assignments = getActiveRoAssignments(auth)
 
-  if (assignments.length > 0) {
-    return assignments.some((assignment) =>
-      projectMatchesProvince(project, assignment.province),
-    )
-  }
+  const assignedProvinces =
+    assignments.length > 0
+      ? assignments.map((assignment) => assignment.province)
+      : [auth?.profile?.province]
 
-  return projectMatchesProvince(project, auth.profile?.province)
+  return uniqueCleanValues(assignedProvinces)
 }
 
-function canAccessPoLgu(project: AorProjectLike, auth: AorAuthLike) {
+export function getPoEngineerAllowedLgus(auth: AorAuthLike | null | undefined) {
   const assignments = getActivePoAssignments(auth)
 
   if (assignments.length > 0) {
-    return assignments.some(
-      (assignment) =>
-        projectMatchesProvince(project, assignment.province) &&
-        projectMatchesMunicipality(project, assignment.municipality),
-    )
+    return assignments
+      .filter((assignment) => displayText(assignment.province) && displayText(assignment.municipality))
+      .map((assignment) => ({
+        province: displayText(assignment.province),
+        municipality: displayText(assignment.municipality),
+      }))
   }
 
-  return (
-    projectMatchesProvince(project, auth.profile?.province) &&
-    projectMatchesMunicipality(project, auth.profile?.municipality)
+  const province = displayText(auth?.profile?.province)
+  const municipality = displayText(auth?.profile?.municipality)
+
+  if (!province || !municipality) return []
+
+  return [{ province, municipality }]
+}
+
+function canAccessRoProvince(project: AorProjectLike, auth: AorAuthLike) {
+  const allowedProvinces = getRoEngineerAllowedProvinces(auth)
+
+  if (allowedProvinces.length === 0) return false
+
+  return allowedProvinces.some((province) => projectMatchesProvince(project, province))
+}
+
+function canAccessPoLgu(project: AorProjectLike, auth: AorAuthLike) {
+  const allowedLgus = getPoEngineerAllowedLgus(auth)
+
+  if (allowedLgus.length === 0) return false
+
+  return allowedLgus.some(
+    (assignment) =>
+      projectMatchesProvince(project, assignment.province) &&
+      projectMatchesMunicipality(project, assignment.municipality),
   )
 }
 
@@ -156,11 +202,11 @@ function canViewByAorLevel(project: AorProjectLike, profile: AorProfileLike) {
   }
 
   if (aorLevel === 'huc') {
-    return projectMatchesMunicipality(project, profile.huc)
+    return projectMatchesHuc(project, profile.huc)
   }
 
   if (aorLevel === 'city') {
-    return projectMatchesMunicipality(project, profile.city)
+    return projectMatchesCity(project, profile.city)
   }
 
   if (aorLevel === 'municipality' || aorLevel === 'municipality / lgu') {
@@ -174,8 +220,8 @@ function canViewByAorLevel(project: AorProjectLike, profile: AorProfileLike) {
     )
   }
 
-  if (profile.huc && projectMatchesMunicipality(project, profile.huc)) return true
-  if (profile.city && projectMatchesMunicipality(project, profile.city)) return true
+  if (profile.huc && projectMatchesHuc(project, profile.huc)) return true
+  if (profile.city && projectMatchesCity(project, profile.city)) return true
   if (profile.municipality && projectMatchesMunicipality(project, profile.municipality)) {
     return true
   }
@@ -184,59 +230,13 @@ function canViewByAorLevel(project: AorProjectLike, profile: AorProfileLike) {
   return false
 }
 
-export function getRoEngineerAllowedProvinces(auth: AorAuthLike | null | undefined) {
-  const profile = auth?.profile
-  const role = getCanonicalRole(profile?.role)
-
-  if (!profile || !isActiveApproved(profile)) return []
-  if (!auth?.isROEngineer && role !== 'RO Engineer') return []
-
-  const assignmentProvinces = getActiveRoAssignments(auth).map(
-    (assignment) => assignment.province,
-  )
-
-  const provinces = uniqueTextValues(assignmentProvinces)
-
-  if (provinces.length > 0) return provinces
-
-  return uniqueTextValues([profile.province])
-}
-
-export function canCreateProjectInAor(
-  project: AorProjectLike,
-  auth: AorAuthLike | null | undefined,
-) {
-  const profile = auth?.profile
-
-  if (!profile) return false
-  if (!isActiveApproved(profile)) return false
-
-  const role = getCanonicalRole(profile.role)
-  const currentAuth: AorAuthLike = auth || { profile }
-
-  if (currentAuth.isAdmin || role === 'Admin') return true
-
-  if (currentAuth.isROEngineer || role === 'RO Engineer') {
-    return canAccessRoProvince(project, currentAuth)
-  }
-
-  return false
-}
-
-export function canEditProjectRecord(
-  project: AorProjectLike,
-  auth: AorAuthLike | null | undefined,
-) {
-  return canCreateProjectInAor(project, auth)
-}
-
 export function canViewProject(project: AorProjectLike, auth: AorAuthLike | null | undefined) {
   const profile = auth?.profile
 
   if (!profile) return false
   if (!isActiveApproved(profile)) return false
 
-  const role = getCanonicalRole(profile?.role)
+  const role = getCanonicalRole(profile.role)
   const currentAuth: AorAuthLike = auth || { profile }
 
   if (currentAuth.isAdmin || hasRegionalView(role)) return true
@@ -250,19 +250,19 @@ export function canViewProject(project: AorProjectLike, auth: AorAuthLike | null
   }
 
   if (currentAuth.isPD || role === 'PD' || currentAuth.isPEO || role === 'PEO') {
-    return projectMatchesProvince(project, profile?.province)
+    return projectMatchesProvince(project, profile.province)
   }
 
   if (currentAuth.isCD || role === 'CD') {
-    return projectMatchesMunicipality(project, profile?.huc)
+    return projectMatchesHuc(project, profile.huc)
   }
 
   if (currentAuth.isCLGOO || role === 'CLGOO') {
-    return projectMatchesMunicipality(project, profile?.city)
+    return projectMatchesCity(project, profile.city)
   }
 
   if (currentAuth.isMLGOO || role === 'MLGOO') {
-    return projectMatchesMunicipality(project, profile?.municipality)
+    return projectMatchesMunicipality(project, profile.municipality)
   }
 
   return canViewByAorLevel(project, profile)
@@ -288,6 +288,48 @@ export function canUpdateProject(
 
   if (currentAuth.isPOEngineer || currentAuth.isEngineer || role === 'PO Engineer') {
     return canAccessPoLgu(project, currentAuth)
+  }
+
+  return false
+}
+
+export function canEditProjectRecord(
+  project: AorProjectLike,
+  auth: AorAuthLike | null | undefined,
+) {
+  const profile = auth?.profile
+
+  if (!profile) return false
+  if (!isActiveApproved(profile)) return false
+
+  const role = getCanonicalRole(profile.role)
+  const currentAuth: AorAuthLike = auth || { profile }
+
+  if (currentAuth.isAdmin || role === 'Admin') return true
+
+  if (currentAuth.isROEngineer || role === 'RO Engineer') {
+    return canAccessRoProvince(project, currentAuth)
+  }
+
+  return false
+}
+
+export function canCreateProjectInAor(
+  project: AorProjectLike,
+  auth: AorAuthLike | null | undefined,
+) {
+  const profile = auth?.profile
+
+  if (!profile) return false
+  if (!isActiveApproved(profile)) return false
+
+  const role = getCanonicalRole(profile.role)
+  const currentAuth: AorAuthLike = auth || { profile }
+
+  if (currentAuth.isAdmin || role === 'Admin') return true
+
+  if (currentAuth.isROEngineer || role === 'RO Engineer') {
+    return canAccessRoProvince(project, currentAuth)
   }
 
   return false
