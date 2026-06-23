@@ -74,6 +74,7 @@ type ProjectUpdateRecord = {
 }
 
 type CoordinateSource = 'project' | 'update' | 'none'
+type MapLayer = 'street' | 'satellite'
 
 type MapProject = ProjectRecord & {
   displayLatitude: number | null
@@ -432,6 +433,26 @@ function ExitFullscreenIcon() {
   )
 }
 
+function SatelliteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 6.5 12 3l8 3.5-8 3.5-8-3.5Z" />
+      <path d="m4 11 8 3.5 8-3.5" />
+      <path d="m4 15.5 8 3.5 8-3.5" />
+    </svg>
+  )
+}
+
+function StreetMapIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M9 18 4 20V6l5-2 6 2 5-2v14l-5 2-6-2Z" />
+      <path d="M9 4v14" />
+      <path d="M15 6v14" />
+    </svg>
+  )
+}
+
 
 function BackIcon() {
   return (
@@ -561,6 +582,7 @@ export default function ProjectMap() {
   const [isMapScrolled, setIsMapScrolled] = useState(false)
   const [focusSignal, setFocusSignal] = useState(0)
   const [isMapFullscreen, setIsMapFullscreen] = useState(false)
+  const [mapLayer, setMapLayer] = useState<MapLayer>('street')
 
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('All')
@@ -833,6 +855,16 @@ export default function ProjectMap() {
 
       <button
         type="button"
+        className={`pm-map-fab pm-map-fab-satellite ${mapLayer === 'satellite' ? 'is-active' : ''}`}
+        onClick={() => setMapLayer((current) => (current === 'satellite' ? 'street' : 'satellite'))}
+        aria-label={mapLayer === 'satellite' ? 'Switch to street map' : 'Switch to satellite view'}
+        title={mapLayer === 'satellite' ? 'Street Map' : 'Satellite View'}
+      >
+        {mapLayer === 'satellite' ? <StreetMapIcon /> : <SatelliteIcon />}
+      </button>
+
+      <button
+        type="button"
         className="pm-map-fab pm-map-fab-refocus"
         onClick={() => setFocusSignal((current) => current + 1)}
         aria-label="Refocus map"
@@ -1067,15 +1099,25 @@ export default function ProjectMap() {
                   className="pm-leaflet-map"
                   zoomControl
                 >
-                  <TileLayer
-                    attribution="&copy; OpenStreetMap contributors"
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    detectRetina
-                    maxZoom={19}
-                  />
+                  {mapLayer === 'satellite' ? (
+                    <TileLayer
+                      key="satellite"
+                      attribution="Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community"
+                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                      maxZoom={19}
+                    />
+                  ) : (
+                    <TileLayer
+                      key="street"
+                      attribution="&copy; OpenStreetMap contributors"
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      detectRetina
+                      maxZoom={19}
+                    />
+                  )}
 
                   <MapResizeWatcher
-                    trigger={`${displayedProjects.length}-${searchTerm}-${showFilters}-${isMapFullscreen}`}
+                    trigger={`${displayedProjects.length}-${searchTerm}-${showFilters}-${isMapFullscreen}-${mapLayer}`}
                   />
 
                   <FitMapToMarkers
