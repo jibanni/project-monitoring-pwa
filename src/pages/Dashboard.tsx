@@ -765,66 +765,6 @@ export default function Dashboard() {
           ))}
         </section>
 
-        <section className="dashboard-priority-section">
-          <article className="dashboard-list-card">
-            <div className="dashboard-card-header">
-              <div>
-                <p className="dashboard-card-kicker">Priority Review</p>
-                <h2>High Risk Projects</h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  openDrilldown(
-                    'High Risk Projects',
-                    'Projects requiring close monitoring and follow-through.',
-                    dashboardData.highRiskProjects,
-                  )
-                }
-              >
-                View All
-              </button>
-            </div>
-
-            <div className="dashboard-project-list">
-              {dashboardData.highRiskProjects.slice(0, 5).length > 0 ? (
-                dashboardData.highRiskProjects.slice(0, 5).map((project) => {
-                  const varianceInfo = getTargetPhysicalInfo(project)
-
-                  return (
-                    <button
-                      type="button"
-                      key={getProjectId(project) || getProjectName(project)}
-                      onClick={() =>
-                        openDrilldown(
-                          getProjectName(project),
-                          'Selected high risk project record.',
-                          [project],
-                        )
-                      }
-                    >
-                      <div>
-                        <strong>{getProjectName(project)}</strong>
-                        <span>{getLocation(project)}</span>
-                      </div>
-
-                      <em className={`dashboard-slippage-em ${varianceInfo.className}`}>
-                        {formatSignedVariance(varianceInfo.variance)}
-                      </em>
-                    </button>
-                  )
-                })
-              ) : (
-                <div className="dashboard-empty-state compact">
-                  <strong>No high risk projects</strong>
-                  <p>No project is currently tagged as high risk.</p>
-                </div>
-              )}
-            </div>
-          </article>
-        </section>
-
         <section className="dashboard-main-grid dashboard-chart-row">
           <article className="dashboard-chart-card">
             <div className="dashboard-card-header">
@@ -989,6 +929,66 @@ export default function Dashboard() {
                   <strong>{formatCount(item.count)}</strong>
                 </button>
               ))}
+            </div>
+          </article>
+        </section>
+
+        <section className="dashboard-priority-section">
+          <article className="dashboard-list-card">
+            <div className="dashboard-card-header">
+              <div>
+                <p className="dashboard-card-kicker">Priority Review</p>
+                <h2>High Risk Projects</h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  openDrilldown(
+                    'High Risk Projects',
+                    'Projects requiring close monitoring and follow-through.',
+                    dashboardData.highRiskProjects,
+                  )
+                }
+              >
+                View All
+              </button>
+            </div>
+
+            <div className="dashboard-project-list">
+              {dashboardData.highRiskProjects.slice(0, 5).length > 0 ? (
+                dashboardData.highRiskProjects.slice(0, 5).map((project) => {
+                  const varianceInfo = getTargetPhysicalInfo(project)
+
+                  return (
+                    <button
+                      type="button"
+                      key={getProjectId(project) || getProjectName(project)}
+                      onClick={() =>
+                        openDrilldown(
+                          getProjectName(project),
+                          'Selected high risk project record.',
+                          [project],
+                        )
+                      }
+                    >
+                      <div>
+                        <strong>{getProjectName(project)}</strong>
+                        <span>{getLocation(project)}</span>
+                      </div>
+
+                      <em className={`dashboard-slippage-em ${varianceInfo.className}`}>
+                        {formatSignedVariance(varianceInfo.variance)}
+                      </em>
+                    </button>
+                  )
+                })
+              ) : (
+                <div className="dashboard-empty-state compact">
+                  <strong>No high risk projects</strong>
+                  <p>No project is currently tagged as high risk.</p>
+                </div>
+              )}
             </div>
           </article>
         </section>

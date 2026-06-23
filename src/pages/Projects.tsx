@@ -742,7 +742,7 @@ export default function Projects() {
           </div>
 
           <span className="projects-count-pill">
-            {filteredProjects.length} / {projects.length}
+            {filteredProjects.length} / {allowedProjects.length}
           </span>
         </div>
 
