@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ChangeEvent, FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { cleanupProjectPhotos } from '../services/photoService'
 import { offlineDb } from '../lib/offlineDb'
@@ -38,6 +38,10 @@ type ProjectRecord = {
   risk_level?: string | null
   last_inspection_date?: string | null
   updated_at?: string | null
+}
+
+type ProjectUpdateRouteState = {
+  project?: ProjectRecord | null
 }
 
 type ProjectUpdateRecord = {
@@ -428,6 +432,28 @@ async function updateCachedProject(projectId: string, patch: Partial<ProjectReco
   await projectsTable.update(projectId, patch)
 }
 
+async function putCachedProject(projectRecord: ProjectRecord) {
+  const db = offlineDb as any
+  const projectsTable = db?.projects
+
+  if (!projectRecord?.id || !projectsTable?.put) {
+    return
+  }
+
+  await projectsTable.put({
+    ...projectRecord,
+    project_name: projectRecord.project_name || 'Untitled Project',
+    status: projectRecord.status || 'Not Yet Started',
+    municipality: projectRecord.municipality || '',
+    province: projectRecord.province || '',
+    barangay: projectRecord.barangay || '',
+    physical_accomplishment: toNumber(projectRecord.physical_accomplishment),
+    financial_accomplishment: toNumber(projectRecord.financial_accomplishment),
+    risk_level: projectRecord.risk_level || 'None',
+    cached_at: new Date().toISOString(),
+  })
+}
+
 function IconBack() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -439,6 +465,7 @@ function IconBack() {
 export default function ProjectUpdates() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const auth = useAuth() as any
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const photoInputsRef = useRef<PhotoInput[]>([])
@@ -447,6 +474,7 @@ export default function ProjectUpdates() {
   const [recentUpdates, setRecentUpdates] = useState<ProjectUpdateRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [accessDenied, setAccessDenied] = useState(false)
+  const [projectMissingOffline, setProjectMissingOffline] = useState(false)
   const [saving, setSaving] = useState(false)
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -471,6 +499,15 @@ export default function ProjectUpdates() {
   const [photoInputs, setPhotoInputs] = useState<PhotoInput[]>([])
   const [isUpdateScrolled, setIsUpdateScrolled] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
+
+  const routeProject = useMemo(() => {
+    const state = location.state as ProjectUpdateRouteState | null
+    const candidate = state?.project
+
+    if (!candidate?.id || !id) return null
+
+    return String(candidate.id) === String(id) ? candidate : null
+  }, [location.state, id])
 
   const currentPhysical = useMemo(
     () => clampProgress(project?.physical_accomplishment),
@@ -518,7 +555,7 @@ export default function ProjectUpdates() {
 
   const canSubmit = useMemo(() => {
     if (!project) {
-      return Boolean(auth?.isAdmin || auth?.isROEngineer || auth?.isPOEngineer || auth?.isEngineer)
+      return false
     }
 
     return canUpdateProject(project, auth)
@@ -534,6 +571,7 @@ export default function ProjectUpdates() {
     auth?.isEngineer,
     auth?.poEngineerLguAssignments?.length,
     auth?.roEngineerProvinceAssignments?.length,
+    routeProject?.id,
   ])
 
   useEffect(() => {
@@ -643,6 +681,7 @@ export default function ProjectUpdates() {
 
     setLoading(true)
     setErrorMessage('')
+    setProjectMissingOffline(false)
 
     try {
       if (online) {
@@ -666,7 +705,9 @@ export default function ProjectUpdates() {
         }
 
         setAccessDenied(false)
+        setProjectMissingOffline(false)
         setProject(onlineProject)
+        await putCachedProject(onlineProject)
         applyTargetPhysicalFromProject(onlineProject)
         setProjectStatus(onlineProject?.status || 'Ongoing')
         setPhysicalAccomplishment(
@@ -716,33 +757,46 @@ export default function ProjectUpdates() {
   async function loadOfflineData() {
     if (!id) return
 
-    const cachedProject = await getCachedProject(id)
+    let cachedProject = (await getCachedProject(id)) as ProjectRecord | null
 
-    if (cachedProject) {
-      if (!canUpdateProject(cachedProject, auth)) {
-        setAccessDenied(true)
-        setProject(null)
-        setRecentUpdates([])
-        return
-      }
-
-      setAccessDenied(false)
-      setProject(cachedProject)
-      applyTargetPhysicalFromProject(cachedProject as ProjectRecord)
-      setProjectStatus(cachedProject?.status || 'Ongoing')
-      setPhysicalAccomplishment(
-        cachedProject?.physical_accomplishment !== null &&
-          cachedProject?.physical_accomplishment !== undefined
-          ? String(cachedProject.physical_accomplishment)
-          : ''
-      )
-      setFinancialAccomplishment(
-        cachedProject?.financial_accomplishment !== null &&
-          cachedProject?.financial_accomplishment !== undefined
-          ? String(cachedProject.financial_accomplishment)
-          : ''
-      )
+    if (!cachedProject && routeProject) {
+      cachedProject = routeProject
+      await putCachedProject(routeProject)
     }
+
+    if (!cachedProject) {
+      setAccessDenied(false)
+      setProjectMissingOffline(true)
+      setProject(null)
+      setRecentUpdates([])
+      return
+    }
+
+    if (!canUpdateProject(cachedProject, auth)) {
+      setAccessDenied(true)
+      setProjectMissingOffline(false)
+      setProject(null)
+      setRecentUpdates([])
+      return
+    }
+
+    setAccessDenied(false)
+    setProjectMissingOffline(false)
+    setProject(cachedProject)
+    applyTargetPhysicalFromProject(cachedProject as ProjectRecord)
+    setProjectStatus(cachedProject?.status || 'Ongoing')
+    setPhysicalAccomplishment(
+      cachedProject?.physical_accomplishment !== null &&
+        cachedProject?.physical_accomplishment !== undefined
+        ? String(cachedProject.physical_accomplishment)
+        : ''
+    )
+    setFinancialAccomplishment(
+      cachedProject?.financial_accomplishment !== null &&
+        cachedProject?.financial_accomplishment !== undefined
+        ? String(cachedProject.financial_accomplishment)
+        : ''
+    )
 
     const offlineUpdates = await readOfflineTable(offlineUpdateTables)
     const filteredUpdates = offlineUpdates
@@ -1254,6 +1308,25 @@ export default function ProjectUpdates() {
         <div className="pu-loading-card">
           <div className="pu-spinner" />
           <p>Loading project update form...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (projectMissingOffline) {
+    return (
+      <div className="pu-page">
+        <div className="pu-empty-card">
+          <p className="pu-eyebrow">Offline Project Not Available</p>
+          <h2>This project is not cached on this device.</h2>
+          <p>
+            Open the Project Registry while online, wait for the project list to load,
+            then try Offline Update again. The app needs the project record cached
+            before it can save an offline inspection update.
+          </p>
+          <Link className="pu-secondary-btn" to="/projects">
+            Back to Project Registry
+          </Link>
         </div>
       </div>
     )
