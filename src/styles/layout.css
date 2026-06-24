@@ -1288,3 +1288,79 @@ body > .app-header.app-header-scrolled .app-brand-unit {
     border-radius: 24px !important;
   }
 }
+
+
+/* =========================================================
+   ANDROID CHROME SINGLE-FINGER SCROLL FIX
+   Keeps the fixed header/bottom nav, but lets page content receive
+   normal vertical pan gestures on Android Chrome/PWA.
+   ========================================================= */
+
+@media (max-width: 900px) {
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    touch-action: pan-y pinch-zoom !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  body {
+    position: relative !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  #root,
+  .app-shell,
+  .app-main,
+  .app-content,
+  .main-content,
+  .page-content,
+  .pu-page,
+  .pu-form-card,
+  .pu-update-section {
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    touch-action: pan-y pinch-zoom !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  .app-shell {
+    min-height: 100dvh !important;
+  }
+
+  .app-main {
+    min-height: calc(100dvh - var(--app-header-live-h, var(--app-header-h))) !important;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .app-header,
+  body > .app-header,
+  .app-mobile-nav,
+  .app-mobile-nav-scroll {
+    touch-action: pan-y pinch-zoom !important;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  .app-mobile-nav-item,
+  .pu-action-btn,
+  .pu-choice-card,
+  .pu-main-save-btn,
+  .pu-date-picker-proxy {
+    touch-action: manipulation !important;
+  }
+
+  .pu-modal-overlay,
+  .pu-save-modal,
+  .pu-success-modal {
+    touch-action: auto !important;
+  }
+}

@@ -513,18 +513,10 @@ export default function Layout({ children }: LayoutProps) {
                 aria-label={item.label}
                 onPointerDown={(event) => {
                   if (event.pointerType === 'touch' || event.pointerType === 'pen') {
-                    event.preventDefault()
                     lastMobilePointerNavRef.current = Date.now()
-                    navigateMobile(item)
                   }
                 }}
-                onClick={(event) => {
-                  event.preventDefault()
-
-                  if (Date.now() - lastMobilePointerNavRef.current < 450) {
-                    return
-                  }
-
+                onClick={() => {
                   navigateMobile(item)
                 }}
               >

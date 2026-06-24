@@ -171,3 +171,22 @@ textarea:focus {
     transform: none;
   }
 }
+
+/* Android Chrome / PWA scroll guard */
+@media (max-width: 900px) {
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    touch-action: pan-y pinch-zoom !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  body {
+    position: relative !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
