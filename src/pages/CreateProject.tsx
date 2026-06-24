@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { canCreateProjectInAor, getCanonicalRole, getRoEngineerAllowedProvinces } from '../utils/aorAccess'
+import { REGION10_PROVINCE_NAMES, getRegion10LgusByProvince } from '../data/region10Directory'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import '../styles/createProject.css'
 import '../styles/pageHero.css'
@@ -38,7 +39,7 @@ type ProjectInsert = {
   budget: number
   start_date: string | null
   target_completion_date: string | null
-  barangay: string
+  barangay: string | null
   municipality: string
   province: string
   latitude: number | null
@@ -83,6 +84,7 @@ const FUNDING_SOURCE_OPTIONS = [
   'LGSF-FALGU',
   'LGSF-GEF',
   'LGSF-SBDP',
+  'LGSF - SBDP UA',
   'LGSF-SAFPB',
   'SALINTUBIG',
   'CMGP / KALSADA',
@@ -257,6 +259,65 @@ function cleanText(value: string) {
   return cleaned.length > 0 ? cleaned : null
 }
 
+
+function todayLocalDate() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function evaluateAmountExpression(value: string) {
+  const expression = value.replace(/,/g, '').trim()
+
+  if (!expression) return null
+
+  if (!/^[0-9+\-*/().\s]+$/.test(expression)) return null
+
+  try {
+    const result = Function(`"use strict"; return (${expression})`)()
+    const numericValue = Number(result)
+
+    if (!Number.isFinite(numericValue) || numericValue < 0) return null
+
+    return numericValue
+  } catch {
+    return null
+  }
+}
+
+function formatAmountInput(value: number) {
+  if (!Number.isFinite(value)) return ''
+  if (Number.isInteger(value)) return String(value)
+
+  return value.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
+}
+
+function formatFinancialPercent(value: number) {
+  if (!Number.isFinite(value)) return '0.00'
+
+  const clamped = Math.min(100, Math.max(0, value))
+
+  return clamped.toFixed(2)
+}
+
+function sameOptionText(left: unknown, right: unknown) {
+  return textValue(left).toLowerCase().replace(/\s+/g, ' ') === textValue(right).toLowerCase().replace(/\s+/g, ' ')
+}
+
+function getBlankProvinceLabel(isAdmin: boolean, hasOptions: boolean) {
+  if (!hasOptions) return isAdmin ? 'No provinces available' : 'No assigned province'
+  return isAdmin ? 'Select province' : 'Select assigned province'
+}
+
+function getBlankLguLabel(hasProvince: boolean, hasOptions: boolean) {
+  if (!hasProvince) return 'Select province first'
+  if (!hasOptions) return 'No LGUs available'
+  return 'Select LGU'
+}
+
 export default function CreateProject() {
   const navigate = useNavigate()
   const auth = useAuth()
@@ -278,9 +339,10 @@ export default function CreateProject() {
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [physicalAccomplishment, setPhysicalAccomplishment] = useState('0')
-  const [financialAccomplishment, setFinancialAccomplishment] = useState('0')
+  const [targetPhysicalAccomplishment, setTargetPhysicalAccomplishment] = useState('')
+  const [disbursement, setDisbursement] = useState('')
+  const [financialAccomplishment, setFinancialAccomplishment] = useState('0.00')
   const [saving, setSaving] = useState(false)
-  const [gettingGps, setGettingGps] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
@@ -289,11 +351,52 @@ export default function CreateProject() {
   const canAccessCreate = auth.isAdmin || isROCreator
   const roAllowedProvinces = useMemo(() => getRoEngineerAllowedProvinces(auth), [auth])
 
+  const provinceOptions = useMemo(() => {
+    return auth.isAdmin ? REGION10_PROVINCE_NAMES : roAllowedProvinces
+  }, [auth.isAdmin, roAllowedProvinces])
+
+  const lguOptions = useMemo(() => {
+    if (!province) return []
+    return getRegion10LgusByProvince(province)
+  }, [province])
+
   useEffect(() => {
     if (!auth.isAdmin && isROCreator && roAllowedProvinces.length === 1 && !province) {
       setProvince(roAllowedProvinces[0])
     }
   }, [auth.isAdmin, isROCreator, province, roAllowedProvinces])
+
+  useEffect(() => {
+    if (!municipality) return
+    if (lguOptions.length === 0) return
+
+    const isStillAllowed = lguOptions.some((lgu) => sameOptionText(lgu, municipality))
+
+    if (!isStillAllowed) {
+      setMunicipality('')
+    }
+  }, [lguOptions, municipality])
+
+  const disbursementAmount = useMemo(() => {
+    const evaluatedAmount = evaluateAmountExpression(disbursement)
+
+    if (evaluatedAmount !== null) return evaluatedAmount
+
+    return toNumber(disbursement)
+  }, [disbursement])
+
+  const targetPhysicalSource = textValue(targetPhysicalAccomplishment) ? 'manual' : 'auto'
+
+  useEffect(() => {
+    const cost = toNumber(projectCost)
+
+    if (cost <= 0 || disbursementAmount <= 0) {
+      setFinancialAccomplishment('0.00')
+      return
+    }
+
+    setFinancialAccomplishment(formatFinancialPercent((disbursementAmount / cost) * 100))
+  }, [disbursementAmount, projectCost])
 
   const coordinateStatus = useMemo(() => {
     return getCoordinateStatus(latitude, longitude)
@@ -303,18 +406,22 @@ export default function CreateProject() {
       start_date: startDate,
       target_completion_date: targetCompletionDate,
       physical_accomplishment: physicalAccomplishment,
-      target_physical_source: 'auto',
+      target_physical_accomplishment: targetPhysicalAccomplishment,
+      target_physical_source: targetPhysicalSource,
+      target_physical_as_of: todayLocalDate(),
     })
-  }, [startDate, targetCompletionDate, physicalAccomplishment])
+  }, [startDate, targetCompletionDate, physicalAccomplishment, targetPhysicalAccomplishment, targetPhysicalSource])
 
   const computedRiskLevel = useMemo(() => {
     return getComputedRiskLevel({
       start_date: startDate,
       target_completion_date: targetCompletionDate,
       physical_accomplishment: physicalAccomplishment,
-      target_physical_source: 'auto',
+      target_physical_accomplishment: targetPhysicalAccomplishment,
+      target_physical_source: targetPhysicalSource,
+      target_physical_as_of: todayLocalDate(),
     })
-  }, [startDate, targetCompletionDate, physicalAccomplishment])
+  }, [startDate, targetCompletionDate, physicalAccomplishment, targetPhysicalAccomplishment, targetPhysicalSource])
 
   const canSubmit = useMemo(() => {
     return (
@@ -324,7 +431,6 @@ export default function CreateProject() {
       textValue(projectType).length > 0 &&
       textValue(fundingYear).length > 0 &&
       textValue(fundingSource).length > 0 &&
-      textValue(barangay).length > 0 &&
       textValue(municipality).length > 0 &&
       textValue(province).length > 0 &&
       !saving
@@ -336,7 +442,6 @@ export default function CreateProject() {
     projectType,
     fundingYear,
     fundingSource,
-    barangay,
     municipality,
     province,
     saving,
@@ -349,61 +454,23 @@ export default function CreateProject() {
     setLongitude(formatCoordinate(coordinateStatus.swappedLongitude || 0))
   }
 
-  function useCurrentGps() {
-    setErrorMessage('')
-    setSuccessMessage('')
+  function resolveDisbursementExpression() {
+    const amount = evaluateAmountExpression(disbursement)
 
-    if (!navigator.geolocation) {
-      setErrorMessage('GPS is not supported by this browser or device.')
+    if (amount === null) {
+      setErrorMessage('Disbursement must be a valid amount or calculator expression.')
       return
     }
 
-    setGettingGps(true)
+    setDisbursement(formatAmountInput(amount))
+    setErrorMessage('')
+  }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const currentLatitude = position.coords.latitude
-        const currentLongitude = position.coords.longitude
-
-        if (!isMindanaoCoordinate(currentLatitude, currentLongitude)) {
-          setGettingGps(false)
-          setErrorMessage(
-            'Current GPS was detected, but it is outside the Mindanao range. Please verify your location or enter coordinates manually.',
-          )
-          return
-        }
-
-        setLatitude(formatCoordinate(currentLatitude))
-        setLongitude(formatCoordinate(currentLongitude))
-        setGettingGps(false)
-        setSuccessMessage('Current GPS coordinates were added to the project form.')
-      },
-      (error) => {
-        let message = 'Unable to get current GPS location.'
-
-        if (error.code === error.PERMISSION_DENIED) {
-          message =
-            'Location permission was denied. Please allow location access in your browser settings.'
-        }
-
-        if (error.code === error.POSITION_UNAVAILABLE) {
-          message =
-            'Location is currently unavailable. Please check device location services.'
-        }
-
-        if (error.code === error.TIMEOUT) {
-          message = 'GPS request timed out. Please try again.'
-        }
-
-        setGettingGps(false)
-        setErrorMessage(message)
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      },
-    )
+  function handleDisbursementKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter' || event.key === '=') {
+      event.preventDefault()
+      resolveDisbursementExpression()
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -446,7 +513,7 @@ export default function CreateProject() {
       budget: toNumber(projectCost),
       start_date: startDate || null,
       target_completion_date: targetCompletionDate || null,
-      barangay: barangay.trim(),
+      barangay: cleanText(barangay),
       municipality: municipality.trim(),
       province: province.trim(),
       latitude: coordinateStatus.isValid ? coordinateStatus.latitude : null,
@@ -454,9 +521,11 @@ export default function CreateProject() {
       physical_accomplishment: clampProgress(physicalAccomplishment),
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: computedRiskLevel,
-      target_physical_accomplishment: null,
-      target_physical_as_of: null,
-      target_physical_source: 'auto',
+      target_physical_accomplishment: textValue(targetPhysicalAccomplishment)
+        ? clampProgress(targetPhysicalAccomplishment)
+        : null,
+      target_physical_as_of: textValue(targetPhysicalAccomplishment) ? todayLocalDate() : null,
+      target_physical_source: targetPhysicalSource,
       last_inspection_date: null,
       updated_at: new Date().toISOString(),
     }
@@ -640,66 +709,60 @@ export default function CreateProject() {
             <div>
               <h2>Location and GPS</h2>
               <p>
-                Coordinates are optional during creation. Invalid or out-of-Mindanao
-                coordinates will not be saved.
+                Coordinates are optional during creation and may be manually encoded.
+                Current-location GPS capture is reserved for field updates.
               </p>
             </div>
-
-            <button
-              type="button"
-              className="create-project-secondary-btn"
-              onClick={useCurrentGps}
-              disabled={gettingGps}
-            >
-              {gettingGps ? 'Getting GPS...' : 'Use Current GPS'}
-            </button>
           </div>
 
           <div className="create-project-grid">
             <label>
               Province <strong>*</strong>
-              {auth.isAdmin ? (
-                <input
-                  value={province}
-                  onChange={(event) => setProvince(event.target.value)}
-                  placeholder="Example: Bukidnon"
-                />
-              ) : (
-                <select
-                  value={province}
-                  onChange={(event) => setProvince(event.target.value)}
-                  disabled={roAllowedProvinces.length <= 1}
-                >
-                  {roAllowedProvinces.length === 0 && (
-                    <option value="">No assigned province</option>
-                  )}
-                  {roAllowedProvinces.length > 1 && (
-                    <option value="">Select assigned province</option>
-                  )}
-                  {roAllowedProvinces.map((provinceName) => (
-                    <option key={provinceName} value={provinceName}>
-                      {provinceName}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <select
+                value={province}
+                onChange={(event) => {
+                  setProvince(event.target.value)
+                  setMunicipality('')
+                }}
+                disabled={!auth.isAdmin && provinceOptions.length <= 1}
+              >
+                {(auth.isAdmin || provinceOptions.length !== 1) && (
+                  <option value="">
+                    {getBlankProvinceLabel(auth.isAdmin, provinceOptions.length > 0)}
+                  </option>
+                )}
+                {provinceOptions.map((provinceName) => (
+                  <option key={provinceName} value={provinceName}>
+                    {provinceName}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label>
-              Municipality / LGU <strong>*</strong>
-              <input
+              LGU <strong>*</strong>
+              <select
                 value={municipality}
                 onChange={(event) => setMunicipality(event.target.value)}
-                placeholder="Example: Quezon"
-              />
+                disabled={!province || lguOptions.length === 0}
+              >
+                <option value="">
+                  {getBlankLguLabel(Boolean(province), lguOptions.length > 0)}
+                </option>
+                {lguOptions.map((lguName) => (
+                  <option key={lguName} value={lguName}>
+                    {lguName}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label>
-              Barangay <strong>*</strong>
+              Barangay
               <input
                 value={barangay}
                 onChange={(event) => setBarangay(event.target.value)}
-                placeholder="Example: Santo Niño"
+                placeholder="Optional barangay"
               />
             </label>
 
@@ -777,6 +840,31 @@ export default function CreateProject() {
             </label>
 
             <label>
+              Disbursement
+              <div className="create-project-calculator-row">
+                <input
+                  value={disbursement}
+                  onChange={(event) => setDisbursement(event.target.value)}
+                  onKeyDown={handleDisbursementKeyDown}
+                  onBlur={() => {
+                    if (disbursement.trim()) resolveDisbursementExpression()
+                  }}
+                  placeholder="Example: 500000 + 250000"
+                  inputMode="decimal"
+                />
+
+                <button
+                  type="button"
+                  className="create-project-equals-btn"
+                  onClick={resolveDisbursementExpression}
+                  aria-label="Compute disbursement"
+                >
+                  =
+                </button>
+              </div>
+            </label>
+
+            <label>
               Start Date
               <input
                 type="date"
@@ -815,13 +903,24 @@ export default function CreateProject() {
             </label>
 
             <label>
-              Financial Accomplishment
+              Target Physical Accomplishment (%)
               <input
-                value={financialAccomplishment}
-                onChange={(event) => setFinancialAccomplishment(event.target.value)}
-                placeholder="0"
+                value={targetPhysicalAccomplishment}
+                onChange={(event) => setTargetPhysicalAccomplishment(event.target.value)}
+                placeholder="Optional target physical"
                 inputMode="decimal"
               />
+            </label>
+
+            <label className="create-project-readonly-field">
+              Financial Accomplishment (%)
+              <input
+                value={financialAccomplishment}
+                readOnly
+                placeholder="0.00"
+                inputMode="decimal"
+              />
+              <small>Auto-computed from Disbursement / Project Cost.</small>
             </label>
           </div>
         </section>

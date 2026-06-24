@@ -145,6 +145,7 @@
 .create-project-grid label {
   display: grid;
   gap: 8px;
+  min-width: 0;
   color: #334155;
   font-size: 0.86rem;
   font-weight: 950;
@@ -162,6 +163,8 @@
 .create-project-grid select,
 .create-project-grid textarea {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #cbd5e1;
   border-radius: 15px;
   padding: 0 14px;
@@ -180,6 +183,44 @@
   min-height: 50px;
 }
 
+/* Fix mobile/iOS date fields so they do not center, stretch, or overflow. */
+.create-project-grid input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  width: 100%;
+  height: 50px;
+  min-height: 50px;
+  padding: 0 14px;
+  line-height: 50px;
+  text-align: left;
+  background-color: #ffffff;
+}
+
+.create-project-grid input[type='date']::-webkit-date-and-time-value {
+  min-height: 1.4em;
+  margin: 0;
+  text-align: left;
+}
+
+.create-project-grid input[type='date']::-webkit-datetime-edit {
+  display: block;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+}
+
+.create-project-grid input[type='date']::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+  opacity: 0.65;
+}
+
+.create-project-grid input[type='date']::-webkit-inner-spin-button,
+.create-project-grid input[type='date']::-webkit-clear-button {
+  display: none;
+}
+
 .create-project-grid textarea {
   min-height: 118px;
   padding-top: 13px;
@@ -192,6 +233,47 @@
 .create-project-grid textarea:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+
+/* Disbursement calculator row */
+.create-project-calculator-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px;
+  gap: 10px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.create-project-calculator-row input {
+  min-width: 0;
+}
+
+.create-project-equals-btn {
+  width: 56px;
+  min-width: 56px;
+  min-height: 50px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0b4f86 0%, #2563eb 100%);
+  color: #ffffff;
+  font-size: 1.4rem;
+  font-weight: 950;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.24);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.create-project-equals-btn:hover {
+  filter: brightness(1.05);
+}
+
+.create-project-equals-btn:active {
+  transform: translateY(1px);
 }
 
 .create-project-location-note,
@@ -425,5 +507,21 @@
 
   .create-project-actions button {
     width: 100%;
+  }
+}
+
+
+@media (max-width: 560px) {
+  .create-project-calculator-row {
+    grid-template-columns: minmax(0, 1fr) 54px;
+    gap: 8px;
+  }
+
+  .create-project-equals-btn {
+    width: 54px;
+    min-width: 54px;
+    min-height: 50px;
+    border-radius: 15px;
+    font-size: 1.35rem;
   }
 }
