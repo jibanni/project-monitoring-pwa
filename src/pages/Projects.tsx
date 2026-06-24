@@ -137,6 +137,7 @@ function getStatusClass(status: string | null) {
 function getRiskClass(risk: string | null) {
   const normalized = textValue(risk).toLowerCase()
 
+  if (!normalized || normalized === 'none' || normalized.includes('no risk')) return 'none'
   if (normalized.includes('high')) return 'high'
   if (normalized.includes('moderate') || normalized.includes('medium')) {
     return 'moderate'
@@ -149,11 +150,12 @@ function getRiskClass(risk: string | null) {
 function getProjectCardClass(risk: string | null) {
   const normalized = getRiskClass(risk)
 
-  if (normalized === 'high') return 'project-card high-risk'
-  if (normalized === 'moderate') return 'project-card moderate-risk'
-  if (normalized === 'low') return 'project-card low-risk'
+  if (normalized === 'high') return 'project-list-row high-risk'
+  if (normalized === 'moderate') return 'project-list-row moderate-risk'
+  if (normalized === 'low') return 'project-list-row low-risk'
+  if (normalized === 'none') return 'project-list-row none-risk'
 
-  return 'project-card'
+  return 'project-list-row'
 }
 
 function SearchIcon() {
@@ -190,6 +192,22 @@ function AddIcon() {
   )
 }
 
+
+function ViewIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5.2c4.6 0 7.8 3.6 9 6.8-1.2 3.2-4.4 6.8-9 6.8S4.2 15.2 3 12c1.2-3.2 4.4-6.8 9-6.8Zm0 2C8.8 7.2 6.3 9.4 5.2 12c1.1 2.6 3.6 4.8 6.8 4.8s5.7-2.2 6.8-4.8C17.7 9.4 15.2 7.2 12 7.2Zm0 2.2a2.6 2.6 0 1 1 0 5.2 2.6 2.6 0 0 1 0-5.2Z" />
+    </svg>
+  )
+}
+
+function UpdateIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M17.7 6.3a7.9 7.9 0 0 0-12.9 3.4 1 1 0 0 0 1.92.58 5.9 5.9 0 0 1 9.55-2.62L14.9 9.03A.75.75 0 0 0 15.43 10H20a.75.75 0 0 0 .75-.75V4.68a.75.75 0 0 0-1.28-.53L17.7 6.3ZM6.3 17.7a7.9 7.9 0 0 0 12.9-3.4 1 1 0 1 0-1.92-.58 5.9 5.9 0 0 1-9.55 2.62l1.37-1.37A.75.75 0 0 0 8.57 14H4a.75.75 0 0 0-.75.75v4.57a.75.75 0 0 0 1.28.53L6.3 17.7Z" />
+    </svg>
+  )
+}
 
 function toOfflineProject(project: ProjectRow) {
   return {
@@ -734,11 +752,11 @@ export default function Projects() {
         </div>
       </section>
 
-      <section className="projects-list-card">
+      <section className="projects-list-card projects-compact-list-card">
         <div className="projects-list-header">
           <div>
             <p className="projects-section-eyebrow">Records</p>
-            <h2>Project Cards</h2>
+            <h2>Project List</h2>
           </div>
 
           <span className="projects-count-pill">
@@ -752,7 +770,7 @@ export default function Projects() {
             <p>Adjust the filters or clear all filters to show available projects.</p>
           </div>
         ) : (
-          <div className="projects-card-grid">
+          <div className="projects-compact-list">
             {filteredProjects.map((project) => {
               const physical = Math.min(
                 100,
@@ -762,107 +780,81 @@ export default function Projects() {
                 100,
                 Math.max(0, toNumber(project.financial_accomplishment)),
               )
+              const computedRisk = getComputedRiskLevel(project)
               const varianceInfo = getTargetPhysicalInfo(project)
+              const canUpdateProject = canUpdateProjectByAor(project, auth)
+              const location = [project.barangay, project.municipality, project.province]
+                .map(textValue)
+                .filter(Boolean)
+                .join(', ')
+              const latestInspection = project.last_inspection_date || project.updated_at
 
               return (
-                <article key={project.id} className={getProjectCardClass(getComputedRiskLevel(project))}>
-                  <div className="project-card-header">
-                    <div className="project-card-main">
-                      <p className="project-location">
-                        {formatFundingDisplay(project)}
-                      </p>
-                      <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
-                      <p className="project-address">
-                        {textValue(project.barangay) || 'No Barangay'},{' '}
-                        {textValue(project.municipality) || 'No Municipality'},{' '}
-                        {textValue(project.province) || 'No Province'}
-                      </p>
+                <article key={project.id} className={getProjectCardClass(computedRisk)}>
+                  <div className="project-row-main">
+                    <p className="project-row-program">{formatFundingDisplay(project)}</p>
+                    <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
+                    <p className="project-row-location">
+                      {location || 'No location encoded'}
+                    </p>
+                  </div>
+
+                  <div className="project-row-status-stack">
+                    <span className={`project-status ${getStatusClass(project.status)}`}>
+                      {textValue(project.status) || 'No Status'}
+                    </span>
+                    <span className={`project-risk ${getRiskClass(computedRisk)}`}>
+                      {computedRisk}
+                    </span>
+                    <span className={`project-row-variance ${varianceInfo.className}`}>
+                      {varianceInfo.compactLabel}
+                    </span>
+                  </div>
+
+                  <div className="project-row-metrics">
+                    <div className="project-row-metric">
+                      <span>Physical</span>
+                      <strong>{formatPercent(physical)}</strong>
                     </div>
 
-                    <div className="project-badges">
-                      <span className={`project-status ${getStatusClass(project.status)}`}>
-                        {textValue(project.status) || 'No Status'}
-                      </span>
-                      <span className={`project-risk ${getRiskClass(getComputedRiskLevel(project))}`}>
-                        {getComputedRiskLevel(project)}
-                      </span>
+                    <div className="project-row-metric">
+                      <span>Financial</span>
+                      <strong>{formatPercent(financial)}</strong>
+                    </div>
+
+                    <div className="project-row-metric project-row-cost">
+                      <span>Cost</span>
+                      <strong>{formatCompactCurrency(project.budget)}</strong>
+                    </div>
+
+                    <div className="project-row-metric">
+                      <span>Latest</span>
+                      <strong>{formatLongDate(latestInspection)}</strong>
                     </div>
                   </div>
 
-                  <div className="project-info-grid">
-                    <div className="project-info-item">
-                      <span>Project Cost</span>
-                      <strong>{formatCurrency(project.budget)}</strong>
-                    </div>
-
-                    <div className="project-info-item">
-                      <span>Target Date</span>
-                      <strong>{formatLongDate(project.target_completion_date)}</strong>
-                    </div>
-
-                    <div className="project-info-item">
-                      <span>Implementing Office</span>
-                      <strong>{textValue(project.implementing_office) || '-'}</strong>
-                    </div>
-
-                    <div className="project-info-item project-variance-item">
-                      <span>Variance</span>
-                      <strong className={`project-variance-value ${varianceInfo.className}`}>
-                        {varianceInfo.compactLabel}
-                      </strong>
-                      <small>{varianceInfo.asOfLabel}</small>
-                    </div>
-                  </div>
-
-                  <div className="project-progress-group">
-                    <div className="project-progress-row">
-                      <div className="project-progress-label">
-                        <span>Physical</span>
-                        <strong>{formatPercent(physical)}</strong>
-                      </div>
-                      <div className="project-progress-track">
-                        <div
-                          className="project-progress-fill"
-                          style={{ width: `${physical}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="project-progress-row">
-                      <div className="project-progress-label">
-                        <span>Financial</span>
-                        <strong>{formatPercent(financial)}</strong>
-                      </div>
-                      <div className="project-progress-track">
-                        <div
-                          className="project-progress-fill financial"
-                          style={{ width: `${financial}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="project-last-inspection">
-                    <span>Last Inspection</span>
-                    <strong>{formatLongDate(project.last_inspection_date)}</strong>
-                  </div>
-
-                  <div className="project-actions">
+                  <div className="project-row-actions">
                     <button
                       type="button"
-                      className="project-view-btn"
+                      className="project-row-action view"
                       onClick={() => navigate(`/projects/${project.id}`)}
+                      aria-label={`View ${textValue(project.project_name) || 'project'}`}
                     >
-                      View
+                      <ViewIcon />
+                      <span>View</span>
                     </button>
 
-                    {canUpdateProjectByAor(project, auth) && (
+                    {canUpdateProject && (
                       <button
                         type="button"
-                        className="project-update-btn"
-                        onClick={() => navigate(`/projects/${project.id}/updates`, { state: { project } })}
+                        className="project-row-action update"
+                        onClick={() =>
+                          navigate(`/projects/${project.id}/updates`, { state: { project } })
+                        }
+                        aria-label={`Update ${textValue(project.project_name) || 'project'}`}
                       >
-                        Update
+                        <UpdateIcon />
+                        <span>Update</span>
                       </button>
                     )}
                   </div>

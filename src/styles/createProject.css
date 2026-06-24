@@ -525,3 +525,49 @@
     font-size: 1.35rem;
   }
 }
+
+
+/* Not Yet Started reason + disabled/read-only field helpers */
+.create-project-disabled-field {
+  opacity: 0.72;
+}
+
+.create-project-disabled-field select,
+.create-project-disabled-field input,
+.create-project-disabled-field textarea {
+  cursor: not-allowed;
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
+.create-project-readonly-field input[readonly] {
+  background: #f8fafc;
+  color: #0b4f86;
+  cursor: default;
+}
+
+.create-project-readonly-field small,
+.create-project-grid label small {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+
+/* Phase 2O-A: Contract expiration and modification fields */
+.create-project-grid .span-2,
+.create-project-grid .create-project-field-wide {
+  grid-column: 1 / -1;
+}
+
+.create-project-contract-warning {
+  border-color: #fecaca !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+}
+
+.create-project-contract-warning strong,
+.create-project-contract-warning span {
+  color: #991b1b !important;
+}

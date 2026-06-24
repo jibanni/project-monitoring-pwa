@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { ChangeEvent, FormEvent } from 'react'
+import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { cleanupProjectPhotos } from '../services/photoService'
@@ -113,6 +113,14 @@ const statusOptions = [
   'Completed',
 ]
 
+const NOT_YET_STARTED_REASONS = [
+  'No TDRs Submitted',
+  'Lacking TDRs Submitted',
+  'TDRs under PO Engineers Review',
+  'TDRs under Review (PO)',
+  'TDRs under Review (RO)',
+]
+
 const offlineUpdateTables = [
   'offlineUpdates',
   'offline_updates',
@@ -181,6 +189,62 @@ function formatLongDate(value?: string | null) {
     month: 'long',
     day: 'numeric',
   })
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function parseDateTime(value?: string | null) {
+  if (!value) return null
+
+  const normalizedValue = value.length <= 10 ? `${value}T00:00:00` : value
+  const date = new Date(normalizedValue)
+
+  if (Number.isNaN(date.getTime())) return null
+
+  return date
+}
+
+function getDaysSinceDate(value?: string | null) {
+  const date = parseDateTime(value)
+
+  if (!date) {
+    return { days: null as number | null, label: 'No update yet' }
+  }
+
+  const today = new Date()
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const days = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86_400_000))
+
+  if (days === 0) return { days, label: 'Updated today' }
+  if (days === 1) return { days, label: 'Updated 1 day ago' }
+
+  return { days, label: `Updated ${days} days ago` }
+}
+
+function getUpdateDateValue(update?: ProjectUpdateRecord | null) {
+  return update?.inspection_date || update?.created_at || null
+}
+
+function evaluateAmountExpression(value: string) {
+  const cleaned = value.replace(/,/g, '').trim()
+
+  if (!cleaned) return 0
+
+  if (!/^[0-9+\-*/().\s]+$/.test(cleaned)) {
+    throw new Error('Disbursement only accepts numbers and calculator operators.')
+  }
+
+  const result = Function(`"use strict"; return (${cleaned})`)()
+  const amount = Number(result)
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error('Disbursement must be a valid non-negative amount.')
+  }
+
+  return amount
 }
 
 function cleanText(value: string) {
@@ -494,6 +558,8 @@ export default function ProjectUpdates() {
   const [targetPhysicalAccomplishment, setTargetPhysicalAccomplishment] = useState('')
   const targetPhysicalSource = 'manual' as const
   const [financialAccomplishment, setFinancialAccomplishment] = useState('')
+  const [disbursementAmount, setDisbursementAmount] = useState('')
+  const [notYetStartedReason, setNotYetStartedReason] = useState('')
   const [issues, setIssues] = useState('')
   const [recommendations, setRecommendations] = useState('')
   const [remarks, setRemarks] = useState('')
@@ -523,6 +589,33 @@ export default function ProjectUpdates() {
     () => clampProgress(project?.financial_accomplishment),
     [project?.financial_accomplishment]
   )
+
+  const projectCost = useMemo(() => toNumber(project?.budget), [project?.budget])
+
+  const isNotYetStartedSelected = useMemo(() => {
+    return normalizeText(projectStatus) === 'not yet started'
+  }, [projectStatus])
+
+  const latestUpdateDate = useMemo(() => {
+    const latestUpdate = recentUpdates[0]
+    return (
+      getUpdateDateValue(latestUpdate) ||
+      project?.last_inspection_date ||
+      project?.updated_at ||
+      null
+    )
+  }, [project?.last_inspection_date, project?.updated_at, recentUpdates])
+
+  const latestUpdateAge = useMemo(() => {
+    return getDaysSinceDate(latestUpdateDate)
+  }, [latestUpdateDate])
+
+
+  useEffect(() => {
+    if (!isNotYetStartedSelected && notYetStartedReason) {
+      setNotYetStartedReason('')
+    }
+  }, [isNotYetStartedSelected, notYetStartedReason])
 
   const targetVarianceInfo = useMemo(() => {
     return getTargetPhysicalInfo(
@@ -678,6 +771,44 @@ export default function ProjectUpdates() {
 
   function handleTargetPhysicalChange(value: string) {
     setTargetPhysicalAccomplishment(value)
+  }
+
+  function applyDisbursementComputation(rawValue = disbursementAmount) {
+    try {
+      if (projectCost <= 0) {
+        setErrorMessage('Project Cost is required before computing financial accomplishment from disbursement.')
+        return
+      }
+
+      const amount = evaluateAmountExpression(rawValue)
+      const percentage = Math.min(100, Math.max(0, (amount / projectCost) * 100))
+
+      setDisbursementAmount(String(amount))
+      setFinancialAccomplishment(formatProgressInput(percentage))
+      setErrorMessage('')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Invalid disbursement input.')
+    }
+  }
+
+  function handleDisbursementKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return
+
+    event.preventDefault()
+    applyDisbursementComputation()
+  }
+
+  function getUpdateRemarksWithReason() {
+    const remarksValue = cleanText(remarks)
+
+    if (!isNotYetStartedSelected || !notYetStartedReason) return remarksValue
+
+    const reasonLine = `Not Yet Started Reason: ${notYetStartedReason}`
+
+    if (!remarksValue) return reasonLine
+    if (remarksValue.includes(reasonLine)) return remarksValue
+
+    return `${reasonLine}\n\n${remarksValue}`
   }
 
 
@@ -991,6 +1122,10 @@ export default function ProjectUpdates() {
       return 'Please enter the financial accomplishment.'
     }
 
+    if (isNotYetStartedSelected && !notYetStartedReason) {
+      return 'Please select the reason for Not Yet Started / 0% physical accomplishment.'
+    }
+
     const physical = toNumber(physicalAccomplishment)
     const targetPhysical = toNumber(targetPhysicalAccomplishment)
     const financial = toNumber(financialAccomplishment)
@@ -1033,7 +1168,7 @@ export default function ProjectUpdates() {
       risk_level: autoRiskLevel,
       issues: cleanText(issues),
       recommendations: cleanText(recommendations),
-      remarks: cleanText(remarks),
+      remarks: getUpdateRemarksWithReason(),
       inspection_latitude:
         inspectionCoordinateStatus.isValid &&
         inspectionCoordinateStatus.latitude !== null
@@ -1295,6 +1430,8 @@ export default function ProjectUpdates() {
     setIssues('')
     setRecommendations('')
     setRemarks('')
+    setDisbursementAmount('')
+    setNotYetStartedReason('')
     setInspectionDate(todayInputValue())
     setGpsMessage('')
     setInspectionLatitude('')
@@ -1423,8 +1560,8 @@ export default function ProjectUpdates() {
           <strong>{formatPercent(currentFinancial)}</strong>
         </div>
         <div className="pu-summary-card">
-          <span>Target</span>
-          <strong>{formatPercent(targetVarianceInfo.targetPhysical)}</strong>
+          <span>Latest Update</span>
+          <strong>{latestUpdateAge.label}</strong>
         </div>
         <div className="pu-summary-card pu-variance-summary">
           <span>Variance</span>
@@ -1548,6 +1685,27 @@ export default function ProjectUpdates() {
             </label>
 
             <label className="pu-field">
+              <span>Reason for Not Yet Started</span>
+              <select
+                value={notYetStartedReason}
+                onChange={(event) => setNotYetStartedReason(event.target.value)}
+                required={isNotYetStartedSelected}
+                disabled={!isNotYetStartedSelected || saving}
+              >
+                <option value="">
+                  {isNotYetStartedSelected
+                    ? 'Select reason'
+                    : 'Enabled only when status is Not Yet Started'}
+                </option>
+                {NOT_YET_STARTED_REASONS.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {reason}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="pu-field">
               <span>Physical Accomplishment (%)</span>
               <input
                 type="number"
@@ -1579,6 +1737,58 @@ export default function ProjectUpdates() {
               />
             </label>
 
+            <label className="pu-field pu-disbursement-field">
+              <span>Disbursement</span>
+              <div
+                className="pu-disbursement-control"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0, 1fr) 56px',
+                  gap: '10px',
+                  alignItems: 'stretch',
+                  width: '100%',
+                }}
+              >
+                <input
+                  type="text"
+                  value={disbursementAmount}
+                  onChange={(event) => setDisbursementAmount(event.target.value)}
+                  onKeyDown={handleDisbursementKeyDown}
+                  placeholder="Example: 500000 + 250000"
+                  inputMode="decimal"
+                  disabled={saving}
+                  style={{ minWidth: 0 }}
+                />
+
+                <button
+                  type="button"
+                  className="pu-disbursement-equals-btn"
+                  onClick={() => applyDisbursementComputation()}
+                  disabled={saving || projectCost <= 0}
+                  aria-label="Compute disbursement and financial accomplishment"
+                  title="Compute"
+                  style={{
+                    minWidth: '56px',
+                    minHeight: '50px',
+                    border: 0,
+                    borderRadius: '15px',
+                    background: 'linear-gradient(135deg, #0f4c81 0%, #2563eb 100%)',
+                    color: '#ffffff',
+                    fontSize: '1.15rem',
+                    fontWeight: 950,
+                    boxShadow: '0 12px 24px rgba(37, 99, 235, 0.22)',
+                    cursor: saving || projectCost <= 0 ? 'not-allowed' : 'pointer',
+                    opacity: saving || projectCost <= 0 ? 0.55 : 1,
+                  }}
+                >
+                  =
+                </button>
+              </div>
+              <small style={{ color: '#64748b', fontWeight: 800 }}>
+                Enter an amount or simple expression, then tap = or press Enter.
+              </small>
+            </label>
+
             <label className="pu-field">
               <span>Financial Accomplishment (%)</span>
               <input
@@ -1591,7 +1801,7 @@ export default function ProjectUpdates() {
                 onChange={(event) =>
                   setFinancialAccomplishment(event.target.value)
                 }
-                placeholder="Example: 68.25"
+                placeholder="Auto-computed if disbursement is entered"
                 required
               />
             </label>
@@ -1859,6 +2069,10 @@ export default function ProjectUpdates() {
                         <span className="pu-pending-pill">Pending Sync</span>
                       )}
                     </div>
+
+                    <p>
+                      {getDaysSinceDate(getUpdateDateValue(update)).label}
+                    </p>
 
                     <p>
                       Physical: {formatPercent(update.physical_accomplishment)}

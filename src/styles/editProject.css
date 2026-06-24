@@ -939,3 +939,156 @@ body > .edit-project-fab-stack .edit-project-fab-back svg,
 .edit-project-fab-back svg {
   transform: translateX(-1px) !important;
 }
+
+
+/* Not Yet Started reason + disbursement calculator */
+.edit-project-disabled-field {
+  opacity: 0.72;
+}
+
+.edit-project-disabled-field select,
+.edit-project-disabled-field input,
+.edit-project-disabled-field textarea {
+  cursor: not-allowed;
+  background: #eef3f9 !important;
+  color: #6b7c90 !important;
+}
+
+.edit-project-calculator-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px;
+  gap: 10px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.edit-project-calculator-row input {
+  min-width: 0 !important;
+}
+
+.edit-project-equals-btn {
+  width: 56px;
+  min-width: 56px;
+  min-height: 50px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #123f73 0%, #2563eb 100%);
+  color: #ffffff;
+  font-size: 1.4rem;
+  font-weight: 950;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.24);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.edit-project-equals-btn:hover {
+  filter: brightness(1.05);
+}
+
+.edit-project-equals-btn:active {
+  transform: translateY(1px);
+}
+
+.edit-project-field small,
+.edit-project-progress-card small {
+  color: #607086;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.edit-project-readonly-progress-card input[readonly] {
+  background: #eef6ff !important;
+  color: #123f73 !important;
+  cursor: default;
+}
+
+@media (max-width: 560px) {
+  .edit-project-calculator-row {
+    grid-template-columns: minmax(0, 1fr) 54px;
+    gap: 8px;
+  }
+
+  .edit-project-equals-btn {
+    width: 54px;
+    min-width: 54px;
+    min-height: 50px;
+    border-radius: 15px;
+    font-size: 1.35rem;
+  }
+}
+
+
+/* Phase 2O-A: Contract expiration and modification fields */
+.edit-project-contract-warning {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 18px;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.edit-project-contract-warning strong {
+  color: #991b1b;
+  font-size: 0.9rem;
+  font-weight: 950;
+}
+
+.edit-project-contract-warning span {
+  color: #991b1b;
+  font-size: 0.9rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.edit-project-calculator-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px;
+  gap: 10px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.edit-project-calculator-row input {
+  min-width: 0;
+}
+
+.edit-project-equals-btn {
+  width: 56px;
+  min-width: 56px;
+  min-height: 50px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #123f73 0%, #2563eb 100%);
+  color: #ffffff;
+  font-size: 1.4rem;
+  font-weight: 950;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.24);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 560px) {
+  .edit-project-calculator-row {
+    grid-template-columns: minmax(0, 1fr) 54px;
+    gap: 8px;
+  }
+
+  .edit-project-equals-btn {
+    width: 54px;
+    min-width: 54px;
+    min-height: 50px;
+    border-radius: 15px;
+    font-size: 1.35rem;
+  }
+}

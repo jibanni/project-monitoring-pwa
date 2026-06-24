@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { canCreateProjectInAor, getCanonicalRole, getRoEngineerAllowedProvinces } from '../utils/aorAccess'
 import { REGION10_PROVINCE_NAMES, getRegion10LgusByProvince } from '../data/region10Directory'
-import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getComputedRiskLevel, getTargetPhysicalInfo, getContractExpirationInfo } from '../utils/projectVariance'
 import '../styles/createProject.css'
 import '../styles/pageHero.css'
 
@@ -39,6 +39,11 @@ type ProjectInsert = {
   budget: number
   start_date: string | null
   target_completion_date: string | null
+  contract_expiration_date?: string | null
+  has_contract_modification?: boolean
+  contract_modification_type?: string | null
+  revised_project_cost?: number | null
+  revised_contract_expiration_date?: string | null
   barangay: string | null
   municipality: string
   province: string
@@ -47,6 +52,8 @@ type ProjectInsert = {
   physical_accomplishment: number
   financial_accomplishment: number
   risk_level: string
+  not_yet_started_reason?: string | null
+  disbursement_amount?: number | null
   target_physical_accomplishment?: number | null
   target_physical_as_of?: string | null
   target_physical_source?: string | null
@@ -62,6 +69,22 @@ const STATUS_OPTIONS = [
   'Suspended',
   'Terminated',
   'Completed',
+]
+
+
+const NOT_YET_STARTED_REASON_OPTIONS = [
+  'No TDRs Submitted',
+  'Lacking TDRs Submitted',
+  'TDRs under PO Engineers Review',
+  'TDRs under Review (PO)',
+  'TDRs under Review (RO)',
+]
+
+const CONTRACT_MODIFICATION_TYPE_OPTIONS = [
+  'Variation Order (VO)',
+  'Suspension Order (SO)',
+  'Time Extension (EOT)',
+  'Combination',
 ]
 
 const PROJECT_TYPE_OPTIONS = [
@@ -325,6 +348,7 @@ export default function CreateProject() {
   const [projectName, setProjectName] = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState('Not Yet Started')
+  const [notYetStartedReason, setNotYetStartedReason] = useState('')
   const [projectType, setProjectType] = useState('Road')
   const [fundingYear, setFundingYear] = useState(String(new Date().getFullYear()))
   const [fundingSource, setFundingSource] = useState('RAPID Growth Project')
@@ -333,6 +357,11 @@ export default function CreateProject() {
   const [projectCost, setProjectCost] = useState('')
   const [startDate, setStartDate] = useState('')
   const [targetCompletionDate, setTargetCompletionDate] = useState('')
+  const [contractExpirationDate, setContractExpirationDate] = useState('')
+  const [hasContractModification, setHasContractModification] = useState(false)
+  const [revisedProjectCost, setRevisedProjectCost] = useState('')
+  const [revisedContractExpirationDate, setRevisedContractExpirationDate] = useState('')
+  const [contractModificationType, setContractModificationType] = useState('')
   const [barangay, setBarangay] = useState('')
   const [municipality, setMunicipality] = useState('')
   const [province, setProvince] = useState('')
@@ -385,22 +414,36 @@ export default function CreateProject() {
     return toNumber(disbursement)
   }, [disbursement])
 
+  const officialProjectCost = useMemo(() => {
+    const originalCost = toNumber(projectCost)
+    const revisedCost = toNumber(revisedProjectCost)
+
+    return hasContractModification && revisedCost > 0 ? revisedCost : originalCost
+  }, [hasContractModification, projectCost, revisedProjectCost])
+
   const targetPhysicalSource = textValue(targetPhysicalAccomplishment) ? 'manual' : 'auto'
 
   useEffect(() => {
-    const cost = toNumber(projectCost)
-
-    if (cost <= 0 || disbursementAmount <= 0) {
+    if (officialProjectCost <= 0 || disbursementAmount <= 0) {
       setFinancialAccomplishment('0.00')
       return
     }
 
-    setFinancialAccomplishment(formatFinancialPercent((disbursementAmount / cost) * 100))
-  }, [disbursementAmount, projectCost])
+    setFinancialAccomplishment(formatFinancialPercent((disbursementAmount / officialProjectCost) * 100))
+  }, [disbursementAmount, officialProjectCost])
 
   const coordinateStatus = useMemo(() => {
     return getCoordinateStatus(latitude, longitude)
   }, [latitude, longitude])
+  const contractInfo = useMemo(() => {
+    return getContractExpirationInfo({
+      contract_expiration_date: contractExpirationDate,
+      has_contract_modification: hasContractModification,
+      revised_contract_expiration_date: revisedContractExpirationDate,
+      contract_modification_type: contractModificationType,
+    })
+  }, [contractExpirationDate, hasContractModification, revisedContractExpirationDate, contractModificationType])
+
   const riskInfo = useMemo(() => {
     return getTargetPhysicalInfo({
       start_date: startDate,
@@ -409,8 +452,22 @@ export default function CreateProject() {
       target_physical_accomplishment: targetPhysicalAccomplishment,
       target_physical_source: targetPhysicalSource,
       target_physical_as_of: todayLocalDate(),
+      contract_expiration_date: contractExpirationDate,
+      has_contract_modification: hasContractModification,
+      revised_contract_expiration_date: revisedContractExpirationDate,
+      contract_modification_type: contractModificationType,
     })
-  }, [startDate, targetCompletionDate, physicalAccomplishment, targetPhysicalAccomplishment, targetPhysicalSource])
+  }, [
+    startDate,
+    targetCompletionDate,
+    physicalAccomplishment,
+    targetPhysicalAccomplishment,
+    targetPhysicalSource,
+    contractExpirationDate,
+    hasContractModification,
+    revisedContractExpirationDate,
+    contractModificationType,
+  ])
 
   const computedRiskLevel = useMemo(() => {
     return getComputedRiskLevel({
@@ -420,17 +477,52 @@ export default function CreateProject() {
       target_physical_accomplishment: targetPhysicalAccomplishment,
       target_physical_source: targetPhysicalSource,
       target_physical_as_of: todayLocalDate(),
+      contract_expiration_date: contractExpirationDate,
+      has_contract_modification: hasContractModification,
+      revised_contract_expiration_date: revisedContractExpirationDate,
+      contract_modification_type: contractModificationType,
     })
-  }, [startDate, targetCompletionDate, physicalAccomplishment, targetPhysicalAccomplishment, targetPhysicalSource])
+  }, [
+    startDate,
+    targetCompletionDate,
+    physicalAccomplishment,
+    targetPhysicalAccomplishment,
+    targetPhysicalSource,
+    contractExpirationDate,
+    hasContractModification,
+    revisedContractExpirationDate,
+    contractModificationType,
+  ])
+
+  useEffect(() => {
+    if (!hasContractModification) {
+      setRevisedProjectCost('')
+      setRevisedContractExpirationDate('')
+      setContractModificationType('')
+    }
+  }, [hasContractModification])
+
+  const requiresNotYetStartedReason = status === 'Not Yet Started'
+
+  useEffect(() => {
+    if (!requiresNotYetStartedReason && notYetStartedReason) {
+      setNotYetStartedReason('')
+    }
+  }, [requiresNotYetStartedReason, notYetStartedReason])
 
   const canSubmit = useMemo(() => {
     return (
       textValue(projectName).length > 0 &&
       textValue(description).length > 0 &&
       textValue(status).length > 0 &&
+      (!requiresNotYetStartedReason || textValue(notYetStartedReason).length > 0) &&
       textValue(projectType).length > 0 &&
       textValue(fundingYear).length > 0 &&
       textValue(fundingSource).length > 0 &&
+      (!hasContractModification ||
+        (textValue(revisedProjectCost).length > 0 &&
+          textValue(revisedContractExpirationDate).length > 0 &&
+          textValue(contractModificationType).length > 0)) &&
       textValue(municipality).length > 0 &&
       textValue(province).length > 0 &&
       !saving
@@ -439,9 +531,15 @@ export default function CreateProject() {
     projectName,
     description,
     status,
+    requiresNotYetStartedReason,
+    notYetStartedReason,
     projectType,
     fundingYear,
     fundingSource,
+    hasContractModification,
+    revisedProjectCost,
+    revisedContractExpirationDate,
+    contractModificationType,
     municipality,
     province,
     saving,
@@ -489,6 +587,21 @@ export default function CreateProject() {
       return
     }
 
+    if (requiresNotYetStartedReason && !textValue(notYetStartedReason)) {
+      setErrorMessage('Please select the reason for Not Yet Started status.')
+      return
+    }
+
+    if (
+      hasContractModification &&
+      (!textValue(revisedProjectCost) ||
+        !textValue(revisedContractExpirationDate) ||
+        !textValue(contractModificationType))
+    ) {
+      setErrorMessage('Please complete the revised contract details before saving.')
+      return
+    }
+
     if (!canCreateProjectInAor({ province, municipality }, auth)) {
       setErrorMessage('RO Engineer accounts can create projects only within their assigned province AOR.')
       return
@@ -513,6 +626,15 @@ export default function CreateProject() {
       budget: toNumber(projectCost),
       start_date: startDate || null,
       target_completion_date: targetCompletionDate || null,
+      contract_expiration_date: contractExpirationDate || null,
+      has_contract_modification: hasContractModification,
+      contract_modification_type: hasContractModification ? cleanText(contractModificationType) : null,
+      revised_project_cost: hasContractModification && textValue(revisedProjectCost)
+        ? toNumber(revisedProjectCost)
+        : null,
+      revised_contract_expiration_date: hasContractModification
+        ? revisedContractExpirationDate || null
+        : null,
       barangay: cleanText(barangay),
       municipality: municipality.trim(),
       province: province.trim(),
@@ -521,6 +643,8 @@ export default function CreateProject() {
       physical_accomplishment: clampProgress(physicalAccomplishment),
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: computedRiskLevel,
+      not_yet_started_reason: requiresNotYetStartedReason ? cleanText(notYetStartedReason) : null,
+      disbursement_amount: disbursementAmount > 0 ? disbursementAmount : 0,
       target_physical_accomplishment: textValue(targetPhysicalAccomplishment)
         ? clampProgress(targetPhysicalAccomplishment)
         : null,
@@ -632,6 +756,24 @@ export default function CreateProject() {
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={!requiresNotYetStartedReason ? 'create-project-disabled-field' : ''}>
+              Reason for Not Yet Started {requiresNotYetStartedReason && <strong>*</strong>}
+              <select
+                value={notYetStartedReason}
+                onChange={(event) => setNotYetStartedReason(event.target.value)}
+                disabled={!requiresNotYetStartedReason}
+              >
+                <option value="">
+                  {requiresNotYetStartedReason ? 'Select reason' : 'Not applicable'}
+                </option>
+                {NOT_YET_STARTED_REASON_OPTIONS.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {reason}
                   </option>
                 ))}
               </select>
@@ -882,6 +1024,72 @@ export default function CreateProject() {
               />
             </label>
 
+            <label>
+              Contract Expiration Date
+              <input
+                type="date"
+                value={contractExpirationDate}
+                onChange={(event) => setContractExpirationDate(event.target.value)}
+              />
+            </label>
+
+            <label>
+              Approved Contract Modification?
+              <select
+                value={hasContractModification ? 'yes' : 'no'}
+                onChange={(event) => setHasContractModification(event.target.value === 'yes')}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </label>
+
+            {contractInfo.isExpired && (
+              <div className="create-project-progress-note create-project-contract-warning span-2">
+                <strong>Contract Warning</strong>
+                <span>{contractInfo.warningMessage}</span>
+                <span>Risk will be automatically classified as High until a valid revised expiration date is encoded.</span>
+              </div>
+            )}
+
+            {hasContractModification && (
+              <>
+                <label>
+                  Revised Project Cost
+                  <input
+                    value={revisedProjectCost}
+                    onChange={(event) => setRevisedProjectCost(event.target.value)}
+                    placeholder="Example: 10500000"
+                    inputMode="decimal"
+                  />
+                </label>
+
+                <label>
+                  Revised Contract Expiration Date
+                  <input
+                    type="date"
+                    value={revisedContractExpirationDate}
+                    onChange={(event) => setRevisedContractExpirationDate(event.target.value)}
+                  />
+                </label>
+
+                <label className="span-2">
+                  Type of Modification
+                  <select
+                    value={contractModificationType}
+                    onChange={(event) => setContractModificationType(event.target.value)}
+                  >
+                    <option value="">Select modification type</option>
+                    {CONTRACT_MODIFICATION_TYPE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
+
             <div className="create-project-progress-note">
               <strong>Initial Accomplishment</strong>
               <span>Use 0% for new projects that have not yet started.</span>
@@ -920,7 +1128,7 @@ export default function CreateProject() {
                 placeholder="0.00"
                 inputMode="decimal"
               />
-              <small>Auto-computed from Disbursement / Project Cost.</small>
+              <small>Auto-computed from Disbursement / Official Project Cost.</small>
             </label>
           </div>
         </section>

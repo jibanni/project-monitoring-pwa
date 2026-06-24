@@ -7,6 +7,11 @@ type ProjectLike = {
   target_completion_date?: string | null
   last_inspection_date?: string | null
   inspection_date?: string | null
+  contract_expiration_date?: string | null
+  has_contract_modification?: boolean | string | null
+  contract_modification_type?: string | null
+  revised_project_cost?: number | string | null
+  revised_contract_expiration_date?: string | null
 }
 
 export type TargetPhysicalInfo = {
@@ -18,6 +23,17 @@ export type TargetPhysicalInfo = {
   compactLabel: string
   className: 'ahead' | 'behind' | 'on-track'
   asOfLabel: string
+  sourceLabel: string
+}
+
+export type ContractExpirationInfo = {
+  originalExpirationDate: string | null
+  officialExpirationDate: string | null
+  hasModification: boolean
+  modificationType: string
+  revisedExpirationDate: string | null
+  isExpired: boolean
+  warningMessage: string
   sourceLabel: string
 }
 
@@ -34,6 +50,44 @@ function toNumber(value: unknown): number {
 
 function hasValue(value: unknown): boolean {
   return value !== null && value !== undefined && String(value).trim() !== ''
+}
+
+function textValue(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+function toBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value
+
+  const normalized = textValue(value).toLowerCase()
+
+  return normalized === 'true' || normalized === 'yes' || normalized === '1'
+}
+
+function normalizeDateValue(value: unknown): string | null {
+  const rawValue = textValue(value)
+
+  if (!rawValue) return null
+
+  return rawValue.slice(0, 10)
+}
+
+function parseDate(value: unknown): Date | null {
+  const normalized = normalizeDateValue(value)
+
+  if (!normalized) return null
+
+  const date = new Date(`${normalized}T00:00:00`)
+
+  if (Number.isNaN(date.getTime())) return null
+
+  return date
+}
+
+function todayDateOnly(): Date {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
 
 export function clampProgress(value: unknown): number {
@@ -102,6 +156,52 @@ function formatLongDate(value?: string | null): string {
   })
 }
 
+export function getContractExpirationInfo(
+  project?: ProjectLike | null,
+  referenceDate?: string | null,
+): ContractExpirationInfo {
+  const originalExpirationDate = normalizeDateValue(project?.contract_expiration_date)
+  const hasModification = toBoolean(project?.has_contract_modification)
+  const revisedExpirationDate = normalizeDateValue(project?.revised_contract_expiration_date)
+  const modificationType = textValue(project?.contract_modification_type)
+
+  const officialExpirationDate =
+    hasModification && revisedExpirationDate ? revisedExpirationDate : originalExpirationDate
+
+  const officialDate = parseDate(officialExpirationDate)
+  const reference = parseDate(referenceDate) || todayDateOnly()
+  const isExpired = Boolean(officialDate && officialDate.getTime() < reference.getTime())
+
+  return {
+    originalExpirationDate,
+    officialExpirationDate,
+    hasModification,
+    modificationType,
+    revisedExpirationDate,
+    isExpired,
+    warningMessage: isExpired
+      ? 'The contract period of this project has already expired.'
+      : '',
+    sourceLabel: hasModification && revisedExpirationDate
+      ? 'Revised contract expiration date'
+      : 'Original contract expiration date',
+  }
+}
+
+export function getOfficialProjectCost(project?: ProjectLike | null): number {
+  const hasModification = toBoolean(project?.has_contract_modification)
+  const revisedCost = toNumber(project?.revised_project_cost)
+  const originalCost = toNumber((project as any)?.budget)
+
+  if (hasModification && revisedCost > 0) return revisedCost
+
+  return originalCost
+}
+
+export function isContractExpired(project?: ProjectLike | null, referenceDate?: string | null): boolean {
+  return getContractExpirationInfo(project, referenceDate).isExpired
+}
+
 export function getRiskLevelFromVariance(
   value: unknown,
 ): 'None' | 'Low' | 'Moderate' | 'High' {
@@ -117,6 +217,8 @@ export function getRiskLevelFromVariance(
 export function getComputedRiskLevel(
   project?: ProjectLike | null,
 ): 'None' | 'Low' | 'Moderate' | 'High' {
+  if (getContractExpirationInfo(project).isExpired) return 'High'
+
   return getRiskLevelFromVariance(getTargetPhysicalInfo(project).variance)
 }
 

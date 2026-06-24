@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { canEditProjectRecord, getCanonicalRole } from '../utils/aorAccess'
-import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getComputedRiskLevel, getTargetPhysicalInfo, getContractExpirationInfo } from '../utils/projectVariance'
 import '../styles/editProject.css'
 import '../styles/pageHero.css'
 
@@ -26,8 +26,14 @@ type ProjectForm = {
   implementing_office: string
   contractor: string
   budget: string
+  disbursement_amount: string
   start_date: string
   target_completion_date: string
+  contract_expiration_date: string
+  has_contract_modification: string
+  contract_modification_type: string
+  revised_project_cost: string
+  revised_contract_expiration_date: string
   barangay: string
   municipality: string
   province: string
@@ -35,6 +41,7 @@ type ProjectForm = {
   longitude: string
   physical_accomplishment: string
   financial_accomplishment: string
+  not_yet_started_reason: string
   target_physical_accomplishment: string
   target_physical_as_of: string
   target_physical_source: string
@@ -60,8 +67,14 @@ const emptyForm: ProjectForm = {
   implementing_office: '',
   contractor: '',
   budget: '',
+  disbursement_amount: '',
   start_date: '',
   target_completion_date: '',
+  contract_expiration_date: '',
+  has_contract_modification: 'no',
+  contract_modification_type: '',
+  revised_project_cost: '',
+  revised_contract_expiration_date: '',
   barangay: '',
   municipality: '',
   province: '',
@@ -69,6 +82,7 @@ const emptyForm: ProjectForm = {
   longitude: '',
   physical_accomplishment: '0',
   financial_accomplishment: '0',
+  not_yet_started_reason: '',
   target_physical_accomplishment: '',
   target_physical_as_of: '',
   target_physical_source: 'auto',
@@ -83,6 +97,7 @@ const FUNDING_SOURCE_OPTIONS = [
   'LGSF-FALGU',
   'LGSF-GEF',
   'LGSF-SBDP',
+  'LGSF - SBDP UA',
   'LGSF-SAFPB',
   'SALINTUBIG',
   'CMGP / KALSADA',
@@ -97,6 +112,22 @@ const statusOptions = [
   'Suspended',
   'Terminated',
   'Completed',
+]
+
+
+const NOT_YET_STARTED_REASON_OPTIONS = [
+  'No TDRs Submitted',
+  'Lacking TDRs Submitted',
+  'TDRs under PO Engineers Review',
+  'TDRs under Review (PO)',
+  'TDRs under Review (RO)',
+]
+
+const CONTRACT_MODIFICATION_TYPE_OPTIONS = [
+  'Variation Order (VO)',
+  'Suspension Order (SO)',
+  'Time Extension (EOT)',
+  'Combination',
 ]
 
 const PROJECT_TYPE_OPTIONS = [
@@ -253,6 +284,41 @@ function formatPercent(value: string) {
   })}%`
 }
 
+
+function evaluateAmountExpression(value: string) {
+  const expression = value.replace(/,/g, '').trim()
+
+  if (!expression) return null
+
+  if (!/^[0-9+\-*/().\s]+$/.test(expression)) return null
+
+  try {
+    const result = Function(`"use strict"; return (${expression})`)()
+    const numericValue = Number(result)
+
+    if (!Number.isFinite(numericValue) || numericValue < 0) return null
+
+    return numericValue
+  } catch {
+    return null
+  }
+}
+
+function formatAmountInput(value: number) {
+  if (!Number.isFinite(value)) return ''
+  if (Number.isInteger(value)) return String(value)
+
+  return value.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
+}
+
+function formatFinancialPercent(value: number) {
+  if (!Number.isFinite(value)) return '0.00'
+
+  const clamped = Math.min(100, Math.max(0, value))
+
+  return clamped.toFixed(2)
+}
+
 function IconBack() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -288,6 +354,70 @@ export default function EditProject() {
 
   const role = getCanonicalRole(auth.profile?.role)
   const canAccessEditRoute = auth.isAdmin || auth.isROEngineer || role === 'RO Engineer'
+  const requiresNotYetStartedReason = form.status === 'Not Yet Started'
+
+  const disbursementAmount = useMemo(() => {
+    const evaluatedAmount = evaluateAmountExpression(form.disbursement_amount)
+
+    if (evaluatedAmount !== null) return evaluatedAmount
+
+    return toNullableNumber(form.disbursement_amount) ?? 0
+  }, [form.disbursement_amount])
+
+  const hasContractModification = form.has_contract_modification === 'yes'
+
+  const officialProjectCost = useMemo(() => {
+    const originalCost = toNullableNumber(form.budget) ?? 0
+    const revisedCost = toNullableNumber(form.revised_project_cost) ?? 0
+
+    return hasContractModification && revisedCost > 0 ? revisedCost : originalCost
+  }, [form.budget, form.revised_project_cost, hasContractModification])
+
+  useEffect(() => {
+    if (!requiresNotYetStartedReason && form.not_yet_started_reason) {
+      updateField('not_yet_started_reason', '')
+    }
+  }, [requiresNotYetStartedReason, form.not_yet_started_reason])
+
+  useEffect(() => {
+    if (!hasContractModification) {
+      setForm((current) => ({
+        ...current,
+        revised_project_cost: '',
+        revised_contract_expiration_date: '',
+        contract_modification_type: '',
+      }))
+    }
+  }, [hasContractModification])
+
+  useEffect(() => {
+    if (officialProjectCost <= 0 || disbursementAmount <= 0) {
+      if (form.financial_accomplishment !== '0.00') {
+        updateField('financial_accomplishment', '0.00')
+      }
+      return
+    }
+
+    const nextFinancial = formatFinancialPercent((disbursementAmount / officialProjectCost) * 100)
+
+    if (form.financial_accomplishment !== nextFinancial) {
+      updateField('financial_accomplishment', nextFinancial)
+    }
+  }, [disbursementAmount, officialProjectCost, form.financial_accomplishment])
+
+  const contractInfo = useMemo(() => {
+    return getContractExpirationInfo({
+      contract_expiration_date: form.contract_expiration_date,
+      has_contract_modification: hasContractModification,
+      revised_contract_expiration_date: form.revised_contract_expiration_date,
+      contract_modification_type: form.contract_modification_type,
+    })
+  }, [
+    form.contract_expiration_date,
+    hasContractModification,
+    form.revised_contract_expiration_date,
+    form.contract_modification_type,
+  ])
 
   const coordinateStatus = useMemo(
     () => analyzeCoordinates(form.latitude, form.longitude),
@@ -302,6 +432,10 @@ export default function EditProject() {
       target_physical_as_of: form.target_physical_as_of || form.last_inspection_date,
       target_physical_source: form.target_physical_source,
       last_inspection_date: form.last_inspection_date,
+      contract_expiration_date: form.contract_expiration_date,
+      has_contract_modification: hasContractModification,
+      revised_contract_expiration_date: form.revised_contract_expiration_date,
+      contract_modification_type: form.contract_modification_type,
     })
   }, [
     form.start_date,
@@ -311,6 +445,10 @@ export default function EditProject() {
     form.target_physical_as_of,
     form.target_physical_source,
     form.last_inspection_date,
+    form.contract_expiration_date,
+    hasContractModification,
+    form.revised_contract_expiration_date,
+    form.contract_modification_type,
   ])
 
   const computedRiskLevel = useMemo(() => {
@@ -322,6 +460,10 @@ export default function EditProject() {
       target_physical_as_of: form.target_physical_as_of || form.last_inspection_date,
       target_physical_source: form.target_physical_source,
       last_inspection_date: form.last_inspection_date,
+      contract_expiration_date: form.contract_expiration_date,
+      has_contract_modification: hasContractModification,
+      revised_contract_expiration_date: form.revised_contract_expiration_date,
+      contract_modification_type: form.contract_modification_type,
     })
   }, [
     form.start_date,
@@ -331,6 +473,10 @@ export default function EditProject() {
     form.target_physical_as_of,
     form.target_physical_source,
     form.last_inspection_date,
+    form.contract_expiration_date,
+    hasContractModification,
+    form.revised_contract_expiration_date,
+    form.contract_modification_type,
   ])
 
   const mergedStatusOptions = useMemo(() => {
@@ -403,8 +549,14 @@ export default function EditProject() {
       implementing_office: data.implementing_office || '',
       contractor: data.contractor || '',
       budget: numberInputValue(data.budget),
+      disbursement_amount: numberInputValue(data.disbursement_amount),
       start_date: dateInputValue(data.start_date),
       target_completion_date: dateInputValue(data.target_completion_date),
+      contract_expiration_date: dateInputValue(data.contract_expiration_date),
+      has_contract_modification: data.has_contract_modification ? 'yes' : 'no',
+      contract_modification_type: data.contract_modification_type || '',
+      revised_project_cost: numberInputValue(data.revised_project_cost),
+      revised_contract_expiration_date: dateInputValue(data.revised_contract_expiration_date),
       barangay: data.barangay || '',
       municipality: data.municipality || '',
       province: data.province || '',
@@ -412,6 +564,7 @@ export default function EditProject() {
       longitude: numberInputValue(data.longitude),
       physical_accomplishment: numberInputValue(data.physical_accomplishment) || '0',
       financial_accomplishment: numberInputValue(data.financial_accomplishment) || '0',
+      not_yet_started_reason: data.not_yet_started_reason || '',
       target_physical_accomplishment: numberInputValue(data.target_physical_accomplishment),
       target_physical_as_of: dateInputValue(data.target_physical_as_of),
       target_physical_source: data.target_physical_source || 'auto',
@@ -423,10 +576,24 @@ export default function EditProject() {
   }
 
   function updateField(field: keyof ProjectForm, value: string) {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }))
+    setForm((current) => {
+      const nextForm = {
+        ...current,
+        [field]: value,
+      }
+
+      if (field === 'status' && value !== 'Not Yet Started') {
+        nextForm.not_yet_started_reason = ''
+      }
+
+      if (field === 'has_contract_modification' && value !== 'yes') {
+        nextForm.contract_modification_type = ''
+        nextForm.revised_project_cost = ''
+        nextForm.revised_contract_expiration_date = ''
+      }
+
+      return nextForm
+    })
 
     if (pageError) setPageError('')
     if (successMessage) setSuccessMessage('')
@@ -440,6 +607,25 @@ export default function EditProject() {
     }))
   }
 
+  function resolveDisbursementExpression() {
+    const amount = evaluateAmountExpression(form.disbursement_amount)
+
+    if (amount === null) {
+      setPageError('Disbursement must be a valid amount or calculator expression.')
+      return
+    }
+
+    updateField('disbursement_amount', formatAmountInput(amount))
+    setPageError('')
+  }
+
+  function handleDisbursementKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter' || event.key === '=') {
+      event.preventDefault()
+      resolveDisbursementExpression()
+    }
+  }
+
   function validateForm() {
     if (!cleanText(form.project_name)) {
       return 'Project name is required.'
@@ -447,6 +633,19 @@ export default function EditProject() {
 
     if (!cleanText(form.status)) {
       return 'Project status is required.'
+    }
+
+    if (requiresNotYetStartedReason && !cleanText(form.not_yet_started_reason)) {
+      return 'Please select the reason for Not Yet Started status.'
+    }
+
+    if (
+      hasContractModification &&
+      (!cleanText(form.revised_project_cost) ||
+        !cleanText(form.revised_contract_expiration_date) ||
+        !cleanText(form.contract_modification_type))
+    ) {
+      return 'Please complete the revised contract details before saving.'
     }
 
     if (!canEditProjectRecord({ province: form.province, municipality: form.municipality }, auth)) {
@@ -508,8 +707,20 @@ export default function EditProject() {
       implementing_office: cleanText(form.implementing_office),
       contractor: cleanText(form.contractor),
       budget: toNullableNumber(form.budget) ?? 0,
+      disbursement_amount: disbursementAmount > 0 ? disbursementAmount : 0,
       start_date: cleanText(form.start_date),
       target_completion_date: cleanText(form.target_completion_date),
+      contract_expiration_date: cleanText(form.contract_expiration_date),
+      has_contract_modification: hasContractModification,
+      contract_modification_type: hasContractModification
+        ? cleanText(form.contract_modification_type)
+        : null,
+      revised_project_cost: hasContractModification && cleanText(form.revised_project_cost)
+        ? toNullableNumber(form.revised_project_cost)
+        : null,
+      revised_contract_expiration_date: hasContractModification
+        ? cleanText(form.revised_contract_expiration_date)
+        : null,
       barangay: cleanText(form.barangay),
       municipality: cleanText(form.municipality),
       province: cleanText(form.province),
@@ -517,6 +728,7 @@ export default function EditProject() {
       longitude: coordinateStatus.state === 'valid' ? coordinateStatus.longitude : null,
       physical_accomplishment: clampProgress(form.physical_accomplishment),
       financial_accomplishment: clampProgress(form.financial_accomplishment),
+      not_yet_started_reason: requiresNotYetStartedReason ? cleanText(form.not_yet_started_reason) : null,
       target_physical_accomplishment: cleanText(form.target_physical_accomplishment)
         ? clampProgress(form.target_physical_accomplishment)
         : null,
@@ -701,6 +913,24 @@ export default function EditProject() {
               </select>
             </label>
 
+            <label className={`edit-project-field ${!requiresNotYetStartedReason ? 'edit-project-disabled-field' : ''}`}>
+              <span>Reason for Not Yet Started {requiresNotYetStartedReason ? '*' : ''}</span>
+              <select
+                value={form.not_yet_started_reason}
+                onChange={(event) => updateField('not_yet_started_reason', event.target.value)}
+                disabled={!requiresNotYetStartedReason}
+              >
+                <option value="">
+                  {requiresNotYetStartedReason ? 'Select reason' : 'Not applicable'}
+                </option>
+                {NOT_YET_STARTED_REASON_OPTIONS.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {reason}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <div className="edit-project-field edit-project-readonly-field">
               <span>Risk Level</span>
               <strong>{computedRiskLevel}</strong>
@@ -797,6 +1027,32 @@ export default function EditProject() {
             </label>
 
             <label className="edit-project-field">
+              <span>Disbursement</span>
+              <div className="edit-project-calculator-row">
+                <input
+                  value={form.disbursement_amount}
+                  onChange={(event) => updateField('disbursement_amount', event.target.value)}
+                  onKeyDown={handleDisbursementKeyDown}
+                  onBlur={() => {
+                    if (form.disbursement_amount.trim()) resolveDisbursementExpression()
+                  }}
+                  placeholder="Example: 500000 + 250000"
+                  inputMode="decimal"
+                />
+
+                <button
+                  type="button"
+                  className="edit-project-equals-btn"
+                  onClick={resolveDisbursementExpression}
+                  aria-label="Compute disbursement"
+                >
+                  =
+                </button>
+              </div>
+              <small>Press Enter or = to compute calculator-style input.</small>
+            </label>
+
+            <label className="edit-project-field">
               <span>Start Date</span>
               <input
                 type="date"
@@ -813,6 +1069,74 @@ export default function EditProject() {
                 onChange={(event) => updateField('target_completion_date', event.target.value)}
               />
             </label>
+
+            <label className="edit-project-field">
+              <span>Contract Expiration Date</span>
+              <input
+                type="date"
+                value={form.contract_expiration_date}
+                onChange={(event) => updateField('contract_expiration_date', event.target.value)}
+              />
+            </label>
+
+            <label className="edit-project-field">
+              <span>Approved Contract Modification?</span>
+              <select
+                value={form.has_contract_modification}
+                onChange={(event) => updateField('has_contract_modification', event.target.value)}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </label>
+
+            {contractInfo.isExpired && (
+              <div className="edit-project-contract-warning edit-project-field-wide">
+                <strong>Contract Warning</strong>
+                <span>{contractInfo.warningMessage}</span>
+                <span>Risk will be automatically classified as High until a valid revised expiration date is encoded.</span>
+              </div>
+            )}
+
+            {hasContractModification && (
+              <>
+                <label className="edit-project-field">
+                  <span>Revised Project Cost</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.revised_project_cost}
+                    onChange={(event) => updateField('revised_project_cost', event.target.value)}
+                    placeholder="0.00"
+                  />
+                </label>
+
+                <label className="edit-project-field">
+                  <span>Revised Contract Expiration Date</span>
+                  <input
+                    type="date"
+                    value={form.revised_contract_expiration_date}
+                    onChange={(event) => updateField('revised_contract_expiration_date', event.target.value)}
+                  />
+                </label>
+
+                <label className="edit-project-field edit-project-field-wide">
+                  <span>Type of Modification</span>
+                  <select
+                    value={form.contract_modification_type}
+                    onChange={(event) => updateField('contract_modification_type', event.target.value)}
+                  >
+                    <option value="">Select modification type</option>
+                    {CONTRACT_MODIFICATION_TYPE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
 
             <label className="edit-project-field">
               <span>Last Inspection Date</span>
@@ -858,21 +1182,19 @@ export default function EditProject() {
               </div>
             </label>
 
-            <label className="edit-project-progress-card">
+            <label className="edit-project-progress-card edit-project-readonly-progress-card">
               <div className="edit-project-progress-header">
                 <span>Financial Accomplishment</span>
                 <strong>{formatPercent(form.financial_accomplishment)}</strong>
               </div>
 
               <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
+                type="text"
                 value={form.financial_accomplishment}
-                onChange={(event) => updateField('financial_accomplishment', event.target.value)}
-                placeholder="0"
+                readOnly
+                placeholder="0.00"
               />
+              <small>Auto-computed from Disbursement / Official Project Cost.</small>
 
               <div className="edit-project-progress-track">
                 <div
