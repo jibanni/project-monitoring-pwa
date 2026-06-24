@@ -252,6 +252,53 @@ function getUpdatedTime(project: ProjectRecord) {
   return date.getTime()
 }
 
+function getLatestUpdateDateValue(project: ProjectRecord) {
+  return (
+    project.latest_update_date ??
+    project.last_update_date ??
+    project.last_inspection_date ??
+    project.updated_at ??
+    project.modified_at ??
+    project.created_at ??
+    null
+  )
+}
+
+function getNotYetStartedReason(project: ProjectRecord) {
+  return safeText(
+    project.not_yet_started_reason ??
+      project.not_started_reason ??
+      project.reason_not_started ??
+      project.start_delay_reason ??
+      project.delay_reason ??
+      project.status_reason ??
+      project.remarks,
+    'No reason encoded',
+  )
+}
+
+function getDaysSinceLatestUpdate(project: ProjectRecord) {
+  const value = getLatestUpdateDateValue(project)
+  const date = new Date(safeText(value, ''))
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      days: null as number | null,
+      label: 'No update yet',
+    }
+  }
+
+  const today = new Date()
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+  const days = Math.max(0, Math.floor((end - start) / 86_400_000))
+
+  return {
+    days,
+    label: days === 0 ? 'Updated today' : `Updated ${days} day${days === 1 ? '' : 's'} ago`,
+  }
+}
+
 function countBy<T extends ProjectRecord>(
   projects: T[],
   getter: (project: T) => string,
@@ -440,21 +487,16 @@ export default function Dashboard() {
       isStatus(project, ['completed', 'complete', 'finished']),
     )
 
-    const notStartedProjects = visibleProjects.filter((project) =>
-      isStatus(project, [
-        'not yet started',
-        'not started',
-        'pending',
-        'not implemented',
-      ]),
+    const notStartedProjects = visibleProjects.filter(
+      (project) => getPhysicalProgress(project) <= 0,
     )
 
     const highRiskProjects = visibleProjects.filter((project) =>
       isRisk(project, ['high']),
     )
 
-    const forReviewProjects = visibleProjects.filter((project) =>
-      isRisk(project, ['high', 'moderate', 'medium']),
+    const underProcurementProjects = visibleProjects.filter((project) =>
+      isStatus(project, ['under procurement', 'procurement', 'bidding']),
     )
 
     const statusData = countBy(visibleProjects, getStatus)
@@ -470,7 +512,7 @@ export default function Dashboard() {
       completedProjects,
       notStartedProjects,
       highRiskProjects,
-      forReviewProjects,
+      underProcurementProjects,
       statusData,
       riskData,
       latestProjects,
@@ -499,6 +541,16 @@ export default function Dashboard() {
       records: dashboardData.ongoingProjects,
     },
     {
+      key: 'not-started',
+      label: 'Not Yet Started',
+      value: dashboardData.notStartedProjects.length,
+      helper: '0% physical',
+      className: 'not-started',
+      title: 'Not Yet Started Projects',
+      subtitle: 'Projects with 0% physical accomplishment.',
+      records: dashboardData.notStartedProjects,
+    },
+    {
       key: 'completed',
       label: 'Completed',
       value: dashboardData.completedProjects.length,
@@ -507,16 +559,6 @@ export default function Dashboard() {
       title: 'Completed Projects',
       subtitle: 'Projects tagged as completed.',
       records: dashboardData.completedProjects,
-    },
-    {
-      key: 'not-started',
-      label: 'Not Started',
-      value: dashboardData.notStartedProjects.length,
-      helper: 'Pending start',
-      className: 'not-started',
-      title: 'Not Yet Started Projects',
-      subtitle: 'Projects that have not yet started implementation.',
-      records: dashboardData.notStartedProjects,
     },
     {
       key: 'high-risk',
@@ -529,14 +571,14 @@ export default function Dashboard() {
       records: dashboardData.highRiskProjects,
     },
     {
-      key: 'for-review',
-      label: 'For Review',
-      value: dashboardData.forReviewProjects.length,
-      helper: 'Priority check',
+      key: 'under-procurement',
+      label: 'Under Procurement',
+      value: dashboardData.underProcurementProjects.length,
+      helper: 'Procurement stage',
       className: 'for-review',
-      title: 'Projects for Review',
-      subtitle: 'Projects tagged as high or moderate risk.',
-      records: dashboardData.forReviewProjects,
+      title: 'Under Procurement Projects',
+      subtitle: 'Projects currently tagged under procurement or bidding.',
+      records: dashboardData.underProcurementProjects,
     },
   ]
 
@@ -578,6 +620,21 @@ export default function Dashboard() {
           <div>
             <span>Status</span>
             <strong>{getStatus(project)}</strong>
+          </div>
+
+          <div>
+            <span>Reason</span>
+            <strong>{getNotYetStartedReason(project)}</strong>
+          </div>
+
+          <div>
+            <span>Last Update</span>
+            <strong>{formatDate(getLatestUpdateDateValue(project))}</strong>
+          </div>
+
+          <div>
+            <span>Days Since Update</span>
+            <strong>{getDaysSinceLatestUpdate(project).label}</strong>
           </div>
 
           <div>
