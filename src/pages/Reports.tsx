@@ -40,6 +40,40 @@ type ProjectRow = {
   updated_at: string | null
 }
 
+type PoEngineerAssignmentRow = {
+  id?: string | null
+  user_id: string | null
+  province: string | null
+  municipality: string | null
+  is_active: boolean | null
+}
+
+type ProfileLookupRow = {
+  id: string
+  full_name: string | null
+  email: string | null
+  role?: string | null
+  approved?: boolean | null
+  is_active?: boolean | null
+}
+
+type ProjectUpdateLookupRow = {
+  id?: string | number | null
+  project_id: string | null
+  engineer_id: string | null
+  inspection_date: string | null
+  created_at: string | null
+}
+
+type LatestUpdateInfo = {
+  engineer_id: string | null
+  inspection_date: string | null
+  created_at: string | null
+}
+
+type ProfileLookupMap = Record<string, ProfileLookupRow>
+type LatestUpdateMap = Record<string, LatestUpdateInfo>
+
 function textValue(value: unknown) {
   if (value === null || value === undefined) return ''
   return String(value).trim()
@@ -73,7 +107,7 @@ function formatPercent(value: unknown) {
 function formatLongDate(value: string | null | undefined) {
   if (!value) return 'No date'
 
-  const date = new Date(value)
+  const date = new Date(value.length <= 10 ? `${value}T00:00:00` : value)
 
   if (Number.isNaN(date.getTime())) return 'No date'
 
@@ -117,12 +151,28 @@ function getProjectVariance(project: ProjectRow) {
   return getTargetPhysicalInfo(project)
 }
 
-
 function sameText(left: unknown, right: unknown) {
   const leftKey = textValue(left).toLowerCase().replace(/\s+/g, ' ')
   const rightKey = textValue(right).toLowerCase().replace(/\s+/g, ' ')
 
   return Boolean(leftKey && rightKey && leftKey === rightKey)
+}
+
+function uniqueTextValues(values: unknown[]) {
+  const seen = new Set<string>()
+  const output: string[] = []
+
+  values.forEach((value) => {
+    const label = textValue(value)
+    const key = label.toLowerCase().replace(/\s+/g, ' ')
+
+    if (!label || !key || seen.has(key)) return
+
+    seen.add(key)
+    output.push(label)
+  })
+
+  return output
 }
 
 function getCanonicalReportRole(role: unknown) {
@@ -229,8 +279,6 @@ function getStrictReportAorProjects(projects: ProjectRow[], auth: ReturnType<typ
 
   return filterProjectsByAor(projects, auth)
 }
-
-
 
 function uniqueSortedTextValues(values: unknown[]) {
   return Array.from(new Set(values.map(textValue).filter(Boolean))).sort()
@@ -342,6 +390,91 @@ function getReportMunicipalityOptions(
   )
 }
 
+function getProfileDisplayName(profile: ProfileLookupRow | undefined, fallback?: string | null) {
+  if (profile?.full_name) return profile.full_name
+  if (profile?.email) return profile.email
+  if (fallback) return `User ${fallback.slice(0, 8)}`
+  return 'Unknown user'
+}
+
+function getAssignedPoEngineersForProject(
+  project: ProjectRow,
+  assignments: PoEngineerAssignmentRow[],
+  profileMap: ProfileLookupMap,
+) {
+  const matchingAssignments = assignments.filter(
+    (assignment) =>
+      assignment.is_active !== false &&
+      reportProjectMatchesProvince(project, assignment.province) &&
+      reportProjectMatchesMunicipality(project, assignment.municipality),
+  )
+
+  const names = uniqueTextValues(
+    matchingAssignments.map((assignment) =>
+      assignment.user_id
+        ? getProfileDisplayName(profileMap[assignment.user_id], assignment.user_id)
+        : '',
+    ),
+  )
+
+  return names.length > 0 ? names.join(', ') : 'No assigned PO Engineer'
+}
+
+function getReportAssignedPoSummary(
+  projects: ProjectRow[],
+  assignments: PoEngineerAssignmentRow[],
+  profileMap: ProfileLookupMap,
+) {
+  const assignedNames = uniqueTextValues(
+    projects.flatMap((project) =>
+      getAssignedPoEngineersForProject(project, assignments, profileMap)
+        .split(',')
+        .map((name) => name.trim())
+        .filter((name) => name && name !== 'No assigned PO Engineer'),
+    ),
+  )
+
+  return assignedNames.length > 0 ? assignedNames.join(', ') : 'No assigned PO Engineer'
+}
+
+function getReportAorSummary(projects: ProjectRow[]) {
+  const aorLabels = uniqueTextValues(projects.map((project) => getAssignedAorLabel(project)))
+
+  if (aorLabels.length === 0) return 'No AOR records'
+  if (aorLabels.length <= 3) return aorLabels.join('; ')
+
+  return `${aorLabels.slice(0, 3).join('; ')}; and ${aorLabels.length - 3} more AOR/s`
+}
+
+function compactReportHeaderText(value: string, maxLength = 210) {
+  if (value.length <= maxLength) return value
+  return `${value.slice(0, maxLength - 3)}...`
+}
+
+function getAssignedAorLabel(project: ProjectRow) {
+  const province = textValue(project.province) || 'No province'
+  const lgu = textValue(project.municipality) || 'No LGU'
+
+  return `${province} / ${lgu}`
+}
+
+function getLatestUpdateForProject(project: ProjectRow, latestUpdateMap: LatestUpdateMap) {
+  return latestUpdateMap[project.id] || null
+}
+
+function getLatestUpdateDate(project: ProjectRow, latestUpdateMap: LatestUpdateMap) {
+  const latestUpdate = getLatestUpdateForProject(project, latestUpdateMap)
+
+  return latestUpdate?.inspection_date || latestUpdate?.created_at || project.last_inspection_date || null
+}
+
+function getComparableUpdateTime(update: ProjectUpdateLookupRow) {
+  const rawDate = update.inspection_date || update.created_at || ''
+  const parsed = new Date(rawDate.length <= 10 ? `${rawDate}T00:00:00` : rawDate)
+
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime()
+}
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -388,6 +521,9 @@ export default function Reports() {
   const auth = useAuth()
 
   const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [poEngineerAssignments, setPoEngineerAssignments] = useState<PoEngineerAssignmentRow[]>([])
+  const [profileMap, setProfileMap] = useState<ProfileLookupMap>({})
+  const [latestUpdateMap, setLatestUpdateMap] = useState<LatestUpdateMap>({})
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -443,13 +579,113 @@ export default function Reports() {
 
       if (error) throw error
 
-      setProjects((data || []) as ProjectRow[])
+      const loadedProjects = (data || []) as ProjectRow[]
+      setProjects(loadedProjects)
+
+      await loadReportReferenceData()
     } catch (error) {
       console.error(error)
       setErrorMessage('Unable to load report data. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
+  }
+
+  async function loadReportReferenceData() {
+    const [assignmentsResult, updatesResult] = await Promise.all([
+      supabase
+        .from('po_engineer_lgu_assignments')
+        .select('id, user_id, province, municipality, is_active')
+        .eq('is_active', true),
+      supabase
+        .from('project_updates')
+        .select('id, project_id, engineer_id, inspection_date, created_at')
+        .order('inspection_date', { ascending: false })
+        .order('created_at', { ascending: false }),
+    ])
+
+    const loadedAssignments = assignmentsResult.error
+      ? []
+      : ((assignmentsResult.data || []) as PoEngineerAssignmentRow[])
+    const loadedUpdates = updatesResult.error
+      ? []
+      : ((updatesResult.data || []) as ProjectUpdateLookupRow[])
+
+    if (assignmentsResult.error) {
+      console.error('Report PO Engineer assignment load error:', assignmentsResult.error.message)
+    }
+
+    if (updatesResult.error) {
+      console.error('Report latest update load error:', updatesResult.error.message)
+    }
+
+    setPoEngineerAssignments(loadedAssignments)
+
+    const latestMap: LatestUpdateMap = {}
+
+    loadedUpdates.forEach((update) => {
+      if (!update.project_id) return
+
+      const currentLatest = latestMap[update.project_id]
+
+      if (!currentLatest) {
+        latestMap[update.project_id] = {
+          engineer_id: update.engineer_id,
+          inspection_date: update.inspection_date,
+          created_at: update.created_at,
+        }
+        return
+      }
+
+      const nextTime = getComparableUpdateTime(update)
+      const currentTime = getComparableUpdateTime({
+        project_id: update.project_id,
+        engineer_id: currentLatest.engineer_id,
+        inspection_date: currentLatest.inspection_date,
+        created_at: currentLatest.created_at,
+      })
+
+      if (nextTime > currentTime) {
+        latestMap[update.project_id] = {
+          engineer_id: update.engineer_id,
+          inspection_date: update.inspection_date,
+          created_at: update.created_at,
+        }
+      }
+    })
+
+    setLatestUpdateMap(latestMap)
+
+    const profileIds = uniqueTextValues([
+      ...loadedAssignments.map((assignment) => assignment.user_id),
+      ...loadedUpdates.map((update) => update.engineer_id),
+    ])
+
+    if (profileIds.length === 0) {
+      setProfileMap({})
+      return
+    }
+
+    const profilesResult = await supabase
+      .from('profiles')
+      .select('id, full_name, email, role, approved, is_active')
+      .in('id', profileIds)
+
+    if (profilesResult.error) {
+      console.error('Report user profile lookup error:', profilesResult.error.message)
+      setProfileMap({})
+      return
+    }
+
+    const nextProfileMap = ((profilesResult.data || []) as ProfileLookupRow[]).reduce<ProfileLookupMap>(
+      (map, profile) => {
+        map[profile.id] = profile
+        return map
+      },
+      {},
+    )
+
+    setProfileMap(nextProfileMap)
   }
 
   function clearFilters() {
@@ -532,6 +768,13 @@ export default function Reports() {
 
   const filteredProjects = useMemo(() => {
     return aorProjects.filter((project) => {
+      const assignedPoEngineers = getAssignedPoEngineersForProject(
+        project,
+        poEngineerAssignments,
+        profileMap,
+      )
+      const latestUpdateDate = getLatestUpdateDate(project, latestUpdateMap)
+
       const searchableText = [
         project.project_name,
         project.description,
@@ -544,6 +787,8 @@ export default function Reports() {
         project.risk_level,
         project.contractor,
         project.implementing_office,
+        assignedPoEngineers,
+        latestUpdateDate,
       ]
         .map(textValue)
         .join(' ')
@@ -584,6 +829,9 @@ export default function Reports() {
     })
   }, [
     aorProjects,
+    poEngineerAssignments,
+    profileMap,
+    latestUpdateMap,
     searchTerm,
     provinceFilter,
     municipalityFilter,
@@ -623,21 +871,34 @@ export default function Reports() {
     doc.text('Department of the Interior and Local Government Region X', 14, 22)
     doc.text('Project Development and Management Unit', 14, 27)
     doc.text(`Generated: ${generatedDate}`, 14, 32)
-    doc.text('Scope: Records are filtered according to the logged-in user AOR.', 14, 37)
+    let headerY = 37
+    doc.text('Scope: Records are filtered according to the logged-in user AOR.', 14, headerY)
+
+    const assignedPoSummary = compactReportHeaderText(
+      getReportAssignedPoSummary(reportProjects, poEngineerAssignments, profileMap),
+    )
+    const assignedAorSummary = compactReportHeaderText(getReportAorSummary(reportProjects))
+
+    headerY += 5
+    doc.text(`Assigned PO Engineer/s: ${assignedPoSummary}`, 14, headerY)
+    headerY += 5
+    doc.text(`Assigned AOR: ${assignedAorSummary}`, 14, headerY)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
-    doc.text(`Projects Included: ${reportProjects.length}`, 14, 44)
+    headerY += 7
+    doc.text(`Projects Included: ${reportProjects.length}`, 14, headerY)
 
     autoTable(doc, {
-      startY: 51,
+      startY: headerY + 7,
+      margin: { left: 10, right: 10 },
+      tableWidth: 'auto',
       head: [
         [
           'Project',
           'Province',
-          'Municipality',
-          'Barangay',
-          'Funding Source',
+          'LGU',
+          'Funding',
           'Cost',
           'Status',
           'Risk',
@@ -645,7 +906,7 @@ export default function Reports() {
           'Target',
           'Variance',
           'Financial',
-          'Last Inspection',
+          'Latest Update',
         ],
       ],
       body: reportProjects.map((project) => {
@@ -655,7 +916,6 @@ export default function Reports() {
           textValue(project.project_name) || 'Untitled Project',
           textValue(project.province) || '-',
           textValue(project.municipality) || '-',
-          textValue(project.barangay) || '-',
           textValue(project.funding_source || project.project_type) || '-',
           formatCurrency(project.budget),
           textValue(project.status) || '-',
@@ -664,12 +924,12 @@ export default function Reports() {
           formatPercent(varianceInfo.targetPhysical),
           formatSignedVariance(varianceInfo.variance),
           formatPercent(project.financial_accomplishment),
-          formatLongDate(project.last_inspection_date),
+          formatLongDate(getLatestUpdateDate(project, latestUpdateMap)),
         ]
       }),
       styles: {
-        fontSize: 6.6,
-        cellPadding: 1.8,
+        fontSize: 5.8,
+        cellPadding: 1.1,
         overflow: 'linebreak',
       },
       headStyles: {
@@ -681,13 +941,18 @@ export default function Reports() {
         fillColor: [245, 247, 250],
       },
       columnStyles: {
-        0: { cellWidth: 40 },
-        4: { cellWidth: 28 },
-        5: { cellWidth: 25 },
-        8: { cellWidth: 17 },
-        9: { cellWidth: 17 },
-        10: { cellWidth: 19 },
-        11: { cellWidth: 18 },
+        0: { cellWidth: 44 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 20 },
+        6: { cellWidth: 15 },
+        7: { cellWidth: 14 },
+        8: { cellWidth: 14 },
+        9: { cellWidth: 16 },
+        10: { cellWidth: 17 },
+        11: { cellWidth: 24 },
       },
       didDrawPage: () => {
         const pageCount = doc.getNumberOfPages()
@@ -718,6 +983,8 @@ export default function Reports() {
         Province: textValue(project.province),
         Municipality: textValue(project.municipality),
         Barangay: textValue(project.barangay),
+        'Assigned Province / AOR': getAssignedAorLabel(project),
+        'Latest Update Date': formatLongDate(getLatestUpdateDate(project, latestUpdateMap)),
         'Funding Source': textValue(project.funding_source),
         'Project Type': textValue(project.project_type),
         'Implementing Office': textValue(project.implementing_office),
@@ -741,6 +1008,11 @@ export default function Reports() {
       ['DILG-PDMU Project Monitoring Report'],
       ['Generated', formatLongDate(new Date().toISOString())],
       ['Scope', 'Records are filtered according to the logged-in user AOR.'],
+      [
+        'Assigned PO Engineer/s',
+        getReportAssignedPoSummary(reportProjects, poEngineerAssignments, profileMap),
+      ],
+      ['Assigned AOR', getReportAorSummary(reportProjects)],
       ['Projects Included', reportProjects.length],
       ['Active Filters', activeFilterCount],
       [],
@@ -831,7 +1103,7 @@ export default function Reports() {
                 type="search"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search project, LGU, program..."
+                placeholder="Search project, LGU, assigned PO, latest update..."
               />
             </label>
 
@@ -968,6 +1240,9 @@ export default function Reports() {
                 <span>
                   Showing {filteredProjects.length} matched project/s.
                 </span>
+                <span>
+                  Assigned PO Engineer/s: {getReportAssignedPoSummary(filteredProjects, poEngineerAssignments, profileMap)}
+                </span>
               </div>
             </div>
 
@@ -987,6 +1262,7 @@ export default function Reports() {
                       <tr>
                         <th>Project</th>
                         <th>Location</th>
+                        <th>Latest Update</th>
                         <th>Funding Source</th>
                         <th>Project Cost</th>
                         <th>Status</th>
@@ -995,13 +1271,15 @@ export default function Reports() {
                         <th>Target</th>
                         <th>Variance</th>
                         <th>Financial</th>
-                        <th>Last Inspection</th>
                       </tr>
                     </thead>
 
                     <tbody>
                       {filteredProjects.map((project) => {
                         const varianceInfo = getProjectVariance(project)
+                        const latestUpdateDate = formatLongDate(
+                          getLatestUpdateDate(project, latestUpdateMap),
+                        )
 
                         return (
                           <tr key={project.id}>
@@ -1017,6 +1295,10 @@ export default function Reports() {
                                 {textValue(project.barangay) || 'No Barangay'},{' '}
                                 {textValue(project.province) || 'No Province'}
                               </span>
+                              <span>{getAssignedAorLabel(project)}</span>
+                            </td>
+                            <td>
+                              <strong>{latestUpdateDate}</strong>
                             </td>
                             <td>{textValue(project.funding_source) || '-'}</td>
                             <td>{formatCurrency(project.budget)}</td>
@@ -1038,7 +1320,6 @@ export default function Reports() {
                               </span>
                             </td>
                             <td>{formatPercent(project.financial_accomplishment)}</td>
-                            <td>{formatLongDate(project.last_inspection_date)}</td>
                           </tr>
                         )
                       })}
@@ -1049,6 +1330,9 @@ export default function Reports() {
                 <div className="reports-mobile-list">
                   {filteredProjects.map((project) => {
                     const varianceInfo = getProjectVariance(project)
+                    const latestUpdateDate = formatLongDate(
+                      getLatestUpdateDate(project, latestUpdateMap),
+                    )
 
                     return (
                       <article key={project.id} className="reports-mobile-card">
@@ -1071,6 +1355,14 @@ export default function Reports() {
                         </div>
 
                         <div className="reports-mobile-grid">
+                          <span>
+                            <strong>AOR</strong>
+                            {getAssignedAorLabel(project)}
+                          </span>
+                          <span>
+                            <strong>Latest Update Date</strong>
+                            {latestUpdateDate}
+                          </span>
                           <span>
                             <strong>Funding</strong>
                             {textValue(project.funding_source) || '-'}
@@ -1096,10 +1388,6 @@ export default function Reports() {
                           <span>
                             <strong>Financial</strong>
                             {formatPercent(project.financial_accomplishment)}
-                          </span>
-                          <span>
-                            <strong>Last Inspection</strong>
-                            {formatLongDate(project.last_inspection_date)}
                           </span>
                         </div>
                       </article>
