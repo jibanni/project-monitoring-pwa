@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { canEditProjectRecord, getCanonicalRole } from '../utils/aorAccess'
-import { getComputedRiskLevel, getTargetPhysicalInfo, getContractExpirationInfo } from '../utils/projectVariance'
+import {
+  getComputedRiskLevel,
+  getContractExpirationInfo,
+  getProjectReasonLabel,
+  getStatusFromContractModification,
+  getTargetPhysicalInfo,
+  requiresProjectReason,
+} from '../utils/projectVariance'
 import '../styles/editProject.css'
 import '../styles/pageHero.css'
 
@@ -123,9 +130,11 @@ const NOT_YET_STARTED_REASON_OPTIONS = [
   'TDRs under Review (RO)',
 ]
 
+const SUSPENSION_ORDER_TYPE = 'Suspension Order (SO)'
+
 const CONTRACT_MODIFICATION_TYPE_OPTIONS = [
   'Variation Order (VO)',
-  'Suspension Order (SO)',
+  SUSPENSION_ORDER_TYPE,
   'Time Extension (EOT)',
   'Combination',
 ]
@@ -151,6 +160,21 @@ function cleanText(value: string) {
 function dateInputValue(value: unknown) {
   if (!value || typeof value !== 'string') return ''
   return value.slice(0, 10)
+}
+
+function formatLongDate(value?: string | null) {
+  if (!value) return 'Select date'
+
+  const normalizedValue = value.length <= 10 ? `${value}T00:00:00` : value
+  const parsedDate = new Date(normalizedValue)
+
+  if (Number.isNaN(parsedDate.getTime())) return 'Select date'
+
+  return parsedDate.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
 }
 
 function numberInputValue(value: unknown) {
@@ -344,6 +368,7 @@ export default function EditProject() {
   const { id } = useParams()
   const navigate = useNavigate()
   const auth = useAuth()
+  const revisedContractExpirationDateInputRef = useRef<HTMLInputElement | null>(null)
 
   const [form, setForm] = useState<ProjectForm>(emptyForm)
   const [loading, setLoading] = useState(true)
@@ -354,7 +379,15 @@ export default function EditProject() {
 
   const role = getCanonicalRole(auth.profile?.role)
   const canAccessEditRoute = auth.isAdmin || auth.isROEngineer || role === 'RO Engineer'
+  const hasContractModification = form.has_contract_modification === 'yes'
+  const activeModificationType = hasContractModification ? form.contract_modification_type : ''
+  const isSuspendedStatus = form.status.toLowerCase().includes('suspend')
+  const contractModificationTypeOptions = useMemo(() => {
+    return isSuspendedStatus ? [SUSPENSION_ORDER_TYPE] : CONTRACT_MODIFICATION_TYPE_OPTIONS
+  }, [isSuspendedStatus])
   const requiresNotYetStartedReason = form.status === 'Not Yet Started'
+  const requiresProjectChangeReason = requiresProjectReason(form.status, activeModificationType)
+  const projectReasonLabel = getProjectReasonLabel(form.status, activeModificationType)
 
   const disbursementAmount = useMemo(() => {
     const evaluatedAmount = evaluateAmountExpression(form.disbursement_amount)
@@ -364,8 +397,6 @@ export default function EditProject() {
     return toNullableNumber(form.disbursement_amount) ?? 0
   }, [form.disbursement_amount])
 
-  const hasContractModification = form.has_contract_modification === 'yes'
-
   const officialProjectCost = useMemo(() => {
     const originalCost = toNullableNumber(form.budget) ?? 0
     const revisedCost = toNullableNumber(form.revised_project_cost) ?? 0
@@ -374,10 +405,10 @@ export default function EditProject() {
   }, [form.budget, form.revised_project_cost, hasContractModification])
 
   useEffect(() => {
-    if (!requiresNotYetStartedReason && form.not_yet_started_reason) {
+    if (!requiresProjectChangeReason && form.not_yet_started_reason) {
       updateField('not_yet_started_reason', '')
     }
-  }, [requiresNotYetStartedReason, form.not_yet_started_reason])
+  }, [requiresProjectChangeReason, form.not_yet_started_reason])
 
   useEffect(() => {
     if (!hasContractModification) {
@@ -389,6 +420,32 @@ export default function EditProject() {
       }))
     }
   }, [hasContractModification])
+
+  useEffect(() => {
+    const statusFromModification = getStatusFromContractModification(form.contract_modification_type)
+
+    if (hasContractModification && statusFromModification && form.status !== statusFromModification) {
+      updateField('status', statusFromModification)
+    }
+  }, [form.contract_modification_type, form.status, hasContractModification])
+
+  useEffect(() => {
+    if (!isSuspendedStatus) return
+
+    setForm((current) => {
+      const nextForm = { ...current }
+
+      if (nextForm.has_contract_modification !== 'yes') {
+        nextForm.has_contract_modification = 'yes'
+      }
+
+      if (nextForm.contract_modification_type !== SUSPENSION_ORDER_TYPE) {
+        nextForm.contract_modification_type = SUSPENSION_ORDER_TYPE
+      }
+
+      return nextForm
+    })
+  }, [isSuspendedStatus])
 
   useEffect(() => {
     if (officialProjectCost <= 0 || disbursementAmount <= 0) {
@@ -599,6 +656,66 @@ export default function EditProject() {
     if (successMessage) setSuccessMessage('')
   }
 
+  function openDateInput(dateInput: HTMLInputElement | null) {
+    const pickerInput = dateInput as
+      | (HTMLInputElement & { showPicker?: () => void })
+      | null
+
+    if (!pickerInput) return
+
+    if (pickerInput.showPicker) {
+      pickerInput.showPicker()
+      return
+    }
+
+    pickerInput.focus()
+    pickerInput.click()
+  }
+
+  function openRevisedContractExpirationPicker() {
+    openDateInput(revisedContractExpirationDateInputRef.current)
+  }
+
+  function handleStatusChange(nextStatus: string) {
+    setForm((current) => {
+      const nextForm = {
+        ...current,
+        status: nextStatus,
+      }
+
+      if (nextStatus !== 'Not Yet Started') {
+        nextForm.not_yet_started_reason = ''
+      }
+
+      if (nextStatus.toLowerCase().includes('suspend')) {
+        nextForm.has_contract_modification = 'yes'
+        nextForm.contract_modification_type = SUSPENSION_ORDER_TYPE
+      } else if (nextForm.contract_modification_type === SUSPENSION_ORDER_TYPE) {
+        nextForm.contract_modification_type = ''
+      }
+
+      return nextForm
+    })
+
+    if (pageError) setPageError('')
+    if (successMessage) setSuccessMessage('')
+  }
+
+  function handleContractModificationTypeChange(nextType: string) {
+    setForm((current) => {
+      const statusFromModification = getStatusFromContractModification(nextType)
+
+      return {
+        ...current,
+        contract_modification_type: nextType,
+        status: statusFromModification || current.status,
+      }
+    })
+
+    if (pageError) setPageError('')
+    if (successMessage) setSuccessMessage('')
+  }
+
   function swapCoordinates() {
     setForm((current) => ({
       ...current,
@@ -635,8 +752,8 @@ export default function EditProject() {
       return 'Project status is required.'
     }
 
-    if (requiresNotYetStartedReason && !cleanText(form.not_yet_started_reason)) {
-      return 'Please select the reason for Not Yet Started status.'
+    if (requiresProjectChangeReason && !cleanText(form.not_yet_started_reason)) {
+      return `Please provide the ${projectReasonLabel.toLowerCase()}.`
     }
 
     if (
@@ -728,7 +845,7 @@ export default function EditProject() {
       longitude: coordinateStatus.state === 'valid' ? coordinateStatus.longitude : null,
       physical_accomplishment: clampProgress(form.physical_accomplishment),
       financial_accomplishment: clampProgress(form.financial_accomplishment),
-      not_yet_started_reason: requiresNotYetStartedReason ? cleanText(form.not_yet_started_reason) : null,
+      not_yet_started_reason: requiresProjectChangeReason ? cleanText(form.not_yet_started_reason) : null,
       target_physical_accomplishment: cleanText(form.target_physical_accomplishment)
         ? clampProgress(form.target_physical_accomplishment)
         : null,
@@ -836,7 +953,7 @@ export default function EditProject() {
 
         <div className="edit-project-summary-card">
           <span>Risk Level</span>
-          <strong>{computedRiskLevel}</strong>
+          <strong className={`edit-project-risk-text risk-${computedRiskLevel.toLowerCase()}`}>{computedRiskLevel}</strong>
         </div>
 
         <div className="edit-project-summary-card">
@@ -902,7 +1019,7 @@ export default function EditProject() {
               <span>Status</span>
               <select
                 value={form.status}
-                onChange={(event) => updateField('status', event.target.value)}
+                onChange={(event) => handleStatusChange(event.target.value)}
                 required
               >
                 {mergedStatusOptions.map((status) => (
@@ -913,27 +1030,41 @@ export default function EditProject() {
               </select>
             </label>
 
-            <label className={`edit-project-field ${!requiresNotYetStartedReason ? 'edit-project-disabled-field' : ''}`}>
-              <span>Reason for Not Yet Started {requiresNotYetStartedReason ? '*' : ''}</span>
-              <select
-                value={form.not_yet_started_reason}
-                onChange={(event) => updateField('not_yet_started_reason', event.target.value)}
-                disabled={!requiresNotYetStartedReason}
-              >
-                <option value="">
-                  {requiresNotYetStartedReason ? 'Select reason' : 'Not applicable'}
-                </option>
-                {NOT_YET_STARTED_REASON_OPTIONS.map((reason) => (
-                  <option key={reason} value={reason}>
-                    {reason}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {requiresNotYetStartedReason ? (
+              <label className="edit-project-field">
+                <span>{projectReasonLabel} *</span>
+                <select
+                  value={form.not_yet_started_reason}
+                  onChange={(event) => updateField('not_yet_started_reason', event.target.value)}
+                >
+                  <option value="">Select reason</option>
+                  {NOT_YET_STARTED_REASON_OPTIONS.map((reason) => (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className={`edit-project-field ${!requiresProjectChangeReason ? 'edit-project-disabled-field' : ''}`}>
+                <span>{projectReasonLabel} {requiresProjectChangeReason ? '*' : ''}</span>
+                <textarea
+                  value={form.not_yet_started_reason}
+                  onChange={(event) => updateField('not_yet_started_reason', event.target.value)}
+                  disabled={!requiresProjectChangeReason}
+                  placeholder={
+                    requiresProjectChangeReason
+                      ? 'State the reason/justification for this critical status or contract modification.'
+                      : 'Not applicable'
+                  }
+                  rows={3}
+                />
+              </label>
+            )}
 
             <div className="edit-project-field edit-project-readonly-field">
               <span>Risk Level</span>
-              <strong>{computedRiskLevel}</strong>
+              <strong className={`edit-project-risk-text risk-${computedRiskLevel.toLowerCase()}`}>{computedRiskLevel}</strong>
             </div>
 
             <label className="edit-project-field">
@@ -1084,11 +1215,29 @@ export default function EditProject() {
               <select
                 value={form.has_contract_modification}
                 onChange={(event) => updateField('has_contract_modification', event.target.value)}
+                disabled={isSuspendedStatus}
               >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
             </label>
+
+            {hasContractModification && (
+              <label className="edit-project-field edit-project-field-wide">
+                <span>Type of Modification *</span>
+                <select
+                  value={form.contract_modification_type}
+                  onChange={(event) => handleContractModificationTypeChange(event.target.value)}
+                >
+                  <option value="">Select modification type</option>
+                  {contractModificationTypeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             {contractInfo.isExpired && (
               <div className="edit-project-contract-warning edit-project-field-wide">
@@ -1101,7 +1250,7 @@ export default function EditProject() {
             {hasContractModification && (
               <>
                 <label className="edit-project-field">
-                  <span>Revised Project Cost</span>
+                  <span>Revised Project Cost *</span>
                   <input
                     type="number"
                     min="0"
@@ -1112,28 +1261,33 @@ export default function EditProject() {
                   />
                 </label>
 
-                <label className="edit-project-field">
-                  <span>Revised Contract Expiration Date</span>
+                <label className="edit-project-field edit-project-date-field">
+                  <span>Revised Contract Expiration Date *</span>
+
+                  <div className="edit-project-long-date-field">
+                    <div>
+                      <strong>{formatLongDate(form.revised_contract_expiration_date)}</strong>
+                      <small>Revised contract expiration</small>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="edit-project-date-change-btn"
+                      onClick={openRevisedContractExpirationPicker}
+                      disabled={saving}
+                    >
+                      Change Date
+                    </button>
+                  </div>
+
                   <input
+                    ref={revisedContractExpirationDateInputRef}
+                    className="edit-project-hidden-date-input"
                     type="date"
                     value={form.revised_contract_expiration_date}
                     onChange={(event) => updateField('revised_contract_expiration_date', event.target.value)}
+                    aria-label="Revised contract expiration date"
                   />
-                </label>
-
-                <label className="edit-project-field edit-project-field-wide">
-                  <span>Type of Modification</span>
-                  <select
-                    value={form.contract_modification_type}
-                    onChange={(event) => updateField('contract_modification_type', event.target.value)}
-                  >
-                    <option value="">Select modification type</option>
-                    {CONTRACT_MODIFICATION_TYPE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
                 </label>
               </>
             )}
@@ -1211,7 +1365,7 @@ export default function EditProject() {
               </div>
               <div className="edit-project-progress-header">
                 <span>Risk Level</span>
-                <strong>{computedRiskLevel}</strong>
+                <strong className={`edit-project-risk-text risk-${computedRiskLevel.toLowerCase()}`}>{computedRiskLevel}</strong>
               </div>
             </div>
           </div>

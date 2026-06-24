@@ -52,6 +52,11 @@ function getAutoRiskForUpdate(update: OfflineProjectUpdate) {
     target_physical_as_of: update.inspection_date,
     target_physical_source: update.target_physical_source || 'manual',
     last_inspection_date: update.inspection_date,
+    contract_expiration_date: update.contract_expiration_date,
+    has_contract_modification: update.has_contract_modification,
+    contract_modification_type: update.contract_modification_type,
+    revised_project_cost: update.revised_project_cost,
+    revised_contract_expiration_date: update.revised_contract_expiration_date,
   })
 }
 
@@ -116,6 +121,14 @@ function buildProjectPatch(update: OfflineProjectUpdate) {
     target_physical_source: textValue(update.target_physical_source) || 'manual',
     financial_accomplishment: toNumber(update.financial_accomplishment),
     risk_level: getAutoRiskForUpdate(update),
+    has_contract_modification:
+      update.has_contract_modification === true ||
+      textValue(update.has_contract_modification).toLowerCase() === 'true' ||
+      textValue(update.has_contract_modification).toLowerCase() === 'yes',
+    contract_modification_type: nullableText(update.contract_modification_type),
+    revised_project_cost: nullableNumber(update.revised_project_cost),
+    revised_contract_expiration_date: nullableText(update.revised_contract_expiration_date),
+    not_yet_started_reason: nullableText(update.not_yet_started_reason),
     last_inspection_date: update.inspection_date,
     ...(latitude !== null && longitude !== null
       ? {

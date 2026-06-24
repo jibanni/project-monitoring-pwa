@@ -1092,3 +1092,160 @@ body > .edit-project-fab-stack .edit-project-fab-back svg,
     font-size: 1.35rem;
   }
 }
+
+/* Risk color text: None green, Low yellow, Moderate orange, High red */
+.edit-project-risk-text {
+  font-weight: 950 !important;
+}
+
+.edit-project-risk-text.risk-none {
+  color: #166534 !important;
+}
+
+.edit-project-risk-text.risk-low {
+  color: #854d0e !important;
+}
+
+.edit-project-risk-text.risk-moderate,
+.edit-project-risk-text.risk-medium {
+  color: #c2410c !important;
+}
+
+.edit-project-risk-text.risk-high {
+  color: #b91c1c !important;
+}
+
+/* Revised contract expiration date/mobile date input UI fix
+   Prevents date fields from stretching outside the card and removes centered native date text. */
+.edit-project-field input[type='date'],
+.edit-project-progress-card input[type='date'] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  box-sizing: border-box !important;
+  padding: 0 1rem !important;
+  margin: 0 !important;
+  border-radius: 20px !important;
+  line-height: 56px !important;
+  text-align: left !important;
+  overflow: hidden !important;
+}
+
+.edit-project-field input[type='date']::-webkit-date-and-time-value,
+.edit-project-progress-card input[type='date']::-webkit-date-and-time-value {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 56px !important;
+  text-align: left !important;
+}
+
+.edit-project-field input[type='date']::-webkit-datetime-edit,
+.edit-project-field input[type='date']::-webkit-datetime-edit-fields-wrapper,
+.edit-project-progress-card input[type='date']::-webkit-datetime-edit,
+.edit-project-progress-card input[type='date']::-webkit-datetime-edit-fields-wrapper {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+
+.edit-project-field input[type='date']::-webkit-calendar-picker-indicator,
+.edit-project-progress-card input[type='date']::-webkit-calendar-picker-indicator {
+  position: relative !important;
+  margin-left: auto !important;
+  opacity: 0.7 !important;
+}
+
+/* Phase 2O-B: safe revised contract expiration date display */
+.edit-project-date-field {
+  position: relative;
+}
+
+.edit-project-long-date-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 56px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.62rem 0.75rem 0.62rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.edit-project-long-date-field > div {
+  min-width: 0;
+}
+
+.edit-project-long-date-field strong {
+  display: block;
+  color: #0f172a !important;
+  font-size: 0.96rem;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.edit-project-long-date-field small {
+  display: block;
+  margin-top: 0.1rem;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.edit-project-date-change-btn {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 13px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.edit-project-date-change-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.edit-project-hidden-date-input {
+  position: absolute !important;
+  left: 0.75rem !important;
+  bottom: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 560px) {
+  .edit-project-long-date-field {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .edit-project-date-change-btn {
+    width: 100%;
+  }
+}

@@ -22,6 +22,12 @@ export type OfflineProject = {
   budget?: number | string
   start_date?: string
   target_completion_date?: string
+  contract_expiration_date?: string | null
+  has_contract_modification?: boolean | string | null
+  contract_modification_type?: string | null
+  revised_project_cost?: number | string | null
+  revised_contract_expiration_date?: string | null
+  not_yet_started_reason?: string | null
   latitude?: number | string | null
   longitude?: number | string | null
   last_inspection_date?: string
@@ -44,6 +50,12 @@ export type OfflineProjectUpdate = {
 
   inspection_date: string
   status: string
+  contract_expiration_date?: string | null
+  has_contract_modification?: boolean | string | null
+  contract_modification_type?: string | null
+  revised_project_cost?: number | string | null
+  revised_contract_expiration_date?: string | null
+  not_yet_started_reason?: string | null
   physical_accomplishment: number
   target_physical_accomplishment?: number | string | null
   target_physical_as_of?: string | null

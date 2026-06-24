@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { offlineDb } from '../lib/offlineDb'
 import { useAuth } from '../context/AuthContext'
-import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getComputedRiskLevel, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
 import '../styles/projects.css'
 
@@ -129,6 +129,7 @@ function getStatusClass(status: string | null) {
   if (normalized.includes('not')) return 'not-started'
   if (normalized.includes('delayed')) return 'delayed'
   if (normalized.includes('cancel')) return 'cancelled'
+  if (normalized.includes('suspend')) return 'suspended'
   if (normalized.includes('terminate')) return 'terminated'
 
   return 'default'
@@ -402,7 +403,7 @@ export default function Projects() {
 
   const statuses = useMemo(() => {
     return Array.from(
-      new Set(allowedProjects.map((project) => textValue(project.status)).filter(Boolean)),
+      new Set(allowedProjects.map((project) => getProjectDisplayStatus(project)).filter(Boolean)),
     ).sort()
   }, [allowedProjects])
 
@@ -425,7 +426,7 @@ export default function Projects() {
         project.project_type,
         project.implementing_office,
         project.contractor,
-        project.status,
+        getProjectDisplayStatus(project),
         getComputedRiskLevel(project),
       ]
         .map(textValue)
@@ -453,7 +454,7 @@ export default function Projects() {
         : true
 
       const statusMatches = statusFilter
-        ? textValue(project.status) === statusFilter
+        ? getProjectDisplayStatus(project) === statusFilter
         : true
 
       const riskMatches = riskFilter
@@ -486,15 +487,15 @@ export default function Projects() {
   }, [filteredProjects])
 
   const notStartedCount = filteredProjects.filter((project) =>
-    textValue(project.status).toLowerCase().includes('not'),
+    getProjectDisplayStatus(project).toLowerCase().includes('not'),
   ).length
 
   const ongoingCount = filteredProjects.filter((project) =>
-    textValue(project.status).toLowerCase().includes('ongoing'),
+    getProjectDisplayStatus(project).toLowerCase().includes('ongoing'),
   ).length
 
   const completedCount = filteredProjects.filter((project) =>
-    textValue(project.status).toLowerCase().includes('complete'),
+    getProjectDisplayStatus(project).toLowerCase().includes('complete'),
   ).length
 
   const highRiskCount = filteredProjects.filter((project) =>
@@ -781,6 +782,7 @@ export default function Projects() {
                 Math.max(0, toNumber(project.financial_accomplishment)),
               )
               const computedRisk = getComputedRiskLevel(project)
+              const displayStatus = getProjectDisplayStatus(project)
               const varianceInfo = getTargetPhysicalInfo(project)
               const canUpdateProject = canUpdateProjectByAor(project, auth)
               const location = [project.barangay, project.municipality, project.province]
@@ -800,8 +802,8 @@ export default function Projects() {
                   </div>
 
                   <div className="project-row-status-stack">
-                    <span className={`project-status ${getStatusClass(project.status)}`}>
-                      {textValue(project.status) || 'No Status'}
+                    <span className={`project-status ${getStatusClass(displayStatus)}`}>
+                      {displayStatus}
                     </span>
                     <span className={`project-risk ${getRiskClass(computedRisk)}`}>
                       {computedRisk}

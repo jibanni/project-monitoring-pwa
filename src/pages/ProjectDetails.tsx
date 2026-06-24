@@ -6,7 +6,7 @@ import autoTable from 'jspdf-autotable'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { offlineDb } from '../lib/offlineDb'
-import { getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getComputedRiskLevel, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
 import '../styles/projectDetails.css'
@@ -99,13 +99,6 @@ function normalizeClassName(value: unknown) {
     .replace(/(^-|-$)/g, '')
 
   return normalized || 'unknown'
-}
-
-function getRiskLevelFromVariance(variance: number) {
-  if (!Number.isFinite(variance) || variance >= 0) return 'None'
-  if (variance >= -5) return 'Low'
-  if (variance > -10) return 'Moderate'
-  return 'High'
 }
 
 function sanitizeFileName(value: string) {
@@ -385,9 +378,10 @@ export default function ProjectDetails() {
     [project],
   )
 
-  const statusClass = normalizeClassName(project?.status)
+  const displayStatus = getProjectDisplayStatus(project)
+  const statusClass = normalizeClassName(displayStatus)
   const varianceInfo = getTargetPhysicalInfo(project)
-  const computedRiskLevel = getRiskLevelFromVariance(varianceInfo.variance)
+  const computedRiskLevel = getComputedRiskLevel(project)
   const riskClass = normalizeClassName(computedRiskLevel)
   const canUpdateCurrentProject = project ? canUpdateProject(project, auth) : false
   const canEditCurrentProject = project ? canEditProjectRecord(project, auth) : false
@@ -442,7 +436,7 @@ export default function ProjectDetails() {
       startY: (doc as any).lastAutoTable.finalY + 8,
       head: [['Implementation Status', 'Details']],
       body: [
-        ['Status', project.status || '-'],
+        ['Status', displayStatus || '-'],
         ['Risk Level', computedRiskLevel],
         ['Physical Accomplishment', `${project.physical_accomplishment || 0}%`],
         [
@@ -686,7 +680,7 @@ export default function ProjectDetails() {
 
         <div className="pd-status-panel">
           <span className={`pd-status-badge pd-status-${statusClass}`}>
-            {getDisplayValue(project.status, 'No Status')}
+            {displayStatus}
           </span>
           <span className={`pd-variance-badge ${varianceInfo.className}`}>
             {varianceInfo.compactLabel}

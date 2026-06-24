@@ -571,3 +571,155 @@
 .create-project-contract-warning span {
   color: #991b1b !important;
 }
+
+/* Risk color text: None green, Low yellow, Moderate orange, High red */
+.create-project-risk-text {
+  font-weight: 950 !important;
+}
+
+.create-project-risk-text.risk-none {
+  color: #166534 !important;
+}
+
+.create-project-risk-text.risk-low {
+  color: #854d0e !important;
+}
+
+.create-project-risk-text.risk-moderate,
+.create-project-risk-text.risk-medium {
+  color: #c2410c !important;
+}
+
+.create-project-risk-text.risk-high {
+  color: #b91c1c !important;
+}
+
+/* Revised contract expiration date/mobile date input UI fix
+   Keeps native date fields inside the form card and left-aligns the displayed date on mobile browsers. */
+.create-project-grid input[type='date'] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 50px !important;
+  min-height: 50px !important;
+  box-sizing: border-box !important;
+  padding: 0 14px !important;
+  margin: 0 !important;
+  border-radius: 15px !important;
+  line-height: 50px !important;
+  text-align: left !important;
+  overflow: hidden !important;
+}
+
+.create-project-grid input[type='date']::-webkit-date-and-time-value {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 50px !important;
+  text-align: left !important;
+}
+
+.create-project-grid input[type='date']::-webkit-datetime-edit,
+.create-project-grid input[type='date']::-webkit-datetime-edit-fields-wrapper {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+
+.create-project-grid input[type='date']::-webkit-calendar-picker-indicator {
+  position: relative !important;
+  margin-left: auto !important;
+  opacity: 0.7 !important;
+}
+
+/* Phase 2O-B: safe revised contract expiration date display */
+.create-project-date-field {
+  position: relative;
+}
+
+.create-project-long-date-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 50px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.65rem 0.55rem 0.9rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 15px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.create-project-long-date-field > div {
+  min-width: 0;
+}
+
+.create-project-long-date-field strong {
+  display: block;
+  color: #0f172a !important;
+  font-size: 0.96rem;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.create-project-long-date-field small {
+  display: block;
+  margin-top: 0.1rem;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.create-project-date-change-btn {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0.42rem 0.7rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.create-project-date-change-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.create-project-hidden-date-input {
+  position: absolute !important;
+  left: 0.75rem !important;
+  bottom: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 560px) {
+  .create-project-long-date-field {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .create-project-date-change-btn {
+    width: 100%;
+  }
+}

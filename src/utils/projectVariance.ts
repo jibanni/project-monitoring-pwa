@@ -216,10 +216,11 @@ export function getRiskLevelFromVariance(
 
 export function getComputedRiskLevel(
   project?: ProjectLike | null,
+  referenceDate?: string | null,
 ): 'None' | 'Low' | 'Moderate' | 'High' {
-  if (getContractExpirationInfo(project).isExpired) return 'High'
+  if (getContractExpirationInfo(project, referenceDate).isExpired) return 'High'
 
-  return getRiskLevelFromVariance(getTargetPhysicalInfo(project).variance)
+  return getRiskLevelFromVariance(getTargetPhysicalInfo(project, referenceDate).variance)
 }
 
 /*
@@ -283,4 +284,86 @@ export function getVarianceClassName(
   if (variance < 0) return 'behind'
 
   return 'on-track'
+}
+
+export type ProjectRiskLevel = 'None' | 'Low' | 'Moderate' | 'High'
+
+export function getRiskClassName(risk?: string | null): 'none' | 'low' | 'moderate' | 'high' | 'unknown' {
+  const normalized = textValue(risk).toLowerCase()
+
+  if (!normalized || normalized === 'none' || normalized.includes('no risk')) return 'none'
+  if (normalized.includes('high') || normalized.includes('critical')) return 'high'
+  if (normalized.includes('moderate') || normalized.includes('medium')) return 'moderate'
+  if (normalized.includes('low')) return 'low'
+
+  return 'unknown'
+}
+
+export function getProjectDisplayRisk(project?: ProjectLike | null): ProjectRiskLevel {
+  return getComputedRiskLevel(project)
+}
+
+export function getStatusFromContractModification(
+  modificationType?: string | null,
+): 'Suspended' | null {
+  const normalized = textValue(modificationType).toLowerCase()
+
+  if (normalized.includes('suspension')) return 'Suspended'
+
+  return null
+}
+
+export function getProjectDisplayStatus(project?: ProjectLike & { status?: string | null } | null): string {
+  const status = textValue(project?.status)
+  const normalizedStatus = status.toLowerCase()
+
+  if (normalizedStatus.includes('terminate')) return 'Terminated'
+  if (normalizedStatus.includes('suspend')) return 'Suspended'
+
+  return getStatusFromContractModification(project?.contract_modification_type) || status || 'No Status'
+}
+
+export function isCriticalProjectStatus(status?: string | null): boolean {
+  const normalized = textValue(status).toLowerCase()
+  return normalized.includes('suspend') || normalized.includes('terminate')
+}
+
+export function isCriticalModificationType(modificationType?: string | null): boolean {
+  const normalized = textValue(modificationType).toLowerCase()
+  return (
+    normalized.includes('variation') ||
+    normalized.includes('suspension') ||
+    normalized.includes('combination')
+  )
+}
+
+export function requiresProjectReason(
+  status?: string | null,
+  modificationType?: string | null,
+): boolean {
+  const normalizedStatus = textValue(status).toLowerCase()
+
+  return (
+    normalizedStatus === 'not yet started' ||
+    isCriticalProjectStatus(status) ||
+    isCriticalModificationType(modificationType)
+  )
+}
+
+export function getProjectReasonLabel(
+  status?: string | null,
+  modificationType?: string | null,
+): string {
+  const normalizedStatus = textValue(status).toLowerCase()
+  const normalizedModification = textValue(modificationType).toLowerCase()
+
+  if (normalizedStatus === 'not yet started') return 'Reason for Not Yet Started'
+  if (normalizedStatus.includes('terminate')) return 'Reason for Termination'
+  if (normalizedStatus.includes('suspend') || normalizedModification.includes('suspension')) {
+    return 'Reason for Suspension Order'
+  }
+  if (normalizedModification.includes('variation')) return 'Reason for Variation Order'
+  if (normalizedModification.includes('combination')) return 'Reason for Contract Modification'
+
+  return 'Reason / Justification'
 }

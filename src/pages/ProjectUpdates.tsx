@@ -8,7 +8,12 @@ import { offlineDb } from '../lib/offlineDb'
 import { useAuth } from '../context/AuthContext'
 import {
   formatProgressInput,
+  getComputedRiskLevel,
+  getContractExpirationInfo,
+  getProjectReasonLabel,
+  getStatusFromContractModification,
   getTargetPhysicalInfo,
+  requiresProjectReason,
 } from '../utils/projectVariance'
 import { canUpdateProject } from '../utils/aorAccess'
 import '../styles/projectUpdates.css'
@@ -25,6 +30,12 @@ type ProjectRecord = {
   budget?: number | string | null
   start_date?: string | null
   target_completion_date?: string | null
+  contract_expiration_date?: string | null
+  has_contract_modification?: boolean | string | null
+  contract_modification_type?: string | null
+  revised_project_cost?: number | string | null
+  revised_contract_expiration_date?: string | null
+  not_yet_started_reason?: string | null
   barangay?: string | null
   municipality?: string | null
   province?: string | null
@@ -91,6 +102,18 @@ type PhotoInput = {
 
 type SaveMode = 'online' | 'offline'
 
+type SaveSuccessDialog = {
+  title: string
+  message: string
+  mode: SaveMode
+} | null
+
+type NoticeDialog = {
+  title: string
+  message: string
+  tone: 'warning' | 'danger' | 'info'
+} | null
+
 type CoordinateResult = {
   isValid: boolean
   latitude: number | null
@@ -100,17 +123,17 @@ type CoordinateResult = {
 }
 
 const PHOTO_BUCKET = 'project-photos'
-const MAX_PHOTOS_PER_UPDATE = 10
+const MAX_PHOTOS_PER_UPDATE = 3
 const RECENT_UPDATE_LIMIT = 4
 
 const statusOptions = [
+  'Ongoing',
+  'Completed',
+  'Suspended',
+  'Terminated',
   'Under Review',
   'Under Procurement',
   'Not Yet Started',
-  'Ongoing',
-  'Suspended',
-  'Terminated',
-  'Completed',
 ]
 
 const NOT_YET_STARTED_REASONS = [
@@ -119,6 +142,15 @@ const NOT_YET_STARTED_REASONS = [
   'TDRs under PO Engineers Review',
   'TDRs under Review (PO)',
   'TDRs under Review (RO)',
+]
+
+const SUSPENSION_ORDER_TYPE = 'Suspension Order (SO)'
+
+const CONTRACT_MODIFICATION_TYPE_OPTIONS = [
+  'Variation Order (VO)',
+  SUSPENSION_ORDER_TYPE,
+  'Time Extension (EOT)',
+  'Combination',
 ]
 
 const offlineUpdateTables = [
@@ -405,13 +437,11 @@ function normalizeCoordinatePair(
 function getRiskClass(risk?: string | null) {
   const normalized = String(risk || '').toLowerCase()
 
-  if (normalized.includes('high')) return 'pu-badge-danger'
-  if (normalized.includes('moderate') || normalized.includes('medium')) {
-    return 'pu-badge-warning'
-  }
-  if (normalized.includes('low')) return 'pu-badge-success'
+  if (normalized.includes('high')) return 'pu-risk-high'
+  if (normalized.includes('moderate') || normalized.includes('medium')) return 'pu-risk-moderate'
+  if (normalized.includes('low')) return 'pu-risk-low'
 
-  return 'pu-badge-neutral'
+  return 'pu-risk-none'
 }
 
 function getStatusClass(status?: string | null) {
@@ -429,11 +459,30 @@ function getStatusClass(status?: string | null) {
   return 'pu-badge-neutral'
 }
 
-function getAutoRiskLevelFromVariance(variance: number) {
-  if (!Number.isFinite(variance) || variance >= 0) return 'None'
-  if (variance >= -5) return 'Low'
-  if (variance > -10) return 'Moderate'
-  return 'High'
+
+function getStatusHelperText(status: string) {
+  const normalized = normalizeText(status)
+
+  if (normalized === 'completed') return '100% done / ready for completion record'
+  if (normalized === 'ongoing') return 'Regular progress update'
+  if (normalized === 'suspended') return 'Critical: requires Suspension Order reason'
+  if (normalized === 'terminated') return 'Critical: requires termination reason'
+  if (normalized === 'under review') return 'For document / RO review tracking'
+  if (normalized === 'not yet started') return 'Non-start status update'
+  if (normalized === 'under procurement') return 'Procurement status update'
+
+  return 'Project status update'
+}
+
+function getModificationHelperText(modificationType: string) {
+  const normalized = normalizeText(modificationType)
+
+  if (normalized.includes('variation')) return 'Change in quantity, scope, or cost'
+  if (normalized.includes('suspension')) return 'Suspension Order; project becomes Suspended'
+  if (normalized.includes('extension')) return 'Time extension / revised expiration'
+  if (normalized.includes('combination')) return 'Multiple contract changes'
+
+  return 'Contract modification'
 }
 
 function getGpsErrorMessage(error: GeolocationPositionError) {
@@ -537,6 +586,7 @@ export default function ProjectUpdates() {
   const location = useLocation()
   const auth = useAuth() as any
   const dateInputRef = useRef<HTMLInputElement | null>(null)
+  const revisedContractExpirationDateInputRef = useRef<HTMLInputElement | null>(null)
   const photoInputsRef = useRef<PhotoInput[]>([])
 
   const [project, setProject] = useState<ProjectRecord | null>(null)
@@ -548,7 +598,6 @@ export default function ProjectUpdates() {
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   )
-  const [saveMode, setSaveMode] = useState<SaveMode>('online')
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -560,6 +609,10 @@ export default function ProjectUpdates() {
   const [financialAccomplishment, setFinancialAccomplishment] = useState('')
   const [disbursementAmount, setDisbursementAmount] = useState('')
   const [notYetStartedReason, setNotYetStartedReason] = useState('')
+  const [hasContractModification, setHasContractModification] = useState(false)
+  const [contractModificationType, setContractModificationType] = useState('')
+  const [revisedProjectCost, setRevisedProjectCost] = useState('')
+  const [revisedContractExpirationDate, setRevisedContractExpirationDate] = useState('')
   const [issues, setIssues] = useState('')
   const [recommendations, setRecommendations] = useState('')
   const [remarks, setRemarks] = useState('')
@@ -570,6 +623,9 @@ export default function ProjectUpdates() {
   const [photoInputs, setPhotoInputs] = useState<PhotoInput[]>([])
   const [isUpdateScrolled, setIsUpdateScrolled] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
+  const [saveSuccessDialog, setSaveSuccessDialog] = useState<SaveSuccessDialog>(null)
+  const [noticeDialog, setNoticeDialog] = useState<NoticeDialog>(null)
 
   const routeProject = useMemo(() => {
     const state = location.state as ProjectUpdateRouteState | null
@@ -592,9 +648,19 @@ export default function ProjectUpdates() {
 
   const projectCost = useMemo(() => toNumber(project?.budget), [project?.budget])
 
+  const activeModificationType = hasContractModification ? contractModificationType : ''
+  const isSuspendedSelected = useMemo(() => {
+    return normalizeText(projectStatus).includes('suspend')
+  }, [projectStatus])
+  const contractModificationTypeOptions = useMemo(() => {
+    return isSuspendedSelected ? [SUSPENSION_ORDER_TYPE] : CONTRACT_MODIFICATION_TYPE_OPTIONS
+  }, [isSuspendedSelected])
   const isNotYetStartedSelected = useMemo(() => {
     return normalizeText(projectStatus) === 'not yet started'
   }, [projectStatus])
+  const requiresUpdateReason = requiresProjectReason(projectStatus, activeModificationType)
+  const projectReasonLabel = getProjectReasonLabel(projectStatus, activeModificationType)
+  const heroDisplayStatus = getStatusFromContractModification(activeModificationType) || projectStatus || project?.status || 'No Status'
 
   const latestUpdateDate = useMemo(() => {
     const latestUpdate = recentUpdates[0]
@@ -612,10 +678,37 @@ export default function ProjectUpdates() {
 
 
   useEffect(() => {
-    if (!isNotYetStartedSelected && notYetStartedReason) {
+    if (!requiresUpdateReason && notYetStartedReason) {
       setNotYetStartedReason('')
     }
-  }, [isNotYetStartedSelected, notYetStartedReason])
+  }, [requiresUpdateReason, notYetStartedReason])
+
+  useEffect(() => {
+    if (!hasContractModification) {
+      setContractModificationType('')
+      setRevisedProjectCost('')
+      setRevisedContractExpirationDate('')
+      return
+    }
+
+    const statusFromModification = getStatusFromContractModification(contractModificationType)
+
+    if (statusFromModification && projectStatus !== statusFromModification) {
+      setProjectStatus(statusFromModification)
+    }
+  }, [contractModificationType, hasContractModification, projectStatus])
+
+  useEffect(() => {
+    if (!isSuspendedSelected) return
+
+    if (!hasContractModification) {
+      setHasContractModification(true)
+    }
+
+    if (contractModificationType !== SUSPENSION_ORDER_TYPE) {
+      setContractModificationType(SUSPENSION_ORDER_TYPE)
+    }
+  }, [contractModificationType, hasContractModification, isSuspendedSelected])
 
   const targetVarianceInfo = useMemo(() => {
     return getTargetPhysicalInfo(
@@ -628,6 +721,11 @@ export default function ProjectUpdates() {
         target_physical_accomplishment: targetPhysicalAccomplishment,
         target_physical_as_of: inspectionDate,
         target_physical_source: 'manual',
+        contract_expiration_date: project?.contract_expiration_date,
+        has_contract_modification: hasContractModification,
+        contract_modification_type: activeModificationType,
+        revised_project_cost: revisedProjectCost,
+        revised_contract_expiration_date: revisedContractExpirationDate,
       },
       inspectionDate,
     )
@@ -637,11 +735,55 @@ export default function ProjectUpdates() {
     targetPhysicalAccomplishment,
     targetPhysicalSource,
     inspectionDate,
+    hasContractModification,
+    activeModificationType,
+    revisedProjectCost,
+    revisedContractExpirationDate,
+  ])
+
+  const contractInfo = useMemo(() => {
+    return getContractExpirationInfo({
+      contract_expiration_date: project?.contract_expiration_date,
+      has_contract_modification: hasContractModification,
+      contract_modification_type: activeModificationType,
+      revised_project_cost: revisedProjectCost,
+      revised_contract_expiration_date: revisedContractExpirationDate,
+    })
+  }, [
+    project?.contract_expiration_date,
+    hasContractModification,
+    activeModificationType,
+    revisedProjectCost,
+    revisedContractExpirationDate,
   ])
 
   const autoRiskLevel = useMemo(
-    () => getAutoRiskLevelFromVariance(targetVarianceInfo.variance),
-    [targetVarianceInfo.variance],
+    () => getComputedRiskLevel({
+      ...(project || {}),
+      physical_accomplishment:
+        physicalAccomplishment === ''
+          ? project?.physical_accomplishment
+          : physicalAccomplishment,
+      target_physical_accomplishment: targetPhysicalAccomplishment,
+      target_physical_as_of: inspectionDate,
+      target_physical_source: 'manual',
+      last_inspection_date: inspectionDate,
+      contract_expiration_date: project?.contract_expiration_date,
+      has_contract_modification: hasContractModification,
+      contract_modification_type: activeModificationType,
+      revised_project_cost: revisedProjectCost,
+      revised_contract_expiration_date: revisedContractExpirationDate,
+    }),
+    [
+      project,
+      physicalAccomplishment,
+      targetPhysicalAccomplishment,
+      inspectionDate,
+      hasContractModification,
+      activeModificationType,
+      revisedProjectCost,
+      revisedContractExpirationDate,
+    ],
   )
 
   const inspectionCoordinateStatus = useMemo(() => {
@@ -679,12 +821,10 @@ export default function ProjectUpdates() {
   useEffect(() => {
     function handleOnline() {
       setOnline(true)
-      setSaveMode('online')
     }
 
     function handleOffline() {
       setOnline(false)
-      setSaveMode('offline')
     }
 
     window.addEventListener('online', handleOnline)
@@ -698,7 +838,6 @@ export default function ProjectUpdates() {
 
   useEffect(() => {
     if (!online) {
-      setSaveMode('offline')
     }
   }, [online])
 
@@ -751,6 +890,38 @@ export default function ProjectUpdates() {
   }, [])
 
 
+  function applyContractFieldsFromProject(projectRecord: ProjectRecord | null) {
+    if (!projectRecord) {
+      setHasContractModification(false)
+      setContractModificationType('')
+      setRevisedProjectCost('')
+      setRevisedContractExpirationDate('')
+      setNotYetStartedReason('')
+      return
+    }
+
+    const hasModification =
+      projectRecord.has_contract_modification === true ||
+      String(projectRecord.has_contract_modification || '').toLowerCase() === 'yes' ||
+      String(projectRecord.has_contract_modification || '').toLowerCase() === 'true'
+
+    setHasContractModification(hasModification)
+    setContractModificationType(projectRecord.contract_modification_type || '')
+    setRevisedProjectCost(
+      projectRecord.revised_project_cost !== null &&
+        projectRecord.revised_project_cost !== undefined
+        ? String(projectRecord.revised_project_cost)
+        : '',
+    )
+    setRevisedContractExpirationDate(
+      projectRecord.revised_contract_expiration_date
+        ? String(projectRecord.revised_contract_expiration_date).slice(0, 10)
+        : '',
+    )
+    setNotYetStartedReason(projectRecord.not_yet_started_reason || '')
+  }
+
+
   function applyTargetPhysicalFromProject(projectRecord: ProjectRecord | null) {
     if (!projectRecord) {
       setTargetPhysicalAccomplishment('0')
@@ -772,6 +943,7 @@ export default function ProjectUpdates() {
   function handleTargetPhysicalChange(value: string) {
     setTargetPhysicalAccomplishment(value)
   }
+
 
   function applyDisbursementComputation(rawValue = disbursementAmount) {
     try {
@@ -801,9 +973,9 @@ export default function ProjectUpdates() {
   function getUpdateRemarksWithReason() {
     const remarksValue = cleanText(remarks)
 
-    if (!isNotYetStartedSelected || !notYetStartedReason) return remarksValue
+    if (!requiresUpdateReason || !notYetStartedReason) return remarksValue
 
-    const reasonLine = `Not Yet Started Reason: ${notYetStartedReason}`
+    const reasonLine = `${projectReasonLabel}: ${notYetStartedReason}`
 
     if (!remarksValue) return reasonLine
     if (remarksValue.includes(reasonLine)) return remarksValue
@@ -845,6 +1017,7 @@ export default function ProjectUpdates() {
         setProject(onlineProject)
         await putCachedProject(onlineProject)
         applyTargetPhysicalFromProject(onlineProject)
+        applyContractFieldsFromProject(onlineProject)
         setProjectStatus(onlineProject?.status || 'Ongoing')
         setPhysicalAccomplishment(
           onlineProject?.physical_accomplishment !== null &&
@@ -920,6 +1093,7 @@ export default function ProjectUpdates() {
     setProjectMissingOffline(false)
     setProject(cachedProject)
     applyTargetPhysicalFromProject(cachedProject as ProjectRecord)
+    applyContractFieldsFromProject(cachedProject as ProjectRecord)
     setProjectStatus(cachedProject?.status || 'Ongoing')
     setPhysicalAccomplishment(
       cachedProject?.physical_accomplishment !== null &&
@@ -952,20 +1126,30 @@ export default function ProjectUpdates() {
     setRecentUpdates(filteredUpdates)
   }
 
-  function openDatePicker() {
-    const dateInput = dateInputRef.current as
-      | (HTMLInputElement & { showPicker?: () => void })
-      | null
 
-    if (!dateInput) return
+  function handleProjectStatusChange(nextStatus: string) {
+    setProjectStatus(nextStatus)
 
-    if (dateInput.showPicker) {
-      dateInput.showPicker()
+    if (normalizeText(nextStatus).includes('suspend')) {
+      setHasContractModification(true)
+      setContractModificationType(SUSPENSION_ORDER_TYPE)
       return
     }
 
-    dateInput.focus()
-    dateInput.click()
+    if (contractModificationType === SUSPENSION_ORDER_TYPE) {
+      setContractModificationType('')
+      setHasContractModification(false)
+    }
+  }
+
+  function handleContractModificationTypeChange(nextType: string) {
+    setContractModificationType(nextType)
+
+    const statusFromModification = getStatusFromContractModification(nextType)
+
+    if (statusFromModification) {
+      setProjectStatus(statusFromModification)
+    }
   }
 
   function handlePhotoSelect(event: ChangeEvent<HTMLInputElement>) {
@@ -1026,14 +1210,16 @@ export default function ProjectUpdates() {
     setErrorMessage('')
 
     if (!navigator.geolocation) {
-      setErrorMessage('GPS is not supported by this browser or device.')
+      const gpsError = 'GPS is not supported by this browser or device.'
+      setErrorMessage(gpsError)
+      setNoticeDialog({ title: 'GPS Unavailable', message: gpsError, tone: 'warning' })
       return
     }
 
     if (!window.isSecureContext) {
-      setErrorMessage(
-        'GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
-      )
+      const gpsError = 'GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
+      setErrorMessage(gpsError)
+      setNoticeDialog({ title: 'GPS Permission Needed', message: gpsError, tone: 'warning' })
       return
     }
 
@@ -1045,9 +1231,9 @@ export default function ProjectUpdates() {
         const longitude = position.coords.longitude
 
         if (!isMindanaoCoordinate(latitude, longitude)) {
-          setErrorMessage(
-            'Captured GPS is outside the Mindanao range. Please verify your device location or manually encode the correct project coordinates.'
-          )
+          const gpsError = 'Captured GPS is outside the Mindanao range. Please verify your device location or manually encode the correct project coordinates.'
+          setErrorMessage(gpsError)
+          setNoticeDialog({ title: 'Check GPS Location', message: gpsError, tone: 'warning' })
           setGpsLoading(false)
           return
         }
@@ -1064,7 +1250,9 @@ export default function ProjectUpdates() {
       },
       (error) => {
         console.error(error)
-        setErrorMessage(getGpsErrorMessage(error))
+        const gpsError = getGpsErrorMessage(error)
+        setErrorMessage(gpsError)
+        setNoticeDialog({ title: 'GPS Capture Failed', message: gpsError, tone: 'warning' })
         setGpsLoading(false)
       },
       {
@@ -1075,27 +1263,6 @@ export default function ProjectUpdates() {
     )
   }
 
-  function swapInspectionCoordinates() {
-    const normalized = normalizeCoordinatePair(inspectionLongitude, inspectionLatitude)
-
-    setInspectionLatitude(formatCoordinate(inspectionLongitude))
-    setInspectionLongitude(formatCoordinate(inspectionLatitude))
-    setErrorMessage('')
-
-    if (
-      normalized.isValid &&
-      normalized.latitude !== null &&
-      normalized.longitude !== null
-    ) {
-      setGpsMessage(
-        `Latitude and longitude were swapped. Current coordinates: Latitude ${normalized.latitude.toFixed(
-          7
-        )}, Longitude ${normalized.longitude.toFixed(7)}.`
-      )
-    } else {
-      setGpsMessage('Latitude and longitude were swapped. Please verify the values before saving.')
-    }
-  }
 
   function validateForm() {
     if (!id) {
@@ -1122,8 +1289,20 @@ export default function ProjectUpdates() {
       return 'Please enter the financial accomplishment.'
     }
 
-    if (isNotYetStartedSelected && !notYetStartedReason) {
-      return 'Please select the reason for Not Yet Started / 0% physical accomplishment.'
+    if (requiresUpdateReason && !notYetStartedReason.trim()) {
+      return `Please provide the ${projectReasonLabel.toLowerCase()}.`
+    }
+
+    if (hasContractModification && !contractModificationType.trim()) {
+      return 'Please select the type of contract modification.'
+    }
+
+    if (hasContractModification && !revisedProjectCost.trim()) {
+      return 'Please enter the revised project cost.'
+    }
+
+    if (hasContractModification && !revisedContractExpirationDate.trim()) {
+      return 'Please enter the revised contract expiration date.'
     }
 
     const physical = toNumber(physicalAccomplishment)
@@ -1202,7 +1381,9 @@ export default function ProjectUpdates() {
     event.preventDefault()
 
     if (!canSubmit) {
-      setErrorMessage('You are not allowed to update this project based on your assigned AOR.')
+      const deniedMessage = 'You are not allowed to update this project based on your assigned AOR.'
+      setErrorMessage(deniedMessage)
+      setNoticeDialog({ title: 'Update Not Allowed', message: deniedMessage, tone: 'danger' })
       setMessage('')
       return
     }
@@ -1211,26 +1392,47 @@ export default function ProjectUpdates() {
 
     if (validationError) {
       setErrorMessage(validationError)
+      setNoticeDialog({ title: 'Please Review the Update', message: validationError, tone: 'warning' })
       setMessage('')
       return
     }
 
+    setErrorMessage('')
+    setMessage('')
+    setConfirmSaveOpen(true)
+  }
+
+  async function confirmSaveUpdate() {
+    if (saving) return
+
+    const validationError = validateForm()
+
+    if (validationError) {
+      setConfirmSaveOpen(false)
+      setErrorMessage(validationError)
+      setNoticeDialog({ title: 'Please Review the Update', message: validationError, tone: 'warning' })
+      setMessage('')
+      return
+    }
+
+    setConfirmSaveOpen(false)
     setSaving(true)
     setErrorMessage('')
     setMessage('')
 
     try {
-      if (saveMode === 'online' && online) {
+      const modeToUse: SaveMode = online ? 'online' : 'offline'
+      if (modeToUse === 'online') {
         await saveOnline()
       } else {
         await saveOffline()
       }
     } catch (error: any) {
       console.error(error)
-      setErrorMessage(
-        error?.message ||
-          'Unable to save project update. Please check the form and try again.'
-      )
+      const saveError = error?.message ||
+        'Unable to save project update. Please check the form and try again.'
+      setErrorMessage(saveError)
+      setNoticeDialog({ title: 'Update Not Saved', message: saveError, tone: 'danger' })
     } finally {
       setSaving(false)
     }
@@ -1264,6 +1466,11 @@ export default function ProjectUpdates() {
       target_physical_source: 'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: autoRiskLevel,
+      has_contract_modification: hasContractModification,
+      contract_modification_type: hasContractModification ? contractModificationType : null,
+      revised_project_cost: hasContractModification ? toNumber(revisedProjectCost) : null,
+      revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
+      not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       last_inspection_date: inspectionDate,
       ...latestCoordinatePatch,
       updated_at: currentTimestamp,
@@ -1284,10 +1491,12 @@ export default function ProjectUpdates() {
 
     clearFormAfterSave()
     setMessage('Project update saved online successfully.')
+    setSaveSuccessDialog({
+      title: 'Update Saved',
+      message: 'Project update saved successfully. The project record has been updated.',
+      mode: 'online',
+    })
 
-    setTimeout(() => {
-      navigate(`/projects/${projectId}`)
-    }, 700)
   }
 
   async function uploadPhotosOnline(projectId: string, updateId: string) {
@@ -1361,6 +1570,12 @@ export default function ProjectUpdates() {
       local_id: localUpdateId,
       project_name: projectName,
       status: projectStatus,
+      contract_expiration_date: project?.contract_expiration_date || null,
+      has_contract_modification: hasContractModification,
+      contract_modification_type: hasContractModification ? contractModificationType : null,
+      revised_project_cost: hasContractModification ? toNumber(revisedProjectCost) : null,
+      revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
+      not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       synced: false,
       sync_status: 'pending',
       is_offline: true,
@@ -1415,6 +1630,12 @@ export default function ProjectUpdates() {
       target_physical_source: 'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: autoRiskLevel,
+      contract_expiration_date: project?.contract_expiration_date || null,
+      has_contract_modification: hasContractModification,
+      contract_modification_type: hasContractModification ? contractModificationType : null,
+      revised_project_cost: hasContractModification ? toNumber(revisedProjectCost) : null,
+      revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
+      not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       last_inspection_date: inspectionDate,
       ...latestCoordinatePatch,
       updated_at: currentTimestamp,
@@ -1422,6 +1643,11 @@ export default function ProjectUpdates() {
 
     clearFormAfterSave()
     setMessage('Project update saved offline. Sync it when internet is available.')
+    setSaveSuccessDialog({
+      title: 'Saved Offline',
+      message: 'Project update saved offline successfully. Sync it when internet is available.',
+      mode: 'offline',
+    })
 
     await loadOfflineData()
   }
@@ -1442,6 +1668,15 @@ export default function ProjectUpdates() {
 
     photoInputs.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
     setPhotoInputs([])
+  }
+
+  function closeSuccessDialog() {
+    const completedMode = saveSuccessDialog?.mode
+    setSaveSuccessDialog(null)
+
+    if (completedMode === 'online' && id) {
+      navigate(`/projects/${id}`)
+    }
   }
 
   if (loading) {
@@ -1482,7 +1717,7 @@ export default function ProjectUpdates() {
           <h2>Project update access is restricted.</h2>
           <p>
             This project is outside your assigned Area of Responsibility. Please
-            contact the system administrator if access is needed.
+            contact the system administrator if update access is needed.
           </p>
           <Link className="pu-secondary-btn" to={`/projects/${id}`}>
             Back to Project Details
@@ -1500,7 +1735,7 @@ export default function ProjectUpdates() {
           <h2>Project update access is restricted.</h2>
           <p>
             Only Admin, RO Engineer, or assigned PO Engineer accounts can submit
-            project inspection updates within their assigned AOR.
+            project updates within their assigned AOR.
           </p>
           <Link className="pu-secondary-btn" to={`/projects/${id}`}>
             Back to Project Details
@@ -1525,8 +1760,8 @@ export default function ProjectUpdates() {
         </div>
 
         <div className="pu-hero-status">
-          <span className={`pu-badge ${getStatusClass(project?.status)}`}>
-            {project?.status || 'No Status'}
+          <span className={`pu-badge ${getStatusClass(heroDisplayStatus)}`}>
+            {heroDisplayStatus}
           </span>
           <span className={`pu-badge pu-variance-badge ${targetVarianceInfo.className}`}>
             {targetVarianceInfo.compactLabel}
@@ -1572,341 +1807,419 @@ export default function ProjectUpdates() {
       </section>
 
       <div className="pu-content-grid">
-        <form className="pu-form-card" onSubmit={handleSubmit}>
+        <form className="pu-form-card" onSubmit={handleSubmit} noValidate>
           <div className="pu-card-header">
             <div>
-              <p className="pu-eyebrow">Inspection Details</p>
-              <h2>Field Update</h2>
+              <p className="pu-eyebrow">Project Update</p>
+              <h2>Project Update</h2>
               <span className="pu-field-mode-note">
-                Progress, GPS, photos, issues, recommendations, and remarks in one field workflow.
+                Use the large buttons first, then encode progress, status, contract actions, findings, photos, and final remarks.
               </span>
             </div>
 
-            <div className="pu-save-mode">
-              <button
-                type="button"
-                className={saveMode === 'online' ? 'active' : ''}
-                onClick={() => setSaveMode('online')}
-                disabled={!online || saving}
-              >
-                Online
-              </button>
-              <button
-                type="button"
-                className={saveMode === 'offline' ? 'active' : ''}
-                onClick={() => setSaveMode('offline')}
-                disabled={saving}
-              >
-                Offline
-              </button>
+            <div className={`pu-network-state ${online ? 'online' : 'offline'}`} aria-live="polite">
+              <strong>{online ? 'Online' : 'Offline'}</strong>
+              <span>{online ? 'Will save to cloud' : 'Will save to device'}</span>
             </div>
           </div>
 
-          <div className="pu-field-action-strip" aria-label="Field quick actions">
-            <button
-              type="button"
-              className="pu-action-btn pu-action-gps"
-              onClick={captureGps}
-              disabled={gpsLoading || saving}
-            >
-              {gpsLoading ? 'Capturing GPS...' : 'Update GPS'}
-              <span>Use while on site</span>
-            </button>
-
-            <label className="pu-action-btn pu-action-photo">
-              Add Photo
-              <span>{photoInputs.length}/{MAX_PHOTOS_PER_UPDATE} selected</span>
-              <input
-                type="file"
-                accept="image/*,.heic,.heif"
-                multiple
-                onChange={handlePhotoSelect}
-                disabled={saving || photoInputs.length >= MAX_PHOTOS_PER_UPDATE}
-              />
-            </label>
-
-            <button
-              type="submit"
-              className="pu-action-btn pu-action-save"
-              disabled={saving || (saveMode === 'online' && !online)}
-            >
-              {saving
-                ? 'Saving...'
-                : saveMode === 'online'
-                  ? 'Save Online'
-                  : 'Save Offline'}
-              <span>{saveMode === 'online' ? 'Submit now' : 'Save for sync'}</span>
-            </button>
-          </div>
-
-          <div className="pu-form-grid">
-            <label className="pu-field pu-date-field">
-              <span>Inspection Date</span>
-
-              <div className="pu-long-date-field">
-                <div>
-                  <strong>{formatLongDate(inspectionDate)}</strong>
-                  <small>Selected inspection date</small>
-                </div>
-
-                <button
-                  type="button"
-                  className="pu-date-change-btn"
-                  onClick={openDatePicker}
-                  disabled={saving}
-                >
-                  Change Date
-                </button>
-              </div>
-
-              <input
-                ref={dateInputRef}
-                className="pu-hidden-date-input"
-                type="date"
-                value={inspectionDate}
-                onChange={(event) => setInspectionDate(event.target.value)}
-                required
-                aria-label="Inspection date"
-              />
-            </label>
-
-            <label className="pu-field">
-              <span>Project Status</span>
-              <select
-                value={projectStatus}
-                onChange={(event) => setProjectStatus(event.target.value)}
-              >
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="pu-field">
-              <span>Reason for Not Yet Started</span>
-              <select
-                value={notYetStartedReason}
-                onChange={(event) => setNotYetStartedReason(event.target.value)}
-                required={isNotYetStartedSelected}
-                disabled={!isNotYetStartedSelected || saving}
-              >
-                <option value="">
-                  {isNotYetStartedSelected
-                    ? 'Select reason'
-                    : 'Enabled only when status is Not Yet Started'}
-                </option>
-                {NOT_YET_STARTED_REASONS.map((reason) => (
-                  <option key={reason} value={reason}>
-                    {reason}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="pu-field">
-              <span>Physical Accomplishment (%)</span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                inputMode="decimal"
-                value={physicalAccomplishment}
-                onChange={(event) =>
-                  setPhysicalAccomplishment(event.target.value)
-                }
-                placeholder="Example: 75.50"
-                required
-              />
-            </label>
-
-            <label className="pu-field">
-              <span>Target Physical (%)</span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                inputMode="decimal"
-                value={targetPhysicalAccomplishment}
-                onChange={(event) => handleTargetPhysicalChange(event.target.value)}
-                placeholder="Example: 75.50"
-                required
-              />
-            </label>
-
-            <label className="pu-field pu-disbursement-field">
-              <span>Disbursement</span>
-              <div
-                className="pu-disbursement-control"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(0, 1fr) 56px',
-                  gap: '10px',
-                  alignItems: 'stretch',
-                  width: '100%',
-                }}
-              >
-                <input
-                  type="text"
-                  value={disbursementAmount}
-                  onChange={(event) => setDisbursementAmount(event.target.value)}
-                  onKeyDown={handleDisbursementKeyDown}
-                  placeholder="Example: 500000 + 250000"
-                  inputMode="decimal"
-                  disabled={saving}
-                  style={{ minWidth: 0 }}
-                />
-
-                <button
-                  type="button"
-                  className="pu-disbursement-equals-btn"
-                  onClick={() => applyDisbursementComputation()}
-                  disabled={saving || projectCost <= 0}
-                  aria-label="Compute disbursement and financial accomplishment"
-                  title="Compute"
-                  style={{
-                    minWidth: '56px',
-                    minHeight: '50px',
-                    border: 0,
-                    borderRadius: '15px',
-                    background: 'linear-gradient(135deg, #0f4c81 0%, #2563eb 100%)',
-                    color: '#ffffff',
-                    fontSize: '1.15rem',
-                    fontWeight: 950,
-                    boxShadow: '0 12px 24px rgba(37, 99, 235, 0.22)',
-                    cursor: saving || projectCost <= 0 ? 'not-allowed' : 'pointer',
-                    opacity: saving || projectCost <= 0 ? 0.55 : 1,
-                  }}
-                >
-                  =
-                </button>
-              </div>
-              <small style={{ color: '#64748b', fontWeight: 800 }}>
-                Enter an amount or simple expression, then tap = or press Enter.
-              </small>
-            </label>
-
-            <label className="pu-field">
-              <span>Financial Accomplishment (%)</span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                inputMode="decimal"
-                value={financialAccomplishment}
-                onChange={(event) =>
-                  setFinancialAccomplishment(event.target.value)
-                }
-                placeholder="Auto-computed if disbursement is entered"
-                required
-              />
-            </label>
-
-            <label className="pu-field">
-              <span>Risk Level</span>
-              <div className="pu-readonly-risk">
-                <span className={`pu-badge ${getRiskClass(autoRiskLevel)}`}>
-                  {autoRiskLevel}
-                </span>
-              </div>
-            </label>
-          </div>
-
-          <div className={`pu-variance-preview ${targetVarianceInfo.className}`}>
-            <div>
-              <span>Variance</span>
-              <strong>{targetVarianceInfo.label}</strong>
-            </div>
-          </div>
-
-          <div className="pu-gps-card pu-gps-simple-card">
-            <div>
-              <p className="pu-eyebrow">GPS Capture</p>
-              <h3>Inspection Location</h3>
-              <p>
-                Tap once while you are at the project site. The app will fill in
-                the latitude and longitude below. Manual encoding is available
-                only when device GPS is unavailable.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="pu-gps-btn"
-              onClick={captureGps}
-              disabled={gpsLoading || saving}
-            >
-              {gpsLoading ? 'Capturing GPS...' : 'Update GPS'}
-            </button>
-          </div>
-
-          {gpsMessage && <div className="pu-gps-message">{gpsMessage}</div>}
-
-          <div className="pu-form-grid">
-            <label className="pu-field">
-              <span>Inspection Latitude</span>
-              <input
-                type="number"
-                step="any"
-                inputMode="decimal"
-                value={inspectionLatitude}
-                onChange={(event) => setInspectionLatitude(event.target.value)}
-                placeholder="Example: 8.556091"
-              />
-            </label>
-
-            <label className="pu-field">
-              <span>Inspection Longitude</span>
-              <input
-                type="number"
-                step="any"
-                inputMode="decimal"
-                value={inspectionLongitude}
-                onChange={(event) => setInspectionLongitude(event.target.value)}
-                placeholder="Example: 125.028244"
-              />
-            </label>
-          </div>
-
-          {hasInspectionCoordinates && (
-            <div className="pu-coordinate-review">
+          <div className="pu-update-section pu-section-quick">
+            <div className="pu-section-heading">
+              <span>01</span>
               <div>
-                <strong>
-                  {inspectionCoordinateStatus.isValid
-                    ? inspectionCoordinateStatus.wasSwapped
-                      ? 'Coordinates appear reversed but will be corrected when saved.'
-                      : 'Coordinates look valid for Mindanao.'
-                    : 'Coordinates need correction.'}
-                </strong>
-                <span>
-                  {inspectionCoordinateStatus.isValid
-                    ? `Latitude ${
-                        inspectionCoordinateStatus.latitude?.toFixed(7) || ''
-                      }, Longitude ${
-                        inspectionCoordinateStatus.longitude?.toFixed(7) || ''
-                      }`
-                    : inspectionCoordinateStatus.reason}
-                </span>
+                <strong>Capture and Update Date</strong>
+                <small>Start with date, GPS, and photos using large outdoor-ready buttons.</small>
+              </div>
+            </div>
+
+            <div className="pu-quick-grid">
+              <div className="pu-field pu-date-field pu-full-field">
+                <span>Update Date</span>
+
+                <div className="pu-long-date-field">
+                  <div>
+                    <strong>{formatLongDate(inspectionDate)}</strong>
+                    <small>Selected update date</small>
+                  </div>
+
+                  <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ? 'disabled' : ''}`}>
+                    Change Date
+                    <input
+                      ref={dateInputRef}
+                      className="pu-native-date-input"
+                      type="date"
+                      value={inspectionDate}
+                      onChange={(event) => setInspectionDate(event.target.value)}
+                      required
+                      disabled={saving}
+                      aria-label="Update date"
+                    />
+                  </label>
+                </div>
               </div>
 
               <button
                 type="button"
-                className="pu-coordinate-btn"
-                onClick={swapInspectionCoordinates}
-                disabled={saving}
+                className="pu-action-btn pu-action-gps"
+                onClick={captureGps}
+                disabled={gpsLoading || saving}
               >
-                Swap Latitude / Longitude
+                {gpsLoading ? 'Capturing GPS...' : 'Update GPS'}
+                <span>Capture location</span>
               </button>
-            </div>
-          )}
 
-          <div className="pu-textarea-grid">
-            <label className="pu-field">
-              <span>Issues / Findings</span>
+              <label className="pu-action-btn pu-action-photo">
+                Add Photos
+                <span>{photoInputs.length}/{MAX_PHOTOS_PER_UPDATE} selected</span>
+                <input
+                  type="file"
+                  accept="image/*,.heic,.heif"
+                  multiple
+                  onChange={handlePhotoSelect}
+                  disabled={saving || photoInputs.length >= MAX_PHOTOS_PER_UPDATE}
+                />
+              </label>
+            </div>
+
+            <div className="pu-gps-inline-wrap">
+              {gpsMessage && <div className="pu-gps-message pu-gps-message-inline">{gpsMessage}</div>}
+
+              {hasInspectionCoordinates ? (
+                <div className="pu-gps-inline-result">
+                  <strong>{inspectionCoordinateStatus.isValid ? 'GPS captured' : 'GPS needs checking'}</strong>
+                  <em>
+                    {inspectionCoordinateStatus.isValid
+                      ? `Lat ${inspectionCoordinateStatus.latitude?.toFixed(7) || ''} · Long ${inspectionCoordinateStatus.longitude?.toFixed(7) || ''}`
+                      : inspectionCoordinateStatus.reason}
+                  </em>
+                </div>
+              ) : (
+                <div className="pu-gps-inline-result muted">
+                  <strong>No GPS captured yet</strong>
+                  <em>Tap Update GPS while you are at the project site. Coordinates will appear here.</em>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="pu-update-section pu-section-progress">
+            <div className="pu-section-heading">
+              <span>02</span>
+              <div>
+                <strong>Progress and Financial</strong>
+                <small>Encode progress values clearly for field updating.</small>
+              </div>
+            </div>
+
+            <div className="pu-progress-grid">
+              <label className="pu-field pu-field-important pu-progress-field">
+                <span>Physical Accom. (%)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={physicalAccomplishment}
+                  onChange={(event) => setPhysicalAccomplishment(event.target.value)}
+                  placeholder="0"
+                  required
+                  disabled={saving}
+                />
+              </label>
+
+              <label className="pu-field pu-progress-field">
+                <span>Target (%)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={targetPhysicalAccomplishment}
+                  onChange={(event) => handleTargetPhysicalChange(event.target.value)}
+                  placeholder="0"
+                  required
+                  disabled={saving}
+                />
+              </label>
+
+              <label className="pu-field pu-disbursement-field pu-progress-full">
+                <span>Disbursement</span>
+                <div className="pu-disbursement-control">
+                  <input
+                    type="text"
+                    value={disbursementAmount}
+                    onChange={(event) => setDisbursementAmount(event.target.value)}
+                    onKeyDown={handleDisbursementKeyDown}
+                    placeholder="Example: 500000 + 250000"
+                    inputMode="decimal"
+                    disabled={saving}
+                  />
+
+                  <button
+                    type="button"
+                    className="pu-disbursement-equals-btn"
+                    onClick={() => applyDisbursementComputation()}
+                    disabled={saving || projectCost <= 0}
+                    aria-label="Compute disbursement and financial accomplishment"
+                    title="Compute"
+                  >
+                    =
+                  </button>
+                </div>
+                <small>Enter amount or expression, then tap =.</small>
+              </label>
+
+              <label className="pu-field pu-field-important pu-progress-field">
+                <span>Financial Accom. (%)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={financialAccomplishment}
+                  onChange={(event) => setFinancialAccomplishment(event.target.value)}
+                  placeholder="0"
+                  required
+                  disabled={saving}
+                />
+              </label>
+
+              <label className="pu-field pu-progress-field">
+                <span>Risk Level</span>
+                <div className="pu-readonly-risk">
+                  <span className={`pu-badge ${getRiskClass(autoRiskLevel)}`}>
+                    {autoRiskLevel}
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            <div className={`pu-variance-preview ${targetVarianceInfo.className}`}>
+              <div>
+                <span>Variance</span>
+                <strong>{targetVarianceInfo.label}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="pu-update-section pu-section-status">
+            <div className="pu-section-heading">
+              <span>03</span>
+              <div>
+                <strong>Project Status</strong>
+                <small>All project statuses are available here because this is the main update page.</small>
+              </div>
+            </div>
+
+            <div className="pu-field pu-full-field pu-status-field-block">
+              <div className="pu-status-button-grid" role="radiogroup" aria-label="Project status">
+                {statusOptions.map((status) => {
+                  const isActive = projectStatus === status
+                  const normalizedStatus = normalizeText(status)
+                  const isCriticalStatus = normalizedStatus.includes('suspend') || normalizedStatus.includes('terminate')
+                  const isAdministrativeStatus = normalizedStatus.includes('procurement') || normalizedStatus.includes('not yet')
+
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      role="radio"
+                      aria-checked={isActive}
+                      className={`pu-choice-card pu-status-choice ${isActive ? 'active' : ''} ${isCriticalStatus ? 'critical' : ''} ${isAdministrativeStatus ? 'administrative' : ''}`}
+                      onClick={() => handleProjectStatusChange(status)}
+                      disabled={saving}
+                    >
+                      <strong>{status}</strong>
+                      <small>{getStatusHelperText(status)}</small>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {isNotYetStartedSelected ? (
+              <div className="pu-field pu-full-field">
+                <span>{projectReasonLabel} *</span>
+                <div className="pu-reason-chip-grid" role="radiogroup" aria-label="Reason for not yet started">
+                  {NOT_YET_STARTED_REASONS.map((reason) => (
+                    <button
+                      key={reason}
+                      type="button"
+                      role="radio"
+                      aria-checked={notYetStartedReason === reason}
+                      className={`pu-reason-chip ${notYetStartedReason === reason ? 'active' : ''}`}
+                      onClick={() => setNotYetStartedReason(reason)}
+                      disabled={saving}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <label className="pu-field pu-full-field pu-critical-reason-field">
+                <span>{projectReasonLabel} {requiresUpdateReason ? '*' : ''}</span>
+                <textarea
+                  value={notYetStartedReason}
+                  onChange={(event) => setNotYetStartedReason(event.target.value)}
+                  required={requiresUpdateReason}
+                  disabled={!requiresUpdateReason || saving}
+                  placeholder={
+                    requiresUpdateReason
+                      ? 'State the reason/justification for this critical status or contract modification.'
+                      : 'Reason field is enabled only for critical status or contract modification.'
+                  }
+                  rows={3}
+                />
+              </label>
+            )}
+          </div>
+
+          <div className="pu-update-section pu-section-contract">
+            <div className="pu-section-heading">
+              <span>04</span>
+              <div>
+                <strong>Contract Modification</strong>
+                <small>Use this only for VO, SO, EOT, Combination, or expired contract correction.</small>
+              </div>
+            </div>
+
+            <div className="pu-form-grid">
+              <div className="pu-field">
+                <span>Contract Expiration Date</span>
+                <div className="pu-long-date-field">
+                  <div>
+                    <strong>{formatLongDate(project?.contract_expiration_date)}</strong>
+                    <small>Original contract expiration</small>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pu-field pu-full-field">
+                <span>Approved Contract Modification?</span>
+                <div className="pu-two-choice-grid" role="radiogroup" aria-label="Approved contract modification">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!hasContractModification}
+                    className={`pu-choice-card ${!hasContractModification ? 'active' : ''}`}
+                    onClick={() => setHasContractModification(false)}
+                    disabled={saving || isSuspendedSelected}
+                  >
+                    <strong>No</strong>
+                    <small>Normal update only</small>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={hasContractModification}
+                    className={`pu-choice-card ${hasContractModification ? 'active' : ''}`}
+                    onClick={() => setHasContractModification(true)}
+                    disabled={saving || isSuspendedSelected}
+                  >
+                    <strong>Yes</strong>
+                    <small>{isSuspendedSelected ? 'Required by Suspended status' : 'VO, SO, EOT, or Combination'}</small>
+                  </button>
+                </div>
+              </div>
+
+              {hasContractModification && (
+                <div className="pu-field pu-full-field">
+                  <span>Type of Modification *</span>
+                  <div className="pu-modification-grid" role="radiogroup" aria-label="Type of modification">
+                    {contractModificationTypeOptions.map((option) => {
+                      const isActive = contractModificationType === option
+                      const isCriticalModification = normalizeText(option).includes('suspension')
+
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          role="radio"
+                          aria-checked={isActive}
+                          className={`pu-choice-card pu-modification-choice ${isActive ? 'active' : ''} ${isCriticalModification ? 'critical' : ''}`}
+                          onClick={() => handleContractModificationTypeChange(option)}
+                          disabled={saving}
+                        >
+                          <strong>{option}</strong>
+                          <small>{getModificationHelperText(option)}</small>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {contractInfo.isExpired && (
+                <div className="pu-contract-warning pu-full-field">
+                  <strong>Contract Warning</strong>
+                  <span>{contractInfo.warningMessage}</span>
+                  <span>Risk is automatically classified as High until a valid revised expiration date is encoded.</span>
+                </div>
+              )}
+
+              {hasContractModification && (
+                <>
+                  <label className="pu-field">
+                    <span>Revised Project Cost *</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={revisedProjectCost}
+                      onChange={(event) => setRevisedProjectCost(event.target.value)}
+                      disabled={saving}
+                      placeholder="0.00"
+                      required
+                    />
+                  </label>
+
+                  <div className="pu-field pu-date-field">
+                    <span>Revised Contract Expiration Date *</span>
+
+                    <div className="pu-long-date-field pu-revised-date-display">
+                      <div>
+                        <strong>{formatLongDate(revisedContractExpirationDate)}</strong>
+                        <small>Revised contract expiration</small>
+                      </div>
+
+                      <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ? 'disabled' : ''}`}>
+                        Change Date
+                        <input
+                          ref={revisedContractExpirationDateInputRef}
+                          className="pu-native-date-input"
+                          type="date"
+                          value={revisedContractExpirationDate}
+                          onChange={(event) => setRevisedContractExpirationDate(event.target.value)}
+                          disabled={saving}
+                          required
+                          aria-label="Revised contract expiration date"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="pu-update-section pu-section-notes">
+            <div className="pu-section-heading">
+              <span>05</span>
+              <div>
+                <strong>Notes and Photo Documentation</strong>
+                <small>Encode findings, recommendations, final remarks, and review selected photos.</small>
+              </div>
+            </div>
+
+            <div className="pu-textarea-grid">
+              <label className="pu-field">
+                <span>Issues / Findings</span>
               <textarea
                 value={issues}
                 onChange={(event) => setIssues(event.target.value)}
@@ -1937,29 +2250,18 @@ export default function ProjectUpdates() {
             <div className="pu-photo-header">
               <div>
                 <p className="pu-eyebrow">Photo Documentation</p>
-                <h3>Upload Inspection Photos</h3>
+                <h3>Upload Update Photos</h3>
                 <p>
                   JPG, PNG, WebP, and HEIC files can be uploaded. HEIC preview
                   may not display in Chrome, but the file can still be saved.
                 </p>
               </div>
 
-              <label className="pu-photo-picker">
-                Add / Take Photos
-                <input
-                  type="file"
-                  accept="image/*,.heic,.heif"
-                  multiple
-                  onChange={handlePhotoSelect}
-                  disabled={saving || photoInputs.length >= MAX_PHOTOS_PER_UPDATE}
-                />
-              </label>
             </div>
 
             {photoInputs.length === 0 ? (
               <div className="pu-photo-empty">
-                No photos selected yet. Add field photos before saving if photo
-                documentation is required.
+                No photos selected yet. Use the Add Photos button in Section 01 when documentation is required.
               </div>
             ) : (
               <div className="pu-photo-grid">
@@ -2010,21 +2312,19 @@ export default function ProjectUpdates() {
               </div>
             )}
           </div>
+          </div>
 
-          <div className="pu-submit-bar">
+          <div className="pu-submit-bar pu-single-save-bar">
             <button
               type="submit"
-              className="pu-primary-btn"
-              disabled={saving || (saveMode === 'online' && !online)}
+              className={`pu-main-save-btn ${online ? 'online' : 'offline'}`}
+              disabled={saving}
             >
-              {saving
-                ? 'Saving...'
-                : saveMode === 'online'
-                  ? 'Save Online'
-                  : 'Save Offline'}
+              {saving ? 'Saving Update...' : online ? 'Save Update' : 'Save Offline'}
+              <span>{online ? 'Online detected · submit now' : 'No internet · save to this device'}</span>
             </button>
 
-            <Link className="pu-secondary-btn" to={`/projects/${id}`}>
+            <Link className="pu-secondary-btn pu-cancel-link" to={`/projects/${id}`}>
               Cancel
             </Link>
           </div>
@@ -2032,22 +2332,9 @@ export default function ProjectUpdates() {
 
         <aside className="pu-side-panel">
           <div className="pu-side-card">
-            <p className="pu-eyebrow">Field Reminder</p>
-            <h3>Before Saving</h3>
-
-            <ul className="pu-checklist">
-              <li>Verify actual physical progress on site.</li>
-              <li>Capture GPS while physically at the project location.</li>
-              <li>Attach clear photos of progress, issues, and corrections.</li>
-              <li>Encode findings and recommendations clearly.</li>
-              <li>Use Offline Save if signal is unstable during inspection.</li>
-            </ul>
-          </div>
-
-          <div className="pu-side-card">
             <div className="pu-card-header compact">
               <div>
-                <p className="pu-eyebrow">Recent Updates</p>
+                <p className="pu-eyebrow">Update History</p>
                 <h3>Latest Records</h3>
               </div>
               <span className="pu-count-pill">
@@ -2116,6 +2403,81 @@ export default function ProjectUpdates() {
           </div>
         </aside>
       </div>
+
+
+      {noticeDialog && (
+        <div className="pu-modal-overlay" role="alertdialog" aria-modal="true" aria-label={noticeDialog.title}>
+          <div className={`pu-save-modal pu-notice-modal ${noticeDialog.tone}`}>
+            <div className="pu-notice-icon">
+              {noticeDialog.tone === 'danger' ? '!' : noticeDialog.tone === 'warning' ? '!' : 'i'}
+            </div>
+            <h3>{noticeDialog.title}</h3>
+            <p>{noticeDialog.message}</p>
+            <button
+              type="button"
+              className="pu-primary-btn"
+              onClick={() => setNoticeDialog(null)}
+            >
+              OK, Review
+            </button>
+          </div>
+        </div>
+      )}
+
+      {confirmSaveOpen && (
+        <div className="pu-modal-overlay" role="dialog" aria-modal="true" aria-label="Confirm project update save">
+          <div className="pu-save-modal">
+            <p className="pu-eyebrow">Confirm Update</p>
+            <h3>Save this project update?</h3>
+            <p>Review the summary below. Continue saving this project update?</p>
+
+            <div className="pu-save-summary-grid">
+              <span>Status <strong>{heroDisplayStatus}</strong></span>
+              <span>Physical <strong>{formatPercent(physicalAccomplishment)}</strong></span>
+              <span>Target <strong>{formatPercent(targetPhysicalAccomplishment)}</strong></span>
+              <span>Financial <strong>{formatPercent(financialAccomplishment)}</strong></span>
+              <span>Risk <strong>{autoRiskLevel}</strong></span>
+              <span>Photos <strong>{photoInputs.length}/{MAX_PHOTOS_PER_UPDATE}</strong></span>
+            </div>
+
+            <div className="pu-modal-actions">
+              <button
+                type="button"
+                className="pu-secondary-btn"
+                onClick={() => setConfirmSaveOpen(false)}
+                disabled={saving}
+              >
+                Review Again
+              </button>
+              <button
+                type="button"
+                className="pu-primary-btn"
+                onClick={confirmSaveUpdate}
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : online ? 'Yes, Save Update' : 'Yes, Save Offline'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {saveSuccessDialog && (
+        <div className="pu-modal-overlay pu-success-overlay" role="status" aria-live="polite">
+          <div className="pu-save-modal pu-success-modal">
+            <div className="pu-success-icon">✓</div>
+            <h3>{saveSuccessDialog.title}</h3>
+            <p>{saveSuccessDialog.message}</p>
+            <button
+              type="button"
+              className="pu-primary-btn"
+              onClick={closeSuccessDialog}
+            >
+              {saveSuccessDialog.mode === 'online' ? 'OK, View Project' : 'OK'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {portalReady
         ? createPortal(

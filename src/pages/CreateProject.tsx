@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { canCreateProjectInAor, getCanonicalRole, getRoEngineerAllowedProvinces } from '../utils/aorAccess'
 import { REGION10_PROVINCE_NAMES, getRegion10LgusByProvince } from '../data/region10Directory'
-import { getComputedRiskLevel, getTargetPhysicalInfo, getContractExpirationInfo } from '../utils/projectVariance'
+import {
+  getComputedRiskLevel,
+  getContractExpirationInfo,
+  getProjectReasonLabel,
+  getStatusFromContractModification,
+  getTargetPhysicalInfo,
+  requiresProjectReason,
+} from '../utils/projectVariance'
 import '../styles/createProject.css'
 import '../styles/pageHero.css'
 
@@ -80,9 +87,11 @@ const NOT_YET_STARTED_REASON_OPTIONS = [
   'TDRs under Review (RO)',
 ]
 
+const SUSPENSION_ORDER_TYPE = 'Suspension Order (SO)'
+
 const CONTRACT_MODIFICATION_TYPE_OPTIONS = [
   'Variation Order (VO)',
-  'Suspension Order (SO)',
+  SUSPENSION_ORDER_TYPE,
   'Time Extension (EOT)',
   'Combination',
 ]
@@ -292,6 +301,21 @@ function todayLocalDate() {
   return `${year}-${month}-${day}`
 }
 
+function formatLongDate(value?: string | null) {
+  if (!value) return 'Select date'
+
+  const normalizedValue = value.length <= 10 ? `${value}T00:00:00` : value
+  const parsedDate = new Date(normalizedValue)
+
+  if (Number.isNaN(parsedDate.getTime())) return 'Select date'
+
+  return parsedDate.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
 function evaluateAmountExpression(value: string) {
   const expression = value.replace(/,/g, '').trim()
 
@@ -344,6 +368,7 @@ function getBlankLguLabel(hasProvince: boolean, hasOptions: boolean) {
 export default function CreateProject() {
   const navigate = useNavigate()
   const auth = useAuth()
+  const revisedContractExpirationDateInputRef = useRef<HTMLInputElement | null>(null)
 
   const [projectName, setProjectName] = useState('')
   const [description, setDescription] = useState('')
@@ -494,6 +519,12 @@ export default function CreateProject() {
     contractModificationType,
   ])
 
+  const activeModificationType = hasContractModification ? contractModificationType : ''
+  const isSuspendedStatus = textValue(status).toLowerCase().includes('suspend')
+  const contractModificationTypeOptions = useMemo(() => {
+    return isSuspendedStatus ? [SUSPENSION_ORDER_TYPE] : CONTRACT_MODIFICATION_TYPE_OPTIONS
+  }, [isSuspendedStatus])
+
   useEffect(() => {
     if (!hasContractModification) {
       setRevisedProjectCost('')
@@ -502,20 +533,42 @@ export default function CreateProject() {
     }
   }, [hasContractModification])
 
-  const requiresNotYetStartedReason = status === 'Not Yet Started'
+  useEffect(() => {
+    const statusFromModification = getStatusFromContractModification(contractModificationType)
+
+    if (hasContractModification && statusFromModification && status !== statusFromModification) {
+      setStatus(statusFromModification)
+    }
+  }, [contractModificationType, hasContractModification, status])
 
   useEffect(() => {
-    if (!requiresNotYetStartedReason && notYetStartedReason) {
+    if (!isSuspendedStatus) return
+
+    if (!hasContractModification) {
+      setHasContractModification(true)
+    }
+
+    if (contractModificationType !== SUSPENSION_ORDER_TYPE) {
+      setContractModificationType(SUSPENSION_ORDER_TYPE)
+    }
+  }, [contractModificationType, hasContractModification, isSuspendedStatus])
+
+  const requiresNotYetStartedReason = status === 'Not Yet Started'
+  const requiresProjectChangeReason = requiresProjectReason(status, activeModificationType)
+  const projectReasonLabel = getProjectReasonLabel(status, activeModificationType)
+
+  useEffect(() => {
+    if (!requiresProjectChangeReason && notYetStartedReason) {
       setNotYetStartedReason('')
     }
-  }, [requiresNotYetStartedReason, notYetStartedReason])
+  }, [requiresProjectChangeReason, notYetStartedReason])
 
   const canSubmit = useMemo(() => {
     return (
       textValue(projectName).length > 0 &&
       textValue(description).length > 0 &&
       textValue(status).length > 0 &&
-      (!requiresNotYetStartedReason || textValue(notYetStartedReason).length > 0) &&
+      (!requiresProjectChangeReason || textValue(notYetStartedReason).length > 0) &&
       textValue(projectType).length > 0 &&
       textValue(fundingYear).length > 0 &&
       textValue(fundingSource).length > 0 &&
@@ -531,7 +584,7 @@ export default function CreateProject() {
     projectName,
     description,
     status,
-    requiresNotYetStartedReason,
+    requiresProjectChangeReason,
     notYetStartedReason,
     projectType,
     fundingYear,
@@ -571,6 +624,50 @@ export default function CreateProject() {
     }
   }
 
+  function openDateInput(dateInput: HTMLInputElement | null) {
+    const pickerInput = dateInput as
+      | (HTMLInputElement & { showPicker?: () => void })
+      | null
+
+    if (!pickerInput) return
+
+    if (pickerInput.showPicker) {
+      pickerInput.showPicker()
+      return
+    }
+
+    pickerInput.focus()
+    pickerInput.click()
+  }
+
+  function openRevisedContractExpirationPicker() {
+    openDateInput(revisedContractExpirationDateInputRef.current)
+  }
+
+  function handleStatusChange(nextStatus: string) {
+    setStatus(nextStatus)
+
+    if (textValue(nextStatus).toLowerCase().includes('suspend')) {
+      setHasContractModification(true)
+      setContractModificationType(SUSPENSION_ORDER_TYPE)
+      return
+    }
+
+    if (contractModificationType === SUSPENSION_ORDER_TYPE) {
+      setContractModificationType('')
+    }
+  }
+
+  function handleContractModificationTypeChange(nextType: string) {
+    setContractModificationType(nextType)
+
+    const statusFromModification = getStatusFromContractModification(nextType)
+
+    if (statusFromModification) {
+      setStatus(statusFromModification)
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -587,8 +684,8 @@ export default function CreateProject() {
       return
     }
 
-    if (requiresNotYetStartedReason && !textValue(notYetStartedReason)) {
-      setErrorMessage('Please select the reason for Not Yet Started status.')
+    if (requiresProjectChangeReason && !textValue(notYetStartedReason)) {
+      setErrorMessage(`Please provide the ${projectReasonLabel.toLowerCase()}.`)
       return
     }
 
@@ -643,7 +740,7 @@ export default function CreateProject() {
       physical_accomplishment: clampProgress(physicalAccomplishment),
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: computedRiskLevel,
-      not_yet_started_reason: requiresNotYetStartedReason ? cleanText(notYetStartedReason) : null,
+      not_yet_started_reason: requiresProjectChangeReason ? cleanText(notYetStartedReason) : null,
       disbursement_amount: disbursementAmount > 0 ? disbursementAmount : 0,
       target_physical_accomplishment: textValue(targetPhysicalAccomplishment)
         ? clampProgress(targetPhysicalAccomplishment)
@@ -752,7 +849,7 @@ export default function CreateProject() {
 
             <label>
               Status <strong>*</strong>
-              <select value={status} onChange={(event) => setStatus(event.target.value)}>
+              <select value={status} onChange={(event) => handleStatusChange(event.target.value)}>
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -761,23 +858,37 @@ export default function CreateProject() {
               </select>
             </label>
 
-            <label className={!requiresNotYetStartedReason ? 'create-project-disabled-field' : ''}>
-              Reason for Not Yet Started {requiresNotYetStartedReason && <strong>*</strong>}
-              <select
-                value={notYetStartedReason}
-                onChange={(event) => setNotYetStartedReason(event.target.value)}
-                disabled={!requiresNotYetStartedReason}
-              >
-                <option value="">
-                  {requiresNotYetStartedReason ? 'Select reason' : 'Not applicable'}
-                </option>
-                {NOT_YET_STARTED_REASON_OPTIONS.map((reason) => (
-                  <option key={reason} value={reason}>
-                    {reason}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {requiresNotYetStartedReason ? (
+              <label>
+                {projectReasonLabel} <strong>*</strong>
+                <select
+                  value={notYetStartedReason}
+                  onChange={(event) => setNotYetStartedReason(event.target.value)}
+                >
+                  <option value="">Select reason</option>
+                  {NOT_YET_STARTED_REASON_OPTIONS.map((reason) => (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className={!requiresProjectChangeReason ? 'create-project-disabled-field' : ''}>
+                {projectReasonLabel} {requiresProjectChangeReason && <strong>*</strong>}
+                <textarea
+                  value={notYetStartedReason}
+                  onChange={(event) => setNotYetStartedReason(event.target.value)}
+                  disabled={!requiresProjectChangeReason}
+                  placeholder={
+                    requiresProjectChangeReason
+                      ? 'State the reason/justification for this critical status or contract modification.'
+                      : 'Not applicable'
+                  }
+                  rows={3}
+                />
+              </label>
+            )}
 
             <label>
               Project Type <strong>*</strong>
@@ -823,7 +934,7 @@ export default function CreateProject() {
 
             <div className="create-project-progress-note">
               <strong>Risk Level</strong>
-              <span>{computedRiskLevel}</span>
+              <span className={`create-project-risk-text risk-${computedRiskLevel.toLowerCase()}`}>{computedRiskLevel}</span>
             </div>
 
             <label>
@@ -1038,11 +1149,29 @@ export default function CreateProject() {
               <select
                 value={hasContractModification ? 'yes' : 'no'}
                 onChange={(event) => setHasContractModification(event.target.value === 'yes')}
+                disabled={isSuspendedStatus}
               >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
             </label>
+
+            {hasContractModification && (
+              <label className="span-2">
+                Type of Modification <strong>*</strong>
+                <select
+                  value={contractModificationType}
+                  onChange={(event) => handleContractModificationTypeChange(event.target.value)}
+                >
+                  <option value="">Select modification type</option>
+                  {contractModificationTypeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             {contractInfo.isExpired && (
               <div className="create-project-progress-note create-project-contract-warning span-2">
@@ -1055,7 +1184,7 @@ export default function CreateProject() {
             {hasContractModification && (
               <>
                 <label>
-                  Revised Project Cost
+                  Revised Project Cost <strong>*</strong>
                   <input
                     value={revisedProjectCost}
                     onChange={(event) => setRevisedProjectCost(event.target.value)}
@@ -1064,28 +1193,33 @@ export default function CreateProject() {
                   />
                 </label>
 
-                <label>
-                  Revised Contract Expiration Date
+                <label className="create-project-date-field">
+                  Revised Contract Expiration Date <strong>*</strong>
+
+                  <div className="create-project-long-date-field">
+                    <div>
+                      <strong>{formatLongDate(revisedContractExpirationDate)}</strong>
+                      <small>Revised contract expiration</small>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="create-project-date-change-btn"
+                      onClick={openRevisedContractExpirationPicker}
+                      disabled={saving}
+                    >
+                      Change Date
+                    </button>
+                  </div>
+
                   <input
+                    ref={revisedContractExpirationDateInputRef}
+                    className="create-project-hidden-date-input"
                     type="date"
                     value={revisedContractExpirationDate}
                     onChange={(event) => setRevisedContractExpirationDate(event.target.value)}
+                    aria-label="Revised contract expiration date"
                   />
-                </label>
-
-                <label className="span-2">
-                  Type of Modification
-                  <select
-                    value={contractModificationType}
-                    onChange={(event) => setContractModificationType(event.target.value)}
-                  >
-                    <option value="">Select modification type</option>
-                    {CONTRACT_MODIFICATION_TYPE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
                 </label>
               </>
             )}

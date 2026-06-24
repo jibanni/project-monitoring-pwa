@@ -1879,3 +1879,2850 @@ body > .pu-back-fab svg {
   }
 }
 
+
+/* Critical contract/update validation and risk color mapping */
+.pu-contract-warning {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 18px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 800;
+}
+
+.pu-contract-warning strong,
+.pu-contract-warning span {
+  color: #991b1b;
+}
+
+.pu-badge.pu-risk-none,
+.pu-badge.pu-risk-no-risk,
+.pu-badge.pu-risk-neutral,
+.pu-badge.pu-risk-unknown {
+  color: #166534 !important;
+  background: #dcfce7 !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.pu-badge.pu-risk-low {
+  color: #854d0e !important;
+  background: #fef9c3 !important;
+  border: 1px solid #fde68a !important;
+}
+
+.pu-badge.pu-risk-medium,
+.pu-badge.pu-risk-moderate {
+  color: #c2410c !important;
+  background: #ffedd5 !important;
+  border: 1px solid #fed7aa !important;
+}
+
+.pu-badge.pu-risk-high,
+.pu-badge.pu-risk-critical {
+  color: #b91c1c !important;
+  background: #fee2e2 !important;
+  border: 1px solid #fecaca !important;
+}
+
+/* Revised contract expiration date/mobile date input UI fix
+   Keeps update-page native date fields aligned with the other compact inputs. */
+.pu-field input[type='date'],
+.pu-photo-card input[type='date'] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  box-sizing: border-box !important;
+  padding: 0 0.85rem !important;
+  margin: 0 !important;
+  border-radius: 14px !important;
+  line-height: 46px !important;
+  text-align: left !important;
+  overflow: hidden !important;
+}
+
+.pu-field input[type='date']::-webkit-date-and-time-value,
+.pu-photo-card input[type='date']::-webkit-date-and-time-value {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 46px !important;
+  text-align: left !important;
+}
+
+.pu-field input[type='date']::-webkit-datetime-edit,
+.pu-field input[type='date']::-webkit-datetime-edit-fields-wrapper,
+.pu-photo-card input[type='date']::-webkit-datetime-edit,
+.pu-photo-card input[type='date']::-webkit-datetime-edit-fields-wrapper {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+
+.pu-field input[type='date']::-webkit-calendar-picker-indicator,
+.pu-photo-card input[type='date']::-webkit-calendar-picker-indicator {
+  position: relative !important;
+  margin-left: auto !important;
+  opacity: 0.7 !important;
+}
+
+/* Phase 2O-B: optimized field update workflow and revised date display */
+.pu-field-action-strip {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.pu-revised-date-display,
+.pu-long-date-field {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pu-revised-date-display > div,
+.pu-long-date-field > div {
+  min-width: 0;
+}
+
+.pu-revised-date-display strong,
+.pu-long-date-field strong {
+  overflow-wrap: anywhere;
+}
+
+.pu-gps-review-card {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+}
+
+.pu-gps-status-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 0.78rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.pu-photo-header {
+  align-items: flex-start !important;
+}
+
+@media (max-width: 900px) {
+  .pu-field-action-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .pu-gps-review-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pu-gps-status-mini {
+    width: fit-content;
+  }
+}
+
+@media (max-width: 560px) {
+  .pu-field-action-strip {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pu-long-date-field {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pu-date-change-btn {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   FIELD INSPECTION UPDATE FLOW — STATUS BUTTONS + SAVE MODALS
+   Converts status/contract choices into tap-friendly cards and
+   adds centered confirmation/success prompts.
+========================================================= */
+.pu-status-button-grid,
+.pu-two-choice-grid,
+.pu-modification-grid,
+.pu-reason-chip-grid {
+  display: grid;
+  gap: 0.7rem;
+  width: 100%;
+}
+
+.pu-status-button-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pu-two-choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pu-modification-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pu-reason-chip-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pu-choice-card,
+.pu-reason-chip {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 62px;
+  border: 1px solid #dbe4f0;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(15, 35, 70, 0.055);
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pu-choice-card {
+  display: grid;
+  align-content: center;
+  gap: 0.18rem;
+  padding: 0.85rem 0.9rem;
+}
+
+.pu-choice-card strong {
+  display: block;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.pu-choice-card small {
+  display: block;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.pu-choice-card:hover,
+.pu-reason-chip:hover {
+  transform: translateY(-1px);
+  border-color: #bfdbfe;
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.1);
+}
+
+.pu-choice-card.active,
+.pu-reason-chip.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow:
+    0 14px 30px rgba(37, 99, 235, 0.14),
+    inset 4px 0 0 #2563eb;
+}
+
+.pu-choice-card.active strong {
+  color: #1d4ed8;
+}
+
+.pu-choice-card.critical.active,
+.pu-status-choice.critical.active,
+.pu-modification-choice.critical.active {
+  border-color: #fecaca;
+  background: #fef2f2;
+  box-shadow:
+    0 14px 30px rgba(185, 28, 28, 0.1),
+    inset 4px 0 0 #ef4444;
+}
+
+.pu-choice-card.critical.active strong,
+.pu-status-choice.critical.active strong,
+.pu-modification-choice.critical.active strong {
+  color: #b91c1c;
+}
+
+.pu-choice-card:disabled,
+.pu-reason-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+  box-shadow: none;
+}
+
+.pu-reason-chip {
+  min-height: 52px;
+  padding: 0.72rem 0.85rem;
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.22;
+}
+
+.pu-reason-chip.active {
+  color: #1d4ed8;
+}
+
+.pu-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: rgba(15, 23, 42, 0.46);
+  backdrop-filter: blur(8px);
+}
+
+.pu-save-modal {
+  width: min(440px, 100%);
+  border: 1px solid rgba(219, 228, 240, 0.95);
+  border-radius: 26px;
+  background: #ffffff;
+  padding: 1.25rem;
+  color: #0f172a;
+  box-shadow:
+    0 28px 70px rgba(15, 23, 42, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.pu-save-modal h3 {
+  margin: 0.25rem 0 0.45rem;
+  color: #0f172a;
+  font-size: 1.3rem;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.pu-save-modal p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.92rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.pu-save-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.pu-save-summary-grid span {
+  min-width: 0;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pu-save-summary-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 0.12rem;
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 950;
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+.pu-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.pu-success-overlay {
+  background: rgba(15, 23, 42, 0.36);
+}
+
+.pu-success-modal {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  width: min(360px, 100%);
+  padding: 1.45rem 1.25rem;
+}
+
+.pu-success-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 2rem;
+  font-weight: 950;
+  box-shadow: inset 0 0 0 1px #bbf7d0;
+}
+
+.pu-success-modal .pu-primary-btn {
+  width: 100%;
+  margin-top: 0.45rem;
+}
+
+@media (max-width: 900px) {
+  .pu-status-button-grid,
+  .pu-two-choice-grid,
+  .pu-modification-grid,
+  .pu-reason-chip-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .pu-choice-card {
+    min-height: 58px;
+    border-radius: 17px;
+    padding: 0.78rem 0.82rem;
+  }
+
+  .pu-choice-card strong {
+    font-size: 0.9rem;
+  }
+
+  .pu-choice-card small {
+    font-size: 0.68rem;
+  }
+
+  .pu-modal-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .pu-save-modal {
+    border-radius: 24px;
+    padding: 1.1rem;
+  }
+}
+
+/* =========================================================
+   OUTDOOR-FRIENDLY PROJECT UPDATE PAGE
+   Stronger contrast, clearer sections, fewer field duplicates.
+========================================================= */
+.pu-form-card {
+  padding-bottom: max(1.2rem, env(safe-area-inset-bottom));
+}
+
+.pu-card-header h2 {
+  color: #071226;
+}
+
+.pu-field-mode-note {
+  color: #475569 !important;
+}
+
+.pu-field-action-strip {
+  gap: 0.85rem !important;
+  margin: 1rem 0 0.75rem !important;
+  border: 1px solid rgba(37, 99, 235, 0.22) !important;
+  background:
+    linear-gradient(135deg, rgba(219, 234, 254, 0.95), rgba(255, 247, 237, 0.92)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.pu-action-btn {
+  min-height: 72px !important;
+  border-radius: 20px !important;
+  font-size: 1.08rem !important;
+  letter-spacing: -0.01em !important;
+}
+
+.pu-action-btn span {
+  font-size: 0.76rem !important;
+}
+
+.pu-gps-inline-wrap {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.pu-gps-inline-result {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+}
+
+.pu-gps-inline-result strong {
+  color: #1e3a8a;
+  font-size: 0.82rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pu-gps-inline-result em {
+  color: #334155;
+  font-size: 0.82rem;
+  font-style: italic;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.pu-gps-inline-result.muted {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
+.pu-gps-inline-result.muted strong {
+  color: #475569;
+}
+
+.pu-gps-message-inline {
+  margin: 0 !important;
+}
+
+.pu-update-section {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.055);
+}
+
+.pu-section-progress {
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.pu-section-status {
+  border-color: rgba(249, 115, 22, 0.26);
+}
+
+.pu-section-contract {
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+.pu-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0b3769, #1d4ed8);
+  color: #ffffff;
+}
+
+.pu-section-status .pu-section-heading {
+  background: linear-gradient(135deg, #9a3412, #f97316);
+}
+
+.pu-section-contract .pu-section-heading {
+  background: linear-gradient(135deg, #334155, #0f172a);
+}
+
+.pu-section-heading > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 1000;
+}
+
+.pu-section-heading div {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.pu-section-heading strong {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 1000;
+  line-height: 1.12;
+}
+
+.pu-section-heading small {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.pu-field {
+  gap: 0.48rem !important;
+}
+
+.pu-field > span,
+.pu-field label > span {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #1e293b !important;
+  font-size: 0.78rem !important;
+  font-weight: 1000 !important;
+  letter-spacing: 0.01em;
+}
+
+.pu-field-important > span {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+}
+
+.pu-field input,
+.pu-field textarea,
+.pu-photo-card input {
+  min-height: 54px !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65) !important;
+}
+
+.pu-field textarea {
+  font-weight: 750 !important;
+}
+
+.pu-field input:focus,
+.pu-field textarea:focus,
+.pu-photo-card input:focus {
+  border-color: #2563eb !important;
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.16),
+    0 10px 24px rgba(37, 99, 235, 0.08) !important;
+}
+
+.pu-long-date-field {
+  min-height: 62px !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+}
+
+.pu-long-date-field strong {
+  color: #0f172a !important;
+  font-size: 1.08rem !important;
+  font-weight: 1000 !important;
+}
+
+.pu-long-date-field small {
+  color: #64748b !important;
+  font-size: 0.76rem !important;
+  font-weight: 850 !important;
+}
+
+.pu-date-change-btn {
+  min-height: 42px !important;
+  padding: 0.58rem 0.95rem !important;
+  border: 1px solid #bfdbfe !important;
+  border-radius: 15px !important;
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+  font-weight: 1000 !important;
+  white-space: nowrap;
+}
+
+.pu-disbursement-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px;
+  gap: 0.7rem;
+  align-items: stretch;
+  width: 100%;
+}
+
+.pu-disbursement-control input {
+  min-width: 0;
+}
+
+.pu-disbursement-equals-btn {
+  min-width: 62px !important;
+  min-height: 54px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, #0f4c81 0%, #2563eb 100%) !important;
+  color: #ffffff !important;
+  font-size: 1.35rem !important;
+  font-weight: 1000 !important;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.24) !important;
+  cursor: pointer;
+}
+
+.pu-disbursement-equals-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none !important;
+}
+
+.pu-disbursement-field small {
+  color: #475569 !important;
+  font-size: 0.78rem !important;
+  font-weight: 850 !important;
+  line-height: 1.3;
+}
+
+.pu-status-button-grid,
+.pu-two-choice-grid,
+.pu-modification-grid {
+  gap: 0.75rem !important;
+}
+
+.pu-choice-card,
+.pu-reason-chip {
+  min-height: 70px !important;
+  border: 1.5px solid #d7e1ef !important;
+  border-radius: 20px !important;
+  background: #ffffff !important;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.065) !important;
+}
+
+.pu-choice-card strong {
+  color: #0f172a !important;
+  font-size: 1rem !important;
+  font-weight: 1000 !important;
+}
+
+.pu-choice-card small {
+  color: #475569 !important;
+  font-size: 0.74rem !important;
+  font-weight: 850 !important;
+}
+
+.pu-choice-card.active {
+  border-color: #2563eb !important;
+  background: linear-gradient(135deg, #eff6ff, #ffffff) !important;
+  box-shadow:
+    0 16px 34px rgba(37, 99, 235, 0.16),
+    inset 5px 0 0 #2563eb !important;
+}
+
+.pu-choice-card.active strong {
+  color: #1d4ed8 !important;
+}
+
+.pu-status-choice.critical.active,
+.pu-modification-choice.critical.active {
+  border-color: #fca5a5 !important;
+  background: linear-gradient(135deg, #fef2f2, #ffffff) !important;
+  box-shadow:
+    0 16px 34px rgba(239, 68, 68, 0.14),
+    inset 5px 0 0 #ef4444 !important;
+}
+
+.pu-status-choice.critical.active strong,
+.pu-modification-choice.critical.active strong {
+  color: #b91c1c !important;
+}
+
+.pu-status-choice.administrative:not(.active) {
+  background: #f8fafc !important;
+}
+
+.pu-status-choice.administrative:not(.active) strong {
+  color: #334155 !important;
+}
+
+.pu-critical-reason-field textarea:disabled {
+  background: #f8fafc !important;
+  color: #94a3b8 !important;
+}
+
+.pu-textarea-grid {
+  margin-top: 1rem !important;
+  padding: 0.9rem;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.055);
+}
+
+.pu-textarea-grid::before {
+  content: '04  Field Notes / Findings';
+  grid-column: 1 / -1;
+  display: block;
+  padding: 0.75rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #14532d, #16a34a);
+  color: #ffffff;
+  font-size: 0.94rem;
+  font-weight: 1000;
+  letter-spacing: 0.01em;
+}
+
+.pu-photo-section {
+  border-radius: 24px !important;
+  border-color: rgba(37, 99, 235, 0.18) !important;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.055) !important;
+}
+
+.pu-photo-empty {
+  color: #475569 !important;
+  font-weight: 900 !important;
+}
+
+@media (max-width: 700px) {
+  .pu-update-section,
+  .pu-textarea-grid {
+    padding: 0.75rem;
+    border-radius: 22px;
+  }
+
+  .pu-section-heading {
+    padding: 0.7rem;
+    align-items: flex-start;
+  }
+
+  .pu-section-heading > span {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+  }
+
+  .pu-status-button-grid,
+  .pu-modification-grid,
+  .pu-reason-chip-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pu-choice-card,
+  .pu-reason-chip {
+    min-height: 64px !important;
+  }
+
+  .pu-field input,
+  .pu-field textarea,
+  .pu-photo-card input {
+    min-height: 52px !important;
+    font-size: 0.98rem !important;
+  }
+
+  .pu-action-btn {
+    min-height: 68px !important;
+  }
+}
+
+/* =========================================================
+   RUGGED TWO-COLUMN PROJECT UPDATE PAGE
+   Keeps existing banner behavior, improves outdoor visibility,
+   preserves all project statuses, and converts the update form
+   into five clear mobile chapters.
+========================================================= */
+.pu-section-quick {
+  border-color: rgba(22, 163, 74, 0.28) !important;
+}
+
+.pu-section-quick .pu-section-heading {
+  background: linear-gradient(135deg, #14532d, #16a34a) !important;
+}
+
+.pu-section-notes {
+  border-color: rgba(124, 58, 237, 0.25) !important;
+}
+
+.pu-section-notes .pu-section-heading {
+  background: linear-gradient(135deg, #581c87, #7c3aed) !important;
+}
+
+.pu-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.pu-quick-grid .pu-date-field {
+  grid-column: 1 / -1;
+}
+
+.pu-action-btn {
+  min-height: 78px !important;
+  border-radius: 22px !important;
+  font-size: 1.15rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.01em !important;
+}
+
+.pu-action-btn span {
+  margin-top: 0.12rem;
+  font-size: 0.78rem !important;
+  text-transform: none;
+}
+
+.pu-action-gps {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  box-shadow: 0 16px 32px rgba(22, 163, 74, 0.25) !important;
+}
+
+.pu-action-photo {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.24) !important;
+}
+
+.pu-gps-inline-result {
+  border-width: 1.5px !important;
+  border-color: #86efac !important;
+  background: #f0fdf4 !important;
+}
+
+.pu-gps-inline-result strong {
+  color: #166534 !important;
+}
+
+.pu-gps-inline-result em {
+  color: #14532d !important;
+}
+
+.pu-gps-inline-result.muted {
+  border-color: #cbd5e1 !important;
+  background: #f8fafc !important;
+}
+
+.pu-gps-inline-result.muted strong,
+.pu-gps-inline-result.muted em {
+  color: #475569 !important;
+}
+
+.pu-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.75rem !important;
+}
+
+.pu-stepper-field {
+  min-width: 0;
+}
+
+.pu-stepper-control {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  gap: 0.45rem;
+  align-items: stretch;
+  width: 100%;
+}
+
+.pu-stepper-control input {
+  min-width: 0 !important;
+  text-align: center !important;
+  font-size: 1.1rem !important;
+  font-weight: 1000 !important;
+}
+
+.pu-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 54px;
+  border: 0;
+  border-radius: 18px;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1.55rem;
+  font-weight: 1000;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pu-stepper-btn.decrease {
+  background: linear-gradient(135deg, #b91c1c, #ef4444);
+}
+
+.pu-stepper-btn.increase {
+  background: linear-gradient(135deg, #15803d, #16a34a);
+}
+
+.pu-stepper-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.pu-disbursement-field {
+  grid-column: 1 / -1 !important;
+}
+
+.pu-readonly-risk {
+  min-height: 56px !important;
+  border-width: 1.5px !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+}
+
+.pu-variance-preview {
+  min-height: 68px !important;
+  border-width: 1.5px !important;
+  background: #f8fafc !important;
+}
+
+.pu-status-button-grid,
+.pu-two-choice-grid,
+.pu-modification-grid,
+.pu-reason-chip-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.68rem !important;
+}
+
+.pu-status-choice,
+.pu-modification-choice,
+.pu-choice-card,
+.pu-reason-chip {
+  min-height: 74px !important;
+  border-radius: 21px !important;
+}
+
+.pu-status-choice strong,
+.pu-modification-choice strong,
+.pu-choice-card strong {
+  font-size: clamp(0.9rem, 3.1vw, 1.04rem) !important;
+  line-height: 1.08 !important;
+}
+
+.pu-status-choice small,
+.pu-modification-choice small,
+.pu-choice-card small {
+  font-size: clamp(0.66rem, 2.35vw, 0.76rem) !important;
+  line-height: 1.18 !important;
+}
+
+.pu-status-choice.critical:not(.active) {
+  border-color: #fecaca !important;
+  background: #fff7f7 !important;
+}
+
+.pu-status-choice.critical:not(.active) strong {
+  color: #b91c1c !important;
+}
+
+.pu-status-choice.administrative:not(.active) {
+  border-color: #d8b4fe !important;
+  background: #faf5ff !important;
+}
+
+.pu-status-choice.administrative:not(.active) strong {
+  color: #6d28d9 !important;
+}
+
+.pu-status-choice.active:not(.critical) {
+  background: linear-gradient(135deg, #dcfce7, #ffffff) !important;
+  border-color: #86efac !important;
+  box-shadow:
+    0 16px 34px rgba(22, 163, 74, 0.14),
+    inset 5px 0 0 #16a34a !important;
+}
+
+.pu-status-choice.active:not(.critical) strong {
+  color: #166534 !important;
+}
+
+.pu-textarea-grid::before {
+  content: none !important;
+  display: none !important;
+}
+
+.pu-textarea-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  margin-top: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.pu-textarea-grid .pu-field textarea {
+  min-height: 132px !important;
+}
+
+.pu-textarea-grid .pu-full-field textarea {
+  min-height: 120px !important;
+}
+
+.pu-photo-section {
+  margin-top: 0 !important;
+  background: #f8fafc !important;
+}
+
+.pu-photo-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.pu-photo-preview,
+.pu-photo-placeholder {
+  min-height: 150px !important;
+}
+
+.pu-dual-save-bar {
+  position: sticky !important;
+  bottom: calc(88px + env(safe-area-inset-bottom)) !important;
+  z-index: 30 !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.7rem !important;
+  padding: 0.8rem !important;
+  margin: 1rem -0.25rem 0 !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.pu-save-online-btn,
+.pu-save-offline-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  width: 100%;
+  min-height: 70px;
+  border: 0;
+  border-radius: 21px;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1.08rem;
+  font-weight: 1000;
+  line-height: 1.05;
+  cursor: pointer;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.16);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pu-save-online-btn span,
+.pu-save-offline-btn span {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.pu-save-online-btn {
+  background: linear-gradient(135deg, #15803d, #16a34a);
+}
+
+.pu-save-offline-btn {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+.pu-save-online-btn:disabled,
+.pu-save-offline-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  box-shadow: none;
+}
+
+.pu-cancel-link {
+  grid-column: 1 / -1;
+  min-height: 46px !important;
+  border-radius: 16px !important;
+}
+
+.pu-notice-modal {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 0.65rem;
+  width: min(390px, 100%);
+}
+
+.pu-notice-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  font-size: 1.9rem;
+  font-weight: 1000;
+}
+
+.pu-notice-modal.warning .pu-notice-icon {
+  background: #fffbeb;
+  color: #b45309;
+  box-shadow: inset 0 0 0 1px #fde68a;
+}
+
+.pu-notice-modal.danger .pu-notice-icon {
+  background: #fef2f2;
+  color: #b91c1c;
+  box-shadow: inset 0 0 0 1px #fecaca;
+}
+
+.pu-notice-modal.info .pu-notice-icon {
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px #bfdbfe;
+}
+
+.pu-notice-modal .pu-primary-btn {
+  width: 100%;
+  min-height: 56px !important;
+  border-radius: 18px !important;
+}
+
+@media (max-width: 900px) {
+  .pu-form-grid,
+  .pu-quick-grid,
+  .pu-status-button-grid,
+  .pu-two-choice-grid,
+  .pu-modification-grid,
+  .pu-reason-chip-grid,
+  .pu-textarea-grid,
+  .pu-photo-grid,
+  .pu-dual-save-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .pu-side-panel {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .pu-form-card {
+    padding: 0.78rem !important;
+    border-radius: 24px !important;
+  }
+
+  .pu-card-header h2 {
+    font-size: 1.45rem !important;
+  }
+
+  .pu-field-mode-note {
+    font-size: 0.88rem !important;
+  }
+
+  .pu-update-section {
+    gap: 0.75rem !important;
+    padding: 0.72rem !important;
+    border-radius: 22px !important;
+  }
+
+  .pu-section-heading {
+    gap: 0.58rem !important;
+    padding: 0.68rem !important;
+    border-radius: 18px !important;
+  }
+
+  .pu-section-heading > span {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 13px !important;
+    font-size: 0.86rem !important;
+  }
+
+  .pu-section-heading strong {
+    font-size: 0.94rem !important;
+  }
+
+  .pu-section-heading small {
+    font-size: 0.68rem !important;
+  }
+
+  .pu-form-grid,
+  .pu-quick-grid,
+  .pu-status-button-grid,
+  .pu-two-choice-grid,
+  .pu-modification-grid,
+  .pu-reason-chip-grid,
+  .pu-textarea-grid,
+  .pu-photo-grid {
+    gap: 0.56rem !important;
+  }
+
+  .pu-action-btn {
+    min-height: 72px !important;
+    font-size: 1rem !important;
+    border-radius: 20px !important;
+  }
+
+  .pu-action-btn span {
+    font-size: 0.68rem !important;
+  }
+
+  .pu-long-date-field {
+    min-height: 66px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.55rem !important;
+  }
+
+  .pu-long-date-field strong {
+    font-size: 1rem !important;
+  }
+
+  .pu-field > span,
+  .pu-field label > span {
+    font-size: 0.7rem !important;
+    padding: 0.1rem 0.32rem !important;
+  }
+
+  .pu-stepper-control {
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    gap: 0.35rem;
+  }
+
+  .pu-stepper-btn {
+    min-width: 42px;
+    min-height: 52px;
+    border-radius: 16px;
+    font-size: 1.38rem;
+  }
+
+  .pu-stepper-control input,
+  .pu-field input,
+  .pu-field textarea,
+  .pu-photo-card input {
+    min-height: 52px !important;
+    border-radius: 16px !important;
+    font-size: 0.96rem !important;
+  }
+
+  .pu-disbursement-control {
+    grid-template-columns: minmax(0, 1fr) 54px;
+    gap: 0.45rem;
+  }
+
+  .pu-disbursement-equals-btn {
+    min-width: 54px !important;
+    min-height: 52px !important;
+    border-radius: 16px !important;
+  }
+
+  .pu-choice-card,
+  .pu-reason-chip {
+    min-height: 68px !important;
+    padding: 0.68rem 0.66rem !important;
+    border-radius: 18px !important;
+  }
+
+  .pu-choice-card strong {
+    font-size: 0.82rem !important;
+  }
+
+  .pu-choice-card small {
+    font-size: 0.62rem !important;
+  }
+
+  .pu-reason-chip {
+    font-size: 0.72rem !important;
+  }
+
+  .pu-textarea-grid .pu-field textarea {
+    min-height: 116px !important;
+  }
+
+  .pu-photo-preview,
+  .pu-photo-placeholder {
+    min-height: 128px !important;
+  }
+
+  .pu-save-online-btn,
+  .pu-save-offline-btn {
+    min-height: 66px;
+    border-radius: 19px;
+    font-size: 0.98rem;
+  }
+
+  .pu-save-online-btn span,
+  .pu-save-offline-btn span {
+    font-size: 0.62rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .pu-choice-card strong {
+    font-size: 0.76rem !important;
+  }
+
+  .pu-choice-card small {
+    display: none !important;
+  }
+
+  .pu-status-choice,
+  .pu-modification-choice,
+  .pu-choice-card,
+  .pu-reason-chip {
+    min-height: 58px !important;
+  }
+}
+
+/* =========================================================
+   RUGGED UPDATE PAGE V2 — field readability and save fixes
+   - smaller capture buttons, max photos handled in TS
+   - single auto online/offline save button
+   - no plus/minus steppers
+   - improved date picker tap target
+   - stronger button shadows and overflow control
+========================================================= */
+
+.pu-network-state {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 132px;
+  min-height: 48px;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.pu-network-state strong {
+  font-size: 0.86rem;
+  font-weight: 1000;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pu-network-state span {
+  margin-top: 0.12rem;
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1.15;
+  text-align: right;
+}
+
+.pu-network-state.online strong {
+  color: #166534;
+}
+
+.pu-network-state.offline {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.pu-network-state.offline strong {
+  color: #c2410c;
+}
+
+.pu-quick-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.62rem !important;
+}
+
+.pu-quick-grid .pu-date-field {
+  grid-column: 1 / -1 !important;
+}
+
+.pu-action-btn {
+  min-height: 58px !important;
+  padding: 0.56rem 0.62rem !important;
+  border-radius: 18px !important;
+  font-size: clamp(0.86rem, 3.7vw, 1rem) !important;
+  line-height: 1.05 !important;
+  box-shadow:
+    0 14px 28px rgba(15, 23, 42, 0.18),
+    0 4px 10px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+.pu-action-btn span {
+  font-size: clamp(0.62rem, 2.7vw, 0.72rem) !important;
+  line-height: 1.1 !important;
+}
+
+.pu-gps-inline-wrap {
+  margin-top: 0.1rem !important;
+}
+
+.pu-gps-inline-result {
+  padding: 0.58rem 0.7rem !important;
+  border-radius: 15px !important;
+}
+
+.pu-gps-inline-result strong {
+  font-size: 0.7rem !important;
+}
+
+.pu-gps-inline-result em {
+  font-size: 0.78rem !important;
+  line-height: 1.25 !important;
+  overflow-wrap: anywhere;
+}
+
+.pu-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.68rem !important;
+  align-items: start !important;
+}
+
+.pu-field,
+.pu-field * {
+  min-width: 0;
+}
+
+.pu-field > span,
+.pu-field label > span {
+  display: inline-block !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  margin-left: 0.12rem !important;
+  padding: 0.12rem 0.45rem !important;
+  border-radius: 999px !important;
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+  font-size: clamp(0.68rem, 2.9vw, 0.78rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.01em !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.pu-section-heading strong,
+.pu-section-heading small,
+.pu-choice-card strong,
+.pu-choice-card small,
+.pu-reason-chip,
+.pu-photo-meta span,
+.pu-photo-empty,
+.pu-contract-warning span,
+.pu-long-date-field small,
+.pu-field small {
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+.pu-percent-field input,
+.pu-field-important input {
+  min-height: 58px !important;
+  border-width: 1.5px !important;
+  border-radius: 17px !important;
+  font-size: clamp(1.05rem, 5vw, 1.28rem) !important;
+  font-weight: 1000 !important;
+  text-align: center !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+
+.pu-field-important > span {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+}
+
+.pu-disbursement-control {
+  grid-template-columns: minmax(0, 1fr) 58px !important;
+  gap: 0.55rem !important;
+}
+
+.pu-disbursement-control input {
+  min-height: 58px !important;
+  font-size: clamp(0.9rem, 3.8vw, 1.02rem) !important;
+}
+
+.pu-disbursement-equals-btn {
+  min-width: 58px !important;
+  min-height: 58px !important;
+  border-radius: 18px !important;
+  box-shadow:
+    0 14px 28px rgba(37, 99, 235, 0.22),
+    0 4px 10px rgba(15, 23, 42, 0.12) !important;
+}
+
+.pu-readonly-risk,
+.pu-variance-preview,
+.pu-long-date-field,
+.pu-photo-empty,
+.pu-photo-card,
+.pu-field input,
+.pu-field textarea,
+.pu-photo-card input {
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+}
+
+.pu-date-picker-proxy {
+  position: relative !important;
+  overflow: hidden !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  box-shadow:
+    0 10px 22px rgba(37, 99, 235, 0.14),
+    0 3px 8px rgba(15, 23, 42, 0.08) !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pu-date-picker-proxy.disabled {
+  cursor: not-allowed !important;
+  opacity: 0.58 !important;
+}
+
+.pu-native-date-input {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: inherit !important;
+  opacity: 0.01 !important;
+  cursor: pointer !important;
+  color: transparent !important;
+  background: transparent !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+.pu-native-date-input:disabled {
+  cursor: not-allowed !important;
+}
+
+.pu-hidden-date-input {
+  pointer-events: auto !important;
+}
+
+.pu-status-choice,
+.pu-modification-choice,
+.pu-choice-card,
+.pu-reason-chip,
+.pu-date-change-btn,
+.pu-remove-photo-btn {
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.09),
+    0 3px 8px rgba(15, 23, 42, 0.06) !important;
+}
+
+.pu-status-choice.active,
+.pu-modification-choice.active,
+.pu-choice-card.active,
+.pu-reason-chip.active {
+  box-shadow:
+    0 16px 34px rgba(37, 99, 235, 0.18),
+    0 5px 12px rgba(15, 23, 42, 0.1) !important;
+}
+
+.pu-photo-section .pu-photo-header p {
+  font-size: 0.82rem !important;
+  line-height: 1.32 !important;
+}
+
+.pu-photo-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.pu-photo-preview,
+.pu-photo-placeholder {
+  min-height: 120px !important;
+}
+
+.pu-photo-card {
+  border-radius: 18px !important;
+}
+
+.pu-single-save-bar {
+  position: sticky !important;
+  bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+  z-index: 40 !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 0.55rem !important;
+  margin: 1rem -0.25rem 0 !important;
+  padding: 0.72rem !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 24px !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12) !important;
+  backdrop-filter: blur(12px);
+}
+
+.pu-main-save-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.14rem;
+  width: 100%;
+  min-height: 72px;
+  border: 0;
+  border-radius: 22px;
+  color: #ffffff;
+  font: inherit;
+  font-size: clamp(1.08rem, 4.8vw, 1.28rem);
+  font-weight: 1000;
+  line-height: 1.06;
+  cursor: pointer;
+  box-shadow:
+    0 18px 36px rgba(15, 23, 42, 0.2),
+    0 5px 14px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pu-main-save-btn span {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.pu-main-save-btn.online {
+  background: linear-gradient(135deg, #0f766e, #16a34a);
+}
+
+.pu-main-save-btn.offline {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+.pu-main-save-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  box-shadow: none;
+}
+
+.pu-single-save-bar .pu-cancel-link {
+  min-height: 46px !important;
+  border-radius: 16px !important;
+}
+
+.pu-side-panel .pu-side-card:first-child {
+  align-self: start;
+}
+
+body > .pu-back-fab {
+  bottom: calc(168px + env(safe-area-inset-bottom)) !important;
+}
+
+@media (max-width: 560px) {
+  .pu-network-state {
+    align-items: flex-start;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .pu-network-state span {
+    text-align: left;
+  }
+
+  .pu-card-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .pu-action-btn {
+    min-height: 56px !important;
+    border-radius: 17px !important;
+  }
+
+  .pu-form-grid,
+  .pu-status-button-grid,
+  .pu-two-choice-grid,
+  .pu-modification-grid,
+  .pu-reason-chip-grid,
+  .pu-textarea-grid,
+  .pu-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .pu-disbursement-field,
+  .pu-full-field,
+  .pu-textarea-grid .pu-full-field {
+    grid-column: 1 / -1 !important;
+  }
+
+  .pu-field > span,
+  .pu-field label > span {
+    font-size: clamp(0.64rem, 2.85vw, 0.72rem) !important;
+  }
+
+  .pu-percent-field input,
+  .pu-field-important input {
+    min-height: 56px !important;
+    font-size: clamp(1rem, 5vw, 1.18rem) !important;
+  }
+
+  .pu-long-date-field {
+    min-height: 62px !important;
+  }
+
+  .pu-date-change-btn {
+    min-height: 42px !important;
+    width: 100% !important;
+  }
+
+  .pu-choice-card strong {
+    font-size: clamp(0.76rem, 3.4vw, 0.92rem) !important;
+  }
+
+  .pu-choice-card small {
+    font-size: clamp(0.58rem, 2.6vw, 0.68rem) !important;
+  }
+
+  .pu-main-save-btn {
+    min-height: 70px !important;
+  }
+
+  body > .pu-back-fab {
+    bottom: calc(168px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .pu-action-btn {
+    min-height: 54px !important;
+    font-size: 0.86rem !important;
+  }
+
+  .pu-action-btn span {
+    font-size: 0.58rem !important;
+  }
+
+  .pu-field > span,
+  .pu-field label > span {
+    font-size: 0.6rem !important;
+  }
+}
+
+/* Outdoor usability V3: compact aligned progress cards, readable labels, smaller dialogs */
+.pu-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.62rem !important;
+  margin-top: 0.75rem !important;
+}
+
+.pu-summary-card {
+  min-height: 72px !important;
+  padding: 0.72rem 0.78rem !important;
+  border-radius: 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 0.18rem !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+}
+
+.pu-summary-card span {
+  max-width: 100% !important;
+  font-size: clamp(0.68rem, 3vw, 0.78rem) !important;
+  line-height: 1.05 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.pu-summary-card strong {
+  max-width: 100% !important;
+  font-size: clamp(1rem, 4.7vw, 1.18rem) !important;
+  line-height: 1.05 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.pu-update-section {
+  overflow: hidden !important;
+}
+
+.pu-section-progress .pu-section-heading {
+  margin-bottom: 0.68rem !important;
+}
+
+.pu-section-progress .pu-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.68rem !important;
+  align-items: stretch !important;
+}
+
+.pu-section-progress .pu-field {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  gap: 0.36rem !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.pu-section-progress .pu-field > span,
+.pu-section-progress .pu-field label > span {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+  padding: 0.22rem 0.5rem !important;
+  border-radius: 999px !important;
+  background: #eef4fb !important;
+  color: #1e293b !important;
+  font-size: clamp(0.66rem, 2.9vw, 0.78rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.012em !important;
+  white-space: normal !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+  text-align: left !important;
+}
+
+.pu-section-progress .pu-field-important > span {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+}
+
+.pu-section-progress .pu-field input,
+.pu-section-progress .pu-readonly-risk {
+  width: 100% !important;
+  min-height: 54px !important;
+  max-height: none !important;
+  padding: 0.55rem 0.66rem !important;
+  border: 1.5px solid #d6e0ec !important;
+  border-radius: 17px !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font-size: clamp(1.05rem, 5vw, 1.28rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.1 !important;
+  text-align: center !important;
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+}
+
+.pu-section-progress .pu-readonly-risk {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.pu-section-progress .pu-readonly-risk .pu-badge {
+  min-height: 32px !important;
+  max-width: 100% !important;
+  padding: 0.38rem 0.7rem !important;
+  font-size: clamp(0.7rem, 3.1vw, 0.82rem) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-disbursement-field {
+  grid-column: 1 / -1 !important;
+}
+
+.pu-disbursement-control {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 54px !important;
+  gap: 0.55rem !important;
+  width: 100% !important;
+  align-items: stretch !important;
+}
+
+.pu-disbursement-control input {
+  min-width: 0 !important;
+  min-height: 54px !important;
+  text-align: left !important;
+  font-size: clamp(0.88rem, 3.9vw, 1.05rem) !important;
+}
+
+.pu-disbursement-equals-btn {
+  min-width: 54px !important;
+  min-height: 54px !important;
+  border-radius: 17px !important;
+  font-size: 1.25rem !important;
+  box-shadow:
+    0 10px 20px rgba(37, 99, 235, 0.2),
+    0 3px 8px rgba(15, 23, 42, 0.11) !important;
+}
+
+.pu-disbursement-field small {
+  display: block !important;
+  width: 100% !important;
+  margin-top: 0.1rem !important;
+  color: #475569 !important;
+  font-size: clamp(0.66rem, 2.9vw, 0.76rem) !important;
+  line-height: 1.22 !important;
+  font-weight: 850 !important;
+}
+
+.pu-variance-preview {
+  min-height: 62px !important;
+  margin-top: 0.7rem !important;
+  padding: 0.72rem 0.85rem !important;
+  border-radius: 17px !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.055) !important;
+}
+
+.pu-variance-preview span {
+  font-size: clamp(0.68rem, 2.9vw, 0.78rem) !important;
+  line-height: 1.05 !important;
+}
+
+.pu-variance-preview strong {
+  font-size: clamp(1rem, 4.7vw, 1.22rem) !important;
+  line-height: 1.05 !important;
+}
+
+.pu-action-btn,
+.pu-choice-card,
+.pu-reason-chip,
+.pu-date-change-btn,
+.pu-disbursement-equals-btn,
+.pu-main-save-btn,
+.pu-primary-btn,
+.pu-secondary-btn,
+.pu-remove-photo-btn {
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.12),
+    0 3px 8px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+.pu-action-btn:active,
+.pu-choice-card:active,
+.pu-reason-chip:active,
+.pu-date-change-btn:active,
+.pu-main-save-btn:active,
+.pu-primary-btn:active,
+.pu-secondary-btn:active {
+  transform: translateY(1px) scale(0.99) !important;
+}
+
+.pu-contract-warning {
+  padding: 0.82rem 0.9rem !important;
+  border-radius: 18px !important;
+  font-size: clamp(0.82rem, 3.7vw, 0.96rem) !important;
+  line-height: 1.3 !important;
+}
+
+.pu-contract-warning strong {
+  font-size: clamp(0.92rem, 4vw, 1.05rem) !important;
+}
+
+.pu-section-contract .pu-form-grid {
+  align-items: start !important;
+}
+
+.pu-section-contract .pu-field > span {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 0 0.35rem !important;
+  padding: 0.22rem 0.5rem !important;
+  font-size: clamp(0.65rem, 2.9vw, 0.76rem) !important;
+  line-height: 1.08 !important;
+  white-space: normal !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+}
+
+.pu-section-contract .pu-long-date-field {
+  min-height: 78px !important;
+  padding: 0.72rem !important;
+  align-items: center !important;
+}
+
+.pu-section-contract .pu-long-date-field strong {
+  font-size: clamp(0.95rem, 4.4vw, 1.15rem) !important;
+  line-height: 1.1 !important;
+}
+
+.pu-section-contract .pu-date-change-btn {
+  min-height: 44px !important;
+  padding: 0.48rem 0.72rem !important;
+  font-size: clamp(0.76rem, 3.4vw, 0.9rem) !important;
+}
+
+.pu-save-modal {
+  width: min(360px, calc(100vw - 42px)) !important;
+  padding: 1rem !important;
+  border-radius: 22px !important;
+}
+
+.pu-save-modal h3 {
+  font-size: clamp(1.02rem, 5vw, 1.18rem) !important;
+  line-height: 1.12 !important;
+}
+
+.pu-save-modal p {
+  font-size: clamp(0.78rem, 3.5vw, 0.88rem) !important;
+  line-height: 1.32 !important;
+}
+
+.pu-save-summary-grid {
+  gap: 0.42rem !important;
+  margin-top: 0.75rem !important;
+}
+
+.pu-save-summary-grid span {
+  padding: 0.52rem 0.56rem !important;
+  border-radius: 13px !important;
+  font-size: clamp(0.58rem, 2.6vw, 0.68rem) !important;
+  line-height: 1.12 !important;
+}
+
+.pu-save-summary-grid strong {
+  font-size: clamp(0.72rem, 3.2vw, 0.82rem) !important;
+}
+
+.pu-modal-actions {
+  gap: 0.5rem !important;
+  margin-top: 0.82rem !important;
+}
+
+.pu-modal-actions .pu-primary-btn,
+.pu-modal-actions .pu-secondary-btn,
+.pu-save-modal > .pu-primary-btn {
+  min-height: 46px !important;
+  border-radius: 15px !important;
+  font-size: clamp(0.76rem, 3.5vw, 0.9rem) !important;
+}
+
+.pu-success-icon,
+.pu-notice-icon {
+  width: 46px !important;
+  height: 46px !important;
+  margin-bottom: 0.55rem !important;
+  font-size: 1.35rem !important;
+}
+
+@media (max-width: 430px) {
+  .pu-section-progress .pu-form-grid {
+    gap: 0.58rem !important;
+  }
+
+  .pu-section-progress .pu-field > span,
+  .pu-section-contract .pu-field > span {
+    font-size: clamp(0.62rem, 2.95vw, 0.72rem) !important;
+    padding-inline: 0.42rem !important;
+  }
+
+  .pu-section-progress .pu-field input,
+  .pu-section-progress .pu-readonly-risk,
+  .pu-disbursement-control input,
+  .pu-disbursement-equals-btn {
+    min-height: 50px !important;
+  }
+
+  .pu-disbursement-control {
+    grid-template-columns: minmax(0, 1fr) 50px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .pu-section-progress .pu-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pu-summary-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* =========================================================
+   OUTDOOR UPDATE PAGE V4 — compact aligned progress/cards
+   - fixes misaligned summary cards
+   - turns progress fields into smaller even tiles
+   - prevents label overflow inside two-column mobile layout
+========================================================= */
+
+.pu-summary-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.58rem !important;
+  margin: 0.68rem 0 0.72rem !important;
+  align-items: stretch !important;
+}
+
+.pu-summary-card {
+  position: relative !important;
+  min-height: 64px !important;
+  height: 64px !important;
+  padding: 0.58rem 0.68rem !important;
+  border: 1px solid rgba(203, 213, 225, 0.82) !important;
+  border-radius: 16px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 0.14rem !important;
+  overflow: hidden !important;
+  box-shadow:
+    0 8px 16px rgba(15, 23, 42, 0.065),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88) !important;
+}
+
+.pu-summary-card::before {
+  height: 4px !important;
+  border-radius: 999px 999px 0 0 !important;
+}
+
+.pu-summary-card span {
+  display: block !important;
+  width: 100% !important;
+  color: #64748b !important;
+  font-size: clamp(0.57rem, 2.45vw, 0.68rem) !important;
+  font-weight: 1000 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-summary-card strong {
+  display: block !important;
+  width: 100% !important;
+  color: #0f172a !important;
+  font-size: clamp(0.92rem, 4.1vw, 1.08rem) !important;
+  font-weight: 1000 !important;
+  line-height: 1.05 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-progress-summary strong,
+.pu-variance-summary strong {
+  font-size: clamp(0.92rem, 4.1vw, 1.08rem) !important;
+}
+
+.pu-section-progress {
+  padding: 0.78rem !important;
+  border-radius: 18px !important;
+  overflow: hidden !important;
+}
+
+.pu-section-progress .pu-section-heading {
+  min-height: 64px !important;
+  padding: 0.58rem 0.72rem !important;
+  border-radius: 18px !important;
+  margin-bottom: 0.68rem !important;
+}
+
+.pu-section-progress .pu-section-heading > span {
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  font-size: 1rem !important;
+}
+
+.pu-section-progress .pu-section-heading strong {
+  font-size: clamp(1rem, 4.2vw, 1.2rem) !important;
+  line-height: 1.04 !important;
+}
+
+.pu-section-progress .pu-section-heading small {
+  font-size: clamp(0.66rem, 2.85vw, 0.76rem) !important;
+  line-height: 1.16 !important;
+}
+
+.pu-section-progress .pu-form-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  column-gap: 0.62rem !important;
+  row-gap: 0.62rem !important;
+  align-items: stretch !important;
+}
+
+.pu-section-progress .pu-field {
+  min-width: 0 !important;
+  min-height: 88px !important;
+  height: 88px !important;
+  padding: 0.5rem !important;
+  border: 1px solid rgba(203, 213, 225, 0.9) !important;
+  border-radius: 17px !important;
+  background: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  gap: 0.36rem !important;
+  box-shadow:
+    0 8px 16px rgba(15, 23, 42, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+  overflow: hidden !important;
+}
+
+.pu-section-progress .pu-field > span,
+.pu-section-progress .pu-field label > span {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #334155 !important;
+  font-size: clamp(0.59rem, 2.48vw, 0.69rem) !important;
+  font-weight: 1000 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.015em !important;
+  white-space: normal !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+.pu-section-progress .pu-field-important > span {
+  color: #1d4ed8 !important;
+}
+
+.pu-section-progress .pu-field input,
+.pu-section-progress .pu-readonly-risk {
+  width: 100% !important;
+  min-height: 46px !important;
+  height: 46px !important;
+  padding: 0.34rem 0.5rem !important;
+  border: 1.5px solid #d7e0ec !important;
+  border-radius: 14px !important;
+  background: #fdfefe !important;
+  color: #0f172a !important;
+  font-size: clamp(1.03rem, 4.8vw, 1.22rem) !important;
+  font-weight: 1000 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.045) !important;
+}
+
+.pu-section-progress .pu-readonly-risk {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
+.pu-section-progress .pu-readonly-risk .pu-badge {
+  min-height: 30px !important;
+  max-width: 100% !important;
+  padding: 0.34rem 0.58rem !important;
+  font-size: clamp(0.66rem, 2.9vw, 0.78rem) !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-section-progress .pu-disbursement-field {
+  grid-column: 1 / -1 !important;
+  height: auto !important;
+  min-height: 104px !important;
+}
+
+.pu-section-progress .pu-disbursement-control {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 48px !important;
+  gap: 0.48rem !important;
+  width: 100% !important;
+  align-items: stretch !important;
+}
+
+.pu-section-progress .pu-disbursement-control input {
+  min-width: 0 !important;
+  min-height: 48px !important;
+  height: 48px !important;
+  text-align: left !important;
+  font-size: clamp(0.78rem, 3.45vw, 0.94rem) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-section-progress .pu-disbursement-equals-btn {
+  min-width: 48px !important;
+  min-height: 48px !important;
+  height: 48px !important;
+  border-radius: 14px !important;
+  font-size: 1.12rem !important;
+}
+
+.pu-section-progress .pu-disbursement-field small {
+  margin: 0 !important;
+  color: #64748b !important;
+  font-size: clamp(0.58rem, 2.45vw, 0.68rem) !important;
+  font-weight: 850 !important;
+  line-height: 1.18 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.pu-section-progress .pu-variance-preview {
+  min-height: 54px !important;
+  margin-top: 0.62rem !important;
+  padding: 0.54rem 0.68rem !important;
+  border-radius: 15px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.pu-section-progress .pu-variance-preview span {
+  font-size: clamp(0.58rem, 2.45vw, 0.68rem) !important;
+  line-height: 1 !important;
+}
+
+.pu-section-progress .pu-variance-preview strong {
+  font-size: clamp(0.96rem, 4.5vw, 1.16rem) !important;
+  line-height: 1 !important;
+}
+
+.pu-save-modal {
+  width: min(320px, calc(100vw - 44px)) !important;
+  padding: 0.9rem !important;
+  border-radius: 20px !important;
+}
+
+.pu-save-modal h3 {
+  font-size: clamp(0.98rem, 4.6vw, 1.12rem) !important;
+}
+
+.pu-save-modal p {
+  font-size: clamp(0.74rem, 3.25vw, 0.84rem) !important;
+}
+
+@media (max-width: 430px) {
+  .pu-summary-grid {
+    gap: 0.52rem !important;
+  }
+
+  .pu-summary-card {
+    min-height: 60px !important;
+    height: 60px !important;
+    padding: 0.52rem 0.62rem !important;
+    border-radius: 15px !important;
+  }
+
+  .pu-section-progress {
+    padding: 0.68rem !important;
+  }
+
+  .pu-section-progress .pu-form-grid {
+    column-gap: 0.5rem !important;
+    row-gap: 0.56rem !important;
+  }
+
+  .pu-section-progress .pu-field {
+    min-height: 82px !important;
+    height: 82px !important;
+    padding: 0.46rem !important;
+    border-radius: 15px !important;
+  }
+
+  .pu-section-progress .pu-field > span,
+  .pu-section-progress .pu-field label > span {
+    font-size: clamp(0.55rem, 2.65vw, 0.64rem) !important;
+    line-height: 1.03 !important;
+  }
+
+  .pu-section-progress .pu-field input,
+  .pu-section-progress .pu-readonly-risk {
+    min-height: 42px !important;
+    height: 42px !important;
+    border-radius: 13px !important;
+    font-size: clamp(0.98rem, 4.7vw, 1.14rem) !important;
+  }
+
+  .pu-section-progress .pu-disbursement-field {
+    min-height: 98px !important;
+  }
+
+  .pu-section-progress .pu-disbursement-control {
+    grid-template-columns: minmax(0, 1fr) 44px !important;
+  }
+
+  .pu-section-progress .pu-disbursement-control input,
+  .pu-section-progress .pu-disbursement-equals-btn {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .pu-section-progress .pu-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.42rem !important;
+  }
+
+  .pu-section-progress .pu-field > span,
+  .pu-section-progress .pu-field label > span {
+    font-size: 0.52rem !important;
+  }
+}
+
+/* =========================================================
+   FIELD UPDATE V5 - aligned compact progress cards
+   ========================================================= */
+
+.pu-summary-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.56rem !important;
+  margin-top: 0.68rem !important;
+}
+
+.pu-summary-card {
+  min-height: 62px !important;
+  padding: 0.58rem 0.66rem !important;
+  border-radius: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 0.14rem !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  box-shadow:
+    0 7px 15px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.pu-summary-card span {
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: clamp(0.58rem, 2.45vw, 0.68rem) !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0.14em !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-summary-card strong {
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: clamp(0.92rem, 4vw, 1.05rem) !important;
+  line-height: 1.05 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-section-progress {
+  padding-inline: 0.72rem !important;
+  overflow: hidden !important;
+}
+
+.pu-section-progress .pu-section-heading {
+  margin-bottom: 0.72rem !important;
+}
+
+.pu-progress-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  column-gap: 0.62rem !important;
+  row-gap: 0.7rem !important;
+  align-items: start !important;
+  width: 100% !important;
+}
+
+.pu-progress-full {
+  grid-column: 1 / -1 !important;
+}
+
+.pu-section-progress .pu-field,
+.pu-progress-grid .pu-field {
+  min-width: 0 !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.32rem !important;
+}
+
+.pu-section-progress .pu-field > span,
+.pu-progress-grid .pu-field > span {
+  width: 100% !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  padding: 0.2rem 0.46rem !important;
+  border-radius: 999px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  background: #eef4fb !important;
+  color: #1e293b !important;
+  font-size: clamp(0.56rem, 2.5vw, 0.66rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.025em !important;
+  white-space: normal !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  word-break: normal !important;
+}
+
+.pu-section-progress .pu-field-important > span,
+.pu-progress-grid .pu-field-important > span {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+}
+
+.pu-section-progress .pu-field input,
+.pu-progress-grid .pu-field input,
+.pu-section-progress .pu-readonly-risk,
+.pu-progress-grid .pu-readonly-risk {
+  width: 100% !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  max-height: 52px !important;
+  padding: 0.42rem 0.52rem !important;
+  border: 1.5px solid #d7e1ed !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font-size: clamp(1rem, 4.4vw, 1.16rem) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  box-shadow:
+    0 7px 14px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.pu-section-progress .pu-readonly-risk,
+.pu-progress-grid .pu-readonly-risk {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.pu-section-progress .pu-readonly-risk .pu-badge,
+.pu-progress-grid .pu-readonly-risk .pu-badge {
+  max-width: 100% !important;
+  min-height: 29px !important;
+  padding: 0.32rem 0.6rem !important;
+  border-radius: 999px !important;
+  font-size: clamp(0.66rem, 2.75vw, 0.76rem) !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-disbursement-control {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 52px !important;
+  gap: 0.52rem !important;
+  width: 100% !important;
+  align-items: stretch !important;
+}
+
+.pu-disbursement-control input {
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  padding-inline: 0.72rem !important;
+  text-align: left !important;
+  font-size: clamp(0.8rem, 3.4vw, 0.96rem) !important;
+}
+
+.pu-disbursement-equals-btn {
+  width: 52px !important;
+  min-width: 52px !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  border-radius: 16px !important;
+  font-size: 1.16rem !important;
+  font-weight: 950 !important;
+  box-shadow:
+    0 9px 18px rgba(37, 99, 235, 0.22),
+    0 3px 8px rgba(15, 23, 42, 0.12) !important;
+}
+
+.pu-disbursement-field small {
+  width: 100% !important;
+  margin-top: 0.02rem !important;
+  color: #475569 !important;
+  font-size: clamp(0.6rem, 2.6vw, 0.7rem) !important;
+  line-height: 1.2 !important;
+  font-weight: 850 !important;
+}
+
+.pu-variance-preview {
+  min-height: 56px !important;
+  margin-top: 0.7rem !important;
+  padding: 0.62rem 0.74rem !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 7px 14px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+}
+
+.pu-variance-preview span {
+  font-size: clamp(0.62rem, 2.6vw, 0.72rem) !important;
+  line-height: 1.05 !important;
+}
+
+.pu-variance-preview strong {
+  font-size: clamp(0.96rem, 4.2vw, 1.1rem) !important;
+  line-height: 1.05 !important;
+}
+
+@media (max-width: 380px) {
+  .pu-progress-grid {
+    column-gap: 0.5rem !important;
+    row-gap: 0.62rem !important;
+  }
+
+  .pu-section-progress .pu-field > span,
+  .pu-progress-grid .pu-field > span {
+    height: 31px !important;
+    min-height: 31px !important;
+    padding-inline: 0.38rem !important;
+    font-size: 0.54rem !important;
+  }
+
+  .pu-section-progress .pu-field input,
+  .pu-progress-grid .pu-field input,
+  .pu-section-progress .pu-readonly-risk,
+  .pu-progress-grid .pu-readonly-risk {
+    height: 49px !important;
+    min-height: 49px !important;
+    max-height: 49px !important;
+    font-size: 0.98rem !important;
+  }
+
+  .pu-disbursement-control {
+    grid-template-columns: minmax(0, 1fr) 48px !important;
+  }
+
+  .pu-disbursement-equals-btn {
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 49px !important;
+    min-height: 49px !important;
+  }
+}
+
+/* =========================================================
+   FIELD UPDATE V6 - remove bottom clipping / blur in progress boxes
+   ========================================================= */
+
+.pu-section-progress {
+  overflow: visible !important;
+  padding-bottom: 0.9rem !important;
+}
+
+.pu-section-progress .pu-progress-grid {
+  overflow: visible !important;
+  row-gap: 0.84rem !important;
+  align-items: start !important;
+}
+
+.pu-section-progress .pu-field,
+.pu-progress-grid .pu-field,
+.pu-section-progress .pu-progress-field,
+.pu-progress-grid .pu-progress-field {
+  overflow: visible !important;
+  min-height: auto !important;
+}
+
+.pu-section-progress .pu-field > span,
+.pu-progress-grid .pu-field > span {
+  height: 30px !important;
+  min-height: 30px !important;
+  margin: 0 !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.pu-section-progress .pu-field input,
+.pu-progress-grid .pu-field input,
+.pu-section-progress .pu-readonly-risk,
+.pu-progress-grid .pu-readonly-risk {
+  height: 50px !important;
+  min-height: 50px !important;
+  max-height: none !important;
+  margin: 0 !important;
+  position: relative !important;
+  z-index: 1 !important;
+  overflow: visible !important;
+  border-radius: 15px !important;
+  box-shadow:
+    0 4px 10px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+
+.pu-disbursement-control {
+  overflow: visible !important;
+  align-items: stretch !important;
+}
+
+.pu-disbursement-control input,
+.pu-disbursement-equals-btn {
+  height: 50px !important;
+  min-height: 50px !important;
+  max-height: none !important;
+}
+
+.pu-disbursement-field small {
+  display: block !important;
+  padding-inline: 0.12rem !important;
+  overflow: visible !important;
+  white-space: normal !important;
+}
+
+.pu-variance-preview {
+  margin-top: 0.84rem !important;
+  min-height: 54px !important;
+  overflow: visible !important;
+}
+
+@media (max-width: 380px) {
+  .pu-section-progress .pu-field > span,
+  .pu-progress-grid .pu-field > span {
+    height: 29px !important;
+    min-height: 29px !important;
+  }
+
+  .pu-section-progress .pu-field input,
+  .pu-progress-grid .pu-field input,
+  .pu-section-progress .pu-readonly-risk,
+  .pu-progress-grid .pu-readonly-risk,
+  .pu-disbursement-control input,
+  .pu-disbursement-equals-btn {
+    height: 48px !important;
+    min-height: 48px !important;
+  }
+}

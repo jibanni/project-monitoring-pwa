@@ -640,6 +640,7 @@
 
 .project-status.delayed,
 .project-status.cancelled,
+.project-status.suspended,
 .project-status.terminated {
   background: #fef2f2;
   color: #dc2626;
