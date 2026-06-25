@@ -4726,3 +4726,16 @@ body > .pu-back-fab {
     min-height: 48px !important;
   }
 }
+
+/* =========================================================
+   PHOTO OPTIMIZATION UI NOTE
+   ========================================================= */
+.pu-photo-meta small {
+  display: block;
+  max-width: 100%;
+  color: #15803d;
+  font-size: clamp(0.68rem, 2.5vw, 0.78rem);
+  font-weight: 850;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}

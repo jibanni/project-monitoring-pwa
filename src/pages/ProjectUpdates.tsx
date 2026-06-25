@@ -16,6 +16,7 @@ import {
   requiresProjectReason,
 } from '../utils/projectVariance'
 import { canUpdateProject } from '../utils/aorAccess'
+import { compressImageFile, formatFileSize } from '../utils/imageCompression'
 import '../styles/projectUpdates.css'
 
 type ProjectRecord = {
@@ -98,6 +99,9 @@ type PhotoInput = {
   file: File
   previewUrl: string
   caption: string
+  originalSize?: number
+  compressedSize?: number
+  compressed?: boolean
 }
 
 type SaveMode = 'online' | 'offline'
@@ -1152,8 +1156,9 @@ export default function ProjectUpdates() {
     }
   }
 
-  function handlePhotoSelect(event: ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoSelect(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
+    event.target.value = ''
 
     if (files.length === 0) return
 
@@ -1163,26 +1168,66 @@ export default function ProjectUpdates() {
     const availableSlots = MAX_PHOTOS_PER_UPDATE - photoInputs.length
     const acceptedFiles = imageFiles.slice(0, Math.max(availableSlots, 0))
 
-    const mappedPhotos = acceptedFiles.map((file) => ({
-      id: makeLocalId(),
-      file,
-      previewUrl: URL.createObjectURL(file),
-      caption: '',
-    }))
+    if (acceptedFiles.length === 0) {
+      if (rejectedCount > 0) {
+        setErrorMessage(`${rejectedCount} file(s) were skipped because they are not images.`)
+      } else if (imageFiles.length > 0) {
+        setErrorMessage(`Only ${MAX_PHOTOS_PER_UPDATE} photos are allowed per update.`)
+      }
 
-    setPhotoInputs((previous) => [...previous, ...mappedPhotos])
-
-    if (rejectedCount > 0) {
-      setErrorMessage(`${rejectedCount} file(s) were skipped because they are not images.`)
-    } else if (imageFiles.length > acceptedFiles.length) {
-      setErrorMessage(
-        `Only ${MAX_PHOTOS_PER_UPDATE} photos are allowed per update. Extra photos were not added.`
-      )
-    } else {
-      setErrorMessage('')
+      return
     }
 
-    event.target.value = ''
+    setMessage(`Optimizing ${acceptedFiles.length} photo(s) before saving...`)
+
+    try {
+      const optimizedPhotos = await Promise.all(
+        acceptedFiles.map((file) =>
+          compressImageFile(file, {
+            maxDimension: 1280,
+            quality: 0.72,
+            maxOutputSize: 700 * 1024,
+            outputType: 'image/jpeg',
+          })
+        )
+      )
+
+      const mappedPhotos = optimizedPhotos.map((result) => ({
+        id: makeLocalId(),
+        file: result.file,
+        previewUrl: URL.createObjectURL(result.file),
+        caption: '',
+        originalSize: result.originalSize,
+        compressedSize: result.compressedSize,
+        compressed: result.compressed,
+      }))
+
+      setPhotoInputs((previous) => [...previous, ...mappedPhotos])
+
+      const compressedCount = optimizedPhotos.filter((photo) => photo.compressed).length
+
+      if (rejectedCount > 0) {
+        setErrorMessage(`${rejectedCount} file(s) were skipped because they are not images.`)
+      } else if (imageFiles.length > acceptedFiles.length) {
+        setErrorMessage(
+          `Only ${MAX_PHOTOS_PER_UPDATE} photos are allowed per update. Extra photos were not added.`
+        )
+      } else {
+        setErrorMessage('')
+      }
+
+      if (compressedCount > 0) {
+        setMessage(
+          `${compressedCount} photo(s) optimized for faster upload and lower storage use.`
+        )
+      } else {
+        setMessage('Photo(s) added. Some formats may be uploaded without compression if the browser cannot optimize them.')
+      }
+    } catch (photoError) {
+      console.error(photoError)
+      setErrorMessage('Unable to process the selected photo(s). Please try again.')
+      setMessage('')
+    }
   }
 
   function removePhoto(photoId: string) {
@@ -2287,6 +2332,11 @@ export default function ProjectUpdates() {
                       <div className="pu-photo-meta">
                         <strong>Photo {index + 1}</strong>
                         <span>{photo.file.name}</span>
+                        <small>
+                          {photo.compressed
+                            ? `Optimized: ${formatFileSize(photo.originalSize || 0)} → ${formatFileSize(photo.compressedSize || photo.file.size)}`
+                            : `Size: ${formatFileSize(photo.file.size)}`}
+                        </small>
                       </div>
 
                       <input
