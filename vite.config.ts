@@ -2,37 +2,40 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
+
     VitePWA({
       registerType: 'autoUpdate',
+
       includeAssets: [
         'favicon.ico',
+        'favicon.png',
         'apple-touch-icon.png',
-        'masked-icon.svg',
+        'pwa-192x192.png',
+        'pwa-512x512.png',
+        'pms10-logo.png',
       ],
+
       manifest: {
-        name: 'Project Monitoring PWA',
-        short_name: 'Project Monitor',
-        description: 'Project Monitoring System with GIS Map and Offline Inspection Updates',
-        theme_color: '#111827',
-        background_color: '#111827',
+        name: 'DILG X - PDMU Project Monitoring System',
+        short_name: 'PMS10',
+        description: 'DILG X - PDMU Project Monitoring System',
+        theme_color: '#0531A0',
+        background_color: '#0531A0',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
-        start_url: '.',
+        start_url: '/',
+        lang: 'en-PH',
+
         icons: [
           {
             src: '/pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
+            purpose: 'any maskable',
           },
           {
             src: '/pwa-512x512.png',
@@ -42,47 +45,21 @@ export default defineConfig({
           },
         ],
       },
+
       workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24,
-              },
-              networkTimeoutSeconds: 10,
-            },
-          },
-          {
-            urlPattern: /^https:\/\/\{s\}\.tile\.openstreetmap\.org\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'osm-map-tiles',
-              expiration: {
-                maxEntries: 300,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/server\.arcgisonline\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'satellite-map-tiles',
-              expiration: {
-                maxEntries: 300,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
-              },
-            },
-          },
-        ],
-      },
-      devOptions: {
-        enabled: true,
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,json}'],
       },
     }),
   ],
+
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+  },
+
+  preview: {
+    host: '0.0.0.0',
+    port: 4173,
+  },
 })
