@@ -10,20 +10,20 @@ export default defineConfig({
       registerType: 'autoUpdate',
 
       includeAssets: [
+        'mero-icon.svg',
         'favicon.ico',
         'favicon.png',
         'apple-touch-icon.png',
         'pwa-192x192.png',
         'pwa-512x512.png',
-        'pms10-logo.png',
       ],
 
       manifest: {
         name: 'DILG X - PDMU Project Monitoring System',
         short_name: 'PMS10',
         description: 'DILG X - PDMU Project Monitoring System',
-        theme_color: '#0531A0',
-        background_color: '#0531A0',
+        theme_color: '#0047D9',
+        background_color: '#0047D9',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
