@@ -10,7 +10,6 @@ import { getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
 import '../styles/projects.css'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
-import { normalizeProgramName } from '../utils/program'
 
 type ProjectRow = {
   id: string
@@ -121,9 +120,7 @@ function formatFundingYear(value: unknown) {
 
 function formatFundingDisplay(project: ProjectRow) {
   const year = formatFundingYear(project.funding_year)
-  const source = normalizeProgramName(
-    textValue(project.funding_source || project.project_type),
-  )
+  const source = textValue(project.funding_source || project.project_type)
 
   if (year && source) return `${year} · ${source}`
   return year || source || 'No Program'
@@ -162,6 +159,18 @@ function getRegistryStatus(project: ProjectRow) {
 
 function getRegistryRisk(project: ProjectRow) {
   return getPmsRiskLevel(project)
+}
+
+function copySubayProjectCode(event: React.MouseEvent<HTMLButtonElement>, code: string | null | undefined) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  const value = textValue(code)
+  if (!value) return
+
+  if (navigator.clipboard?.writeText) {
+    void navigator.clipboard.writeText(value)
+  }
 }
 
 function getProjectCardClass(risk: string | null) {
@@ -215,6 +224,16 @@ function ImportIcon() {
       <path d="M5 4.5h14v3H5v-3Z" />
       <path d="M7 9h10v10.5H7V9Zm2 2v1.7h6V11H9Zm0 3.1v1.7h6v-1.7H9Z" />
       <path d="M12 2.75 15.25 6h-2v4h-2.5V6h-2L12 2.75Z" />
+    </svg>
+  )
+}
+
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 7.5A2.5 2.5 0 0 1 10.5 5h6A2.5 2.5 0 0 1 19 7.5v8a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 8 15.5v-8Zm2.5-.5a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h6a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-6Z" />
+      <path d="M5 9.5A3.5 3.5 0 0 1 8.5 6H9v2h-.5A1.5 1.5 0 0 0 7 9.5v8A1.5 1.5 0 0 0 8.5 19H14v.5A2.5 2.5 0 0 1 11.5 22h-3A3.5 3.5 0 0 1 5 18.5v-9Z" />
     </svg>
   )
 }
@@ -843,7 +862,24 @@ export default function Projects() {
               return (
                 <article key={project.id} className={getProjectCardClass(computedRisk)}>
                   <div className="project-row-main">
-                    <p className="project-row-program">{formatFundingDisplay(project)}</p>
+                    <div className="project-row-meta-line">
+                      <p className="project-row-program">{formatFundingDisplay(project)}</p>
+
+                      {textValue(project.subaybayan_project_code) && (
+                        <button
+                          type="button"
+                          className="project-row-code"
+                          onClick={(event) =>
+                            copySubayProjectCode(event, project.subaybayan_project_code)
+                          }
+                          title="Copy SubayBAYAN project code"
+                          aria-label="Copy SubayBAYAN project code"
+                        >
+                          <span>{textValue(project.subaybayan_project_code)}</span>
+                          <CopyIcon />
+                        </button>
+                      )}
+                    </div>
 
                     <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
                     <p className="project-row-location">

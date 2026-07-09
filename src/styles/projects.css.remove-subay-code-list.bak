@@ -1948,23 +1948,3 @@
     margin-top: 0 !important;
   }
 }
-
-/* =========================
-   PMS10 REMOVE SUBAY CODE FROM PROJECT LIST
-   Project code is kept in Project Details, not in the registry row.
-========================= */
-
-.project-list-row .project-row-code,
-.project-card-row .project-row-code,
-.project-row .project-row-code {
-  display: none !important;
-}
-
-.project-row-meta-line {
-  gap: 0 !important;
-}
-
-.project-row-meta-line .project-row-program {
-  max-width: 100% !important;
-  flex: 1 1 auto !important;
-}

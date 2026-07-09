@@ -21,7 +21,6 @@ import {
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
-import { normalizeProgramName } from '../utils/program'
 
 type ProjectRecord = Record<string, any>
 
@@ -29,23 +28,6 @@ type DrilldownState = {
   title: string
   subtitle: string
   projects: ProjectRecord[]
-}
-
-
-type DashboardFilters = {
-  program: string
-  year: string
-  province: string
-  lgu: string
-}
-
-const ALL_FILTER_VALUE = '__ALL__'
-
-const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
-  program: ALL_FILTER_VALUE,
-  year: ALL_FILTER_VALUE,
-  province: ALL_FILTER_VALUE,
-  lgu: ALL_FILTER_VALUE,
 }
 
 const MODAL_CLOSE_DELAY = 190
@@ -198,7 +180,7 @@ function getProjectCost(project: ProjectRecord) {
 }
 
 function getFundingSource(project: ProjectRecord) {
-  const source = safeText(
+  return safeText(
     project.funding_source ??
       project.source_of_fund ??
       project.fund_source ??
@@ -206,10 +188,6 @@ function getFundingSource(project: ProjectRecord) {
       project.program_name,
     'N/A',
   )
-
-  const normalizedSource = normalizeProgramName(source)
-
-  return normalizedSource || 'N/A'
 }
 
 function getFundingYear(project: ProjectRecord) {
@@ -233,42 +211,6 @@ function getFundingDisplay(project: ProjectRecord) {
 
   if (year && source !== 'N/A') return `${year} · ${source}`
   return year || source
-}
-
-
-function getProgramFilterValue(project: ProjectRecord) {
-  const source = getFundingSource(project)
-  return source === 'N/A' ? '' : source
-}
-
-function getYearFilterValue(project: ProjectRecord) {
-  return getFundingYear(project)
-}
-
-function getProvinceFilterValue(project: ProjectRecord) {
-  return safeText(project.province ?? project.province_name, '')
-}
-
-function getLguFilterValue(project: ProjectRecord) {
-  return safeText(
-    project.city_municipality ??
-      project.municipality ??
-      project.city ??
-      project.lgu ??
-      project.lgu_name,
-    '',
-  )
-}
-
-function uniqueSortedTextValues(values: string[]) {
-  return Array.from(
-    new Set(values.map((value) => safeText(value, '')).filter(Boolean)),
-  ).sort((a, b) => a.localeCompare(b))
-}
-
-function matchesDashboardFilter(value: string, filterValue: string) {
-  if (filterValue === ALL_FILTER_VALUE) return true
-  return value === filterValue
 }
 
 function getPhysicalProgress(project: ProjectRecord) {
@@ -397,10 +339,6 @@ export default function Dashboard() {
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
   const [isDrilldownClosing, setIsDrilldownClosing] = useState(false)
   const [isDashboardScrolled, setIsDashboardScrolled] = useState(false)
-  const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>(
-    DEFAULT_DASHBOARD_FILTERS,
-  )
-  const [showDashboardFilters, setShowDashboardFilters] = useState(false)
 
   useEffect(() => {
     loadProjects()
@@ -504,45 +442,9 @@ export default function Dashboard() {
     }, MODAL_CLOSE_DELAY)
   }
 
-  const aorProjects = useMemo(() => {
+  const visibleProjects = useMemo(() => {
     return filterProjectsByAor(projects, auth)
   }, [projects, auth])
-
-  const filterOptions = useMemo(() => {
-    const years = uniqueSortedTextValues(aorProjects.map(getYearFilterValue)).sort(
-      (a, b) => asNumber(b) - asNumber(a),
-    )
-
-    return {
-      programs: uniqueSortedTextValues(aorProjects.map(getProgramFilterValue)),
-      years,
-      provinces: uniqueSortedTextValues(aorProjects.map(getProvinceFilterValue)),
-      lgus: uniqueSortedTextValues(aorProjects.map(getLguFilterValue)),
-    }
-  }, [aorProjects])
-
-  const hasActiveDashboardFilters = useMemo(() => {
-    return Object.values(dashboardFilters).some(
-      (value) => value !== ALL_FILTER_VALUE,
-    )
-  }, [dashboardFilters])
-
-  const visibleProjects = useMemo(() => {
-    return aorProjects.filter((project) => {
-      return (
-        matchesDashboardFilter(
-          getProgramFilterValue(project),
-          dashboardFilters.program,
-        ) &&
-        matchesDashboardFilter(getYearFilterValue(project), dashboardFilters.year) &&
-        matchesDashboardFilter(
-          getProvinceFilterValue(project),
-          dashboardFilters.province,
-        ) &&
-        matchesDashboardFilter(getLguFilterValue(project), dashboardFilters.lgu)
-      )
-    })
-  }, [aorProjects, dashboardFilters])
 
   const dashboardData = useMemo(() => {
     const underProcurementProjects = visibleProjects.filter(
@@ -943,156 +845,6 @@ export default function Dashboard() {
               Field-ready overview of implementation status, risk level, and
               priority records for monitoring.
             </p>
-          </div>
-        </section>
-
-        <section
-          className={[
-            'dashboard-filter-panel',
-            showDashboardFilters ? 'is-open' : '',
-            hasActiveDashboardFilters ? 'has-active-filters' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-label="Dashboard filters"
-        >
-          <div className="dashboard-filter-bar">
-            <div className="dashboard-filter-summary">
-              <span className="dashboard-filter-summary-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M4 6.5h16v2H4v-2Zm3 4.75h10v2H7v-2Zm3 4.75h4v2h-4v-2Z" />
-                </svg>
-              </span>
-
-              <div className="dashboard-filter-summary-text">
-                <p>Dashboard filters</p>
-                <strong>
-                  {[
-                    dashboardFilters.program !== ALL_FILTER_VALUE
-                      ? dashboardFilters.program
-                      : '',
-                    dashboardFilters.year !== ALL_FILTER_VALUE
-                      ? dashboardFilters.year
-                      : '',
-                    dashboardFilters.province !== ALL_FILTER_VALUE
-                      ? dashboardFilters.province
-                      : '',
-                    dashboardFilters.lgu !== ALL_FILTER_VALUE
-                      ? dashboardFilters.lgu
-                      : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'All projects'}
-                </strong>
-              </div>
-            </div>
-
-            <div className="dashboard-filter-bar-actions">
-              <span>
-                {formatCount(visibleProjects.length)} / {formatCount(aorProjects.length)}
-              </span>
-
-              <button
-                type="button"
-                className="dashboard-filter-toggle"
-                onClick={() => setShowDashboardFilters((current) => !current)}
-                aria-expanded={showDashboardFilters}
-              >
-                {showDashboardFilters ? 'Hide' : 'Filter'}
-              </button>
-            </div>
-          </div>
-
-          <div className="dashboard-filter-grid">
-            <label>
-              <span>Program</span>
-              <select
-                value={dashboardFilters.program}
-                onChange={(event) =>
-                  setDashboardFilters((current) => ({
-                    ...current,
-                    program: event.target.value,
-                  }))
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All programs</option>
-                {filterOptions.programs.map((program) => (
-                  <option key={program} value={program}>
-                    {program}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span>Funding Year</span>
-              <select
-                value={dashboardFilters.year}
-                onChange={(event) =>
-                  setDashboardFilters((current) => ({
-                    ...current,
-                    year: event.target.value,
-                  }))
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All years</option>
-                {filterOptions.years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span>Province</span>
-              <select
-                value={dashboardFilters.province}
-                onChange={(event) =>
-                  setDashboardFilters((current) => ({
-                    ...current,
-                    province: event.target.value,
-                    lgu: ALL_FILTER_VALUE,
-                  }))
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All provinces</option>
-                {filterOptions.provinces.map((province) => (
-                  <option key={province} value={province}>
-                    {province}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span>LGU</span>
-              <select
-                value={dashboardFilters.lgu}
-                onChange={(event) =>
-                  setDashboardFilters((current) => ({
-                    ...current,
-                    lgu: event.target.value,
-                  }))
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All LGUs</option>
-                {filterOptions.lgus.map((lgu) => (
-                  <option key={lgu} value={lgu}>
-                    {lgu}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button
-              type="button"
-              className="dashboard-filter-reset"
-              disabled={!hasActiveDashboardFilters}
-              onClick={() => setDashboardFilters(DEFAULT_DASHBOARD_FILTERS)}
-            >
-              Reset
-            </button>
           </div>
         </section>
 

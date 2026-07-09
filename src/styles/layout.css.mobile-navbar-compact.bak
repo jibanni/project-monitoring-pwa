@@ -1410,376 +1410,81 @@ body > .app-header.app-header-scrolled .app-brand-unit {
   }
 }
 
-
-
-
 /* =========================
-   PMS10 MOBILE NAVBAR REMOVE WHITE FRAME FINAL
-   Mobile only. Flat full-width blue bar, no white inner frame.
+   PMS10 MOBILE GLASS NAV BAR
+   iPhone-style glass bottom navigation. Mobile only.
 ========================= */
 
 @media (max-width: 900px) {
   .app-mobile-nav {
-    position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100vw !important;
-    max-width: none !important;
-    height: calc(64px + env(safe-area-inset-bottom)) !important;
-    min-height: calc(64px + env(safe-area-inset-bottom)) !important;
-    max-height: calc(64px + env(safe-area-inset-bottom)) !important;
-    margin: 0 !important;
-    padding: 6px 6px calc(6px + env(safe-area-inset-bottom)) !important;
-
-    border: 0 !important;
-    border-radius: 0 !important;
-    outline: 0 !important;
-
-    background: linear-gradient(135deg, #123f73 0%, #18599d 56%, #2368b5 100%) !important;
-
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-
+    left: max(8px, env(safe-area-inset-left)) !important;
+    right: max(8px, env(safe-area-inset-right)) !important;
+    bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+    max-width: 680px !important;
+    margin: 0 auto !important;
+    padding: 7px 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.62) !important;
+    border-radius: 28px !important;
+    background: rgba(255, 255, 255, 0.68) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(185%) !important;
+    backdrop-filter: blur(22px) saturate(185%) !important;
     box-shadow:
-      0 -8px 22px rgba(15, 48, 87, 0.24),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
-
+      0 18px 44px rgba(15, 23, 42, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
     overflow: hidden !important;
-    z-index: 1200 !important;
   }
 
-  .app-mobile-nav::before,
-  .app-mobile-nav::after {
-    display: none !important;
-    content: none !important;
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  /*
-    Remove the old white rounded inner frame.
-    This targets wrapper elements inside the mobile nav without touching page content.
-  */
-  .app-mobile-nav > *,
-  .app-mobile-nav > div,
-  .app-mobile-nav > nav,
-  .app-mobile-nav > ul,
-  .app-mobile-nav-inner,
-  .mobile-nav-inner,
-  .bottom-nav-inner,
-  .mobile-bottom-nav-inner,
-  .mobile-nav-shell {
-    background: transparent !important;
-    background-color: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
+  .app-mobile-nav::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: inherit !important;
+    pointer-events: none !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.12)) !important;
   }
 
   .app-mobile-nav a,
   .app-mobile-nav button,
-  .app-mobile-nav-link,
-  .app-mobile-nav [role='button'],
-  .app-mobile-nav [role='tab'] {
+  .app-mobile-nav-link {
     position: relative !important;
     z-index: 1 !important;
-
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-    min-height: 52px !important;
-    height: 52px !important;
-    max-height: 52px !important;
-
-    margin: 0 !important;
-    padding: 5px 2px !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    outline: 0 !important;
-
-    color: rgba(255, 255, 255, 0.82) !important;
-    background: transparent !important;
-    background-color: transparent !important;
-    box-shadow: none !important;
-    transform: none !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-  }
-
-  .app-mobile-nav a::before,
-  .app-mobile-nav a::after,
-  .app-mobile-nav button::before,
-  .app-mobile-nav button::after,
-  .app-mobile-nav-link::before,
-  .app-mobile-nav-link::after {
-    display: none !important;
-    content: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    border: 0 !important;
+    border-radius: 22px !important;
+    min-height: 58px !important;
   }
 
   .app-mobile-nav a.active,
   .app-mobile-nav-link.active,
-  .app-mobile-nav .active,
-  .app-mobile-nav a[aria-current='page'],
-  .app-mobile-nav [aria-current='page'] {
-    color: #ffffff !important;
-    background: rgba(255, 255, 255, 0.14) !important;
-    background-color: rgba(255, 255, 255, 0.14) !important;
-    border-radius: 12px !important;
-    box-shadow: none !important;
-  }
-
-  .app-mobile-nav svg,
-  .app-mobile-nav a svg,
-  .app-mobile-nav button svg,
-  .app-mobile-nav-link svg {
-    width: 21px !important;
-    height: 21px !important;
-    color: currentColor !important;
-    fill: currentColor !important;
-    stroke: currentColor !important;
-    filter: none !important;
-    margin: 0 0 2px !important;
-  }
-
-  .app-mobile-nav span,
-  .app-mobile-nav-label,
-  .app-mobile-nav a span,
-  .app-mobile-nav button span {
-    color: currentColor !important;
-    background: transparent !important;
-    font-size: 0.64rem !important;
-    line-height: 1 !important;
-    font-weight: 900 !important;
-    text-shadow: none !important;
-  }
-
-  .app-main {
-    padding-bottom: calc(82px + env(safe-area-inset-bottom)) !important;
-  }
-}
-
-@media (max-width: 420px) {
-  .app-mobile-nav {
-    height: calc(62px + env(safe-area-inset-bottom)) !important;
-    min-height: calc(62px + env(safe-area-inset-bottom)) !important;
-    max-height: calc(62px + env(safe-area-inset-bottom)) !important;
-    padding: 5px 6px calc(5px + env(safe-area-inset-bottom)) !important;
-  }
-
-  .app-mobile-nav a,
-  .app-mobile-nav button,
-  .app-mobile-nav-link,
-  .app-mobile-nav [role='button'],
-  .app-mobile-nav [role='tab'] {
-    min-height: 52px !important;
-    height: 52px !important;
-    max-height: 52px !important;
+  .app-mobile-nav .active {
+    background: rgba(255, 107, 44, 0.12) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 10px 24px rgba(255, 107, 44, 0.12) !important;
   }
 
   .app-mobile-nav svg {
-    width: 20px !important;
-    height: 20px !important;
-  }
-
-  .app-mobile-nav span,
-  .app-mobile-nav-label,
-  .app-mobile-nav a span,
-  .app-mobile-nav button span {
-    font-size: 0.62rem !important;
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.72)) !important;
   }
 
   .app-main {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
-  }
-}
-
-/* =========================
-   PMS10 MOBILE NAVBAR VERTICAL CENTER FIX
-   Mobile only. Centers icon + label inside the blue bottom bar.
-========================= */
-
-@media (max-width: 900px) {
-  .app-mobile-nav {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-around !important;
-    padding-top: 4px !important;
-    padding-bottom: calc(4px + env(safe-area-inset-bottom)) !important;
-  }
-
-  .app-mobile-nav a,
-  .app-mobile-nav button,
-  .app-mobile-nav-link,
-  .app-mobile-nav [role='button'],
-  .app-mobile-nav [role='tab'] {
-    height: 52px !important;
-    min-height: 52px !important;
-    max-height: 52px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 4px !important;
-    padding: 3px 2px !important;
-    line-height: 1 !important;
-  }
-
-  .app-mobile-nav svg,
-  .app-mobile-nav a svg,
-  .app-mobile-nav button svg,
-  .app-mobile-nav-link svg {
-    display: block !important;
-    margin: 0 !important;
-    transform: translateY(0) !important;
-  }
-
-  .app-mobile-nav span,
-  .app-mobile-nav-label,
-  .app-mobile-nav a span,
-  .app-mobile-nav button span {
-    display: block !important;
-    margin: 0 !important;
-    line-height: 1 !important;
-    transform: translateY(0) !important;
-  }
-
-  .app-mobile-nav a.active,
-  .app-mobile-nav-link.active,
-  .app-mobile-nav .active,
-  .app-mobile-nav a[aria-current='page'],
-  .app-mobile-nav [aria-current='page'] {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    padding-bottom: calc(108px + env(safe-area-inset-bottom)) !important;
   }
 }
 
 @media (max-width: 420px) {
   .app-mobile-nav {
-    padding-top: 4px !important;
-    padding-bottom: calc(4px + env(safe-area-inset-bottom)) !important;
+    left: max(6px, env(safe-area-inset-left)) !important;
+    right: max(6px, env(safe-area-inset-right)) !important;
+    bottom: calc(7px + env(safe-area-inset-bottom)) !important;
+    border-radius: 26px !important;
+    padding: 6px !important;
   }
 
   .app-mobile-nav a,
   .app-mobile-nav button,
-  .app-mobile-nav-link,
-  .app-mobile-nav [role='button'],
-  .app-mobile-nav [role='tab'] {
-    height: 50px !important;
-    min-height: 50px !important;
-    max-height: 50px !important;
-    gap: 4px !important;
-  }
-}
-
-/* =========================
-   PMS10 MOBILE HEADER VERTICAL CENTER FIX
-   Mobile only. Centers the top main banner/header contents vertically.
-========================= */
-
-@media (max-width: 900px) {
-  .app-header,
-  .app-header.app-header-scrolled,
-  .app-scrolled .app-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 112px !important;
-    padding-top: max(10px, env(safe-area-inset-top)) !important;
-    padding-bottom: 10px !important;
-  }
-
-  .app-header-inner {
-    width: 100% !important;
-    min-height: 72px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 10px !important;
-  }
-
-  .app-brand {
-    min-height: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 10px !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-  }
-
-  .app-brand-logo-wrap,
-  .app-brand-logo {
-    flex: 0 0 auto !important;
-    align-self: center !important;
-  }
-
-  .app-brand-text {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    min-height: 52px !important;
-  }
-
-  .app-user-area {
-    min-height: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    align-self: center !important;
-    gap: 8px !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-  }
-
-  .app-user-avatar {
-    align-self: center !important;
-    flex: 0 0 auto !important;
-  }
-
-  .app-user-text {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    min-height: 44px !important;
-  }
-
-  .app-user-name,
-  .app-user-role {
-    line-height: 1.05 !important;
-  }
-
-  .app-logout-button,
-  .app-user-logout-inline {
-    align-self: center !important;
-  }
-}
-
-@media (max-width: 420px) {
-  .app-header,
-  .app-header.app-header-scrolled,
-  .app-scrolled .app-header {
-    min-height: 108px !important;
-    padding-top: max(8px, env(safe-area-inset-top)) !important;
-    padding-bottom: 8px !important;
-  }
-
-  .app-header-inner {
-    min-height: 70px !important;
-  }
-
-  .app-brand-text {
-    min-height: 48px !important;
-  }
-
-  .app-user-text {
-    min-height: 42px !important;
+  .app-mobile-nav-link {
+    min-height: 56px !important;
+    border-radius: 20px !important;
   }
 }

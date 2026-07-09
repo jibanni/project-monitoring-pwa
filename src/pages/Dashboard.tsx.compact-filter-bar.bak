@@ -400,7 +400,6 @@ export default function Dashboard() {
   const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>(
     DEFAULT_DASHBOARD_FILTERS,
   )
-  const [showDashboardFilters, setShowDashboardFilters] = useState(false)
 
   useEffect(() => {
     loadProjects()
@@ -946,61 +945,16 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section
-          className={[
-            'dashboard-filter-panel',
-            showDashboardFilters ? 'is-open' : '',
-            hasActiveDashboardFilters ? 'has-active-filters' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-label="Dashboard filters"
-        >
-          <div className="dashboard-filter-bar">
-            <div className="dashboard-filter-summary">
-              <span className="dashboard-filter-summary-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M4 6.5h16v2H4v-2Zm3 4.75h10v2H7v-2Zm3 4.75h4v2h-4v-2Z" />
-                </svg>
-              </span>
-
-              <div className="dashboard-filter-summary-text">
-                <p>Dashboard filters</p>
-                <strong>
-                  {[
-                    dashboardFilters.program !== ALL_FILTER_VALUE
-                      ? dashboardFilters.program
-                      : '',
-                    dashboardFilters.year !== ALL_FILTER_VALUE
-                      ? dashboardFilters.year
-                      : '',
-                    dashboardFilters.province !== ALL_FILTER_VALUE
-                      ? dashboardFilters.province
-                      : '',
-                    dashboardFilters.lgu !== ALL_FILTER_VALUE
-                      ? dashboardFilters.lgu
-                      : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'All projects'}
-                </strong>
-              </div>
+        <section className="dashboard-filter-panel" aria-label="Dashboard filters">
+          <div className="dashboard-filter-header">
+            <div>
+              <p className="dashboard-card-kicker">Filters</p>
+              <h2>Dashboard Scope</h2>
             </div>
 
-            <div className="dashboard-filter-bar-actions">
-              <span>
-                {formatCount(visibleProjects.length)} / {formatCount(aorProjects.length)}
-              </span>
-
-              <button
-                type="button"
-                className="dashboard-filter-toggle"
-                onClick={() => setShowDashboardFilters((current) => !current)}
-                aria-expanded={showDashboardFilters}
-              >
-                {showDashboardFilters ? 'Hide' : 'Filter'}
-              </button>
-            </div>
+            <span>
+              {formatCount(visibleProjects.length)} / {formatCount(aorProjects.length)} projects
+            </span>
           </div>
 
           <div className="dashboard-filter-grid">

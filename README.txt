@@ -1,40 +1,45 @@
-PMS10 Mobile Card Height + Remove Project Registry Summary Cards
+PMS10 Compact Modern Hero Trial
 
-This package does two things:
+This package tries the safer version of the modern hero improvement.
 
-1. Mobile Dashboard:
-   - Makes dashboard top cards shorter/cleaner.
-   - Keeps the 2-column mobile card layout.
-   - Keeps Low Risk and Medium Risk hidden on mobile if you already applied that previous fix.
+It does NOT touch:
+- src/components/Layout.tsx
+- src/styles/layout.css
+- header merge logic
+- mobile navbar
+- dashboard/project logic
 
-2. Project Registry:
-   - Removes/hides the top summary cards in Project Registry.
-   - Keeps the project list.
-   - Keeps search/filter/list records.
-
-Files changed:
+It only adjusts:
 - src/styles/dashboard.css
 - src/styles/projects.css
+
+Changes:
+- Makes Dashboard hero more compact.
+- Makes Project Registry hero more compact.
+- Keeps the blue official identity.
+- Keeps the original merge/sticky behavior.
+- Makes mobile hero shorter so dashboard data appears sooner.
+- Keeps desktop professional but less poster-like.
 
 Apply:
 
 cd ~/Downloads
-unzip -o pms10_mobile_card_height_registry_summary_fix.zip
+unzip -o pms10_compact_modern_hero_trial.zip
 
 cd ~/project-monitoring-pwa
-rsync -av "$HOME/Downloads/pms10_mobile_card_height_registry_summary_fix/" ./
+rsync -av "$HOME/Downloads/pms10_compact_modern_hero_trial/" ./
 
-node scripts/apply-mobile-card-height-registry-summary-fix.cjs
+node scripts/apply-compact-modern-hero-trial.cjs
 
 npm run build
 npm run dev -- --host 0.0.0.0
 
-Then refresh your phone browser.
+Then refresh phone/browser.
 
 Rollback if needed:
 
-cp src/styles/dashboard.css.mobile-card-compact.bak src/styles/dashboard.css
-cp src/styles/projects.css.registry-summary-removed.bak src/styles/projects.css
+cp src/styles/dashboard.css.compact-modern-hero.bak src/styles/dashboard.css
+cp src/styles/projects.css.compact-modern-hero.bak src/styles/projects.css
 
 npm run build
 npm run dev -- --host 0.0.0.0

@@ -1,6 +1,5 @@
 import * as XLSX from 'xlsx'
 import { toProjectTitleCase } from '../utils/projectTitleCase'
-import { normalizeProgramName } from '../utils/program'
 
 export const SUBAY_MIN_FUNDING_YEAR = 2023
 
@@ -561,7 +560,7 @@ export function projectPayloadFromSubayRecord(record: SubayImportRecord) {
     description: record.description || null,
     status: getSimplifiedImportStatus(record),
     project_type: record.projectType || null,
-    funding_source: normalizeProgramName(record.fundingSource) || null,
+    funding_source: record.fundingSource || null,
     funding_year: record.fundingYear,
     implementing_office: record.implementingOffice || null,
     contractor: record.contractor || null,
@@ -683,12 +682,10 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
           ? 100
           : parsePercent(getCell(row, headerMap, 'physicalAccomplishment'))
 
-      const fundingSource = normalizeProgramName(
-        firstNonEmpty(
-          getCell(row, headerMap, 'fundingSource'),
-          getCell(row, headerMap, 'projectType'),
-          'SubayBAYAN',
-        ),
+      const fundingSource = firstNonEmpty(
+        getCell(row, headerMap, 'fundingSource'),
+        getCell(row, headerMap, 'projectType'),
+        'SubayBAYAN',
       )
 
       const budget = parseNumber(getCell(row, headerMap, 'budget'))
