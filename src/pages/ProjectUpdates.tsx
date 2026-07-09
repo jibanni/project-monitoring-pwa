@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom'
 import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { cleanupProjectPhotos } from '../services/photoService'
 import { offlineDb } from '../lib/offlineDb'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -16,8 +15,10 @@ import {
   requiresProjectReason,
 } from '../utils/projectVariance'
 import { canUpdateProject } from '../utils/aorAccess'
-import { compressImageFile, formatFileSize } from '../utils/imageCompression'
+import { formatFileSize } from '../utils/imageCompression'
+import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from '../services/googleDrivePhotoUploadService'
 import '../styles/projectUpdates.css'
+import '../styles/projectUpdatesModalFix.css'
 
 type ProjectRecord = {
   id: string
@@ -26,6 +27,12 @@ type ProjectRecord = {
   status?: string | null
   project_type?: string | null
   funding_source?: string | null
+  funding_year?: number | string | null
+  fiscal_year?: number | string | null
+  year?: number | string | null
+  funding_program?: string | null
+  program?: string | null
+  program_name?: string | null
   implementing_office?: string | null
   contractor?: string | null
   budget?: number | string | null
@@ -126,7 +133,6 @@ type CoordinateResult = {
   reason: string
 }
 
-const PHOTO_BUCKET = 'project-photos'
 const MAX_PHOTOS_PER_UPDATE = 3
 const RECENT_UPDATE_LIMIT = 4
 
@@ -231,6 +237,39 @@ function normalizeText(value: unknown) {
   return String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
+
+function getDriveFundingYear(
+  projectRecord?: ProjectRecord | null,
+  fallbackInspectionDate?: string,
+) {
+  const rawValue =
+    projectRecord?.funding_year ||
+    projectRecord?.fiscal_year ||
+    projectRecord?.year ||
+    ''
+
+  const rawYearMatch = String(rawValue).match(/\b(20\d{2}|19\d{2})\b/)
+
+  if (rawYearMatch?.[1]) {
+    return rawYearMatch[1]
+  }
+
+  const dateYearMatch = String(fallbackInspectionDate || '').match(/^(\d{4})-/)
+
+  return dateYearMatch?.[1] || ''
+}
+
+function getDriveFundingSource(projectRecord?: ProjectRecord | null) {
+  return String(
+    projectRecord?.funding_source ||
+      projectRecord?.funding_program ||
+      projectRecord?.program ||
+      projectRecord?.program_name ||
+      projectRecord?.project_type ||
+      '',
+  ).trim()
+}
+
 function parseDateTime(value?: string | null) {
   if (!value) return null
 
@@ -286,14 +325,6 @@ function evaluateAmountExpression(value: string) {
 function cleanText(value: string) {
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
-}
-
-function safeFileName(name: string) {
-  return name
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-zA-Z0-9._-]/g, '')
-    .toLowerCase()
 }
 
 function isUnsupportedPreview(fileOrUrl: string) {
@@ -1178,33 +1209,18 @@ export default function ProjectUpdates() {
       return
     }
 
-    setMessage(`Optimizing ${acceptedFiles.length} photo(s) before saving...`)
-
     try {
-      const optimizedPhotos = await Promise.all(
-        acceptedFiles.map((file) =>
-          compressImageFile(file, {
-            maxDimension: 1280,
-            quality: 0.72,
-            maxOutputSize: 700 * 1024,
-            outputType: 'image/jpeg',
-          })
-        )
-      )
-
-      const mappedPhotos = optimizedPhotos.map((result) => ({
+      const mappedPhotos = acceptedFiles.map((file) => ({
         id: makeLocalId(),
-        file: result.file,
-        previewUrl: URL.createObjectURL(result.file),
+        file,
+        previewUrl: URL.createObjectURL(file),
         caption: '',
-        originalSize: result.originalSize,
-        compressedSize: result.compressedSize,
-        compressed: result.compressed,
+        originalSize: file.size,
+        compressedSize: file.size,
+        compressed: false,
       }))
 
       setPhotoInputs((previous) => [...previous, ...mappedPhotos])
-
-      const compressedCount = optimizedPhotos.filter((photo) => photo.compressed).length
 
       if (rejectedCount > 0) {
         setErrorMessage(`${rejectedCount} file(s) were skipped because they are not images.`)
@@ -1216,13 +1232,9 @@ export default function ProjectUpdates() {
         setErrorMessage('')
       }
 
-      if (compressedCount > 0) {
-        setMessage(
-          `${compressedCount} photo(s) optimized for faster upload and lower storage use.`
-        )
-      } else {
-        setMessage('Photo(s) added. Some formats may be uploaded without compression if the browser cannot optimize them.')
-      }
+      setMessage(
+        `${acceptedFiles.length} photo(s) added. Original image files will be uploaded to Google Drive when this update is saved.`
+      )
     } catch (photoError) {
       console.error(photoError)
       setErrorMessage('Unable to process the selected photo(s). Please try again.')
@@ -1546,32 +1558,35 @@ export default function ProjectUpdates() {
 
   async function uploadPhotosOnline(projectId: string, updateId: string) {
     const photoRows = []
+    const projectTitle = project?.project_name || 'Untitled Project'
+    const driveFundingYear = getDriveFundingYear(project, inspectionDate)
+    const driveFundingSource = getDriveFundingSource(project)
+    const uploadedBy =
+      auth?.profile?.full_name ||
+      auth?.profile?.email ||
+      auth?.user?.email ||
+      auth?.user?.id ||
+      auth?.profile?.id ||
+      'PMS10 User'
 
     for (let index = 0; index < photoInputs.length; index += 1) {
       const photo = photoInputs[index]
-      const fileName = safeFileName(photo.file.name || `photo-${index + 1}`)
-      const storagePath = `${projectId}/${updateId}/${Date.now()}-${index + 1}-${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from(PHOTO_BUCKET)
-        .upload(storagePath, photo.file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: photo.file.type || undefined,
-        })
-
-      if (uploadError) {
-        throw uploadError
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from(PHOTO_BUCKET)
-        .getPublicUrl(storagePath)
+      const uploadedFile = await uploadProjectPhotoToDrive({
+        file: photo.file,
+        projectId,
+        updateId,
+        projectTitle,
+        inspectionDate,
+        fundingYear: driveFundingYear,
+        fundingSource: driveFundingSource,
+        fundingProgram: driveFundingSource,
+        uploadedBy,
+      })
 
       photoRows.push({
         project_id: projectId,
         project_update_id: updateId,
-        photo_url: publicUrlData.publicUrl,
+        photo_url: getDrivePhotoUrl(uploadedFile),
         caption:
           cleanText(photo.caption) ||
           `Project update photo ${index + 1}`,
@@ -1587,8 +1602,6 @@ export default function ProjectUpdates() {
       if (photoInsertError) {
         throw photoInsertError
       }
-
-      await cleanupProjectPhotos(projectId, 5)
     }
   }
 
@@ -1601,6 +1614,8 @@ export default function ProjectUpdates() {
     const currentTimestamp = new Date().toISOString()
     const latestCoordinatePatch = buildLatestCoordinatePatch()
     const projectName = project?.project_name || 'Untitled Project'
+    const driveFundingYear = getDriveFundingYear(project, inspectionDate)
+    const driveFundingSource = getDriveFundingSource(project)
 
     const updateTable = await getOfflineTable(offlineUpdateTables)
 
@@ -1614,6 +1629,9 @@ export default function ProjectUpdates() {
       ...updatePayload,
       local_id: localUpdateId,
       project_name: projectName,
+      funding_year: driveFundingYear || null,
+      funding_source: driveFundingSource || project?.funding_source || null,
+      funding_program: driveFundingSource || null,
       status: projectStatus,
       contract_expiration_date: project?.contract_expiration_date || null,
       has_contract_modification: hasContractModification,
@@ -1635,6 +1653,9 @@ export default function ProjectUpdates() {
       project_update_id: localUpdateId,
       project_id: projectId,
       project_name: projectName,
+      funding_year: driveFundingYear || null,
+      funding_source: driveFundingSource || project?.funding_source || null,
+      funding_program: driveFundingSource || null,
       file_blob: photo.file,
       file: photo.file,
       file_name: photo.file.name,
@@ -2455,6 +2476,12 @@ export default function ProjectUpdates() {
       </div>
 
 
+      {/* PMS10_MODAL_PORTAL_START */}
+      {portalReady
+        ? createPortal(
+            <>
+
+
       {noticeDialog && (
         <div className="pu-modal-overlay" role="alertdialog" aria-modal="true" aria-label={noticeDialog.title}>
           <div className={`pu-save-modal pu-notice-modal ${noticeDialog.tone}`}>
@@ -2528,6 +2555,11 @@ export default function ProjectUpdates() {
           </div>
         </div>
       )}
+            </>,
+            document.body,
+          )
+        : null}
+      {/* PMS10_MODAL_PORTAL_END */}
 
       {portalReady
         ? createPortal(

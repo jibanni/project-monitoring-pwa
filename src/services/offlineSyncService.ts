@@ -5,9 +5,7 @@ import {
   type OfflineProjectUpdate,
 } from '../lib/offlineDb'
 import { getComputedRiskLevel } from '../utils/projectVariance'
-import { cleanupProjectPhotos } from './photoService'
-
-const PHOTO_BUCKET = 'project-photos'
+import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from './googleDrivePhotoUploadService'
 
 type SyncResult = {
   success: boolean
@@ -43,6 +41,119 @@ function nullableNumber(value: unknown) {
 
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+
+type DriveProjectMeta = {
+  id?: string
+  project_name?: string | null
+  funding_source?: string | null
+  funding_year?: number | string | null
+  funding_program?: string | null
+  fiscal_year?: number | string | null
+  year?: number | string | null
+  program?: string | null
+  program_name?: string | null
+  project_type?: string | null
+}
+
+const driveProjectMetaCache = new Map<string, DriveProjectMeta | null>()
+
+async function getDriveProjectMetaForOfflineUpdate(
+  update: OfflineProjectUpdate,
+): Promise<DriveProjectMeta | null> {
+  const projectId = textValue(update.project_id)
+
+  if (!projectId) return null
+
+  if (driveProjectMetaCache.has(projectId)) {
+    return driveProjectMetaCache.get(projectId) || null
+  }
+
+  let cachedProject: DriveProjectMeta | null = null
+
+  try {
+    cachedProject = ((await offlineDb.projects.get(projectId)) || null) as
+      | DriveProjectMeta
+      | null
+  } catch (error) {
+    console.warn('Unable to read cached project metadata for Drive folders:', error)
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single()
+
+    if (error) {
+      console.warn('Unable to read online project metadata for Drive folders:', error)
+      driveProjectMetaCache.set(projectId, cachedProject)
+      return cachedProject
+    }
+
+    const onlineProject = (data || null) as DriveProjectMeta | null
+    driveProjectMetaCache.set(projectId, onlineProject || cachedProject)
+
+    return onlineProject || cachedProject
+  } catch (error) {
+    console.warn('Unable to resolve project metadata for Drive folders:', error)
+    driveProjectMetaCache.set(projectId, cachedProject)
+
+    return cachedProject
+  }
+}
+
+function getOfflineDriveFundingYear(
+  update: OfflineProjectUpdate,
+  projectMeta?: DriveProjectMeta | null,
+) {
+  const rawValue =
+    update.funding_year ||
+    update.fiscal_year ||
+    update.year ||
+    projectMeta?.funding_year ||
+    projectMeta?.fiscal_year ||
+    projectMeta?.year ||
+    ''
+
+  const match = String(rawValue).match(/\b(20\d{2}|19\d{2})\b/)
+
+  if (match?.[1]) return match[1]
+
+  const inspectionDate = String(update.inspection_date || '')
+
+  return inspectionDate.match(/^(\d{4})-/)?.[1] || ''
+}
+
+function getOfflineDriveFundingSource(
+  update: OfflineProjectUpdate,
+  projectMeta?: DriveProjectMeta | null,
+) {
+  return String(
+    update.funding_source ||
+      update.funding_program ||
+      update.program ||
+      update.program_name ||
+      projectMeta?.funding_source ||
+      projectMeta?.funding_program ||
+      projectMeta?.program ||
+      projectMeta?.program_name ||
+      projectMeta?.project_type ||
+      '',
+  ).trim()
+}
+
+function getOfflineDriveProjectTitle(
+  update: OfflineProjectUpdate,
+  projectMeta?: DriveProjectMeta | null,
+) {
+  return (
+    textValue(update.project_name) ||
+    textValue(projectMeta?.project_name) ||
+    `Project ${update.project_id}`
+  )
 }
 
 function getAutoRiskForUpdate(update: OfflineProjectUpdate) {
@@ -151,19 +262,6 @@ function getSafeFileName(name: string) {
     .toLowerCase()
 
   return cleanName || 'offline-photo.jpg'
-}
-
-function getPhotoExtension(fileName: string, fileType: string) {
-  const fromName = textValue(fileName).split('.').pop()
-
-  if (fromName) return fromName
-
-  if (fileType.includes('png')) return 'png'
-  if (fileType.includes('webp')) return 'webp'
-  if (fileType.includes('heic')) return 'heic'
-  if (fileType.includes('heif')) return 'heif'
-
-  return 'jpg'
 }
 
 function getUpdateLocalId(update: OfflineProjectUpdate) {
@@ -287,6 +385,10 @@ async function syncPhotosForOfflineUpdate(
   onlineProjectUpdateId: string,
 ) {
   const photos = await getPhotosForUpdate(update)
+  const projectMeta = await getDriveProjectMetaForOfflineUpdate(update)
+  const driveProjectTitle = getOfflineDriveProjectTitle(update, projectMeta)
+  const driveFundingYear = getOfflineDriveFundingYear(update, projectMeta)
+  const driveFundingSource = getOfflineDriveFundingSource(update, projectMeta)
   let uploadedPhotoCount = 0
 
   for (let index = 0; index < photos.length; index += 1) {
@@ -304,48 +406,54 @@ async function syncPhotosForOfflineUpdate(
       error: '',
     })
 
-    const safeFileName = getSafeFileName(photo.file_name || `photo-${index + 1}`)
-    const fileExt = getPhotoExtension(safeFileName, photo.file_type || '')
-    const storagePath = `${update.project_id}/${onlineProjectUpdateId}/${Date.now()}-${index + 1}-${safeFileName || `photo.${fileExt}`}`
+    const safeFileName = getSafeFileName(photo.file_name || `photo-${index + 1}.jpg`)
+    const fileType = photo.file_type || blob.type || 'image/jpeg'
+    const file =
+      blob instanceof File
+        ? blob
+        : new File([blob], safeFileName, {
+            type: fileType,
+            lastModified: Date.now(),
+          })
 
-    const uploadResult = await supabase.storage
-      .from(PHOTO_BUCKET)
-      .upload(storagePath, blob, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: photo.file_type || 'image/jpeg',
+    try {
+      const uploadedFile = await uploadProjectPhotoToDrive({
+        file,
+        projectId: update.project_id,
+        updateId: onlineProjectUpdateId,
+        projectTitle: driveProjectTitle,
+        inspectionDate: update.inspection_date || '',
+        fundingYear: driveFundingYear,
+        fundingSource: driveFundingSource,
+        fundingProgram: driveFundingSource,
+        uploadedBy: update.engineer_id || 'Offline PMS10 User',
       })
 
-    if (uploadResult.error) {
+      const insertPhotoResult = await supabase.from('project_photos').insert([
+        {
+          project_id: update.project_id,
+          project_update_id: onlineProjectUpdateId,
+          photo_url: getDrivePhotoUrl(uploadedFile),
+          caption: textValue(photo.caption) || `Project update photo ${index + 1}`,
+          uploaded_at: new Date().toISOString(),
+        },
+      ])
+
+      if (insertPhotoResult.error) {
+        await markPhotoStatus(photo, {
+          sync_status: 'failed',
+          error: insertPhotoResult.error.message,
+        })
+
+        throw insertPhotoResult.error
+      }
+    } catch (error: any) {
       await markPhotoStatus(photo, {
         sync_status: 'failed',
-        error: uploadResult.error.message,
+        error: error?.message || 'Unable to upload offline photo to Google Drive.',
       })
 
-      throw uploadResult.error
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(storagePath)
-
-    const insertPhotoResult = await supabase.from('project_photos').insert([
-      {
-        project_id: update.project_id,
-        project_update_id: onlineProjectUpdateId,
-        photo_url: publicUrl,
-        caption: textValue(photo.caption) || `Project update photo ${index + 1}`,
-        uploaded_at: new Date().toISOString(),
-      },
-    ])
-
-    if (insertPhotoResult.error) {
-      await markPhotoStatus(photo, {
-        sync_status: 'failed',
-        error: insertPhotoResult.error.message,
-      })
-
-      throw insertPhotoResult.error
+      throw error
     }
 
     if (hasKey(photo.id)) {
@@ -444,10 +552,6 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
         },
         onlineProjectUpdateId,
       )
-
-      if (uploadedPhotoCount > 0) {
-        await cleanupProjectPhotos(update.project_id, 5)
-      }
 
       syncedPhotoCount += uploadedPhotoCount
 

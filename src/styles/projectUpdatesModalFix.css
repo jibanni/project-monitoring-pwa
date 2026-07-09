@@ -1,0 +1,118 @@
+/*
+  PMS10 Project Update centered prompt hard fix
+
+  This forces Project Update prompts to appear in the true center of the phone
+  or desktop viewport. It is intentionally strong because FABs, sticky headers,
+  bottom navigation, transformed containers, and page-level layouts can otherwise
+  pull fixed elements toward the bottom of the screen.
+*/
+
+.pu-modal-overlay,
+.pu-success-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding:
+    max(18px, env(safe-area-inset-top))
+    max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom))
+    max(18px, env(safe-area-inset-left)) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  place-items: center !important;
+  background: rgba(15, 23, 42, 0.5) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+  z-index: 2147483647 !important;
+  transform: none !important;
+}
+
+.pu-save-modal,
+.pu-notice-modal,
+.pu-success-modal {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: min(92vw, 430px) !important;
+  max-width: 430px !important;
+  max-height: calc(100vh - 44px) !important;
+  margin: auto !important;
+  transform: none !important;
+  translate: none !important;
+  align-self: center !important;
+  justify-self: center !important;
+  overflow-y: auto !important;
+  border-radius: 24px !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 28px 90px rgba(15, 23, 42, 0.35) !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+.pu-save-modal h3,
+.pu-notice-modal h3,
+.pu-success-modal h3,
+.pu-save-modal p,
+.pu-notice-modal p,
+.pu-success-modal p {
+  max-width: 100% !important;
+  text-align: center !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+.pu-notice-icon,
+.pu-success-icon {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.pu-modal-actions {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 10px !important;
+}
+
+.pu-modal-actions .pu-secondary-btn,
+.pu-modal-actions .pu-primary-btn,
+.pu-save-modal > .pu-primary-btn,
+.pu-notice-modal > .pu-primary-btn,
+.pu-success-modal > .pu-primary-btn {
+  width: 100% !important;
+  min-height: 54px !important;
+}
+
+@media (min-width: 520px) {
+  .pu-modal-actions {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+@supports (height: 100dvh) {
+  .pu-modal-overlay,
+  .pu-success-overlay {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+
+  .pu-save-modal,
+  .pu-notice-modal,
+  .pu-success-modal {
+    max-height: calc(100dvh - 44px) !important;
+  }
+}

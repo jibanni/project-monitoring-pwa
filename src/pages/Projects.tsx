@@ -1,11 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { offlineDb } from '../lib/offlineDb'
 import { useAuth } from '../context/AuthContext'
-import { getComputedRiskLevel, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
 import '../styles/projects.css'
+import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
+import { normalizeProgramName } from '../utils/program'
 
 type ProjectRow = {
   id: string
@@ -33,6 +38,7 @@ type ProjectRow = {
   target_physical_as_of?: string | null
   target_physical_source?: string | null
   updated_at: string | null
+  subaybayan_project_code?: string | null
 }
 
 function textValue(value: unknown) {
@@ -115,7 +121,9 @@ function formatFundingYear(value: unknown) {
 
 function formatFundingDisplay(project: ProjectRow) {
   const year = formatFundingYear(project.funding_year)
-  const source = textValue(project.funding_source || project.project_type)
+  const source = normalizeProgramName(
+    textValue(project.funding_source || project.project_type),
+  )
 
   if (year && source) return `${year} · ${source}`
   return year || source || 'No Program'
@@ -146,6 +154,14 @@ function getRiskClass(risk: string | null) {
   if (normalized.includes('low')) return 'low'
 
   return 'default'
+}
+
+function getRegistryStatus(project: ProjectRow) {
+  return getPmsProjectStatus(project)
+}
+
+function getRegistryRisk(project: ProjectRow) {
+  return getPmsRiskLevel(project)
 }
 
 function getProjectCardClass(risk: string | null) {
@@ -193,6 +209,16 @@ function AddIcon() {
   )
 }
 
+function ImportIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 4.5h14v3H5v-3Z" />
+      <path d="M7 9h10v10.5H7V9Zm2 2v1.7h6V11H9Zm0 3.1v1.7h6v-1.7H9Z" />
+      <path d="M12 2.75 15.25 6h-2v4h-2.5V6h-2L12 2.75Z" />
+    </svg>
+  )
+}
+
 
 function ViewIcon() {
   return (
@@ -215,7 +241,7 @@ function toOfflineProject(project: ProjectRow) {
     ...project,
     id: project.id,
     project_name: textValue(project.project_name) || 'Untitled Project',
-    status: textValue(project.status) || 'Not Yet Started',
+    status: getRegistryStatus(project),
     municipality: textValue(project.municipality),
     province: textValue(project.province),
     barangay: textValue(project.barangay),
@@ -224,7 +250,7 @@ function toOfflineProject(project: ProjectRow) {
     target_physical_as_of: project.target_physical_as_of || '',
     target_physical_source: project.target_physical_source || 'auto',
     financial_accomplishment: toNumber(project.financial_accomplishment),
-    risk_level: getComputedRiskLevel(project),
+    risk_level: getRegistryRisk(project),
     project_type: textValue(project.project_type),
     funding_source: textValue(project.funding_source),
     funding_year: project.funding_year || '',
@@ -403,13 +429,13 @@ export default function Projects() {
 
   const statuses = useMemo(() => {
     return Array.from(
-      new Set(allowedProjects.map((project) => getProjectDisplayStatus(project)).filter(Boolean)),
+      new Set(allowedProjects.map((project) => getRegistryStatus(project)).filter(Boolean)),
     ).sort()
   }, [allowedProjects])
 
   const risks = useMemo(() => {
     return Array.from(
-      new Set(allowedProjects.map((project) => getComputedRiskLevel(project)).filter(Boolean)),
+      new Set(allowedProjects.map((project) => getRegistryRisk(project)).filter(Boolean)),
     ).sort()
   }, [allowedProjects])
 
@@ -417,6 +443,7 @@ export default function Projects() {
     return allowedProjects.filter((project) => {
       const searchableText = [
         project.project_name,
+        project.subaybayan_project_code,
         project.description,
         project.barangay,
         project.municipality,
@@ -426,8 +453,8 @@ export default function Projects() {
         project.project_type,
         project.implementing_office,
         project.contractor,
-        getProjectDisplayStatus(project),
-        getComputedRiskLevel(project),
+        getRegistryStatus(project),
+        getRegistryRisk(project),
       ]
         .map(textValue)
         .join(' ')
@@ -454,11 +481,11 @@ export default function Projects() {
         : true
 
       const statusMatches = statusFilter
-        ? getProjectDisplayStatus(project) === statusFilter
+        ? getRegistryStatus(project) === statusFilter
         : true
 
       const riskMatches = riskFilter
-        ? getComputedRiskLevel(project) === riskFilter
+        ? getRegistryRisk(project) === riskFilter
         : true
 
       return (
@@ -486,20 +513,24 @@ export default function Projects() {
     return filteredProjects.reduce((sum, project) => sum + toNumber(project.budget), 0)
   }, [filteredProjects])
 
-  const notStartedCount = filteredProjects.filter((project) =>
-    getProjectDisplayStatus(project).toLowerCase().includes('not'),
+  const underProcurementCount = filteredProjects.filter(
+    (project) => getRegistryStatus(project) === 'Under Procurement',
   ).length
 
-  const ongoingCount = filteredProjects.filter((project) =>
-    getProjectDisplayStatus(project).toLowerCase().includes('ongoing'),
+  const notStartedCount = filteredProjects.filter(
+    (project) => getRegistryStatus(project) === 'Not Yet Started',
   ).length
 
-  const completedCount = filteredProjects.filter((project) =>
-    getProjectDisplayStatus(project).toLowerCase().includes('complete'),
+  const ongoingCount = filteredProjects.filter(
+    (project) => getRegistryStatus(project) === 'Ongoing',
+  ).length
+
+  const completedCount = filteredProjects.filter(
+    (project) => getRegistryStatus(project) === 'Completed',
   ).length
 
   const highRiskCount = filteredProjects.filter((project) =>
-    getComputedRiskLevel(project) === 'High',
+    getRegistryRisk(project) === 'High',
   ).length
 
   const activeFilterCount = [
@@ -570,6 +601,19 @@ export default function Projects() {
           <RefreshIcon />
         </button>
 
+
+        {isAdmin && (
+          <button
+            type="button"
+            className="projects-floating-btn import"
+            onClick={() => navigate('/projects/import-subaybayan')}
+            aria-label="Import SubayBAYAN masterlist"
+            title="Import SubayBAYAN masterlist"
+          >
+            <ImportIcon />
+          </button>
+        )}
+
         {canCreateProject && (
           <button
             type="button"
@@ -587,6 +631,11 @@ export default function Projects() {
         <div className="projects-summary-card">
           <span>Total Projects</span>
           <strong>{filteredProjects.length}</strong>
+        </div>
+
+        <div className="projects-summary-card orange">
+          <span>Under Procurement</span>
+          <strong>{underProcurementCount}</strong>
         </div>
 
         <div className="projects-summary-card gray">
@@ -781,8 +830,8 @@ export default function Projects() {
                 100,
                 Math.max(0, toNumber(project.financial_accomplishment)),
               )
-              const computedRisk = getComputedRiskLevel(project)
-              const displayStatus = getProjectDisplayStatus(project)
+              const computedRisk = getRegistryRisk(project)
+              const displayStatus = getRegistryStatus(project)
               const varianceInfo = getTargetPhysicalInfo(project)
               const canUpdateProject = canUpdateProjectByAor(project, auth)
               const location = [project.barangay, project.municipality, project.province]
@@ -795,6 +844,7 @@ export default function Projects() {
                 <article key={project.id} className={getProjectCardClass(computedRisk)}>
                   <div className="project-row-main">
                     <p className="project-row-program">{formatFundingDisplay(project)}</p>
+
                     <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
                     <p className="project-row-location">
                       {location || 'No location encoded'}
@@ -805,9 +855,11 @@ export default function Projects() {
                     <span className={`project-status ${getStatusClass(displayStatus)}`}>
                       {displayStatus}
                     </span>
-                    <span className={`project-risk ${getRiskClass(computedRisk)}`}>
-                      {computedRisk}
-                    </span>
+                    {getRiskClass(computedRisk) !== 'none' && (
+                      <span className={`project-risk ${getRiskClass(computedRisk)}`}>
+                        {computedRisk}
+                      </span>
+                    )}
                     <span className={`project-row-variance ${varianceInfo.className}`}>
                       {varianceInfo.compactLabel}
                     </span>

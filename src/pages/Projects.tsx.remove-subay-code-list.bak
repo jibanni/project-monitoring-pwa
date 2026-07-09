@@ -1,0 +1,959 @@
+import {
+  useEffect,
+  useMemo,
+  useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { offlineDb } from '../lib/offlineDb'
+import { useAuth } from '../context/AuthContext'
+import { getTargetPhysicalInfo } from '../utils/projectVariance'
+import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
+import '../styles/projects.css'
+import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
+
+type ProjectRow = {
+  id: string
+  project_name: string | null
+  description: string | null
+  status: string | null
+  project_type: string | null
+  funding_source: string | null
+  funding_year?: number | string | null
+  implementing_office: string | null
+  contractor: string | null
+  budget: number | string | null
+  start_date: string | null
+  target_completion_date: string | null
+  barangay: string | null
+  municipality: string | null
+  province: string | null
+  latitude: number | string | null
+  longitude: number | string | null
+  physical_accomplishment: number | string | null
+  financial_accomplishment: number | string | null
+  risk_level: string | null
+  last_inspection_date: string | null
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
+  updated_at: string | null
+  subaybayan_project_code?: string | null
+}
+
+function textValue(value: unknown) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+function toNumber(value: unknown): number {
+  if (value === null || value === undefined || value === '') return 0
+
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : Number(String(value).replace(/,/g, '').trim())
+
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function formatCurrency(value: unknown) {
+  return (
+    'Php ' +
+    toNumber(value).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  )
+}
+
+function formatCompactCurrency(value: unknown) {
+  const amount = toNumber(value)
+  const absAmount = Math.abs(amount)
+
+  if (absAmount >= 1_000_000_000) {
+    return `Php ${(amount / 1_000_000_000).toFixed(2)}B`
+  }
+
+  if (absAmount >= 1_000_000) {
+    return `Php ${(amount / 1_000_000).toFixed(2)}M`
+  }
+
+  if (absAmount >= 1_000) {
+    return `Php ${(amount / 1_000).toFixed(2)}K`
+  }
+
+  return formatCurrency(amount)
+}
+
+function formatPercent(value: unknown) {
+  return `${toNumber(value).toFixed(0)}%`
+}
+
+function formatLongDate(value: string | null | undefined) {
+  if (!value) return 'No date'
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) return 'No date'
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function formatFundingYear(value: unknown) {
+  const rawValue = textValue(value)
+
+  if (!rawValue) return ''
+
+  const cleanValue = rawValue.replace(/^FY\s*/i, '').trim()
+  const yearNumber = Number(cleanValue)
+
+  if (Number.isFinite(yearNumber)) {
+    return `FY ${Math.trunc(yearNumber)}`
+  }
+
+  return rawValue.toUpperCase().startsWith('FY') ? rawValue : `FY ${rawValue}`
+}
+
+function formatFundingDisplay(project: ProjectRow) {
+  const year = formatFundingYear(project.funding_year)
+  const source = textValue(project.funding_source || project.project_type)
+
+  if (year && source) return `${year} · ${source}`
+  return year || source || 'No Program'
+}
+
+function getStatusClass(status: string | null) {
+  const normalized = textValue(status).toLowerCase()
+
+  if (normalized.includes('complete')) return 'completed'
+  if (normalized.includes('ongoing')) return 'ongoing'
+  if (normalized.includes('not')) return 'not-started'
+  if (normalized.includes('delayed')) return 'delayed'
+  if (normalized.includes('cancel')) return 'cancelled'
+  if (normalized.includes('suspend')) return 'suspended'
+  if (normalized.includes('terminate')) return 'terminated'
+
+  return 'default'
+}
+
+function getRiskClass(risk: string | null) {
+  const normalized = textValue(risk).toLowerCase()
+
+  if (!normalized || normalized === 'none' || normalized.includes('no risk')) return 'none'
+  if (normalized.includes('high')) return 'high'
+  if (normalized.includes('moderate') || normalized.includes('medium')) {
+    return 'moderate'
+  }
+  if (normalized.includes('low')) return 'low'
+
+  return 'default'
+}
+
+function getRegistryStatus(project: ProjectRow) {
+  return getPmsProjectStatus(project)
+}
+
+function getRegistryRisk(project: ProjectRow) {
+  return getPmsRiskLevel(project)
+}
+
+function copySubayProjectCode(event: React.MouseEvent<HTMLButtonElement>, code: string | null | undefined) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  const value = textValue(code)
+  if (!value) return
+
+  if (navigator.clipboard?.writeText) {
+    void navigator.clipboard.writeText(value)
+  }
+}
+
+function getProjectCardClass(risk: string | null) {
+  const normalized = getRiskClass(risk)
+
+  if (normalized === 'high') return 'project-list-row high-risk'
+  if (normalized === 'moderate') return 'project-list-row moderate-risk'
+  if (normalized === 'low') return 'project-list-row low-risk'
+  if (normalized === 'none') return 'project-list-row none-risk'
+
+  return 'project-list-row'
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10.8 4.2a6.6 6.6 0 1 0 0 13.2 6.6 6.6 0 0 0 0-13.2Zm0 2a4.6 4.6 0 1 1 0 9.2 4.6 4.6 0 0 1 0-9.2Zm5.2 10.6 3.4 3.4a1 1 0 0 0 1.4-1.4l-3.4-3.4a1 1 0 0 0-1.4 1.4Z" />
+    </svg>
+  )
+}
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 6h16" />
+      <path d="M7 12h10" />
+      <path d="M10 18h4" />
+    </svg>
+  )
+}
+
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M17.7 7.2A7.8 7.8 0 0 0 4.6 11h2.1a5.8 5.8 0 0 1 9.6-2.35L14 11h6V5l-2.3 2.2ZM6.3 16.8A7.8 7.8 0 0 0 19.4 13h-2.1a5.8 5.8 0 0 1-9.6 2.35L10 13H4v6l2.3-2.2Z" />
+    </svg>
+  )
+}
+
+function AddIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M11 5a1 1 0 1 1 2 0v6h6a1 1 0 1 1 0 2h-6v6a1 1 0 1 1-2 0v-6H5a1 1 0 1 1 0-2h6V5Z" />
+    </svg>
+  )
+}
+
+function ImportIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 4.5h14v3H5v-3Z" />
+      <path d="M7 9h10v10.5H7V9Zm2 2v1.7h6V11H9Zm0 3.1v1.7h6v-1.7H9Z" />
+      <path d="M12 2.75 15.25 6h-2v4h-2.5V6h-2L12 2.75Z" />
+    </svg>
+  )
+}
+
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 7.5A2.5 2.5 0 0 1 10.5 5h6A2.5 2.5 0 0 1 19 7.5v8a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 8 15.5v-8Zm2.5-.5a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h6a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-6Z" />
+      <path d="M5 9.5A3.5 3.5 0 0 1 8.5 6H9v2h-.5A1.5 1.5 0 0 0 7 9.5v8A1.5 1.5 0 0 0 8.5 19H14v.5A2.5 2.5 0 0 1 11.5 22h-3A3.5 3.5 0 0 1 5 18.5v-9Z" />
+    </svg>
+  )
+}
+
+
+function ViewIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5.2c4.6 0 7.8 3.6 9 6.8-1.2 3.2-4.4 6.8-9 6.8S4.2 15.2 3 12c1.2-3.2 4.4-6.8 9-6.8Zm0 2C8.8 7.2 6.3 9.4 5.2 12c1.1 2.6 3.6 4.8 6.8 4.8s5.7-2.2 6.8-4.8C17.7 9.4 15.2 7.2 12 7.2Zm0 2.2a2.6 2.6 0 1 1 0 5.2 2.6 2.6 0 0 1 0-5.2Z" />
+    </svg>
+  )
+}
+
+function UpdateIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M17.7 6.3a7.9 7.9 0 0 0-12.9 3.4 1 1 0 0 0 1.92.58 5.9 5.9 0 0 1 9.55-2.62L14.9 9.03A.75.75 0 0 0 15.43 10H20a.75.75 0 0 0 .75-.75V4.68a.75.75 0 0 0-1.28-.53L17.7 6.3ZM6.3 17.7a7.9 7.9 0 0 0 12.9-3.4 1 1 0 1 0-1.92-.58 5.9 5.9 0 0 1-9.55 2.62l1.37-1.37A.75.75 0 0 0 8.57 14H4a.75.75 0 0 0-.75.75v4.57a.75.75 0 0 0 1.28.53L6.3 17.7Z" />
+    </svg>
+  )
+}
+
+function toOfflineProject(project: ProjectRow) {
+  return {
+    ...project,
+    id: project.id,
+    project_name: textValue(project.project_name) || 'Untitled Project',
+    status: getRegistryStatus(project),
+    municipality: textValue(project.municipality),
+    province: textValue(project.province),
+    barangay: textValue(project.barangay),
+    physical_accomplishment: toNumber(project.physical_accomplishment),
+    target_physical_accomplishment: project.target_physical_accomplishment ?? null,
+    target_physical_as_of: project.target_physical_as_of || '',
+    target_physical_source: project.target_physical_source || 'auto',
+    financial_accomplishment: toNumber(project.financial_accomplishment),
+    risk_level: getRegistryRisk(project),
+    project_type: textValue(project.project_type),
+    funding_source: textValue(project.funding_source),
+    funding_year: project.funding_year || '',
+    implementing_office: textValue(project.implementing_office),
+    contractor: textValue(project.contractor),
+    budget: project.budget || 0,
+    start_date: project.start_date || '',
+    target_completion_date: project.target_completion_date || '',
+    latitude: project.latitude || '',
+    longitude: project.longitude || '',
+    last_inspection_date: project.last_inspection_date || '',
+    updated_at: project.updated_at || '',
+    cached_at: new Date().toISOString(),
+  }
+}
+
+async function cacheProjectsForOffline(projects: ProjectRow[]) {
+  if (projects.length === 0) return
+
+  await offlineDb.projects.bulkPut(projects.map((project) => toOfflineProject(project)) as any[])
+}
+
+async function loadCachedProjects() {
+  const cachedProjects = (await offlineDb.projects.toArray()) as unknown as ProjectRow[]
+
+  return cachedProjects.sort((a, b) => {
+    const dateA = new Date(a.updated_at || '').getTime()
+    const dateB = new Date(b.updated_at || '').getTime()
+
+    return (Number.isFinite(dateB) ? dateB : 0) - (Number.isFinite(dateA) ? dateA : 0)
+  })
+}
+
+export default function Projects() {
+  const navigate = useNavigate()
+  const auth = useAuth() as any
+  const isAdmin = Boolean(auth?.isAdmin)
+  const role = getCanonicalRole(auth?.profile?.role)
+  const isROEngineer = Boolean(auth?.isROEngineer) || role === 'RO Engineer'
+
+  const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const [searchTerm, setSearchTerm] = useState('')
+  const [provinceFilter, setProvinceFilter] = useState('')
+  const [municipalityFilter, setMunicipalityFilter] = useState('')
+  const [programFilter, setProgramFilter] = useState('')
+  const [fundingYearFilter, setFundingYearFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [riskFilter, setRiskFilter] = useState('')
+  const [isRegistryScrolled, setIsRegistryScrolled] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  useEffect(() => {
+    loadProjects()
+  }, [])
+
+  useEffect(() => {
+    let ticking = false
+
+    function handleScroll() {
+      if (ticking) return
+
+      ticking = true
+      requestAnimationFrame(() => {
+        const nextScrolled = window.scrollY > 44
+        setIsRegistryScrolled((current) =>
+          current === nextScrolled ? current : nextScrolled,
+        )
+        ticking = false
+      })
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
+
+  async function loadProjects() {
+    try {
+      setLoading(true)
+      setErrorMessage('')
+
+      if (!navigator.onLine) {
+        const cachedProjects = await loadCachedProjects()
+        setProjects(cachedProjects)
+
+        if (cachedProjects.length === 0) {
+          setErrorMessage(
+            'No cached projects found on this device. Please open the Project Registry while online first.',
+          )
+        }
+
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('updated_at', { ascending: false })
+
+      if (error) throw error
+
+      const onlineProjects = (data || []) as ProjectRow[]
+      setProjects(onlineProjects)
+      await cacheProjectsForOffline(onlineProjects)
+    } catch (error) {
+      console.error(error)
+
+      const cachedProjects = await loadCachedProjects()
+
+      if (cachedProjects.length > 0) {
+        setProjects(cachedProjects)
+        setErrorMessage('')
+        return
+      }
+
+      setErrorMessage('Unable to load projects. Please check your connection.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function clearFilters() {
+    setSearchTerm('')
+    setProvinceFilter('')
+    setMunicipalityFilter('')
+    setProgramFilter('')
+    setFundingYearFilter('')
+    setStatusFilter('')
+    setRiskFilter('')
+  }
+
+  const allowedProjects = useMemo(() => {
+    return filterProjectsByAor(projects, auth)
+  }, [projects, auth])
+
+  const provinces = useMemo(() => {
+    return Array.from(
+      new Set(allowedProjects.map((project) => textValue(project.province)).filter(Boolean)),
+    ).sort()
+  }, [allowedProjects])
+
+  const municipalities = useMemo(() => {
+    return Array.from(
+      new Set(
+        allowedProjects
+          .filter((project) =>
+            provinceFilter ? textValue(project.province) === provinceFilter : true,
+          )
+          .map((project) => textValue(project.municipality))
+          .filter(Boolean),
+      ),
+    ).sort()
+  }, [allowedProjects, provinceFilter])
+
+  const programs = useMemo(() => {
+    return Array.from(
+      new Set(
+        allowedProjects
+          .map((project) => textValue(project.funding_source || project.project_type))
+          .filter(Boolean),
+      ),
+    ).sort()
+  }, [allowedProjects])
+
+  const fundingYears = useMemo(() => {
+    return Array.from(
+      new Set(allowedProjects.map((project) => textValue(project.funding_year)).filter(Boolean)),
+    ).sort((a, b) => Number(b) - Number(a))
+  }, [allowedProjects])
+
+  const statuses = useMemo(() => {
+    return Array.from(
+      new Set(allowedProjects.map((project) => getRegistryStatus(project)).filter(Boolean)),
+    ).sort()
+  }, [allowedProjects])
+
+  const risks = useMemo(() => {
+    return Array.from(
+      new Set(allowedProjects.map((project) => getRegistryRisk(project)).filter(Boolean)),
+    ).sort()
+  }, [allowedProjects])
+
+  const filteredProjects = useMemo(() => {
+    return allowedProjects.filter((project) => {
+      const searchableText = [
+        project.project_name,
+        project.subaybayan_project_code,
+        project.description,
+        project.barangay,
+        project.municipality,
+        project.province,
+        project.funding_year,
+        project.funding_source,
+        project.project_type,
+        project.implementing_office,
+        project.contractor,
+        getRegistryStatus(project),
+        getRegistryRisk(project),
+      ]
+        .map(textValue)
+        .join(' ')
+        .toLowerCase()
+
+      const searchMatches = searchTerm.trim()
+        ? searchableText.includes(searchTerm.trim().toLowerCase())
+        : true
+
+      const provinceMatches = provinceFilter
+        ? textValue(project.province) === provinceFilter
+        : true
+
+      const municipalityMatches = municipalityFilter
+        ? textValue(project.municipality) === municipalityFilter
+        : true
+
+      const programMatches = programFilter
+        ? textValue(project.funding_source || project.project_type) === programFilter
+        : true
+
+      const fundingYearMatches = fundingYearFilter
+        ? textValue(project.funding_year) === fundingYearFilter
+        : true
+
+      const statusMatches = statusFilter
+        ? getRegistryStatus(project) === statusFilter
+        : true
+
+      const riskMatches = riskFilter
+        ? getRegistryRisk(project) === riskFilter
+        : true
+
+      return (
+        searchMatches &&
+        provinceMatches &&
+        municipalityMatches &&
+        programMatches &&
+        fundingYearMatches &&
+        statusMatches &&
+        riskMatches
+      )
+    })
+  }, [
+    allowedProjects,
+    searchTerm,
+    provinceFilter,
+    municipalityFilter,
+    programFilter,
+    fundingYearFilter,
+    statusFilter,
+    riskFilter,
+  ])
+
+  const totalCost = useMemo(() => {
+    return filteredProjects.reduce((sum, project) => sum + toNumber(project.budget), 0)
+  }, [filteredProjects])
+
+  const underProcurementCount = filteredProjects.filter(
+    (project) => getRegistryStatus(project) === 'Under Procurement',
+  ).length
+
+  const notStartedCount = filteredProjects.filter(
+    (project) => getRegistryStatus(project) === 'Not Yet Started',
+  ).length
+
+  const ongoingCount = filteredProjects.filter(
+    (project) => getRegistryStatus(project) === 'Ongoing',
+  ).length
+
+  const completedCount = filteredProjects.filter(
+    (project) => getRegistryStatus(project) === 'Completed',
+  ).length
+
+  const highRiskCount = filteredProjects.filter((project) =>
+    getRegistryRisk(project) === 'High',
+  ).length
+
+  const activeFilterCount = [
+    searchTerm,
+    provinceFilter,
+    municipalityFilter,
+    programFilter,
+    fundingYearFilter,
+    statusFilter,
+    riskFilter,
+  ].filter(Boolean).length
+
+  const canCreateProject = isAdmin || isROEngineer
+
+  if (loading) {
+    return (
+      <div className="projects-page">
+        <div className="projects-loading-card">
+          <div className="projects-loader" />
+          <h2>Loading Projects</h2>
+          <p>Preparing project cards...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="projects-page">
+        <div className="projects-error-card">
+          <h2>Projects Error</h2>
+          <p>{errorMessage}</p>
+          <button type="button" onClick={loadProjects}>
+            Reload Projects
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`projects-page ${
+        isRegistryScrolled ? 'is-registry-scrolled' : ''
+      } ${filtersOpen ? 'filters-open' : ''}`}
+    >
+      <section className="projects-hero projects-registry-hero">
+        <div className="projects-hero-copy">
+          <p className="projects-eyebrow">Project Workspace</p>
+          <h1>Project Registry</h1>
+          <p>
+            Mobile-first project monitoring cards for field inspection, validation,
+            and progress tracking.
+          </p>
+        </div>
+      </section>
+
+      <div className="projects-hero-spacer" aria-hidden="true" />
+
+      <div className="projects-floating-actions" aria-label="Project Registry actions">
+        <button
+          type="button"
+          className="projects-floating-btn refresh"
+          onClick={loadProjects}
+          aria-label="Refresh projects"
+          title="Refresh projects"
+        >
+          <RefreshIcon />
+        </button>
+
+
+        {isAdmin && (
+          <button
+            type="button"
+            className="projects-floating-btn import"
+            onClick={() => navigate('/projects/import-subaybayan')}
+            aria-label="Import SubayBAYAN masterlist"
+            title="Import SubayBAYAN masterlist"
+          >
+            <ImportIcon />
+          </button>
+        )}
+
+        {canCreateProject && (
+          <button
+            type="button"
+            className="projects-floating-btn add"
+            onClick={() => navigate('/projects/create')}
+            aria-label="Add project"
+            title="Add project"
+          >
+            <AddIcon />
+          </button>
+        )}
+      </div>
+
+      <section className="projects-summary-grid" aria-label="Project summary">
+        <div className="projects-summary-card">
+          <span>Total Projects</span>
+          <strong>{filteredProjects.length}</strong>
+        </div>
+
+        <div className="projects-summary-card orange">
+          <span>Under Procurement</span>
+          <strong>{underProcurementCount}</strong>
+        </div>
+
+        <div className="projects-summary-card gray">
+          <span>Not Yet Started</span>
+          <strong>{notStartedCount}</strong>
+        </div>
+
+        <div className="projects-summary-card orange">
+          <span>Ongoing</span>
+          <strong>{ongoingCount}</strong>
+        </div>
+
+        <div className="projects-summary-card green">
+          <span>Completed</span>
+          <strong>{completedCount}</strong>
+        </div>
+
+        <div className="projects-summary-card red">
+          <span>High Risk</span>
+          <strong>{highRiskCount}</strong>
+        </div>
+
+        <div className="projects-summary-card projects-cost-card" title={formatCurrency(totalCost)}>
+          <span>Filtered Project Cost</span>
+          <strong>{formatCompactCurrency(totalCost)}</strong>
+        </div>
+      </section>
+
+      <section className="projects-filter-card" aria-label="Search and filters">
+        <div className="projects-search-shell">
+          <span className="projects-search-icon" aria-hidden="true">
+            <SearchIcon />
+          </span>
+
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search project, LGU, program, status..."
+            aria-label="Search projects"
+          />
+
+          <button
+            type="button"
+            className={`projects-filter-toggle ${filtersOpen ? 'active' : ''}`}
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-label="Open project filters"
+            aria-expanded={filtersOpen}
+          >
+            <FilterIcon />
+            {activeFilterCount > 0 && (
+              <span className="projects-filter-badge">{activeFilterCount}</span>
+            )}
+          </button>
+        </div>
+
+        <div className="projects-filter-panel" hidden={!filtersOpen}>
+          <div className="projects-filter-panel-header">
+            <div>
+              <p className="projects-section-eyebrow">Advanced Filters</p>
+              <h2>Refine records</h2>
+            </div>
+
+            {activeFilterCount > 0 && (
+              <button type="button" className="projects-clear-btn" onClick={clearFilters}>
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="projects-filter-grid">
+            <label>
+              Province
+              <select
+                value={provinceFilter}
+                onChange={(event) => {
+                  setProvinceFilter(event.target.value)
+                  setMunicipalityFilter('')
+                }}
+              >
+                <option value="">All Provinces</option>
+                {provinces.map((province) => (
+                  <option key={province} value={province}>
+                    {province}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              LGU / Municipality
+              <select
+                value={municipalityFilter}
+                onChange={(event) => setMunicipalityFilter(event.target.value)}
+              >
+                <option value="">All LGUs</option>
+                {municipalities.map((municipality) => (
+                  <option key={municipality} value={municipality}>
+                    {municipality}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Program
+              <select
+                value={programFilter}
+                onChange={(event) => setProgramFilter(event.target.value)}
+              >
+                <option value="">All Programs</option>
+                {programs.map((program) => (
+                  <option key={program} value={program}>
+                    {program}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Funding Year
+              <select
+                value={fundingYearFilter}
+                onChange={(event) => setFundingYearFilter(event.target.value)}
+              >
+                <option value="">All Funding Years</option>
+                {fundingYears.map((year) => (
+                  <option key={year} value={year}>
+                    {formatFundingYear(year)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Status
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+              >
+                <option value="">All Status</option>
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Risk
+              <select
+                value={riskFilter}
+                onChange={(event) => setRiskFilter(event.target.value)}
+              >
+                <option value="">All Risk Levels</option>
+                {risks.map((risk) => (
+                  <option key={risk} value={risk}>
+                    {risk}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section className="projects-list-card projects-compact-list-card">
+        <div className="projects-list-header">
+          <div>
+            <p className="projects-section-eyebrow">Records</p>
+            <h2>Project List</h2>
+          </div>
+
+          <span className="projects-count-pill">
+            {filteredProjects.length} / {allowedProjects.length}
+          </span>
+        </div>
+
+        {filteredProjects.length === 0 ? (
+          <div className="projects-empty">
+            <h3>No projects found</h3>
+            <p>Adjust the filters or clear all filters to show available projects.</p>
+          </div>
+        ) : (
+          <div className="projects-compact-list">
+            {filteredProjects.map((project) => {
+              const physical = Math.min(
+                100,
+                Math.max(0, toNumber(project.physical_accomplishment)),
+              )
+              const financial = Math.min(
+                100,
+                Math.max(0, toNumber(project.financial_accomplishment)),
+              )
+              const computedRisk = getRegistryRisk(project)
+              const displayStatus = getRegistryStatus(project)
+              const varianceInfo = getTargetPhysicalInfo(project)
+              const canUpdateProject = canUpdateProjectByAor(project, auth)
+              const location = [project.barangay, project.municipality, project.province]
+                .map(textValue)
+                .filter(Boolean)
+                .join(', ')
+              const latestInspection = project.last_inspection_date || project.updated_at
+
+              return (
+                <article key={project.id} className={getProjectCardClass(computedRisk)}>
+                  <div className="project-row-main">
+                    <div className="project-row-meta-line">
+                      <p className="project-row-program">{formatFundingDisplay(project)}</p>
+
+                      {textValue(project.subaybayan_project_code) && (
+                        <button
+                          type="button"
+                          className="project-row-code"
+                          onClick={(event) =>
+                            copySubayProjectCode(event, project.subaybayan_project_code)
+                          }
+                          title="Copy SubayBAYAN project code"
+                          aria-label="Copy SubayBAYAN project code"
+                        >
+                          <span>{textValue(project.subaybayan_project_code)}</span>
+                          <CopyIcon />
+                        </button>
+                      )}
+                    </div>
+
+                    <h3>{textValue(project.project_name) || 'Untitled Project'}</h3>
+                    <p className="project-row-location">
+                      {location || 'No location encoded'}
+                    </p>
+                  </div>
+
+                  <div className="project-row-status-stack">
+                    <span className={`project-status ${getStatusClass(displayStatus)}`}>
+                      {displayStatus}
+                    </span>
+                    {getRiskClass(computedRisk) !== 'none' && (
+                      <span className={`project-risk ${getRiskClass(computedRisk)}`}>
+                        {computedRisk}
+                      </span>
+                    )}
+                    <span className={`project-row-variance ${varianceInfo.className}`}>
+                      {varianceInfo.compactLabel}
+                    </span>
+                  </div>
+
+                  <div className="project-row-metrics">
+                    <div className="project-row-metric">
+                      <span>Physical</span>
+                      <strong>{formatPercent(physical)}</strong>
+                    </div>
+
+                    <div className="project-row-metric">
+                      <span>Financial</span>
+                      <strong>{formatPercent(financial)}</strong>
+                    </div>
+
+                    <div className="project-row-metric project-row-cost">
+                      <span>Cost</span>
+                      <strong>{formatCompactCurrency(project.budget)}</strong>
+                    </div>
+
+                    <div className="project-row-metric">
+                      <span>Latest</span>
+                      <strong>{formatLongDate(latestInspection)}</strong>
+                    </div>
+                  </div>
+
+                  <div className="project-row-actions">
+                    <button
+                      type="button"
+                      className="project-row-action view"
+                      onClick={() => navigate(`/projects/${project.id}`)}
+                      aria-label={`View ${textValue(project.project_name) || 'project'}`}
+                    >
+                      <ViewIcon />
+                      <span>View</span>
+                    </button>
+
+                    {canUpdateProject && (
+                      <button
+                        type="button"
+                        className="project-row-action update"
+                        onClick={() =>
+                          navigate(`/projects/${project.id}/updates`, { state: { project } })
+                        }
+                        aria-label={`Update ${textValue(project.project_name) || 'project'}`}
+                      >
+                        <UpdateIcon />
+                        <span>Update</span>
+                      </button>
+                    )}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}

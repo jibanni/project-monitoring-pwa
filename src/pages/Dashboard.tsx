@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -7,17 +11,17 @@ import {
   PieChart,
   ResponsiveContainer,
   Tooltip,
-} from 'recharts'
+  } from 'recharts'
 
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import {
   formatSignedVariance,
-  getComputedRiskLevel,
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
-import '../styles/dashboard.css'
+import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
+import { normalizeProgramName } from '../utils/program'
 
 type ProjectRecord = Record<string, any>
 
@@ -25,6 +29,23 @@ type DrilldownState = {
   title: string
   subtitle: string
   projects: ProjectRecord[]
+}
+
+
+type DashboardFilters = {
+  program: string
+  year: string
+  province: string
+  lgu: string
+}
+
+const ALL_FILTER_VALUE = '__ALL__'
+
+const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
+  program: ALL_FILTER_VALUE,
+  year: ALL_FILTER_VALUE,
+  province: ALL_FILTER_VALUE,
+  lgu: ALL_FILTER_VALUE,
 }
 
 const MODAL_CLOSE_DELAY = 190
@@ -40,7 +61,6 @@ const CHART_COLORS = [
   '#ca8a04',
 ]
 
-const STATUS_FALLBACK = 'Not Yet Started'
 
 function safeText(value: unknown, fallback = 'N/A') {
   if (value === null || value === undefined) return fallback
@@ -157,17 +177,11 @@ function getLocation(project: ProjectRecord) {
 }
 
 function getStatus(project: ProjectRecord) {
-  return safeText(
-    project.status ??
-      project.project_status ??
-      project.implementation_status ??
-      project.current_status,
-    STATUS_FALLBACK,
-  )
+  return getPmsProjectStatus(project)
 }
 
 function getRiskLevel(project: ProjectRecord) {
-  return getComputedRiskLevel(project)
+  return getPmsRiskLevel(project)
 }
 
 function getProjectCost(project: ProjectRecord) {
@@ -184,7 +198,7 @@ function getProjectCost(project: ProjectRecord) {
 }
 
 function getFundingSource(project: ProjectRecord) {
-  return safeText(
+  const source = safeText(
     project.funding_source ??
       project.source_of_fund ??
       project.fund_source ??
@@ -192,6 +206,10 @@ function getFundingSource(project: ProjectRecord) {
       project.program_name,
     'N/A',
   )
+
+  const normalizedSource = normalizeProgramName(source)
+
+  return normalizedSource || 'N/A'
 }
 
 function getFundingYear(project: ProjectRecord) {
@@ -215,6 +233,42 @@ function getFundingDisplay(project: ProjectRecord) {
 
   if (year && source !== 'N/A') return `${year} · ${source}`
   return year || source
+}
+
+
+function getProgramFilterValue(project: ProjectRecord) {
+  const source = getFundingSource(project)
+  return source === 'N/A' ? '' : source
+}
+
+function getYearFilterValue(project: ProjectRecord) {
+  return getFundingYear(project)
+}
+
+function getProvinceFilterValue(project: ProjectRecord) {
+  return safeText(project.province ?? project.province_name, '')
+}
+
+function getLguFilterValue(project: ProjectRecord) {
+  return safeText(
+    project.city_municipality ??
+      project.municipality ??
+      project.city ??
+      project.lgu ??
+      project.lgu_name,
+    '',
+  )
+}
+
+function uniqueSortedTextValues(values: string[]) {
+  return Array.from(
+    new Set(values.map((value) => safeText(value, '')).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b))
+}
+
+function matchesDashboardFilter(value: string, filterValue: string) {
+  if (filterValue === ALL_FILTER_VALUE) return true
+  return value === filterValue
 }
 
 function getPhysicalProgress(project: ProjectRecord) {
@@ -299,34 +353,6 @@ function getDaysSinceLatestUpdate(project: ProjectRecord) {
   }
 }
 
-function countBy<T extends ProjectRecord>(
-  projects: T[],
-  getter: (project: T) => string,
-) {
-  const map = new Map<string, number>()
-
-  projects.forEach((project) => {
-    const key = safeText(getter(project), 'Unspecified')
-    map.set(key, (map.get(key) ?? 0) + 1)
-  })
-
-  return Array.from(map.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-}
-
-function isStatus(project: ProjectRecord, keywords: string[]) {
-  const status = normalizeForCompare(getStatus(project))
-
-  return keywords.some((keyword) => status.includes(keyword))
-}
-
-function isRisk(project: ProjectRecord, keywords: string[]) {
-  const risk = normalizeForCompare(getRiskLevel(project))
-
-  return keywords.some((keyword) => risk.includes(keyword))
-}
-
 function getStatusColor(status: unknown, fallbackIndex = 0) {
   const normalized = normalizeForCompare(status)
 
@@ -371,6 +397,10 @@ export default function Dashboard() {
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
   const [isDrilldownClosing, setIsDrilldownClosing] = useState(false)
   const [isDashboardScrolled, setIsDashboardScrolled] = useState(false)
+  const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>(
+    DEFAULT_DASHBOARD_FILTERS,
+  )
+  const [showDashboardFilters, setShowDashboardFilters] = useState(false)
 
   useEffect(() => {
     loadProjects()
@@ -474,33 +504,108 @@ export default function Dashboard() {
     }, MODAL_CLOSE_DELAY)
   }
 
-  const visibleProjects = useMemo(() => {
+  const aorProjects = useMemo(() => {
     return filterProjectsByAor(projects, auth)
   }, [projects, auth])
 
-  const dashboardData = useMemo(() => {
-    const ongoingProjects = visibleProjects.filter((project) =>
-      isStatus(project, ['ongoing', 'on going', 'in progress', 'implementation']),
+  const filterOptions = useMemo(() => {
+    const years = uniqueSortedTextValues(aorProjects.map(getYearFilterValue)).sort(
+      (a, b) => asNumber(b) - asNumber(a),
     )
 
-    const completedProjects = visibleProjects.filter((project) =>
-      isStatus(project, ['completed', 'complete', 'finished']),
+    return {
+      programs: uniqueSortedTextValues(aorProjects.map(getProgramFilterValue)),
+      years,
+      provinces: uniqueSortedTextValues(aorProjects.map(getProvinceFilterValue)),
+      lgus: uniqueSortedTextValues(aorProjects.map(getLguFilterValue)),
+    }
+  }, [aorProjects])
+
+  const hasActiveDashboardFilters = useMemo(() => {
+    return Object.values(dashboardFilters).some(
+      (value) => value !== ALL_FILTER_VALUE,
+    )
+  }, [dashboardFilters])
+
+  const visibleProjects = useMemo(() => {
+    return aorProjects.filter((project) => {
+      return (
+        matchesDashboardFilter(
+          getProgramFilterValue(project),
+          dashboardFilters.program,
+        ) &&
+        matchesDashboardFilter(getYearFilterValue(project), dashboardFilters.year) &&
+        matchesDashboardFilter(
+          getProvinceFilterValue(project),
+          dashboardFilters.province,
+        ) &&
+        matchesDashboardFilter(getLguFilterValue(project), dashboardFilters.lgu)
+      )
+    })
+  }, [aorProjects, dashboardFilters])
+
+  const dashboardData = useMemo(() => {
+    const underProcurementProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Under Procurement',
     )
 
     const notStartedProjects = visibleProjects.filter(
-      (project) => getPhysicalProgress(project) <= 0,
+      (project) => getStatus(project) === 'Not Yet Started',
     )
 
-    const highRiskProjects = visibleProjects.filter((project) =>
-      isRisk(project, ['high']),
+    const ongoingProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Ongoing',
     )
 
-    const underProcurementProjects = visibleProjects.filter((project) =>
-      isStatus(project, ['under procurement', 'procurement', 'bidding']),
+    const completedProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Completed',
     )
 
-    const statusData = countBy(visibleProjects, getStatus)
-    const riskData = countBy(visibleProjects, getRiskLevel)
+    const suspendedProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Suspended',
+    )
+
+    const terminatedProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Terminated',
+    )
+
+    const cancelledProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Cancelled',
+    )
+
+    const criticalStatusProjects = [
+      ...suspendedProjects,
+      ...terminatedProjects,
+      ...cancelledProjects,
+    ]
+
+    const lowRiskProjects = visibleProjects.filter(
+      (project) => getRiskLevel(project) === 'Low',
+    )
+
+    const mediumRiskProjects = visibleProjects.filter(
+      (project) => getRiskLevel(project) === 'Moderate',
+    )
+
+    const highRiskProjects = visibleProjects.filter(
+      (project) => getRiskLevel(project) === 'High',
+    )
+
+    const statusData = [
+      { name: 'Under Procurement', count: underProcurementProjects.length },
+      { name: 'Not Yet Started', count: notStartedProjects.length },
+      { name: 'Ongoing', count: ongoingProjects.length },
+      { name: 'Completed', count: completedProjects.length },
+      { name: 'Suspended', count: suspendedProjects.length },
+      { name: 'Terminated', count: terminatedProjects.length },
+      { name: 'Cancelled', count: cancelledProjects.length },
+    ].filter((item) => item.count > 0)
+
+    const riskData = [
+      { name: 'Low', count: lowRiskProjects.length },
+      { name: 'Medium', count: mediumRiskProjects.length },
+      { name: 'High', count: highRiskProjects.length },
+    ].filter((item) => item.count > 0)
 
     const latestProjects = [...visibleProjects]
       .sort((a, b) => getUpdatedTime(b) - getUpdatedTime(a))
@@ -508,11 +613,17 @@ export default function Dashboard() {
 
     return {
       totalProjects: visibleProjects.length,
+      underProcurementProjects,
+      notStartedProjects,
       ongoingProjects,
       completedProjects,
-      notStartedProjects,
+      suspendedProjects,
+      terminatedProjects,
+      cancelledProjects,
+      criticalStatusProjects,
+      lowRiskProjects,
+      mediumRiskProjects,
       highRiskProjects,
-      underProcurementProjects,
       statusData,
       riskData,
       latestProjects,
@@ -531,54 +642,84 @@ export default function Dashboard() {
       records: visibleProjects,
     },
     {
-      key: 'ongoing',
-      label: 'Ongoing',
-      value: dashboardData.ongoingProjects.length,
-      helper: 'Under implementation',
-      className: 'ongoing',
-      title: 'Ongoing Projects',
-      subtitle: 'Projects currently under implementation.',
-      records: dashboardData.ongoingProjects,
+      key: 'under-procurement',
+      label: 'Under Procurement',
+      value: dashboardData.underProcurementProjects.length,
+      helper: 'No contract evidence',
+      className: 'under-procurement',
+      title: 'Under Procurement Projects',
+      subtitle: 'Projects with 0% physical accomplishment and no contract evidence yet.',
+      records: dashboardData.underProcurementProjects,
     },
     {
       key: 'not-started',
       label: 'Not Yet Started',
       value: dashboardData.notStartedProjects.length,
-      helper: '0% physical',
+      helper: 'Contracted, 0% physical',
       className: 'not-started',
       title: 'Not Yet Started Projects',
-      subtitle: 'Projects with 0% physical accomplishment.',
+      subtitle: 'Projects with contract evidence but no physical accomplishment yet.',
       records: dashboardData.notStartedProjects,
+    },
+    {
+      key: 'ongoing',
+      label: 'Ongoing',
+      value: dashboardData.ongoingProjects.length,
+      helper: '1% to 99% physical',
+      className: 'ongoing',
+      title: 'Ongoing Projects',
+      subtitle: 'Projects with physical accomplishment above 0% and below 100%, or tagged ongoing.',
+      records: dashboardData.ongoingProjects,
     },
     {
       key: 'completed',
       label: 'Completed',
       value: dashboardData.completedProjects.length,
-      helper: 'Finished',
+      helper: '100% physical or completed',
       className: 'completed',
       title: 'Completed Projects',
-      subtitle: 'Projects tagged as completed.',
+      subtitle: 'Projects with completed status or 100% physical accomplishment.',
       records: dashboardData.completedProjects,
+    },
+    {
+      key: 'critical-status',
+      label: 'Critical Status',
+      value: dashboardData.criticalStatusProjects.length,
+      helper: 'Suspended / terminated / cancelled',
+      className: 'critical-status',
+      title: 'Critical Status Projects',
+      subtitle: 'Projects tagged as suspended, terminated, or cancelled.',
+      records: dashboardData.criticalStatusProjects,
+    },
+    {
+      key: 'low-risk',
+      label: 'Low Risk',
+      value: dashboardData.lowRiskProjects.length,
+      helper: 'Risk subset',
+      className: 'low-risk',
+      title: 'Low Risk Projects',
+      subtitle: 'Projects with low risk level.',
+      records: dashboardData.lowRiskProjects,
+    },
+    {
+      key: 'medium-risk',
+      label: 'Medium Risk',
+      value: dashboardData.mediumRiskProjects.length,
+      helper: 'Risk subset',
+      className: 'medium-risk',
+      title: 'Medium Risk Projects',
+      subtitle: 'Projects with medium or moderate risk level.',
+      records: dashboardData.mediumRiskProjects,
     },
     {
       key: 'high-risk',
       label: 'High Risk',
       value: dashboardData.highRiskProjects.length,
-      helper: 'Needs action',
+      helper: 'Risk subset',
       className: 'high-risk',
       title: 'High Risk Projects',
       subtitle: 'Projects requiring close monitoring and follow-through.',
       records: dashboardData.highRiskProjects,
-    },
-    {
-      key: 'under-procurement',
-      label: 'Under Procurement',
-      value: dashboardData.underProcurementProjects.length,
-      helper: 'Procurement stage',
-      className: 'for-review',
-      title: 'Under Procurement Projects',
-      subtitle: 'Projects currently tagged under procurement or bidding.',
-      records: dashboardData.underProcurementProjects,
     },
   ]
 
@@ -805,6 +946,156 @@ export default function Dashboard() {
           </div>
         </section>
 
+        <section
+          className={[
+            'dashboard-filter-panel',
+            showDashboardFilters ? 'is-open' : '',
+            hasActiveDashboardFilters ? 'has-active-filters' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-label="Dashboard filters"
+        >
+          <div className="dashboard-filter-bar">
+            <div className="dashboard-filter-summary">
+              <span className="dashboard-filter-summary-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M4 6.5h16v2H4v-2Zm3 4.75h10v2H7v-2Zm3 4.75h4v2h-4v-2Z" />
+                </svg>
+              </span>
+
+              <div className="dashboard-filter-summary-text">
+                <p>Dashboard filters</p>
+                <strong>
+                  {[
+                    dashboardFilters.program !== ALL_FILTER_VALUE
+                      ? dashboardFilters.program
+                      : '',
+                    dashboardFilters.year !== ALL_FILTER_VALUE
+                      ? dashboardFilters.year
+                      : '',
+                    dashboardFilters.province !== ALL_FILTER_VALUE
+                      ? dashboardFilters.province
+                      : '',
+                    dashboardFilters.lgu !== ALL_FILTER_VALUE
+                      ? dashboardFilters.lgu
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'All projects'}
+                </strong>
+              </div>
+            </div>
+
+            <div className="dashboard-filter-bar-actions">
+              <span>
+                {formatCount(visibleProjects.length)} / {formatCount(aorProjects.length)}
+              </span>
+
+              <button
+                type="button"
+                className="dashboard-filter-toggle"
+                onClick={() => setShowDashboardFilters((current) => !current)}
+                aria-expanded={showDashboardFilters}
+              >
+                {showDashboardFilters ? 'Hide' : 'Filter'}
+              </button>
+            </div>
+          </div>
+
+          <div className="dashboard-filter-grid">
+            <label>
+              <span>Program</span>
+              <select
+                value={dashboardFilters.program}
+                onChange={(event) =>
+                  setDashboardFilters((current) => ({
+                    ...current,
+                    program: event.target.value,
+                  }))
+                }
+              >
+                <option value={ALL_FILTER_VALUE}>All programs</option>
+                {filterOptions.programs.map((program) => (
+                  <option key={program} value={program}>
+                    {program}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Funding Year</span>
+              <select
+                value={dashboardFilters.year}
+                onChange={(event) =>
+                  setDashboardFilters((current) => ({
+                    ...current,
+                    year: event.target.value,
+                  }))
+                }
+              >
+                <option value={ALL_FILTER_VALUE}>All years</option>
+                {filterOptions.years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Province</span>
+              <select
+                value={dashboardFilters.province}
+                onChange={(event) =>
+                  setDashboardFilters((current) => ({
+                    ...current,
+                    province: event.target.value,
+                    lgu: ALL_FILTER_VALUE,
+                  }))
+                }
+              >
+                <option value={ALL_FILTER_VALUE}>All provinces</option>
+                {filterOptions.provinces.map((province) => (
+                  <option key={province} value={province}>
+                    {province}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>LGU</span>
+              <select
+                value={dashboardFilters.lgu}
+                onChange={(event) =>
+                  setDashboardFilters((current) => ({
+                    ...current,
+                    lgu: event.target.value,
+                  }))
+                }
+              >
+                <option value={ALL_FILTER_VALUE}>All LGUs</option>
+                {filterOptions.lgus.map((lgu) => (
+                  <option key={lgu} value={lgu}>
+                    {lgu}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              className="dashboard-filter-reset"
+              disabled={!hasActiveDashboardFilters}
+              onClick={() => setDashboardFilters(DEFAULT_DASHBOARD_FILTERS)}
+            >
+              Reset
+            </button>
+          </div>
+        </section>
+
         <section className="dashboard-stat-grid" aria-label="Dashboard summary cards">
           {statCards.map((card) => (
             <button
@@ -847,13 +1138,11 @@ export default function Dashboard() {
                       cursor="pointer"
                       onClick={(entry: any) => {
                         const name = safeText(entry?.name, '')
-                        const selected = visibleProjects.filter(
-                          (project) => getStatus(project) === name,
-                        )
+                        const selected = visibleProjects.filter((project) => getStatus(project) === name)
 
                         openDrilldown(
                           `${name} Projects`,
-                          `Projects currently categorized as ${name}.`,
+                          `Projects currently categorized as ${name} using the simplified PMS10 status rule.`,
                           selected,
                         )
                       }}

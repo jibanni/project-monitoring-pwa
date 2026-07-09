@@ -1,0 +1,515 @@
+.subay-import-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  padding-bottom: 22px;
+}
+
+.subay-import-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 132px;
+  padding: 28px 30px;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 34%),
+    linear-gradient(135deg, #123f73 0%, #18599d 56%, #2368b5 100%);
+  color: #ffffff;
+  box-shadow: 0 20px 46px rgba(15, 48, 87, 0.18);
+}
+
+.subay-import-eyebrow {
+  margin: 0 0 8px;
+  color: #fed7aa;
+  font-size: 0.74rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.subay-import-hero h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.05rem, 6vw, 3.4rem);
+  font-weight: 950;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.subay-import-hero p {
+  max-width: 820px;
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.96rem;
+  font-weight: 750;
+  line-height: 1.55;
+}
+
+.subay-import-back-btn,
+.subay-import-primary-btn,
+.subay-import-secondary-btn,
+.subay-import-file-trigger,
+.subay-import-access-card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 900;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.subay-import-back-btn {
+  background: rgba(255, 255, 255, 0.94);
+  color: #174b87;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+}
+
+.subay-import-back-btn svg,
+.subay-import-upload-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.subay-import-card,
+.subay-import-access-card,
+.subay-import-alert,
+.subay-import-sheet-note {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.08);
+}
+
+.subay-import-card,
+.subay-import-access-card {
+  padding: 20px;
+}
+
+.subay-import-access-card {
+  text-align: center;
+}
+
+.subay-import-alert {
+  padding: 14px 16px;
+  font-size: 0.88rem;
+  font-weight: 850;
+}
+
+.subay-import-alert.error {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.subay-import-alert.success {
+  border-color: rgba(34, 197, 94, 0.32);
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.subay-import-upload-card,
+.subay-import-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.subay-import-upload-copy {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.subay-import-upload-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  border-radius: 18px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.subay-import-card h2,
+.subay-import-access-card h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.subay-import-card p,
+.subay-import-access-card p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.subay-import-upload-actions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: min(100%, 420px);
+}
+
+.subay-import-upload-actions input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.subay-import-file-trigger {
+  min-height: 46px;
+  border: 1px solid rgba(23, 75, 135, 0.22);
+  background: #174b87;
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(23, 75, 135, 0.18);
+  white-space: nowrap;
+}
+
+.subay-import-file-trigger:hover {
+  background: #123f73;
+}
+
+.subay-import-file-name {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subay-import-file-name.has-file {
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.subay-import-muted {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.subay-import-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.subay-import-summary-card {
+  min-height: 86px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+.subay-import-summary-card span {
+  display: block;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.subay-import-summary-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #0f172a;
+  font-size: 1.7rem;
+  font-weight: 950;
+}
+
+.subay-import-summary-card.green strong { color: #15803d; }
+.subay-import-summary-card.blue strong { color: #1d4ed8; }
+.subay-import-summary-card.orange strong { color: #ea580c; }
+.subay-import-summary-card.red strong { color: #dc2626; }
+
+.subay-import-sheet-note {
+  padding: 12px 14px;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.subay-import-issues-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.subay-import-issues-list div {
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.subay-import-issues-list strong,
+.subay-import-issues-list span {
+  display: inline-flex;
+  margin-right: 8px;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.subay-import-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.subay-import-primary-btn {
+  background: #174b87;
+  color: #ffffff;
+}
+
+.subay-import-primary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.subay-import-secondary-btn,
+.subay-import-access-card button {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.subay-import-loading,
+.subay-import-empty {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  color: #64748b;
+  font-weight: 850;
+  text-align: center;
+}
+
+.subay-import-loader {
+  width: 34px;
+  height: 34px;
+  border: 4px solid #dbeafe;
+  border-top-color: #174b87;
+  border-radius: 999px;
+  animation: subay-spin 0.75s linear infinite;
+}
+
+@keyframes subay-spin {
+  to { transform: rotate(360deg); }
+}
+
+.subay-import-table-wrap {
+  width: 100%;
+  margin-top: 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.subay-import-table {
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: collapse;
+}
+
+.subay-import-table th,
+.subay-import-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  color: #0f172a;
+  font-size: 0.82rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.subay-import-table th {
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.subay-import-table td small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.subay-import-action-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 9px;
+  font-size: 0.72rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.subay-import-action-pill.create {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.subay-import-action-pill.update {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.subay-import-action-pill.link {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.subay-import-action-pill.invalid {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.subay-import-result-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.subay-import-result-grid div {
+  padding: 12px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.subay-import-result-grid span {
+  display: block;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.subay-import-result-grid strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 1.35rem;
+  font-weight: 950;
+}
+
+.subay-import-error-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.subay-import-error-list p {
+  margin: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 900px) {
+  .subay-import-hero,
+  .subay-import-upload-card,
+  .subay-import-table-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .subay-import-back-btn {
+    align-self: flex-start;
+  }
+
+  .subay-import-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .subay-import-result-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .subay-import-upload-actions {
+    width: 100%;
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .subay-import-file-trigger,
+  .subay-import-file-name {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .subay-import-page {
+    gap: 12px;
+  }
+
+  .subay-import-hero {
+    min-height: 118px;
+    padding: 22px 18px;
+    border-radius: 24px;
+  }
+
+  .subay-import-hero h1 {
+    font-size: clamp(2rem, 11vw, 2.75rem);
+  }
+
+  .subay-import-card,
+  .subay-import-access-card {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .subay-import-upload-copy {
+    align-items: flex-start;
+  }
+
+  .subay-import-upload-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+  }
+
+  .subay-import-summary-card {
+    min-height: 78px;
+  }
+
+  .subay-import-summary-card strong {
+    font-size: 1.42rem;
+  }
+}

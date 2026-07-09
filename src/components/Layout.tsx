@@ -225,6 +225,10 @@ export default function Layout({ children }: LayoutProps) {
     setHeaderPortalReady(true)
   }, [])
 
+
+
+
+
   useEffect(() => {
     const previousScrollRestoration = window.history.scrollRestoration
     window.history.scrollRestoration = 'manual'
@@ -422,7 +426,10 @@ export default function Layout({ children }: LayoutProps) {
   const appHeader = (
     <header
       ref={headerRef}
-      className={['app-header', isScrolled ? 'app-header-scrolled' : '']
+      className={[
+        'app-header',
+        isScrolled ? 'app-header-scrolled' : '',
+      ]
         .filter(Boolean)
         .join(' ')}
       style={shellStyle}
@@ -439,6 +446,8 @@ export default function Layout({ children }: LayoutProps) {
             <span className="app-brand-unit">Project Development and Management Unit</span>
           </span>
         </NavLink>
+
+        
 
         <nav className="app-desktop-nav" aria-label="Main navigation">
           {visibleNavItems.map((item) => {
@@ -457,7 +466,7 @@ export default function Layout({ children }: LayoutProps) {
                 <span className="app-nav-icon">
                   <AppIcon type={item.icon} />
                 </span>
-                <span>{item.label}</span>
+                <span className="app-nav-label">{item.label}</span>
               </NavLink>
             )
           })}
@@ -485,6 +494,8 @@ export default function Layout({ children }: LayoutProps) {
             Logout
           </button>
         </div>
+
+        
       </div>
     </header>
   )

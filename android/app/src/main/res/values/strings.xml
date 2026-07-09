@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PMS10</string>
+    <string name="title_activity_main">PMS10</string>
+    <string name="package_name">ph.gov.dilg.region10.pms10</string>
+    <string name="custom_url_scheme">ph.gov.dilg.region10.pms10</string>
+</resources>
