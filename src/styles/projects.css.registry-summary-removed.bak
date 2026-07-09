@@ -1918,33 +1918,3 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
-
-/* =========================
-   PMS10 REMOVE PROJECT REGISTRY SUMMARY CARDS
-   Removes the Project Registry top summary cards to keep the list simple.
-========================= */
-
-.projects-summary-grid,
-.projects-summary-card,
-.projects-page .projects-summary-grid,
-.projects-page .projects-summary-card {
-  display: none !important;
-}
-
-/* Tighten the space after removing Project Registry summary cards. */
-.projects-page .projects-search-panel,
-.projects-search-panel {
-  margin-top: 0 !important;
-}
-
-@media (max-width: 700px) {
-  .projects-page {
-    gap: 12px !important;
-  }
-
-  .projects-compact-list-card,
-  .project-list-panel,
-  .projects-list-card {
-    margin-top: 0 !important;
-  }
-}
