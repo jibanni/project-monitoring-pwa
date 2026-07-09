@@ -24,6 +24,7 @@ const OfflineSync = lazy(() => import('./pages/OfflineSync'))
 const Reports = lazy(() => import('./pages/Reports'))
 const UserManagement = lazy(() => import('./pages/UserManagement'))
 const UserAccess = lazy(() => import('./pages/UserAccess'))
+const SubayImport = lazy(() => import('./pages/SubayImport'))
 
 type ProtectedRouteProps = ComponentProps<typeof ProtectedRoute>
 
@@ -159,6 +160,16 @@ function App() {
             element={
               <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'Engineer']}>
                 <OfflineSync />
+              </ProtectedLayout>
+            }
+          />
+
+
+          <Route
+            path="/projects/import-subaybayan"
+            element={
+              <ProtectedLayout allowedRoles={['Admin']}>
+                <SubayImport />
               </ProtectedLayout>
             }
           />

@@ -1611,3 +1611,109 @@
     max-height: 404px !important;
   }
 }
+
+
+/* =========================
+   PMS10 DASHBOARD 9-CARD LAYOUT
+   5 cards top row, 4 wider cards bottom row
+========================= */
+
+@media (min-width: 1180px) {
+  .dashboard-stat-grid {
+    display: grid !important;
+    grid-template-columns: repeat(20, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    align-items: stretch !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(-n + 5) {
+    grid-column: span 4 !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(n + 6) {
+    grid-column: span 5 !important;
+  }
+}
+
+@media (min-width: 760px) and (max-width: 1179px) {
+  .dashboard-stat-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card {
+    grid-column: auto !important;
+  }
+}
+
+@media (max-width: 759px) {
+  .dashboard-stat-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card {
+    grid-column: auto !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .dashboard-stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.dashboard-stat-card.under-procurement {
+  border-top-color: #f97316 !important;
+}
+
+.dashboard-stat-card.not-started {
+  border-top-color: #64748b !important;
+}
+
+.dashboard-stat-card.ongoing {
+  border-top-color: #16a34a !important;
+}
+
+.dashboard-stat-card.completed {
+  border-top-color: #2563eb !important;
+}
+
+.dashboard-stat-card.critical-status {
+  border-top-color: #ef4444 !important;
+}
+
+.dashboard-stat-card.low-risk {
+  border-top-color: #eab308 !important;
+}
+
+.dashboard-stat-card.medium-risk {
+  border-top-color: #f97316 !important;
+}
+
+.dashboard-stat-card.high-risk {
+  border-top-color: #ef4444 !important;
+}
+
+/* =========================
+   PMS10 RESCUE RESTORE MERGE
+   Safe dashboard polish only. Original hero merge behavior is preserved.
+========================= */
+
+@media (min-width: 901px) {
+  .dashboard-stat-card,
+  .dashboard-chart-card,
+  .dashboard-panel,
+  .dashboard-card,
+  .dashboard-priority-card {
+    border-radius: 22px;
+    box-shadow: var(--pms10-card-shadow, 0 12px 32px rgba(15, 23, 42, 0.07));
+    border-color: var(--pms10-card-border, rgba(148, 163, 184, 0.18));
+  }
+
+  .dashboard-stat-grid {
+    gap: 14px;
+  }
+}

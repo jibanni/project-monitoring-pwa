@@ -46,6 +46,13 @@ export type OfflineProjectUpdate = {
 
   project_id: string
   project_name?: string
+  funding_source?: string | null
+  funding_year?: number | string | null
+  funding_program?: string | null
+  fiscal_year?: number | string | null
+  year?: number | string | null
+  program?: string | null
+  program_name?: string | null
   engineer_id?: string | null
 
   inspection_date: string
@@ -85,6 +92,13 @@ export type OfflineProjectPhoto = {
 
   project_id: string
   project_name?: string
+  funding_source?: string | null
+  funding_year?: number | string | null
+  funding_program?: string | null
+  fiscal_year?: number | string | null
+  year?: number | string | null
+  program?: string | null
+  program_name?: string | null
 
   file_name: string
   file_type: string

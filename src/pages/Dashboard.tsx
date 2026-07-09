@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -7,17 +11,16 @@ import {
   PieChart,
   ResponsiveContainer,
   Tooltip,
-} from 'recharts'
+  } from 'recharts'
 
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import {
   formatSignedVariance,
-  getComputedRiskLevel,
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
-import '../styles/dashboard.css'
+import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
 
 type ProjectRecord = Record<string, any>
 
@@ -40,7 +43,6 @@ const CHART_COLORS = [
   '#ca8a04',
 ]
 
-const STATUS_FALLBACK = 'Not Yet Started'
 
 function safeText(value: unknown, fallback = 'N/A') {
   if (value === null || value === undefined) return fallback
@@ -157,17 +159,11 @@ function getLocation(project: ProjectRecord) {
 }
 
 function getStatus(project: ProjectRecord) {
-  return safeText(
-    project.status ??
-      project.project_status ??
-      project.implementation_status ??
-      project.current_status,
-    STATUS_FALLBACK,
-  )
+  return getPmsProjectStatus(project)
 }
 
 function getRiskLevel(project: ProjectRecord) {
-  return getComputedRiskLevel(project)
+  return getPmsRiskLevel(project)
 }
 
 function getProjectCost(project: ProjectRecord) {
@@ -297,34 +293,6 @@ function getDaysSinceLatestUpdate(project: ProjectRecord) {
     days,
     label: days === 0 ? 'Updated today' : `Updated ${days} day${days === 1 ? '' : 's'} ago`,
   }
-}
-
-function countBy<T extends ProjectRecord>(
-  projects: T[],
-  getter: (project: T) => string,
-) {
-  const map = new Map<string, number>()
-
-  projects.forEach((project) => {
-    const key = safeText(getter(project), 'Unspecified')
-    map.set(key, (map.get(key) ?? 0) + 1)
-  })
-
-  return Array.from(map.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-}
-
-function isStatus(project: ProjectRecord, keywords: string[]) {
-  const status = normalizeForCompare(getStatus(project))
-
-  return keywords.some((keyword) => status.includes(keyword))
-}
-
-function isRisk(project: ProjectRecord, keywords: string[]) {
-  const risk = normalizeForCompare(getRiskLevel(project))
-
-  return keywords.some((keyword) => risk.includes(keyword))
 }
 
 function getStatusColor(status: unknown, fallbackIndex = 0) {
@@ -479,28 +447,67 @@ export default function Dashboard() {
   }, [projects, auth])
 
   const dashboardData = useMemo(() => {
-    const ongoingProjects = visibleProjects.filter((project) =>
-      isStatus(project, ['ongoing', 'on going', 'in progress', 'implementation']),
-    )
-
-    const completedProjects = visibleProjects.filter((project) =>
-      isStatus(project, ['completed', 'complete', 'finished']),
+    const underProcurementProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Under Procurement',
     )
 
     const notStartedProjects = visibleProjects.filter(
-      (project) => getPhysicalProgress(project) <= 0,
+      (project) => getStatus(project) === 'Not Yet Started',
     )
 
-    const highRiskProjects = visibleProjects.filter((project) =>
-      isRisk(project, ['high']),
+    const ongoingProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Ongoing',
     )
 
-    const underProcurementProjects = visibleProjects.filter((project) =>
-      isStatus(project, ['under procurement', 'procurement', 'bidding']),
+    const completedProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Completed',
     )
 
-    const statusData = countBy(visibleProjects, getStatus)
-    const riskData = countBy(visibleProjects, getRiskLevel)
+    const suspendedProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Suspended',
+    )
+
+    const terminatedProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Terminated',
+    )
+
+    const cancelledProjects = visibleProjects.filter(
+      (project) => getStatus(project) === 'Cancelled',
+    )
+
+    const criticalStatusProjects = [
+      ...suspendedProjects,
+      ...terminatedProjects,
+      ...cancelledProjects,
+    ]
+
+    const lowRiskProjects = visibleProjects.filter(
+      (project) => getRiskLevel(project) === 'Low',
+    )
+
+    const mediumRiskProjects = visibleProjects.filter(
+      (project) => getRiskLevel(project) === 'Moderate',
+    )
+
+    const highRiskProjects = visibleProjects.filter(
+      (project) => getRiskLevel(project) === 'High',
+    )
+
+    const statusData = [
+      { name: 'Under Procurement', count: underProcurementProjects.length },
+      { name: 'Not Yet Started', count: notStartedProjects.length },
+      { name: 'Ongoing', count: ongoingProjects.length },
+      { name: 'Completed', count: completedProjects.length },
+      { name: 'Suspended', count: suspendedProjects.length },
+      { name: 'Terminated', count: terminatedProjects.length },
+      { name: 'Cancelled', count: cancelledProjects.length },
+    ].filter((item) => item.count > 0)
+
+    const riskData = [
+      { name: 'Low', count: lowRiskProjects.length },
+      { name: 'Medium', count: mediumRiskProjects.length },
+      { name: 'High', count: highRiskProjects.length },
+    ].filter((item) => item.count > 0)
 
     const latestProjects = [...visibleProjects]
       .sort((a, b) => getUpdatedTime(b) - getUpdatedTime(a))
@@ -508,11 +515,17 @@ export default function Dashboard() {
 
     return {
       totalProjects: visibleProjects.length,
+      underProcurementProjects,
+      notStartedProjects,
       ongoingProjects,
       completedProjects,
-      notStartedProjects,
+      suspendedProjects,
+      terminatedProjects,
+      cancelledProjects,
+      criticalStatusProjects,
+      lowRiskProjects,
+      mediumRiskProjects,
       highRiskProjects,
-      underProcurementProjects,
       statusData,
       riskData,
       latestProjects,
@@ -531,54 +544,84 @@ export default function Dashboard() {
       records: visibleProjects,
     },
     {
-      key: 'ongoing',
-      label: 'Ongoing',
-      value: dashboardData.ongoingProjects.length,
-      helper: 'Under implementation',
-      className: 'ongoing',
-      title: 'Ongoing Projects',
-      subtitle: 'Projects currently under implementation.',
-      records: dashboardData.ongoingProjects,
+      key: 'under-procurement',
+      label: 'Under Procurement',
+      value: dashboardData.underProcurementProjects.length,
+      helper: 'No contract evidence',
+      className: 'under-procurement',
+      title: 'Under Procurement Projects',
+      subtitle: 'Projects with 0% physical accomplishment and no contract evidence yet.',
+      records: dashboardData.underProcurementProjects,
     },
     {
       key: 'not-started',
       label: 'Not Yet Started',
       value: dashboardData.notStartedProjects.length,
-      helper: '0% physical',
+      helper: 'Contracted, 0% physical',
       className: 'not-started',
       title: 'Not Yet Started Projects',
-      subtitle: 'Projects with 0% physical accomplishment.',
+      subtitle: 'Projects with contract evidence but no physical accomplishment yet.',
       records: dashboardData.notStartedProjects,
+    },
+    {
+      key: 'ongoing',
+      label: 'Ongoing',
+      value: dashboardData.ongoingProjects.length,
+      helper: '1% to 99% physical',
+      className: 'ongoing',
+      title: 'Ongoing Projects',
+      subtitle: 'Projects with physical accomplishment above 0% and below 100%, or tagged ongoing.',
+      records: dashboardData.ongoingProjects,
     },
     {
       key: 'completed',
       label: 'Completed',
       value: dashboardData.completedProjects.length,
-      helper: 'Finished',
+      helper: '100% physical or completed',
       className: 'completed',
       title: 'Completed Projects',
-      subtitle: 'Projects tagged as completed.',
+      subtitle: 'Projects with completed status or 100% physical accomplishment.',
       records: dashboardData.completedProjects,
+    },
+    {
+      key: 'critical-status',
+      label: 'Critical Status',
+      value: dashboardData.criticalStatusProjects.length,
+      helper: 'Suspended / terminated / cancelled',
+      className: 'critical-status',
+      title: 'Critical Status Projects',
+      subtitle: 'Projects tagged as suspended, terminated, or cancelled.',
+      records: dashboardData.criticalStatusProjects,
+    },
+    {
+      key: 'low-risk',
+      label: 'Low Risk',
+      value: dashboardData.lowRiskProjects.length,
+      helper: 'Risk subset',
+      className: 'low-risk',
+      title: 'Low Risk Projects',
+      subtitle: 'Projects with low risk level.',
+      records: dashboardData.lowRiskProjects,
+    },
+    {
+      key: 'medium-risk',
+      label: 'Medium Risk',
+      value: dashboardData.mediumRiskProjects.length,
+      helper: 'Risk subset',
+      className: 'medium-risk',
+      title: 'Medium Risk Projects',
+      subtitle: 'Projects with medium or moderate risk level.',
+      records: dashboardData.mediumRiskProjects,
     },
     {
       key: 'high-risk',
       label: 'High Risk',
       value: dashboardData.highRiskProjects.length,
-      helper: 'Needs action',
+      helper: 'Risk subset',
       className: 'high-risk',
       title: 'High Risk Projects',
       subtitle: 'Projects requiring close monitoring and follow-through.',
       records: dashboardData.highRiskProjects,
-    },
-    {
-      key: 'under-procurement',
-      label: 'Under Procurement',
-      value: dashboardData.underProcurementProjects.length,
-      helper: 'Procurement stage',
-      className: 'for-review',
-      title: 'Under Procurement Projects',
-      subtitle: 'Projects currently tagged under procurement or bidding.',
-      records: dashboardData.underProcurementProjects,
     },
   ]
 
@@ -847,13 +890,11 @@ export default function Dashboard() {
                       cursor="pointer"
                       onClick={(entry: any) => {
                         const name = safeText(entry?.name, '')
-                        const selected = visibleProjects.filter(
-                          (project) => getStatus(project) === name,
-                        )
+                        const selected = visibleProjects.filter((project) => getStatus(project) === name)
 
                         openDrilldown(
                           `${name} Projects`,
-                          `Projects currently categorized as ${name}.`,
+                          `Projects currently categorized as ${name} using the simplified PMS10 status rule.`,
                           selected,
                         )
                       }}

@@ -11,6 +11,7 @@ import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
 import '../styles/projectDetails.css'
 import '../styles/pageHero.css'
+import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveImageUrl'
 
 function toNumber(value: unknown): number {
   if (value === null || value === undefined || value === '') return 0
@@ -169,6 +170,15 @@ function IconDelete() {
   )
 }
 
+function IconCopy() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 8.25A2.25 2.25 0 0 1 10.25 6h6.5A2.25 2.25 0 0 1 19 8.25v8.5A2.25 2.25 0 0 1 16.75 19h-6.5A2.25 2.25 0 0 1 8 16.75v-8.5Z" />
+      <path d="M5 13.75V5.25A2.25 2.25 0 0 1 7.25 3h6.5" />
+    </svg>
+  )
+}
+
 export default function ProjectDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -184,6 +194,7 @@ export default function ProjectDetails() {
   const [portalReady, setPortalReady] = useState(false)
   const [isHeroCompact, setIsHeroCompact] = useState(false)
   const [accessDenied, setAccessDenied] = useState(false)
+  const [copiedSubayCode, setCopiedSubayCode] = useState(false)
 
   useEffect(() => {
     setPortalReady(true)
@@ -610,6 +621,20 @@ export default function ProjectDetails() {
     navigate(`/map?projectId=${encodeURIComponent(id)}&from=details`)
   }
 
+  const subayCode = project ? getDisplayValue(project.subaybayan_project_code, '') : ''
+
+  async function handleCopySubayCode() {
+    if (!subayCode) return
+
+    try {
+      await navigator.clipboard.writeText(subayCode)
+      setCopiedSubayCode(true)
+      window.setTimeout(() => setCopiedSubayCode(false), 1400)
+    } catch {
+      window.prompt('Copy SubayBAYAN Project Code:', subayCode)
+    }
+  }
+
   if (loading) {
     return (
       <div className="pd-page">
@@ -675,6 +700,25 @@ export default function ProjectDetails() {
               <span>{getDisplayValue(project.municipality)}</span>
               <span>{getDisplayValue(project.barangay)}</span>
             </div>
+
+            {subayCode && (
+              <div className="pd-subay-code-row">
+                <span className="pd-subay-code-pill">
+                  <span>Subay Code:</span>
+                  <strong>{subayCode}</strong>
+                </span>
+                <button
+                  type="button"
+                  className="pd-subay-copy-btn"
+                  onClick={handleCopySubayCode}
+                  aria-label="Copy SubayBAYAN project code"
+                  title="Copy Subay Code"
+                >
+                  <IconCopy />
+                </button>
+                {copiedSubayCode && <span className="pd-subay-copy-note">Copied</span>}
+              </div>
+            )}
           </div>
         </div>
 
@@ -766,6 +810,16 @@ export default function ProjectDetails() {
               <div className="pd-info-item">
                 <span>Target Completion</span>
                 <strong>{formatDate(project.target_completion_date)}</strong>
+              </div>
+
+              <div className="pd-info-item">
+                <span>Contract Expiry</span>
+                <strong>{formatDate(project.contract_expiration_date)}</strong>
+              </div>
+
+              <div className="pd-info-item">
+                <span>Revised Expiry</span>
+                <strong>{formatDate(project.revised_contract_expiration_date)}</strong>
               </div>
             </div>
 
@@ -909,7 +963,7 @@ export default function ProjectDetails() {
                   type="button"
                   className="pd-feature-photo-card"
                   style={{
-                    backgroundImage: `linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.9)), url("${primaryPhoto.photo_url}")`,
+                    backgroundImage: `linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.9)), url("${getDriveImagePreviewUrl(primaryPhoto.photo_url)}")`,
                   }}
                   onClick={() => setPhotosExpanded((current) => !current)}
                   aria-expanded={photosExpanded}
@@ -959,14 +1013,14 @@ export default function ProjectDetails() {
                           <a
                             key={photo.id}
                             className="pd-photo-card"
-                            href={photo.photo_url}
+                            href={getDriveImageOpenUrl(photo.photo_url)}
                             target="_blank"
                             rel="noreferrer"
                           >
                             <div
                               className="pd-photo-card-image"
                               style={{
-                                backgroundImage: `url("${photo.photo_url}")`,
+                                backgroundImage: `url("${getDriveImagePreviewUrl(photo.photo_url)}")`,
                               }}
                             />
 

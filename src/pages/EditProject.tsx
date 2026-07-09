@@ -13,6 +13,7 @@ import {
   getTargetPhysicalInfo,
   requiresProjectReason,
 } from '../utils/projectVariance'
+import { toProjectTitleCase } from '../utils/projectTitleCase'
 import '../styles/editProject.css'
 import '../styles/pageHero.css'
 
@@ -815,7 +816,7 @@ export default function EditProject() {
     setSuccessMessage('')
 
     const updatePayload = {
-      project_name: cleanText(form.project_name) || 'Untitled Project',
+      project_name: toProjectTitleCase(cleanText(form.project_name) || 'Untitled Project'),
       description: cleanText(form.description),
       status: cleanText(form.status) || 'Not Yet Started',
       project_type: cleanText(form.project_type),

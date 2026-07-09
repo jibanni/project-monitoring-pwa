@@ -13,6 +13,7 @@ import {
   getTargetPhysicalInfo,
   requiresProjectReason,
 } from '../utils/projectVariance'
+import { toProjectTitleCase } from '../utils/projectTitleCase'
 import '../styles/createProject.css'
 import '../styles/pageHero.css'
 
@@ -712,7 +713,7 @@ export default function CreateProject() {
     }
 
     const payload: ProjectInsert = {
-      project_name: projectName.trim(),
+      project_name: toProjectTitleCase(projectName),
       description: description.trim(),
       status,
       project_type: projectType,

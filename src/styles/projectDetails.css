@@ -2743,3 +2743,75 @@ body > .pd-viewport-titlebar h1 {
   }
 }
 
+
+.pd-subay-code-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pd-subay-code-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(100%, 420px);
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.2;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.pd-subay-code-pill strong {
+  max-width: 250px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.pd-subay-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #174b87;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.22);
+}
+
+.pd-subay-copy-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
+.pd-subay-copy-note {
+  color: #bbf7d0;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+@media (max-width: 640px) {
+  .pd-subay-code-row {
+    margin-top: 10px;
+  }
+
+  .pd-subay-code-pill {
+    max-width: calc(100vw - 104px);
+  }
+
+  .pd-subay-code-pill strong {
+    max-width: 150px;
+  }
+}
