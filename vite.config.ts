@@ -10,41 +10,46 @@ export default defineConfig({
       registerType: 'autoUpdate',
 
       includeAssets: [
-        'favicon.ico',
-        'favicon.png',
-        'apple-touch-icon.png',
-        'pwa-192x192.png',
-        'pwa-512x512.png',
-        'pms10-logo.png',
-      ],
+      "favicon.ico",
+      "favicon.png",
+      "apple-touch-icon.png",
+      "pwa-192x192.png",
+      "pwa-512x512.png",
+      "pwa-maskable-512x512.png",
+    ],
 
       manifest: {
-        name: 'DILG X - PDMU Project Monitoring System',
-        short_name: 'PMS10',
-        description: 'DILG X - PDMU Project Monitoring System',
-        theme_color: '#0531A0',
-        background_color: '#0531A0',
-        display: 'standalone',
-        orientation: 'portrait',
-        scope: '/',
-        start_url: '/',
-        lang: 'en-PH',
-
-        icons: [
-          {
-            src: '/pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
-        ],
-      },
+      name: "PMS10 – DILG Region X Project Monitoring System",
+      short_name: "PMS10",
+      description:
+        "DILG Region X Project Monitoring System for project updates, GIS mapping, monitoring, reporting, and offline synchronization.",
+      start_url: "/",
+      scope: "/",
+      display: "standalone",
+      orientation: "portrait-primary",
+      theme_color: "#075DDB",
+      background_color: "#075DDB",
+      icons: [
+        {
+          src: "/pwa-192x192.png",
+          sizes: "192x192",
+          type: "image/png",
+          purpose: "any",
+        },
+        {
+          src: "/pwa-512x512.png",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "any",
+        },
+        {
+          src: "/pwa-maskable-512x512.png",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "maskable",
+        },
+      ],
+    },
 
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
