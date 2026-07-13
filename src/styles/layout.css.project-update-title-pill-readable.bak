@@ -1786,753 +1786,127 @@ body > .app-header.app-header-scrolled .app-brand-unit {
 
 
 
-
-
-
-
-
-
 /* =========================
-   PMS10 UPDATE HERO PILLS TITLECASE FINAL FIX
-   Repaired Project Update hero pills + location title-case display support.
+   PMS10 PROJECT UPDATE COMPACT TITLE PILL FIX
+   Field mode: replaces the large blue Project Update hero with a compact title/status pill card.
 ========================= */
 
-/* Project Update blue hero */
-.pu-update-hero-card {
-  display: block !important;
-  position: relative !important;
-  min-height: 232px !important;
-  max-height: 320px !important;
+.project-update-title-pill-card {
+  min-height: 0 !important;
+  max-height: none !important;
   height: auto !important;
-  margin: 10px 14px 12px !important;
-  padding: 26px 30px 24px !important;
-  border: 0 !important;
-  border-radius: 28px !important;
-  color: #ffffff !important;
-  background: linear-gradient(135deg, #0d3f78 0%, #155fa9 58%, #2373c4 100%) !important;
-  box-shadow: 0 16px 34px rgba(15, 79, 143, 0.2) !important;
-  overflow: hidden !important;
+
+  margin: 12px 0 12px !important;
+  padding: 12px 14px !important;
+
+  border-radius: 22px !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #0f172a !important;
+
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+  overflow: visible !important;
 }
 
-.pu-update-hero-card::before,
-.pu-update-hero-card::after {
+.project-update-title-pill-card::before,
+.project-update-title-pill-card::after {
   display: none !important;
   content: none !important;
   background: transparent !important;
-  border: 0 !important;
   box-shadow: none !important;
 }
 
-.pu-update-hero-card * {
-  position: relative !important;
-  z-index: 1 !important;
+.project-update-title-pill-card * {
   text-shadow: none !important;
 }
 
-/* Eyebrow */
-.pu-update-hero-card p:first-child,
-.pu-update-hero-card [class*='eyebrow'],
-.pu-update-hero-card [class*='kicker'] {
-  margin: 0 0 13px !important;
-  color: #ffb020 !important;
-  font-size: 0.76rem !important;
+.project-update-title-pill-card p:first-child,
+.project-update-title-pill-card [class*='eyebrow'],
+.project-update-title-pill-card [class*='kicker'] {
+  margin: 0 0 6px !important;
+  color: #0f4f8f !important;
+  font-size: 0.68rem !important;
   line-height: 1.05 !important;
   font-weight: 950 !important;
-  letter-spacing: 0.18em !important;
+  letter-spacing: 0.16em !important;
   text-transform: uppercase !important;
 }
 
-/* Project title */
-.pu-update-hero-title,
-.pu-update-hero-card h1 {
+.project-update-title-pill-text {
   display: -webkit-box !important;
   -webkit-box-orient: vertical !important;
-  -webkit-line-clamp: 3 !important;
-  width: 100% !important;
+  -webkit-line-clamp: 2 !important;
+
+  margin: 0 !important;
   max-width: 100% !important;
-  margin: 0 0 14px !important;
-  padding: 0 !important;
+
   overflow: hidden !important;
   overflow-wrap: anywhere !important;
   word-break: normal !important;
-  color: #ffffff !important;
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  font-size: clamp(1.72rem, 8vw, 2.72rem) !important;
-  line-height: 1.04 !important;
-  letter-spacing: -0.055em !important;
+
+  color: #0f172a !important;
+  font-size: clamp(1rem, 2.6vw, 1.35rem) !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.025em !important;
   font-weight: 950 !important;
 }
 
-/* Reset wrapper rows so they never become the outer bubble. */
-.pu-update-hero-card [class*='meta'],
-.pu-update-hero-card [class*='actions'],
-.pu-update-hero-card [class*='summary'],
-.pu-update-hero-card [class*='location'],
-.pu-update-hero-card [class*='chips'],
-.pu-update-hero-card [class*='badges'],
-.pu-update-hero-card [class*='pills'] {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  align-items: center !important;
-  gap: 8px !important;
-  width: auto !important;
-  max-width: 100% !important;
-  min-height: 0 !important;
-  margin-top: 10px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Reset parent wrappers that contain children. Supported in modern iOS Safari. */
-.pu-update-hero-card [class*='status']:has(> *),
-.pu-update-hero-card [class*='complete']:has(> *),
-.pu-update-hero-card [class*='completed']:has(> *),
-.pu-update-hero-card [class*='risk']:has(> *),
-.pu-update-hero-card [class*='progress']:has(> *),
-.pu-update-hero-card [class*='high']:has(> *),
-.pu-update-hero-card [class*='medium']:has(> *),
-.pu-update-hero-card [class*='low']:has(> *) {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  align-items: center !important;
-  gap: 8px !important;
-  width: auto !important;
-  max-width: 100% !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Real pill elements only. Avoid containers like "chips", "badges", and "pills". */
-.pu-update-hero-card [class*='-chip']:not([class*='chips']),
-.pu-update-hero-card [class*='_chip']:not([class*='chips']),
-.pu-update-hero-card [class*=' chip']:not([class*='chips']),
-.pu-update-hero-card [class*='-pill']:not([class*='pills']),
-.pu-update-hero-card [class*='_pill']:not([class*='pills']),
-.pu-update-hero-card [class*=' pill']:not([class*='pills']),
-.pu-update-hero-card [class*='-badge']:not([class*='badges']),
-.pu-update-hero-card [class*='_badge']:not([class*='badges']),
-.pu-update-hero-card [class*=' badge']:not([class*='badges']),
-.pu-update-hero-card [class*='status']:not(:has(> *)),
-.pu-update-hero-card [class*='complete']:not(:has(> *)),
-.pu-update-hero-card [class*='completed']:not(:has(> *)),
-.pu-update-hero-card [class*='risk']:not(:has(> *)),
-.pu-update-hero-card [class*='progress']:not(:has(> *)),
-.pu-update-hero-card [class*='high']:not(:has(> *)),
-.pu-update-hero-card [class*='medium']:not(:has(> *)),
-.pu-update-hero-card [class*='low']:not(:has(> *)) {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex: 0 0 auto !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: max-content !important;
-  min-height: 32px !important;
-  margin: 0 !important;
-  padding: 7px 13px !important;
+.project-update-title-pill-card [class*='chip'],
+.project-update-title-pill-card [class*='pill'],
+.project-update-title-pill-card [class*='badge'],
+.project-update-title-pill-card [class*='status'] {
+  min-height: 28px !important;
+  padding: 6px 10px !important;
   border-radius: 999px !important;
-  border: 1px solid rgba(255, 255, 255, 0.28) !important;
-  background: rgba(255, 255, 255, 0.14) !important;
-  box-shadow: none !important;
-  color: rgba(255, 255, 255, 0.94) !important;
-  font-size: 0.72rem !important;
+  font-size: 0.7rem !important;
   line-height: 1 !important;
-  font-weight: 950 !important;
-  letter-spacing: 0.03em !important;
-  white-space: nowrap !important;
-  text-transform: none !important;
 }
 
-/* Remove previous separator dots */
-.pu-update-hero-card [class*='-chip']::after,
-.pu-update-hero-card [class*='_chip']::after,
-.pu-update-hero-card [class*=' chip']::after,
-.pu-update-hero-card [class*='-pill']::after,
-.pu-update-hero-card [class*='_pill']::after,
-.pu-update-hero-card [class*=' pill']::after,
-.pu-update-hero-card [class*='-badge']::after,
-.pu-update-hero-card [class*='_badge']::after,
-.pu-update-hero-card [class*=' badge']::after {
-  display: none !important;
-  content: none !important;
-}
-
-/* Individual pill colors */
-.pu-update-hero-card [class*='complete']:not(:has(> *)),
-.pu-update-hero-card [class*='completed']:not(:has(> *)) {
-  color: #166534 !important;
-  background: #dcfce7 !important;
-  border-color: rgba(34, 197, 94, 0.28) !important;
-}
-
-.pu-update-hero-card [class*='progress']:not(:has(> *)) {
-  color: #1d4ed8 !important;
-  background: #eff6ff !important;
-  border-color: rgba(59, 130, 246, 0.3) !important;
-}
-
-.pu-update-hero-card [class*='high']:not(:has(> *)),
-.pu-update-hero-card [class*='risk']:not(:has(> *)) {
-  color: #b91c1c !important;
-  background: #fee2e2 !important;
-  border-color: rgba(239, 68, 68, 0.3) !important;
-}
-
-.pu-update-hero-card [class*='medium']:not(:has(> *)) {
-  color: #c2410c !important;
-  background: #ffedd5 !important;
-  border-color: rgba(249, 115, 22, 0.3) !important;
-}
-
-.pu-update-hero-card [class*='low']:not(:has(> *)) {
-  color: #854d0e !important;
-  background: #fef9c3 !important;
-  border-color: rgba(234, 179, 8, 0.3) !important;
-}
-
-/* Location display: stop CSS from forcing all caps in location-related fields. */
-[class*='province'],
-[class*='municip'],
-[class*='city'],
-[class*='barangay'],
-[class*='brgy'],
-[class*='lgu'],
-[class*='location'],
-[class*='address'],
-[data-field*='province'],
-[data-field*='municip'],
-[data-field*='city'],
-[data-field*='barangay'],
-[data-field*='brgy'],
-[data-field*='lgu'],
-[data-label*='province'],
-[data-label*='municip'],
-[data-label*='city'],
-[data-label*='barangay'],
-[data-label*='brgy'],
-[data-label*='lgu'] {
-  text-transform: none !important;
-}
-
-@media (min-width: 901px) {
-  .pu-update-hero-card {
-    min-height: 236px !important;
-    max-height: 320px !important;
-    padding: 28px 34px 26px !important;
-  }
-
-  .pu-update-hero-title,
-  .pu-update-hero-card h1 {
-    font-size: clamp(2.05rem, 4.4vw, 3.62rem) !important;
-  }
+.project-update-title-pill-card [class*='meta'],
+.project-update-title-pill-card [class*='actions'],
+.project-update-title-pill-card [class*='summary'] {
+  margin-top: 10px !important;
+  gap: 7px !important;
 }
 
 @media (max-width: 900px) {
-  .pu-update-hero-card {
-    min-height: 226px !important;
-    max-height: 310px !important;
-    margin: 10px 14px 12px !important;
-    padding: 25px 28px 23px !important;
-    border-radius: 27px !important;
+  .project-update-title-pill-card {
+    margin: 10px 12px 12px !important;
+    padding: 12px 12px !important;
+    border-radius: 20px !important;
   }
 
-  .pu-update-hero-card p:first-child,
-  .pu-update-hero-card [class*='eyebrow'],
-  .pu-update-hero-card [class*='kicker'] {
-    font-size: 0.72rem !important;
-    margin-bottom: 12px !important;
+  .project-update-title-pill-text {
+    font-size: clamp(0.94rem, 4.6vw, 1.16rem) !important;
+    line-height: 1.18 !important;
+    -webkit-line-clamp: 2 !important;
   }
 
-  .pu-update-hero-title,
-  .pu-update-hero-card h1 {
-    font-size: clamp(1.66rem, 7.8vw, 2.46rem) !important;
-    line-height: 1.04 !important;
-    -webkit-line-clamp: 3 !important;
+  .project-update-title-pill-card p:first-child,
+  .project-update-title-pill-card [class*='eyebrow'],
+  .project-update-title-pill-card [class*='kicker'] {
+    font-size: 0.62rem !important;
+    margin-bottom: 5px !important;
+  }
+
+  .project-update-title-pill-card [class*='chip'],
+  .project-update-title-pill-card [class*='pill'],
+  .project-update-title-pill-card [class*='badge'],
+  .project-update-title-pill-card [class*='status'] {
+    min-height: 26px !important;
+    padding: 6px 9px !important;
+    font-size: 0.64rem !important;
   }
 }
 
 @media (max-width: 420px) {
-  .pu-update-hero-card {
-    min-height: 216px !important;
-    max-height: 294px !important;
-    margin: 9px 12px 11px !important;
-    padding: 23px 24px 22px !important;
-    border-radius: 25px !important;
+  .project-update-title-pill-card {
+    margin: 10px 10px 10px !important;
+    padding: 11px 11px !important;
+    border-radius: 18px !important;
   }
 
-  .pu-update-hero-title,
-  .pu-update-hero-card h1 {
-    font-size: clamp(1.46rem, 7vw, 2.06rem) !important;
-    -webkit-line-clamp: 3 !important;
-  }
-}
-
-/* =========================
-   PMS10 PROJECT UPDATE SMALL PILLS HOTFIX
-   Smaller hero pills, no overlapping bubble rows.
-========================= */
-
-/* Slightly give the hero more breathing room but not full-screen */
-.pu-update-hero-card {
-  min-height: 224px !important;
-  max-height: 308px !important;
-  padding-bottom: 22px !important;
-}
-
-/* Keep rows clean and separated */
-.pu-update-hero-card [class*='meta'],
-.pu-update-hero-card [class*='actions'],
-.pu-update-hero-card [class*='summary'],
-.pu-update-hero-card [class*='location'],
-.pu-update-hero-card [class*='chips'],
-.pu-update-hero-card [class*='badges'],
-.pu-update-hero-card [class*='pills'] {
-  gap: 6px !important;
-  row-gap: 6px !important;
-  margin-top: 8px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Remove outer bubble/wrapper effect when a status/progress/risk container has children */
-.pu-update-hero-card [class*='status']:has(> *),
-.pu-update-hero-card [class*='complete']:has(> *),
-.pu-update-hero-card [class*='completed']:has(> *),
-.pu-update-hero-card [class*='risk']:has(> *),
-.pu-update-hero-card [class*='progress']:has(> *),
-.pu-update-hero-card [class*='high']:has(> *),
-.pu-update-hero-card [class*='medium']:has(> *),
-.pu-update-hero-card [class*='low']:has(> *) {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  align-items: center !important;
-  gap: 6px !important;
-  width: auto !important;
-  max-width: 100% !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Smaller individual pills */
-.pu-update-hero-card [class*='-chip']:not([class*='chips']),
-.pu-update-hero-card [class*='_chip']:not([class*='chips']),
-.pu-update-hero-card [class*=' chip']:not([class*='chips']),
-.pu-update-hero-card [class*='-pill']:not([class*='pills']),
-.pu-update-hero-card [class*='_pill']:not([class*='pills']),
-.pu-update-hero-card [class*=' pill']:not([class*='pills']),
-.pu-update-hero-card [class*='-badge']:not([class*='badges']),
-.pu-update-hero-card [class*='_badge']:not([class*='badges']),
-.pu-update-hero-card [class*=' badge']:not([class*='badges']),
-.pu-update-hero-card [class*='status']:not(:has(> *)),
-.pu-update-hero-card [class*='complete']:not(:has(> *)),
-.pu-update-hero-card [class*='completed']:not(:has(> *)),
-.pu-update-hero-card [class*='risk']:not(:has(> *)),
-.pu-update-hero-card [class*='progress']:not(:has(> *)),
-.pu-update-hero-card [class*='high']:not(:has(> *)),
-.pu-update-hero-card [class*='medium']:not(:has(> *)),
-.pu-update-hero-card [class*='low']:not(:has(> *)) {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  flex: 0 0 auto !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: max-content !important;
-  min-height: 24px !important;
-  height: 24px !important;
-
-  margin: 0 !important;
-  padding: 4px 10px !important;
-
-  border-radius: 999px !important;
-  border: 1px solid rgba(255, 255, 255, 0.24) !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  box-shadow: none !important;
-
-  color: rgba(255, 255, 255, 0.94) !important;
-  font-size: 0.6rem !important;
-  line-height: 1 !important;
-  font-weight: 900 !important;
-  letter-spacing: 0.02em !important;
-  white-space: nowrap !important;
-  text-transform: none !important;
-}
-
-/* Location pills slightly wider/readable but still short */
-.pu-update-hero-card [class*='location'] [class*='-chip'],
-.pu-update-hero-card [class*='location'] [class*='_chip'],
-.pu-update-hero-card [class*='location'] [class*=' chip'],
-.pu-update-hero-card [class*='location'] [class*='-pill'],
-.pu-update-hero-card [class*='location'] [class*='_pill'],
-.pu-update-hero-card [class*='location'] [class*=' pill'],
-.pu-update-hero-card [class*='location'] [class*='-badge'],
-.pu-update-hero-card [class*='location'] [class*='_badge'],
-.pu-update-hero-card [class*='location'] [class*=' badge'] {
-  min-height: 26px !important;
-  height: 26px !important;
-  padding: 5px 11px !important;
-  font-size: 0.64rem !important;
-  text-transform: none !important;
-}
-
-/* Status/progress/risk colors */
-.pu-update-hero-card [class*='complete']:not(:has(> *)),
-.pu-update-hero-card [class*='completed']:not(:has(> *)) {
-  color: #166534 !important;
-  background: #dcfce7 !important;
-  border-color: rgba(34, 197, 94, 0.28) !important;
-}
-
-.pu-update-hero-card [class*='progress']:not(:has(> *)) {
-  color: #1d4ed8 !important;
-  background: #eff6ff !important;
-  border-color: rgba(59, 130, 246, 0.3) !important;
-}
-
-.pu-update-hero-card [class*='high']:not(:has(> *)),
-.pu-update-hero-card [class*='risk']:not(:has(> *)) {
-  color: #b91c1c !important;
-  background: #fee2e2 !important;
-  border-color: rgba(239, 68, 68, 0.3) !important;
-}
-
-/* Phone fine-tuning */
-@media (max-width: 420px) {
-  .pu-update-hero-card {
-    min-height: 206px !important;
-    max-height: 288px !important;
-    padding-bottom: 20px !important;
-  }
-
-  .pu-update-hero-card [class*='meta'],
-  .pu-update-hero-card [class*='actions'],
-  .pu-update-hero-card [class*='summary'],
-  .pu-update-hero-card [class*='location'],
-  .pu-update-hero-card [class*='chips'],
-  .pu-update-hero-card [class*='badges'],
-  .pu-update-hero-card [class*='pills'] {
-    gap: 5px !important;
-    row-gap: 5px !important;
-    margin-top: 7px !important;
-  }
-
-  .pu-update-hero-card [class*='-chip']:not([class*='chips']),
-  .pu-update-hero-card [class*='_chip']:not([class*='chips']),
-  .pu-update-hero-card [class*=' chip']:not([class*='chips']),
-  .pu-update-hero-card [class*='-pill']:not([class*='pills']),
-  .pu-update-hero-card [class*='_pill']:not([class*='pills']),
-  .pu-update-hero-card [class*=' pill']:not([class*='pills']),
-  .pu-update-hero-card [class*='-badge']:not([class*='badges']),
-  .pu-update-hero-card [class*='_badge']:not([class*='badges']),
-  .pu-update-hero-card [class*=' badge']:not([class*='badges']),
-  .pu-update-hero-card [class*='status']:not(:has(> *)),
-  .pu-update-hero-card [class*='complete']:not(:has(> *)),
-  .pu-update-hero-card [class*='completed']:not(:has(> *)),
-  .pu-update-hero-card [class*='risk']:not(:has(> *)),
-  .pu-update-hero-card [class*='progress']:not(:has(> *)),
-  .pu-update-hero-card [class*='high']:not(:has(> *)),
-  .pu-update-hero-card [class*='medium']:not(:has(> *)),
-  .pu-update-hero-card [class*='low']:not(:has(> *)) {
-    min-height: 22px !important;
-    height: 22px !important;
-    padding: 3px 9px !important;
-    font-size: 0.56rem !important;
-  }
-}
-
-/* =========================
-   PMS10 PROJECT UPDATE DETAILS-STYLE STATUS AND AUTOFIT TITLE
-   Match Project Details bubbles + auto-fit long project titles.
-========================= */
-
-/* Hero height based on Project Update page, not Project Details */
-.pu-update-hero-card {
-  min-height: 232px !important;
-  max-height: none !important;
-  height: auto !important;
-  margin: 10px 14px 12px !important;
-  padding: 24px 28px 24px !important;
-  border-radius: 28px !important;
-  overflow: hidden !important;
-}
-
-/* Title is no longer clamped. JS will auto-fit font size. */
-.pu-update-hero-title,
-.pu-update-hero-card h1 {
-  display: block !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: unset !important;
-  -webkit-line-clamp: unset !important;
-  -webkit-box-orient: unset !important;
-
-  max-width: 100% !important;
-  margin: 0 0 14px !important;
-  padding: 0 !important;
-
-  color: #ffffff !important;
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-
-  font-size: var(--pu-update-title-size, clamp(1.52rem, 7vw, 2.28rem)) !important;
-  line-height: var(--pu-update-title-line, 1.04) !important;
-  letter-spacing: -0.055em !important;
-  font-weight: 950 !important;
-}
-
-/* Keep the eyebrow compact */
-.pu-update-hero-card p:first-child,
-.pu-update-hero-card [class*='eyebrow'],
-.pu-update-hero-card [class*='kicker'] {
-  margin-bottom: 12px !important;
-}
-
-/* Reset all possible wrapper rows so they do not become outer bubbles */
-.pu-update-hero-card [class*='meta'],
-.pu-update-hero-card [class*='actions'],
-.pu-update-hero-card [class*='summary'],
-.pu-update-hero-card [class*='location'],
-.pu-update-hero-card [class*='chips'],
-.pu-update-hero-card [class*='badges'],
-.pu-update-hero-card [class*='pills'],
-.pu-update-hero-card [class*='status']:has(> *),
-.pu-update-hero-card [class*='progress']:has(> *),
-.pu-update-hero-card [class*='risk']:has(> *),
-.pu-update-hero-card [class*='complete']:has(> *),
-.pu-update-hero-card [class*='completed']:has(> *),
-.pu-update-hero-card [class*='high']:has(> *),
-.pu-update-hero-card [class*='medium']:has(> *),
-.pu-update-hero-card [class*='low']:has(> *) {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  align-items: center !important;
-  gap: 8px !important;
-  row-gap: 8px !important;
-
-  width: auto !important;
-  max-width: 100% !important;
-  min-height: 0 !important;
-
-  margin-top: 10px !important;
-  padding: 0 !important;
-
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Location bubbles: same visual weight as Project Details */
-.pu-update-hero-card [class*='location'] > *,
-.pu-update-hero-card [class*='province'],
-.pu-update-hero-card [class*='municip'],
-.pu-update-hero-card [class*='barangay'],
-.pu-update-hero-card [class*='brgy'],
-.pu-update-hero-card [class*='lgu'] {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  flex: 0 0 auto !important;
-  width: auto !important;
-  max-width: max-content !important;
-  min-height: 33px !important;
-  height: 33px !important;
-
-  margin: 0 !important;
-  padding: 7px 14px !important;
-
-  border-radius: 999px !important;
-  border: 1px solid rgba(255, 255, 255, 0.26) !important;
-  background: rgba(255, 255, 255, 0.14) !important;
-  box-shadow: none !important;
-
-  color: rgba(255, 255, 255, 0.95) !important;
-  font-size: 0.74rem !important;
-  line-height: 1 !important;
-  font-weight: 900 !important;
-  letter-spacing: 0.02em !important;
-  white-space: nowrap !important;
-  text-transform: none !important;
-}
-
-/* Individual status/progress/risk bubbles only */
-.pu-update-hero-card [class*='status'] > *,
-.pu-update-hero-card [class*='progress'] > *,
-.pu-update-hero-card [class*='risk'] > *,
-.pu-update-hero-card [class*='complete'] > *,
-.pu-update-hero-card [class*='completed'] > *,
-.pu-update-hero-card [class*='high'] > *,
-.pu-update-hero-card [class*='medium'] > *,
-.pu-update-hero-card [class*='low'] > *,
-.pu-update-hero-card [class*='chip']:not([class*='chips']):not(:has(> *)),
-.pu-update-hero-card [class*='pill']:not([class*='pills']):not(:has(> *)),
-.pu-update-hero-card [class*='badge']:not([class*='badges']):not(:has(> *)),
-.pu-update-hero-card [class*='status']:not(:has(> *)),
-.pu-update-hero-card [class*='progress']:not(:has(> *)),
-.pu-update-hero-card [class*='risk']:not(:has(> *)),
-.pu-update-hero-card [class*='complete']:not(:has(> *)),
-.pu-update-hero-card [class*='completed']:not(:has(> *)),
-.pu-update-hero-card [class*='high']:not(:has(> *)),
-.pu-update-hero-card [class*='medium']:not(:has(> *)),
-.pu-update-hero-card [class*='low']:not(:has(> *)) {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  flex: 0 0 auto !important;
-  width: auto !important;
-  max-width: max-content !important;
-  min-width: 0 !important;
-  min-height: 38px !important;
-  height: 38px !important;
-
-  margin: 0 !important;
-  padding: 8px 17px !important;
-
-  border-radius: 999px !important;
-  border: 1px solid rgba(255, 255, 255, 0.26) !important;
-  background: rgba(255, 255, 255, 0.14) !important;
-  box-shadow: none !important;
-
-  color: rgba(255, 255, 255, 0.95) !important;
-  font-size: 0.78rem !important;
-  line-height: 1 !important;
-  font-weight: 950 !important;
-  letter-spacing: 0.04em !important;
-  white-space: nowrap !important;
-  text-transform: none !important;
-}
-
-/* Remove old separator dots */
-.pu-update-hero-card [class*='chip']::after,
-.pu-update-hero-card [class*='pill']::after,
-.pu-update-hero-card [class*='badge']::after {
-  display: none !important;
-  content: none !important;
-}
-
-/* Completed bubble */
-.pu-update-hero-card [class*='complete'] > *,
-.pu-update-hero-card [class*='completed'] > *,
-.pu-update-hero-card [class*='complete']:not(:has(> *)),
-.pu-update-hero-card [class*='completed']:not(:has(> *)) {
-  color: #166534 !important;
-  background: #dcfce7 !important;
-  border-color: rgba(34, 197, 94, 0.32) !important;
-}
-
-/* Progress bubble */
-.pu-update-hero-card [class*='progress'] > *,
-.pu-update-hero-card [class*='progress']:not(:has(> *)) {
-  color: #1d4ed8 !important;
-  background: #eff6ff !important;
-  border-color: rgba(59, 130, 246, 0.34) !important;
-}
-
-/* High-risk bubble */
-.pu-update-hero-card [class*='high'] > *,
-.pu-update-hero-card [class*='risk'] > *,
-.pu-update-hero-card [class*='high']:not(:has(> *)),
-.pu-update-hero-card [class*='risk']:not(:has(> *)) {
-  color: #b91c1c !important;
-  background: #fee2e2 !important;
-  border-color: rgba(239, 68, 68, 0.34) !important;
-}
-
-/* Medium/low risk bubble */
-.pu-update-hero-card [class*='medium'] > *,
-.pu-update-hero-card [class*='medium']:not(:has(> *)) {
-  color: #c2410c !important;
-  background: #ffedd5 !important;
-  border-color: rgba(249, 115, 22, 0.34) !important;
-}
-
-.pu-update-hero-card [class*='low'] > *,
-.pu-update-hero-card [class*='low']:not(:has(> *)) {
-  color: #854d0e !important;
-  background: #fef9c3 !important;
-  border-color: rgba(234, 179, 8, 0.34) !important;
-}
-
-/* Force title case appearance for location-related text */
-[class*='province'],
-[class*='municip'],
-[class*='city'],
-[class*='barangay'],
-[class*='brgy'],
-[class*='lgu'],
-[class*='location'],
-[class*='address'],
-[data-field*='province'],
-[data-field*='municip'],
-[data-field*='city'],
-[data-field*='barangay'],
-[data-field*='brgy'],
-[data-field*='lgu'] {
-  text-transform: none !important;
-}
-
-@media (max-width: 420px) {
-  .pu-update-hero-card {
-    min-height: 224px !important;
-    padding: 22px 24px 22px !important;
-    border-radius: 25px !important;
-  }
-
-  .pu-update-hero-title,
-  .pu-update-hero-card h1 {
-    font-size: var(--pu-update-title-size, clamp(1.36rem, 6.6vw, 1.95rem)) !important;
-  }
-
-  .pu-update-hero-card [class*='location'] > *,
-  .pu-update-hero-card [class*='province'],
-  .pu-update-hero-card [class*='municip'],
-  .pu-update-hero-card [class*='barangay'],
-  .pu-update-hero-card [class*='brgy'],
-  .pu-update-hero-card [class*='lgu'] {
-    min-height: 30px !important;
-    height: 30px !important;
-    padding: 6px 12px !important;
-    font-size: 0.68rem !important;
-  }
-
-  .pu-update-hero-card [class*='status'] > *,
-  .pu-update-hero-card [class*='progress'] > *,
-  .pu-update-hero-card [class*='risk'] > *,
-  .pu-update-hero-card [class*='complete'] > *,
-  .pu-update-hero-card [class*='completed'] > *,
-  .pu-update-hero-card [class*='high'] > *,
-  .pu-update-hero-card [class*='medium'] > *,
-  .pu-update-hero-card [class*='low'] > *,
-  .pu-update-hero-card [class*='chip']:not([class*='chips']):not(:has(> *)),
-  .pu-update-hero-card [class*='pill']:not([class*='pills']):not(:has(> *)),
-  .pu-update-hero-card [class*='badge']:not([class*='badges']):not(:has(> *)) {
-    min-height: 34px !important;
-    height: 34px !important;
-    padding: 7px 14px !important;
-    font-size: 0.7rem !important;
+  .project-update-title-pill-text {
+    font-size: clamp(0.9rem, 4.3vw, 1.05rem) !important;
   }
 }

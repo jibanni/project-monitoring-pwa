@@ -275,6 +275,18 @@ function getUpdatedTime(project: ProjectRecord) {
   return date.getTime()
 }
 
+function getLatestUpdateDateValue(project: ProjectRecord) {
+  return (
+    project.latest_update_date ??
+    project.last_update_date ??
+    project.last_inspection_date ??
+    project.updated_at ??
+    project.modified_at ??
+    project.created_at ??
+    null
+  )
+}
+
 function getStatusColor(status: unknown, fallbackIndex = 0) {
   const normalized = normalizeForCompare(status)
 

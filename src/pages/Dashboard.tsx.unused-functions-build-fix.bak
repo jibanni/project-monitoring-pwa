@@ -105,6 +105,15 @@ function formatPercent(value: unknown) {
   }).format(number)}%`
 }
 
+function formatFullProjectCost(value: unknown) {
+  const amount = asNumber(value)
+
+  return `Php ${new Intl.NumberFormat('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)}`
+}
+
 function formatDate(value: unknown) {
   const text = safeText(value, '')
 
@@ -174,6 +183,19 @@ function getStatus(project: ProjectRecord) {
 
 function getRiskLevel(project: ProjectRecord) {
   return getPmsRiskLevel(project)
+}
+
+function getProjectCost(project: ProjectRecord) {
+  return asNumber(
+    project.project_cost ??
+      project.total_project_cost ??
+      project.approved_project_cost ??
+      project.budget ??
+      project.amount ??
+      project.allocation ??
+      project.allocated_amount ??
+      project.contract_amount,
+  )
 }
 
 function getFundingSource(project: ProjectRecord) {
@@ -260,6 +282,16 @@ function getPhysicalProgress(project: ProjectRecord) {
   )
 }
 
+function getFinancialProgress(project: ProjectRecord) {
+  return asNumber(
+    project.financial_accomplishment ??
+      project.financial_progress ??
+      project.financial_percentage ??
+      project.financial ??
+      project.actual_financial,
+  )
+}
+
 function getUpdatedTime(project: ProjectRecord) {
   const value =
     project.updated_at ??
@@ -273,6 +305,53 @@ function getUpdatedTime(project: ProjectRecord) {
   if (Number.isNaN(date.getTime())) return 0
 
   return date.getTime()
+}
+
+function getLatestUpdateDateValue(project: ProjectRecord) {
+  return (
+    project.latest_update_date ??
+    project.last_update_date ??
+    project.last_inspection_date ??
+    project.updated_at ??
+    project.modified_at ??
+    project.created_at ??
+    null
+  )
+}
+
+function getNotYetStartedReason(project: ProjectRecord) {
+  return safeText(
+    project.not_yet_started_reason ??
+      project.not_started_reason ??
+      project.reason_not_started ??
+      project.start_delay_reason ??
+      project.delay_reason ??
+      project.status_reason ??
+      project.remarks,
+    'No reason encoded',
+  )
+}
+
+function getDaysSinceLatestUpdate(project: ProjectRecord) {
+  const value = getLatestUpdateDateValue(project)
+  const date = new Date(safeText(value, ''))
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      days: null as number | null,
+      label: 'No update yet',
+    }
+  }
+
+  const today = new Date()
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+  const days = Math.max(0, Math.floor((end - start) / 86_400_000))
+
+  return {
+    days,
+    label: days === 0 ? 'Updated today' : `Updated ${days} day${days === 1 ? '' : 's'} ago`,
+  }
 }
 
 function getStatusColor(status: unknown, fallbackIndex = 0) {

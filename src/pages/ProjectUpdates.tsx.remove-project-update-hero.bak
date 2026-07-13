@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from'react'
-import { createPortal } from'react-dom'
-import type { ChangeEvent, FormEvent, KeyboardEvent } from'react'
-import { Link, useLocation, useNavigate, useParams } from'react-router-dom'
-import { supabase } from'../lib/supabase'
-import { offlineDb } from'../lib/offlineDb'
-import { useAuth } from'../context/AuthContext'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { offlineDb } from '../lib/offlineDb'
+import { useAuth } from '../context/AuthContext'
 import {
   formatProgressInput,
   getComputedRiskLevel,
@@ -13,12 +13,12 @@ import {
   getStatusFromContractModification,
   getTargetPhysicalInfo,
   requiresProjectReason,
-} from'../utils/projectVariance'
-import { canUpdateProject } from'../utils/aorAccess'
-import { formatFileSize } from'../utils/imageCompression'
-import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from'../services/googleDrivePhotoUploadService'
-import'../styles/projectUpdates.css'
-import'../styles/projectUpdatesModalFix.css'
+} from '../utils/projectVariance'
+import { canUpdateProject } from '../utils/aorAccess'
+import { formatFileSize } from '../utils/imageCompression'
+import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from '../services/googleDrivePhotoUploadService'
+import '../styles/projectUpdates.css'
+import '../styles/projectUpdatesModalFix.css'
 
 type ProjectRecord = {
   id: string
@@ -111,7 +111,7 @@ type PhotoInput = {
   compressed?: boolean
 }
 
-type SaveMode ='online' |'offline'
+type SaveMode = 'online' | 'offline'
 
 type SaveSuccessDialog = {
   title: string
@@ -122,7 +122,7 @@ type SaveSuccessDialog = {
 type NoticeDialog = {
   title: string
   message: string
-  tone:'warning' |'danger' |'info'
+  tone: 'warning' | 'danger' | 'info'
 } | null
 
 type CoordinateResult = {
@@ -136,26 +136,53 @@ type CoordinateResult = {
 const MAX_PHOTOS_PER_UPDATE = 3
 const RECENT_UPDATE_LIMIT = 4
 
-const statusOptions = ['Ongoing','Completed','Suspended','Terminated','Under Review','Under Procurement','Not Yet Started',
+const statusOptions = [
+  'Ongoing',
+  'Completed',
+  'Suspended',
+  'Terminated',
+  'Under Review',
+  'Under Procurement',
+  'Not Yet Started',
 ]
 
-const NOT_YET_STARTED_REASONS = ['No TDRs Submitted','Lacking TDRs Submitted','TDRs under PO Engineers Review','TDRs under Review (PO)','TDRs under Review (RO)',
+const NOT_YET_STARTED_REASONS = [
+  'No TDRs Submitted',
+  'Lacking TDRs Submitted',
+  'TDRs under PO Engineers Review',
+  'TDRs under Review (PO)',
+  'TDRs under Review (RO)',
 ]
 
-const SUSPENSION_ORDER_TYPE ='Suspension Order (SO)'
+const SUSPENSION_ORDER_TYPE = 'Suspension Order (SO)'
 
-const CONTRACT_MODIFICATION_TYPE_OPTIONS = ['Variation Order (VO)',
-  SUSPENSION_ORDER_TYPE,'Time Extension (EOT)','Combination',
+const CONTRACT_MODIFICATION_TYPE_OPTIONS = [
+  'Variation Order (VO)',
+  SUSPENSION_ORDER_TYPE,
+  'Time Extension (EOT)',
+  'Combination',
 ]
 
-const offlineUpdateTables = ['offlineUpdates','offline_updates','pendingUpdates','projectUpdates','project_updates','updates',
+const offlineUpdateTables = [
+  'offlineUpdates',
+  'offline_updates',
+  'pendingUpdates',
+  'projectUpdates',
+  'project_updates',
+  'updates',
 ]
 
-const offlinePhotoTables = ['offlinePhotos','offline_photos','pendingPhotos','projectPhotos','project_photos','photos',
+const offlinePhotoTables = [
+  'offlinePhotos',
+  'offline_photos',
+  'pendingPhotos',
+  'projectPhotos',
+  'project_photos',
+  'photos',
 ]
 
 function makeLocalId() {
-  if (typeof crypto !=='undefined' &&'randomUUID' in crypto) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
   }
 
@@ -165,8 +192,8 @@ function makeLocalId() {
 function todayInputValue() {
   const today = new Date()
   const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2,'0')
-  const day = String(today.getDate()).padStart(2,'0')
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
 
   return `${year}-${month}-${day}`
 }
@@ -190,7 +217,7 @@ function formatPercent(value: unknown) {
 }
 
 function formatLongDate(value?: string | null) {
-  if (!value) return'No record'
+  if (!value) return 'No record'
 
   const normalizedValue = value.length <= 10 ? `${value}T00:00:00` : value
   const parsedDate = new Date(normalizedValue)
@@ -200,14 +227,14 @@ function formatLongDate(value?: string | null) {
   }
 
   return parsedDate.toLocaleDateString('en-US', {
-    year:'numeric',
-    month:'long',
-    day:'numeric',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   })
 }
 
 function normalizeText(value: unknown) {
-  return String(value ??'').trim().toLowerCase().replace(/\s+/g,'')
+  return String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
 
@@ -218,7 +245,8 @@ function getDriveFundingYear(
   const rawValue =
     projectRecord?.funding_year ||
     projectRecord?.fiscal_year ||
-    projectRecord?.year ||''
+    projectRecord?.year ||
+    ''
 
   const rawYearMatch = String(rawValue).match(/\b(20\d{2}|19\d{2})\b/)
 
@@ -226,9 +254,9 @@ function getDriveFundingYear(
     return rawYearMatch[1]
   }
 
-  const dateYearMatch = String(fallbackInspectionDate ||'').match(/^(\d{4})-/)
+  const dateYearMatch = String(fallbackInspectionDate || '').match(/^(\d{4})-/)
 
-  return dateYearMatch?.[1] ||''
+  return dateYearMatch?.[1] || ''
 }
 
 function getDriveFundingSource(projectRecord?: ProjectRecord | null) {
@@ -237,7 +265,8 @@ function getDriveFundingSource(projectRecord?: ProjectRecord | null) {
       projectRecord?.funding_program ||
       projectRecord?.program ||
       projectRecord?.program_name ||
-      projectRecord?.project_type ||'',
+      projectRecord?.project_type ||
+      '',
   ).trim()
 }
 
@@ -256,7 +285,7 @@ function getDaysSinceDate(value?: string | null) {
   const date = parseDateTime(value)
 
   if (!date) {
-    return { days: null as number | null, label:'No update yet' }
+    return { days: null as number | null, label: 'No update yet' }
   }
 
   const today = new Date()
@@ -264,8 +293,8 @@ function getDaysSinceDate(value?: string | null) {
   const end = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   const days = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 86_400_000))
 
-  if (days === 0) return { days, label:'Updated today' }
-  if (days === 1) return { days, label:'Updated 1 day ago' }
+  if (days === 0) return { days, label: 'Updated today' }
+  if (days === 1) return { days, label: 'Updated 1 day ago' }
 
   return { days, label: `Updated ${days} days ago` }
 }
@@ -275,7 +304,7 @@ function getUpdateDateValue(update?: ProjectUpdateRecord | null) {
 }
 
 function evaluateAmountExpression(value: string) {
-  const cleaned = value.replace(/,/g,'').trim()
+  const cleaned = value.replace(/,/g, '').trim()
 
   if (!cleaned) return 0
 
@@ -318,7 +347,7 @@ function isLikelyImage(file: File) {
 }
 
 function hasCoordinateValue(value: unknown) {
-  return value !== null && value !== undefined && String(value).trim() !==''
+  return value !== null && value !== undefined && String(value).trim() !== ''
 }
 
 function formatCoordinate(value: unknown) {
@@ -328,7 +357,7 @@ function formatCoordinate(value: unknown) {
     return parsed.toFixed(7)
   }
 
-  return String(value ||'')
+  return String(value || '')
 }
 
 function canBeLatitude(value: unknown) {
@@ -362,7 +391,7 @@ function normalizeCoordinatePair(
       latitude: null,
       longitude: null,
       wasSwapped: false,
-      reason:'No GPS coordinates recorded.',
+      reason: 'No GPS coordinates recorded.',
     }
   }
 
@@ -372,7 +401,7 @@ function normalizeCoordinatePair(
       latitude: null,
       longitude: null,
       wasSwapped: false,
-      reason:'Latitude or longitude is incomplete.',
+      reason: 'Latitude or longitude is incomplete.',
     }
   }
 
@@ -385,7 +414,7 @@ function normalizeCoordinatePair(
       latitude: null,
       longitude: null,
       wasSwapped: false,
-      reason:'Latitude or longitude is not a valid number.',
+      reason: 'Latitude or longitude is not a valid number.',
     }
   }
 
@@ -396,7 +425,7 @@ function normalizeCoordinatePair(
         latitude: lat,
         longitude: lng,
         wasSwapped: false,
-        reason:'Coordinates are valid.',
+        reason: 'Coordinates are valid.',
       }
     }
 
@@ -405,7 +434,8 @@ function normalizeCoordinatePair(
       latitude: null,
       longitude: null,
       wasSwapped: false,
-      reason:'Coordinates are valid globally but outside the Mindanao range. Please verify the encoded site location.',
+      reason:
+        'Coordinates are valid globally but outside the Mindanao range. Please verify the encoded site location.',
     }
   }
 
@@ -416,7 +446,7 @@ function normalizeCoordinatePair(
         latitude: lng,
         longitude: lat,
         wasSwapped: true,
-        reason:'Latitude and longitude appeared reversed and were corrected.',
+        reason: 'Latitude and longitude appeared reversed and were corrected.',
       }
     }
 
@@ -425,7 +455,8 @@ function normalizeCoordinatePair(
       latitude: null,
       longitude: null,
       wasSwapped: false,
-      reason:'Coordinates appear reversed, but the corrected location is still outside Mindanao. Please verify the encoded values.',
+      reason:
+        'Coordinates appear reversed, but the corrected location is still outside Mindanao. Please verify the encoded values.',
     }
   }
 
@@ -434,79 +465,79 @@ function normalizeCoordinatePair(
     latitude: null,
     longitude: null,
     wasSwapped: false,
-    reason:'Coordinates are outside the valid latitude/longitude range.',
+    reason: 'Coordinates are outside the valid latitude/longitude range.',
   }
 }
 
 function getRiskClass(risk?: string | null) {
-  const normalized = String(risk ||'').toLowerCase()
+  const normalized = String(risk || '').toLowerCase()
 
-  if (normalized.includes('high')) return'pu-risk-high'
-  if (normalized.includes('moderate') || normalized.includes('medium')) return'pu-risk-moderate'
-  if (normalized.includes('low')) return'pu-risk-low'
+  if (normalized.includes('high')) return 'pu-risk-high'
+  if (normalized.includes('moderate') || normalized.includes('medium')) return 'pu-risk-moderate'
+  if (normalized.includes('low')) return 'pu-risk-low'
 
-  return'pu-risk-none'
+  return 'pu-risk-none'
 }
 
 function getStatusClass(status?: string | null) {
-  const normalized = String(status ||'').toLowerCase()
+  const normalized = String(status || '').toLowerCase()
 
-  if (normalized.includes('completed')) return'pu-badge-success'
-  if (normalized.includes('ongoing')) return'pu-badge-primary'
-  if (normalized.includes('under review')) return'pu-badge-warning'
-  if (normalized.includes('under procurement')) return'pu-badge-warning'
+  if (normalized.includes('completed')) return 'pu-badge-success'
+  if (normalized.includes('ongoing')) return 'pu-badge-primary'
+  if (normalized.includes('under review')) return 'pu-badge-warning'
+  if (normalized.includes('under procurement')) return 'pu-badge-warning'
   if (normalized.includes('suspended') || normalized.includes('terminated')) {
-    return'pu-badge-danger'
+    return 'pu-badge-danger'
   }
-  if (normalized.includes('not yet')) return'pu-badge-neutral'
+  if (normalized.includes('not yet')) return 'pu-badge-neutral'
 
-  return'pu-badge-neutral'
+  return 'pu-badge-neutral'
 }
 
 
 function getStatusHelperText(status: string) {
   const normalized = normalizeText(status)
 
-  if (normalized ==='completed') return'100% done / ready for completion record'
-  if (normalized ==='ongoing') return'Regular progress update'
-  if (normalized ==='suspended') return'Critical: requires Suspension Order reason'
-  if (normalized ==='terminated') return'Critical: requires termination reason'
-  if (normalized ==='under review') return'For document / RO review tracking'
-  if (normalized ==='not yet started') return'Non-start status update'
-  if (normalized ==='under procurement') return'Procurement status update'
+  if (normalized === 'completed') return '100% done / ready for completion record'
+  if (normalized === 'ongoing') return 'Regular progress update'
+  if (normalized === 'suspended') return 'Critical: requires Suspension Order reason'
+  if (normalized === 'terminated') return 'Critical: requires termination reason'
+  if (normalized === 'under review') return 'For document / RO review tracking'
+  if (normalized === 'not yet started') return 'Non-start status update'
+  if (normalized === 'under procurement') return 'Procurement status update'
 
-  return'Project status update'
+  return 'Project status update'
 }
 
 function getModificationHelperText(modificationType: string) {
   const normalized = normalizeText(modificationType)
 
-  if (normalized.includes('variation')) return'Change in quantity, scope, or cost'
-  if (normalized.includes('suspension')) return'Suspension Order; project becomes Suspended'
-  if (normalized.includes('extension')) return'Time extension / revised expiration'
-  if (normalized.includes('combination')) return'Multiple contract changes'
+  if (normalized.includes('variation')) return 'Change in quantity, scope, or cost'
+  if (normalized.includes('suspension')) return 'Suspension Order; project becomes Suspended'
+  if (normalized.includes('extension')) return 'Time extension / revised expiration'
+  if (normalized.includes('combination')) return 'Multiple contract changes'
 
-  return'Contract modification'
+  return 'Contract modification'
 }
 
 function getGpsErrorMessage(error: GeolocationPositionError) {
   if (!window.isSecureContext) {
-    return'GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
+    return 'GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
   }
 
   if (error.code === error.PERMISSION_DENIED) {
-    return'Location permission was denied. Please allow location access in your browser settings, then try Update GPS again.'
+    return 'Location permission was denied. Please allow location access in your browser settings, then try Update GPS again.'
   }
 
   if (error.code === error.POSITION_UNAVAILABLE) {
-    return'GPS position is unavailable. Please turn on device location services, move to an open area, or manually encode the coordinates.'
+    return 'GPS position is unavailable. Please turn on device location services, move to an open area, or manually encode the coordinates.'
   }
 
   if (error.code === error.TIMEOUT) {
-    return'GPS capture timed out. Please move to an open area with better signal and try again.'
+    return 'GPS capture timed out. Please move to an open area with better signal and try again.'
   }
 
-  return'Unable to capture GPS. Please allow location permission and try again.'
+  return 'Unable to capture GPS. Please allow location permission and try again.'
 }
 
 async function getOfflineTable(tableNames: string[]) {
@@ -564,14 +595,14 @@ async function putCachedProject(projectRecord: ProjectRecord) {
 
   await projectsTable.put({
     ...projectRecord,
-    project_name: projectRecord.project_name ||'Untitled Project',
-    status: projectRecord.status ||'Not Yet Started',
-    municipality: projectRecord.municipality ||'',
-    province: projectRecord.province ||'',
-    barangay: projectRecord.barangay ||'',
+    project_name: projectRecord.project_name || 'Untitled Project',
+    status: projectRecord.status || 'Not Yet Started',
+    municipality: projectRecord.municipality || '',
+    province: projectRecord.province || '',
+    barangay: projectRecord.barangay || '',
     physical_accomplishment: toNumber(projectRecord.physical_accomplishment),
     financial_accomplishment: toNumber(projectRecord.financial_accomplishment),
-    risk_level: projectRecord.risk_level ||'None',
+    risk_level: projectRecord.risk_level || 'None',
     cached_at: new Date().toISOString(),
   })
 }
@@ -600,7 +631,7 @@ export default function ProjectUpdates() {
   const [projectMissingOffline, setProjectMissingOffline] = useState(false)
   const [saving, setSaving] = useState(false)
   const [online, setOnline] = useState(
-    typeof navigator !=='undefined' ? navigator.onLine : true
+    typeof navigator !== 'undefined' ? navigator.onLine : true
   )
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -609,7 +640,7 @@ export default function ProjectUpdates() {
   const [projectStatus, setProjectStatus] = useState('Ongoing')
   const [physicalAccomplishment, setPhysicalAccomplishment] = useState('')
   const [targetPhysicalAccomplishment, setTargetPhysicalAccomplishment] = useState('')
-  const targetPhysicalSource ='manual' as const
+  const targetPhysicalSource = 'manual' as const
   const [financialAccomplishment, setFinancialAccomplishment] = useState('')
   const [disbursementAmount, setDisbursementAmount] = useState('')
   const [notYetStartedReason, setNotYetStartedReason] = useState('')
@@ -652,7 +683,7 @@ export default function ProjectUpdates() {
 
   const projectCost = useMemo(() => toNumber(project?.budget), [project?.budget])
 
-  const activeModificationType = hasContractModification ? contractModificationType :''
+  const activeModificationType = hasContractModification ? contractModificationType : ''
   const isSuspendedSelected = useMemo(() => {
     return normalizeText(projectStatus).includes('suspend')
   }, [projectStatus])
@@ -660,11 +691,11 @@ export default function ProjectUpdates() {
     return isSuspendedSelected ? [SUSPENSION_ORDER_TYPE] : CONTRACT_MODIFICATION_TYPE_OPTIONS
   }, [isSuspendedSelected])
   const isNotYetStartedSelected = useMemo(() => {
-    return normalizeText(projectStatus) ==='not yet started'
+    return normalizeText(projectStatus) === 'not yet started'
   }, [projectStatus])
   const requiresUpdateReason = requiresProjectReason(projectStatus, activeModificationType)
   const projectReasonLabel = getProjectReasonLabel(projectStatus, activeModificationType)
-  const heroDisplayStatus = getStatusFromContractModification(activeModificationType) || projectStatus || project?.status ||'No Status'
+  const heroDisplayStatus = getStatusFromContractModification(activeModificationType) || projectStatus || project?.status || 'No Status'
 
   const latestUpdateDate = useMemo(() => {
     const latestUpdate = recentUpdates[0]
@@ -719,12 +750,12 @@ export default function ProjectUpdates() {
       {
         ...(project || {}),
         physical_accomplishment:
-          physicalAccomplishment ===''
+          physicalAccomplishment === ''
             ? project?.physical_accomplishment
             : physicalAccomplishment,
         target_physical_accomplishment: targetPhysicalAccomplishment,
         target_physical_as_of: inspectionDate,
-        target_physical_source:'manual',
+        target_physical_source: 'manual',
         contract_expiration_date: project?.contract_expiration_date,
         has_contract_modification: hasContractModification,
         contract_modification_type: activeModificationType,
@@ -765,12 +796,12 @@ export default function ProjectUpdates() {
     () => getComputedRiskLevel({
       ...(project || {}),
       physical_accomplishment:
-        physicalAccomplishment ===''
+        physicalAccomplishment === ''
           ? project?.physical_accomplishment
           : physicalAccomplishment,
       target_physical_accomplishment: targetPhysicalAccomplishment,
       target_physical_as_of: inspectionDate,
-      target_physical_source:'manual',
+      target_physical_source: 'manual',
       last_inspection_date: inspectionDate,
       contract_expiration_date: project?.contract_expiration_date,
       has_contract_modification: hasContractModification,
@@ -795,7 +826,7 @@ export default function ProjectUpdates() {
   }, [inspectionLatitude, inspectionLongitude])
 
   const hasInspectionCoordinates =
-    inspectionLatitude.trim() !=='' || inspectionLongitude.trim() !==''
+    inspectionLatitude.trim() !== '' || inspectionLongitude.trim() !== ''
 
   const canSubmit = useMemo(() => {
     if (!project) {
@@ -906,23 +937,23 @@ export default function ProjectUpdates() {
 
     const hasModification =
       projectRecord.has_contract_modification === true ||
-      String(projectRecord.has_contract_modification ||'').toLowerCase() ==='yes' ||
-      String(projectRecord.has_contract_modification ||'').toLowerCase() ==='true'
+      String(projectRecord.has_contract_modification || '').toLowerCase() === 'yes' ||
+      String(projectRecord.has_contract_modification || '').toLowerCase() === 'true'
 
     setHasContractModification(hasModification)
-    setContractModificationType(projectRecord.contract_modification_type ||'')
+    setContractModificationType(projectRecord.contract_modification_type || '')
     setRevisedProjectCost(
       projectRecord.revised_project_cost !== null &&
         projectRecord.revised_project_cost !== undefined
         ? String(projectRecord.revised_project_cost)
-        :'',
+        : '',
     )
     setRevisedContractExpirationDate(
       projectRecord.revised_contract_expiration_date
         ? String(projectRecord.revised_contract_expiration_date).slice(0, 10)
-        :'',
+        : '',
     )
-    setNotYetStartedReason(projectRecord.not_yet_started_reason ||'')
+    setNotYetStartedReason(projectRecord.not_yet_started_reason || '')
   }
 
 
@@ -932,7 +963,7 @@ export default function ProjectUpdates() {
       return
     }
 
-    const storedTarget = String(projectRecord.target_physical_accomplishment ??'').trim()
+    const storedTarget = String(projectRecord.target_physical_accomplishment ?? '').trim()
 
     if (storedTarget) {
       setTargetPhysicalAccomplishment(formatProgressInput(storedTarget))
@@ -963,12 +994,12 @@ export default function ProjectUpdates() {
       setFinancialAccomplishment(formatProgressInput(percentage))
       setErrorMessage('')
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message :'Invalid disbursement input.')
+      setErrorMessage(error instanceof Error ? error.message : 'Invalid disbursement input.')
     }
   }
 
   function handleDisbursementKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key !=='Enter') return
+    if (event.key !== 'Enter') return
 
     event.preventDefault()
     applyDisbursementComputation()
@@ -1022,18 +1053,18 @@ export default function ProjectUpdates() {
         await putCachedProject(onlineProject)
         applyTargetPhysicalFromProject(onlineProject)
         applyContractFieldsFromProject(onlineProject)
-        setProjectStatus(onlineProject?.status ||'Ongoing')
+        setProjectStatus(onlineProject?.status || 'Ongoing')
         setPhysicalAccomplishment(
           onlineProject?.physical_accomplishment !== null &&
             onlineProject?.physical_accomplishment !== undefined
             ? String(onlineProject.physical_accomplishment)
-            :''
+            : ''
         )
         setFinancialAccomplishment(
           onlineProject?.financial_accomplishment !== null &&
             onlineProject?.financial_accomplishment !== undefined
             ? String(onlineProject.financial_accomplishment)
-            :''
+            : ''
         )
 
         const { data: updatesData, error: updatesError } = await supabase
@@ -1098,18 +1129,18 @@ export default function ProjectUpdates() {
     setProject(cachedProject)
     applyTargetPhysicalFromProject(cachedProject as ProjectRecord)
     applyContractFieldsFromProject(cachedProject as ProjectRecord)
-    setProjectStatus(cachedProject?.status ||'Ongoing')
+    setProjectStatus(cachedProject?.status || 'Ongoing')
     setPhysicalAccomplishment(
       cachedProject?.physical_accomplishment !== null &&
         cachedProject?.physical_accomplishment !== undefined
         ? String(cachedProject.physical_accomplishment)
-        :''
+        : ''
     )
     setFinancialAccomplishment(
       cachedProject?.financial_accomplishment !== null &&
         cachedProject?.financial_accomplishment !== undefined
         ? String(cachedProject.financial_accomplishment)
-        :''
+        : ''
     )
 
     const offlineUpdates = await readOfflineTable(offlineUpdateTables)
@@ -1117,10 +1148,10 @@ export default function ProjectUpdates() {
       .filter((update: ProjectUpdateRecord) => update?.project_id === id)
       .sort((a: ProjectUpdateRecord, b: ProjectUpdateRecord) => {
         const dateA = new Date(
-          a.inspection_date || a.created_at ||'1970-01-01'
+          a.inspection_date || a.created_at || '1970-01-01'
         ).getTime()
         const dateB = new Date(
-          b.inspection_date || b.created_at ||'1970-01-01'
+          b.inspection_date || b.created_at || '1970-01-01'
         ).getTime()
 
         return dateB - dateA
@@ -1158,7 +1189,7 @@ export default function ProjectUpdates() {
 
   async function handlePhotoSelect(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
-    event.target.value =''
+    event.target.value = ''
 
     if (files.length === 0) return
 
@@ -1183,7 +1214,7 @@ export default function ProjectUpdates() {
         id: makeLocalId(),
         file,
         previewUrl: URL.createObjectURL(file),
-        caption:'',
+        caption: '',
         originalSize: file.size,
         compressedSize: file.size,
         compressed: false,
@@ -1236,16 +1267,16 @@ export default function ProjectUpdates() {
     setErrorMessage('')
 
     if (!navigator.geolocation) {
-      const gpsError ='GPS is not supported by this browser or device.'
+      const gpsError = 'GPS is not supported by this browser or device.'
       setErrorMessage(gpsError)
-      setNoticeDialog({ title:'GPS Unavailable', message: gpsError, tone:'warning' })
+      setNoticeDialog({ title: 'GPS Unavailable', message: gpsError, tone: 'warning' })
       return
     }
 
     if (!window.isSecureContext) {
-      const gpsError ='GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
+      const gpsError = 'GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
       setErrorMessage(gpsError)
-      setNoticeDialog({ title:'GPS Permission Needed', message: gpsError, tone:'warning' })
+      setNoticeDialog({ title: 'GPS Permission Needed', message: gpsError, tone: 'warning' })
       return
     }
 
@@ -1257,9 +1288,9 @@ export default function ProjectUpdates() {
         const longitude = position.coords.longitude
 
         if (!isMindanaoCoordinate(latitude, longitude)) {
-          const gpsError ='Captured GPS is outside the Mindanao range. Please verify your device location or manually encode the correct project coordinates.'
+          const gpsError = 'Captured GPS is outside the Mindanao range. Please verify your device location or manually encode the correct project coordinates.'
           setErrorMessage(gpsError)
-          setNoticeDialog({ title:'Check GPS Location', message: gpsError, tone:'warning' })
+          setNoticeDialog({ title: 'Check GPS Location', message: gpsError, tone: 'warning' })
           setGpsLoading(false)
           return
         }
@@ -1278,7 +1309,7 @@ export default function ProjectUpdates() {
         console.error(error)
         const gpsError = getGpsErrorMessage(error)
         setErrorMessage(gpsError)
-        setNoticeDialog({ title:'GPS Capture Failed', message: gpsError, tone:'warning' })
+        setNoticeDialog({ title: 'GPS Capture Failed', message: gpsError, tone: 'warning' })
         setGpsLoading(false)
       },
       {
@@ -1292,27 +1323,27 @@ export default function ProjectUpdates() {
 
   function validateForm() {
     if (!id) {
-      return'Project ID is missing.'
+      return 'Project ID is missing.'
     }
 
     if (!canSubmit) {
-      return'You are not allowed to submit project updates.'
+      return 'You are not allowed to submit project updates.'
     }
 
     if (!inspectionDate) {
-      return'Please select the inspection date.'
+      return 'Please select the inspection date.'
     }
 
-    if (physicalAccomplishment ==='') {
-      return'Please enter the physical accomplishment.'
+    if (physicalAccomplishment === '') {
+      return 'Please enter the physical accomplishment.'
     }
 
-    if (targetPhysicalAccomplishment ==='') {
-      return'Please enter the target physical accomplishment.'
+    if (targetPhysicalAccomplishment === '') {
+      return 'Please enter the target physical accomplishment.'
     }
 
-    if (financialAccomplishment ==='') {
-      return'Please enter the financial accomplishment.'
+    if (financialAccomplishment === '') {
+      return 'Please enter the financial accomplishment.'
     }
 
     if (requiresUpdateReason && !notYetStartedReason.trim()) {
@@ -1320,15 +1351,15 @@ export default function ProjectUpdates() {
     }
 
     if (hasContractModification && !contractModificationType.trim()) {
-      return'Please select the type of contract modification.'
+      return 'Please select the type of contract modification.'
     }
 
     if (hasContractModification && !revisedProjectCost.trim()) {
-      return'Please enter the revised project cost.'
+      return 'Please enter the revised project cost.'
     }
 
     if (hasContractModification && !revisedContractExpirationDate.trim()) {
-      return'Please enter the revised contract expiration date.'
+      return 'Please enter the revised contract expiration date.'
     }
 
     const physical = toNumber(physicalAccomplishment)
@@ -1336,29 +1367,29 @@ export default function ProjectUpdates() {
     const financial = toNumber(financialAccomplishment)
 
     if (physical < 0 || physical > 100) {
-      return'Physical accomplishment must be between 0 and 100.'
+      return 'Physical accomplishment must be between 0 and 100.'
     }
 
     if (targetPhysical < 0 || targetPhysical > 100) {
-      return'Target physical accomplishment must be between 0 and 100.'
+      return 'Target physical accomplishment must be between 0 and 100.'
     }
 
     if (financial < 0 || financial > 100) {
-      return'Financial accomplishment must be between 0 and 100.'
+      return 'Financial accomplishment must be between 0 and 100.'
     }
 
-    const hasLatitude = inspectionLatitude.trim() !==''
-    const hasLongitude = inspectionLongitude.trim() !==''
+    const hasLatitude = inspectionLatitude.trim() !== ''
+    const hasLongitude = inspectionLongitude.trim() !== ''
 
     if (hasLatitude !== hasLongitude) {
-      return'Please provide both latitude and longitude, or leave both blank.'
+      return 'Please provide both latitude and longitude, or leave both blank.'
     }
 
     if (hasLatitude && hasLongitude && !inspectionCoordinateStatus.isValid) {
       return inspectionCoordinateStatus.reason
     }
 
-    return''
+    return ''
   }
 
   function buildUpdatePayload(projectId: string): ProjectUpdateInsert {
@@ -1368,7 +1399,7 @@ export default function ProjectUpdates() {
       inspection_date: inspectionDate,
       physical_accomplishment: clampProgress(physicalAccomplishment),
       target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
-      target_physical_source:'manual',
+      target_physical_source: 'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: autoRiskLevel,
       issues: cleanText(issues),
@@ -1407,9 +1438,9 @@ export default function ProjectUpdates() {
     event.preventDefault()
 
     if (!canSubmit) {
-      const deniedMessage ='You are not allowed to update this project based on your assigned AOR.'
+      const deniedMessage = 'You are not allowed to update this project based on your assigned AOR.'
       setErrorMessage(deniedMessage)
-      setNoticeDialog({ title:'Update Not Allowed', message: deniedMessage, tone:'danger' })
+      setNoticeDialog({ title: 'Update Not Allowed', message: deniedMessage, tone: 'danger' })
       setMessage('')
       return
     }
@@ -1418,7 +1449,7 @@ export default function ProjectUpdates() {
 
     if (validationError) {
       setErrorMessage(validationError)
-      setNoticeDialog({ title:'Please Review the Update', message: validationError, tone:'warning' })
+      setNoticeDialog({ title: 'Please Review the Update', message: validationError, tone: 'warning' })
       setMessage('')
       return
     }
@@ -1436,7 +1467,7 @@ export default function ProjectUpdates() {
     if (validationError) {
       setConfirmSaveOpen(false)
       setErrorMessage(validationError)
-      setNoticeDialog({ title:'Please Review the Update', message: validationError, tone:'warning' })
+      setNoticeDialog({ title: 'Please Review the Update', message: validationError, tone: 'warning' })
       setMessage('')
       return
     }
@@ -1447,17 +1478,18 @@ export default function ProjectUpdates() {
     setMessage('')
 
     try {
-      const modeToUse: SaveMode = online ?'online' :'offline'
-      if (modeToUse ==='online') {
+      const modeToUse: SaveMode = online ? 'online' : 'offline'
+      if (modeToUse === 'online') {
         await saveOnline()
       } else {
         await saveOffline()
       }
     } catch (error: any) {
       console.error(error)
-      const saveError = error?.message ||'Unable to save project update. Please check the form and try again.'
+      const saveError = error?.message ||
+        'Unable to save project update. Please check the form and try again.'
       setErrorMessage(saveError)
-      setNoticeDialog({ title:'Update Not Saved', message: saveError, tone:'danger' })
+      setNoticeDialog({ title: 'Update Not Saved', message: saveError, tone: 'danger' })
     } finally {
       setSaving(false)
     }
@@ -1488,7 +1520,7 @@ export default function ProjectUpdates() {
       physical_accomplishment: clampProgress(physicalAccomplishment),
       target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
       target_physical_as_of: inspectionDate,
-      target_physical_source:'manual',
+      target_physical_source: 'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: autoRiskLevel,
       has_contract_modification: hasContractModification,
@@ -1517,16 +1549,16 @@ export default function ProjectUpdates() {
     clearFormAfterSave()
     setMessage('Project update saved online successfully.')
     setSaveSuccessDialog({
-      title:'Update Saved',
-      message:'Project update saved successfully. The project record has been updated.',
-      mode:'online',
+      title: 'Update Saved',
+      message: 'Project update saved successfully. The project record has been updated.',
+      mode: 'online',
     })
 
   }
 
   async function uploadPhotosOnline(projectId: string, updateId: string) {
     const photoRows = []
-    const projectTitle = project?.project_name ||'Untitled Project'
+    const projectTitle = project?.project_name || 'Untitled Project'
     const driveFundingYear = getDriveFundingYear(project, inspectionDate)
     const driveFundingSource = getDriveFundingSource(project)
     const uploadedBy =
@@ -1534,7 +1566,8 @@ export default function ProjectUpdates() {
       auth?.profile?.email ||
       auth?.user?.email ||
       auth?.user?.id ||
-      auth?.profile?.id ||'PMS10 User'
+      auth?.profile?.id ||
+      'PMS10 User'
 
     for (let index = 0; index < photoInputs.length; index += 1) {
       const photo = photoInputs[index]
@@ -1580,14 +1613,15 @@ export default function ProjectUpdates() {
     const localUpdateId = makeLocalId()
     const currentTimestamp = new Date().toISOString()
     const latestCoordinatePatch = buildLatestCoordinatePatch()
-    const projectName = project?.project_name ||'Untitled Project'
+    const projectName = project?.project_name || 'Untitled Project'
     const driveFundingYear = getDriveFundingYear(project, inspectionDate)
     const driveFundingSource = getDriveFundingSource(project)
 
     const updateTable = await getOfflineTable(offlineUpdateTables)
 
     if (!updateTable?.add) {
-      throw new Error('No compatible offline update table was found. Please check offlineDb.ts table names.'
+      throw new Error(
+        'No compatible offline update table was found. Please check offlineDb.ts table names.'
       )
     }
 
@@ -1606,9 +1640,9 @@ export default function ProjectUpdates() {
       revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
       not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       synced: false,
-      sync_status:'pending',
+      sync_status: 'pending',
       is_offline: true,
-      error:'',
+      error: '',
     }
 
     const offlineUpdateId = await updateTable.add(offlineUpdateRecord)
@@ -1633,15 +1667,16 @@ export default function ProjectUpdates() {
       created_at: new Date().toISOString(),
       uploaded_at: new Date().toISOString(),
       synced: false,
-      sync_status:'pending',
+      sync_status: 'pending',
       is_offline: true,
-      error:'',
+      error: '',
     }))
 
     const photoTable = await getOfflineTable(offlinePhotoTables)
 
     if (offlinePhotoRecords.length > 0 && !photoTable?.add && !photoTable?.bulkAdd) {
-      throw new Error('No compatible offline photo table was found. Please check offlineDb.ts table names.'
+      throw new Error(
+        'No compatible offline photo table was found. Please check offlineDb.ts table names.'
       )
     }
 
@@ -1658,7 +1693,7 @@ export default function ProjectUpdates() {
       physical_accomplishment: clampProgress(physicalAccomplishment),
       target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
       target_physical_as_of: inspectionDate,
-      target_physical_source:'manual',
+      target_physical_source: 'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
       risk_level: autoRiskLevel,
       contract_expiration_date: project?.contract_expiration_date || null,
@@ -1675,9 +1710,9 @@ export default function ProjectUpdates() {
     clearFormAfterSave()
     setMessage('Project update saved offline. Sync it when internet is available.')
     setSaveSuccessDialog({
-      title:'Saved Offline',
-      message:'Project update saved offline successfully. Sync it when internet is available.',
-      mode:'offline',
+      title: 'Saved Offline',
+      message: 'Project update saved offline successfully. Sync it when internet is available.',
+      mode: 'offline',
     })
 
     await loadOfflineData()
@@ -1705,7 +1740,7 @@ export default function ProjectUpdates() {
     const completedMode = saveSuccessDialog?.mode
     setSaveSuccessDialog(null)
 
-    if (completedMode ==='online' && id) {
+    if (completedMode === 'online' && id) {
       navigate(`/projects/${id}`)
     }
   }
@@ -1777,16 +1812,16 @@ export default function ProjectUpdates() {
   }
 
   return (
-    <div className={`pu-page ${isUpdateScrolled ?'is-pu-scrolled' :''}`}>
-      <section className="pu-hero pu-update-hero-card">
-        <div className="">
+    <div className={`pu-page ${isUpdateScrolled ? 'is-pu-scrolled' : ''}`}>
+      <section className="pu-hero">
+        <div className="project-update-swipe-hero">
           <p className="pu-eyebrow">Project Update Form</p>
-          <h1 className=" pu-update-hero-title">{project?.project_name ||'Project Update'}</h1>
+          <h1 className="project-update-swipe-title">{project?.project_name || 'Project Update'}</h1>
 
           <div className="pu-location-line">
-            <span>{project?.province ||'No province'}</span>
-            <span>{project?.municipality ||'No LGU'}</span>
-            <span>{project?.barangay ||'No barangay'}</span>
+            <span>{project?.province || 'No province'}</span>
+            <span>{project?.municipality || 'No LGU'}</span>
+            <span>{project?.barangay || 'No barangay'}</span>
           </div>
         </div>
 
@@ -1848,9 +1883,9 @@ export default function ProjectUpdates() {
               </span>
             </div>
 
-            <div className={`pu-network-state ${online ?'online' :'offline'}`} aria-live="polite">
-              <strong>{online ?'Online' :'Offline'}</strong>
-              <span>{online ?'Will save to cloud' :'Will save to device'}</span>
+            <div className={`pu-network-state ${online ? 'online' : 'offline'}`} aria-live="polite">
+              <strong>{online ? 'Online' : 'Offline'}</strong>
+              <span>{online ? 'Will save to cloud' : 'Will save to device'}</span>
             </div>
           </div>
 
@@ -1873,7 +1908,7 @@ export default function ProjectUpdates() {
                     <small>Selected update date</small>
                   </div>
 
-                  <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ?'disabled' :''}`}>
+                  <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ? 'disabled' : ''}`}>
                     Change Date
                     <input
                       ref={dateInputRef}
@@ -1895,7 +1930,7 @@ export default function ProjectUpdates() {
                 onClick={captureGps}
                 disabled={gpsLoading || saving}
               >
-                {gpsLoading ?'Capturing GPS...' :'Update GPS'}
+                {gpsLoading ? 'Capturing GPS...' : 'Update GPS'}
                 <span>Capture location</span>
               </button>
 
@@ -1917,10 +1952,10 @@ export default function ProjectUpdates() {
 
               {hasInspectionCoordinates ? (
                 <div className="pu-gps-inline-result">
-                  <strong>{inspectionCoordinateStatus.isValid ?'GPS captured' :'GPS needs checking'}</strong>
+                  <strong>{inspectionCoordinateStatus.isValid ? 'GPS captured' : 'GPS needs checking'}</strong>
                   <em>
                     {inspectionCoordinateStatus.isValid
-                      ? `Lat ${inspectionCoordinateStatus.latitude?.toFixed(7) ||''} · Long ${inspectionCoordinateStatus.longitude?.toFixed(7) ||''}`
+                      ? `Lat ${inspectionCoordinateStatus.latitude?.toFixed(7) || ''} · Long ${inspectionCoordinateStatus.longitude?.toFixed(7) || ''}`
                       : inspectionCoordinateStatus.reason}
                   </em>
                 </div>
@@ -2059,7 +2094,7 @@ export default function ProjectUpdates() {
                       type="button"
                       role="radio"
                       aria-checked={isActive}
-                      className={`pu-choice-card pu-status-choice ${isActive ?'active' :''} ${isCriticalStatus ?'critical' :''} ${isAdministrativeStatus ?'administrative' :''}`}
+                      className={`pu-choice-card pu-status-choice ${isActive ? 'active' : ''} ${isCriticalStatus ? 'critical' : ''} ${isAdministrativeStatus ? 'administrative' : ''}`}
                       onClick={() => handleProjectStatusChange(status)}
                       disabled={saving}
                     >
@@ -2081,7 +2116,7 @@ export default function ProjectUpdates() {
                       type="button"
                       role="radio"
                       aria-checked={notYetStartedReason === reason}
-                      className={`pu-reason-chip ${notYetStartedReason === reason ?'active' :''}`}
+                      className={`pu-reason-chip ${notYetStartedReason === reason ? 'active' : ''}`}
                       onClick={() => setNotYetStartedReason(reason)}
                       disabled={saving}
                     >
@@ -2092,7 +2127,7 @@ export default function ProjectUpdates() {
               </div>
             ) : (
               <label className="pu-field pu-full-field pu-critical-reason-field">
-                <span>{projectReasonLabel} {requiresUpdateReason ?'*' :''}</span>
+                <span>{projectReasonLabel} {requiresUpdateReason ? '*' : ''}</span>
                 <textarea
                   value={notYetStartedReason}
                   onChange={(event) => setNotYetStartedReason(event.target.value)}
@@ -2100,8 +2135,8 @@ export default function ProjectUpdates() {
                   disabled={!requiresUpdateReason || saving}
                   placeholder={
                     requiresUpdateReason
-                      ?'State the reason/justification for this critical status or contract modification.'
-                      :'Reason field is enabled only for critical status or contract modification.'
+                      ? 'State the reason/justification for this critical status or contract modification.'
+                      : 'Reason field is enabled only for critical status or contract modification.'
                   }
                   rows={3}
                 />
@@ -2136,7 +2171,7 @@ export default function ProjectUpdates() {
                     type="button"
                     role="radio"
                     aria-checked={!hasContractModification}
-                    className={`pu-choice-card ${!hasContractModification ?'active' :''}`}
+                    className={`pu-choice-card ${!hasContractModification ? 'active' : ''}`}
                     onClick={() => setHasContractModification(false)}
                     disabled={saving || isSuspendedSelected}
                   >
@@ -2148,12 +2183,12 @@ export default function ProjectUpdates() {
                     type="button"
                     role="radio"
                     aria-checked={hasContractModification}
-                    className={`pu-choice-card ${hasContractModification ?'active' :''}`}
+                    className={`pu-choice-card ${hasContractModification ? 'active' : ''}`}
                     onClick={() => setHasContractModification(true)}
                     disabled={saving || isSuspendedSelected}
                   >
                     <strong>Yes</strong>
-                    <small>{isSuspendedSelected ?'Required by Suspended status' :'VO, SO, EOT, or Combination'}</small>
+                    <small>{isSuspendedSelected ? 'Required by Suspended status' : 'VO, SO, EOT, or Combination'}</small>
                   </button>
                 </div>
               </div>
@@ -2172,7 +2207,7 @@ export default function ProjectUpdates() {
                           type="button"
                           role="radio"
                           aria-checked={isActive}
-                          className={`pu-choice-card pu-modification-choice ${isActive ?'active' :''} ${isCriticalModification ?'critical' :''}`}
+                          className={`pu-choice-card pu-modification-choice ${isActive ? 'active' : ''} ${isCriticalModification ? 'critical' : ''}`}
                           onClick={() => handleContractModificationTypeChange(option)}
                           disabled={saving}
                         >
@@ -2219,7 +2254,7 @@ export default function ProjectUpdates() {
                         <small>Revised contract expiration</small>
                       </div>
 
-                      <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ?'disabled' :''}`}>
+                      <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ? 'disabled' : ''}`}>
                         Change Date
                         <input
                           ref={revisedContractExpirationDateInputRef}
@@ -2353,11 +2388,11 @@ export default function ProjectUpdates() {
           <div className="pu-submit-bar pu-single-save-bar">
             <button
               type="submit"
-              className={`pu-main-save-btn ${online ?'online' :'offline'}`}
+              className={`pu-main-save-btn ${online ? 'online' : 'offline'}`}
               disabled={saving}
             >
-              {saving ?'Saving Update...' : online ?'Save Update' :'Save Offline'}
-              <span>{online ?'Online detected · submit now' :'No internet · save to this device'}</span>
+              {saving ? 'Saving Update...' : online ? 'Save Update' : 'Save Offline'}
+              <span>{online ? 'Online detected · submit now' : 'No internet · save to this device'}</span>
             </button>
 
             <Link className="pu-secondary-btn pu-cancel-link" to={`/projects/${id}`}>
@@ -2388,7 +2423,7 @@ export default function ProjectUpdates() {
                   <div className="pu-recent-item" key={update.id || index}>
                     <div>
                       <strong>{formatLongDate(update.inspection_date)}</strong>
-                      {update.sync_status ==='pending' && (
+                      {update.sync_status === 'pending' && (
                         <span className="pu-pending-pill">Pending Sync</span>
                       )}
                     </div>
@@ -2408,7 +2443,7 @@ export default function ProjectUpdates() {
 
                       return (
                         <p>
-                          Variance:{''}
+                          Variance:{' '}
                           <strong className={updateVariance.className}>
                             {updateVariance.label}
                           </strong>
@@ -2416,21 +2451,21 @@ export default function ProjectUpdates() {
                       )
                     })()}
                     <p>
-                      Financial:{''}
+                      Financial:{' '}
                       {formatPercent(update.financial_accomplishment)}
                     </p>
                     <p>
-                      GPS:{''}
+                      GPS:{' '}
                       {hasCoordinateValue(update.inspection_latitude) &&
                       hasCoordinateValue(update.inspection_longitude)
                         ? `${formatCoordinate(
                             update.inspection_latitude
                           )}, ${formatCoordinate(update.inspection_longitude)}`
-                        :'No GPS recorded'}
+                        : 'No GPS recorded'}
                     </p>
 
                     <span className={`pu-badge ${getRiskClass(update.risk_level)}`}>
-                      {update.risk_level ||'No Risk'}
+                      {update.risk_level || 'No Risk'}
                     </span>
                   </div>
                 ))}
@@ -2451,7 +2486,7 @@ export default function ProjectUpdates() {
         <div className="pu-modal-overlay" role="alertdialog" aria-modal="true" aria-label={noticeDialog.title}>
           <div className={`pu-save-modal pu-notice-modal ${noticeDialog.tone}`}>
             <div className="pu-notice-icon">
-              {noticeDialog.tone ==='danger' ?'!' : noticeDialog.tone ==='warning' ?'!' :'i'}
+              {noticeDialog.tone === 'danger' ? '!' : noticeDialog.tone === 'warning' ? '!' : 'i'}
             </div>
             <h3>{noticeDialog.title}</h3>
             <p>{noticeDialog.message}</p>
@@ -2497,7 +2532,7 @@ export default function ProjectUpdates() {
                 onClick={confirmSaveUpdate}
                 disabled={saving}
               >
-                {saving ?'Saving...' : online ?'Yes, Save Update' :'Yes, Save Offline'}
+                {saving ? 'Saving...' : online ? 'Yes, Save Update' : 'Yes, Save Offline'}
               </button>
             </div>
           </div>
@@ -2515,7 +2550,7 @@ export default function ProjectUpdates() {
               className="pu-primary-btn"
               onClick={closeSuccessDialog}
             >
-              {saveSuccessDialog.mode ==='online' ?'OK, View Project' :'OK'}
+              {saveSuccessDialog.mode === 'online' ? 'OK, View Project' : 'OK'}
             </button>
           </div>
         </div>

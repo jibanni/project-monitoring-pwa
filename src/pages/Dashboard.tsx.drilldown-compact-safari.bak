@@ -49,7 +49,6 @@ const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
 }
 
 const MODAL_CLOSE_DELAY = 190
-const DRILLDOWN_PAGE_SIZE = 80
 
 const CHART_COLORS = [
   '#16a34a',
@@ -103,6 +102,15 @@ function formatPercent(value: unknown) {
   return `${new Intl.NumberFormat('en-PH', {
     maximumFractionDigits: 2,
   }).format(number)}%`
+}
+
+function formatFullProjectCost(value: unknown) {
+  const amount = asNumber(value)
+
+  return `Php ${new Intl.NumberFormat('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)}`
 }
 
 function formatDate(value: unknown) {
@@ -174,6 +182,19 @@ function getStatus(project: ProjectRecord) {
 
 function getRiskLevel(project: ProjectRecord) {
   return getPmsRiskLevel(project)
+}
+
+function getProjectCost(project: ProjectRecord) {
+  return asNumber(
+    project.project_cost ??
+      project.total_project_cost ??
+      project.approved_project_cost ??
+      project.budget ??
+      project.amount ??
+      project.allocation ??
+      project.allocated_amount ??
+      project.contract_amount,
+  )
 }
 
 function getFundingSource(project: ProjectRecord) {
@@ -260,6 +281,16 @@ function getPhysicalProgress(project: ProjectRecord) {
   )
 }
 
+function getFinancialProgress(project: ProjectRecord) {
+  return asNumber(
+    project.financial_accomplishment ??
+      project.financial_progress ??
+      project.financial_percentage ??
+      project.financial ??
+      project.actual_financial,
+  )
+}
+
 function getUpdatedTime(project: ProjectRecord) {
   const value =
     project.updated_at ??
@@ -273,6 +304,53 @@ function getUpdatedTime(project: ProjectRecord) {
   if (Number.isNaN(date.getTime())) return 0
 
   return date.getTime()
+}
+
+function getLatestUpdateDateValue(project: ProjectRecord) {
+  return (
+    project.latest_update_date ??
+    project.last_update_date ??
+    project.last_inspection_date ??
+    project.updated_at ??
+    project.modified_at ??
+    project.created_at ??
+    null
+  )
+}
+
+function getNotYetStartedReason(project: ProjectRecord) {
+  return safeText(
+    project.not_yet_started_reason ??
+      project.not_started_reason ??
+      project.reason_not_started ??
+      project.start_delay_reason ??
+      project.delay_reason ??
+      project.status_reason ??
+      project.remarks,
+    'No reason encoded',
+  )
+}
+
+function getDaysSinceLatestUpdate(project: ProjectRecord) {
+  const value = getLatestUpdateDateValue(project)
+  const date = new Date(safeText(value, ''))
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      days: null as number | null,
+      label: 'No update yet',
+    }
+  }
+
+  const today = new Date()
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+  const days = Math.max(0, Math.floor((end - start) / 86_400_000))
+
+  return {
+    days,
+    label: days === 0 ? 'Updated today' : `Updated ${days} day${days === 1 ? '' : 's'} ago`,
+  }
 }
 
 function getStatusColor(status: unknown, fallbackIndex = 0) {
@@ -318,7 +396,6 @@ export default function Dashboard() {
   const [errorMessage, setErrorMessage] = useState('')
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
   const [isDrilldownClosing, setIsDrilldownClosing] = useState(false)
-  const [drilldownVisibleCount, setDrilldownVisibleCount] = useState(DRILLDOWN_PAGE_SIZE)
   const [isDashboardScrolled, setIsDashboardScrolled] = useState(false)
   const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>(
     DEFAULT_DASHBOARD_FILTERS,
@@ -409,7 +486,6 @@ export default function Dashboard() {
     }
 
     setIsDrilldownClosing(false)
-    setDrilldownVisibleCount(DRILLDOWN_PAGE_SIZE)
     setDrilldown({
       title,
       subtitle,
@@ -649,32 +725,21 @@ export default function Dashboard() {
 
   function renderProjectCard(project: ProjectRecord) {
     const projectId = getProjectId(project)
-    const projectName = getProjectName(project)
-    const riskLevel = getRiskLevel(project)
-    const status = getStatus(project)
-    const physicalProgress = formatPercent(getPhysicalProgress(project))
+    const varianceInfo = getTargetPhysicalInfo(project)
 
     return (
       <article
-        className="dashboard-modal-project-card dashboard-modal-project-row"
-        key={projectId || projectName}
+        className="dashboard-modal-project-card"
+        key={projectId || getProjectName(project)}
       >
         <div className="dashboard-modal-project-main">
-          <div className="dashboard-modal-project-info">
+          <div>
             <p className="dashboard-modal-project-kicker">
               {getFundingDisplay(project)}
             </p>
-
-            <h3>{projectName}</h3>
-
+            <h3>{getProjectName(project)}</h3>
             <p className="dashboard-modal-project-location">
               {getLocation(project)}
-            </p>
-
-            <p className="dashboard-modal-project-meta">
-              <span>{status}</span>
-              <span>Risk: {riskLevel}</span>
-              <span>{physicalProgress}</span>
             </p>
           </div>
 
@@ -691,18 +756,93 @@ export default function Dashboard() {
             View
           </button>
         </div>
+
+        <div className="dashboard-modal-project-grid">
+          <div>
+            <span>Status</span>
+            <strong>{getStatus(project)}</strong>
+          </div>
+
+          <div>
+            <span>Reason</span>
+            <strong>{getNotYetStartedReason(project)}</strong>
+          </div>
+
+          <div>
+            <span>Last Update</span>
+            <strong>{formatDate(getLatestUpdateDateValue(project))}</strong>
+          </div>
+
+          <div>
+            <span>Days Since Update</span>
+            <strong>{getDaysSinceLatestUpdate(project).label}</strong>
+          </div>
+
+          <div>
+            <span>Risk Level</span>
+            <strong>{getRiskLevel(project)}</strong>
+          </div>
+
+          <div>
+            <span>Project Cost</span>
+            <strong>{formatFullProjectCost(getProjectCost(project))}</strong>
+          </div>
+
+          <div>
+            <span>Program</span>
+            <strong>{getFundingDisplay(project)}</strong>
+          </div>
+
+          <div>
+            <span>Actual Physical</span>
+            <strong>{formatPercent(getPhysicalProgress(project))}</strong>
+          </div>
+
+          <div>
+            <span>Variance</span>
+            <strong className={`dashboard-variance-value ${varianceInfo.className}`}>
+              {varianceInfo.compactLabel}
+            </strong>
+          </div>
+        </div>
+
+        <div className="dashboard-modal-progress-row">
+          <div>
+            <div className="dashboard-progress-label">
+              <span>Physical</span>
+              <strong>{formatPercent(getPhysicalProgress(project))}</strong>
+            </div>
+
+            <div className="dashboard-progress-track">
+              <span
+                style={{
+                  width: `${Math.min(getPhysicalProgress(project), 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="dashboard-progress-label">
+              <span>Financial</span>
+              <strong>{formatPercent(getFinancialProgress(project))}</strong>
+            </div>
+
+            <div className="dashboard-progress-track financial">
+              <span
+                style={{
+                  width: `${Math.min(getFinancialProgress(project), 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
       </article>
     )
   }
 
   function renderModal() {
     if (!drilldown) return null
-
-    const visibleDrilldownProjects = drilldown.projects.slice(0, drilldownVisibleCount)
-    const hiddenDrilldownCount = Math.max(
-      drilldown.projects.length - visibleDrilldownProjects.length,
-      0,
-    )
 
     return createPortal(
       <div
@@ -743,25 +883,7 @@ export default function Dashboard() {
 
           <div className="dashboard-modal-body">
             {drilldown.projects.length > 0 ? (
-              (
-                <>
-                  {visibleDrilldownProjects.map(renderProjectCard)}
-
-                  {hiddenDrilldownCount > 0 ? (
-                    <button
-                      type="button"
-                      className="dashboard-modal-load-more"
-                      onClick={() =>
-                        setDrilldownVisibleCount((currentCount) =>
-                          currentCount + DRILLDOWN_PAGE_SIZE,
-                        )
-                      }
-                    >
-                      Show {Math.min(hiddenDrilldownCount, DRILLDOWN_PAGE_SIZE)} more
-                    </button>
-                  ) : null}
-                </>
-              )
+              drilldown.projects.map(renderProjectCard)
             ) : (
               <div className="dashboard-empty-state">
                 <strong>No projects found</strong>

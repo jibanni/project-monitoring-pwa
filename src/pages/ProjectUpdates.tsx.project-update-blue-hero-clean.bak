@@ -1778,10 +1778,10 @@ export default function ProjectUpdates() {
 
   return (
     <div className={`pu-page ${isUpdateScrolled ?'is-pu-scrolled' :''}`}>
-      <section className="pu-hero pu-update-hero-card">
+      <section className="pu-hero project-update-title-pill-card">
         <div className="">
           <p className="pu-eyebrow">Project Update Form</p>
-          <h1 className=" pu-update-hero-title">{project?.project_name ||'Project Update'}</h1>
+          <h1 className=" project-update-title-pill-text">{project?.project_name ||'Project Update'}</h1>
 
           <div className="pu-location-line">
             <span>{project?.province ||'No province'}</span>
