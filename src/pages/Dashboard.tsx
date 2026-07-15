@@ -16,10 +16,6 @@ import {
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { filterProjectsByAor } from '../utils/aorAccess'
-import {
-  formatSignedVariance,
-  getTargetPhysicalInfo,
-} from '../utils/projectVariance'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
 import { normalizeProgramName } from '../utils/program'
 
@@ -515,6 +511,25 @@ export default function Dashboard() {
       (project) => getRiskLevel(project) === 'High',
     )
 
+    const completionPendingProjects = visibleProjects.filter(
+      (project) => getStatus(project) !== 'Completed',
+    )
+
+    const completionRemainingCount = Math.max(
+      visibleProjects.length - completedProjects.length,
+      0,
+    )
+
+    const completionRate =
+      visibleProjects.length > 0
+        ? Math.round((completedProjects.length / visibleProjects.length) * 100)
+        : 0
+
+    const completionData = [
+      { name: 'Completed', count: completedProjects.length },
+      { name: 'Remaining', count: completionRemainingCount },
+    ].filter((item) => item.count > 0)
+
     const statusData = [
       { name: 'Under Procurement', count: underProcurementProjects.length },
       { name: 'Not Yet Started', count: notStartedProjects.length },
@@ -548,6 +563,10 @@ export default function Dashboard() {
       lowRiskProjects,
       mediumRiskProjects,
       highRiskProjects,
+      completionPendingProjects,
+      completionRemainingCount,
+      completionRate,
+      completionData,
       statusData,
       riskData,
       latestProjects,
@@ -819,7 +838,7 @@ export default function Dashboard() {
             <h1>PDMU Project Monitoring Dashboard</h1>
             <p>
               Field-ready overview of implementation status, risk level, and
-              priority records for monitoring.
+              completion performance for monitoring.
             </p>
           </div>
         </section>
@@ -1157,62 +1176,128 @@ export default function Dashboard() {
           </article>
         </section>
 
-        <section className="dashboard-priority-section">
-          <article className="dashboard-list-card">
+        <section className="dashboard-priority-section dashboard-completion-section">
+          <article className="dashboard-list-card dashboard-completion-card">
             <div className="dashboard-card-header">
               <div>
-                <p className="dashboard-card-kicker">Priority Review</p>
-                <h2>High Risk Projects</h2>
+                <p className="dashboard-card-kicker">Completion Rate</p>
+                <h2>Completion Performance</h2>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  openDrilldown(
-                    'High Risk Projects',
-                    'Projects requiring close monitoring and follow-through.',
-                    dashboardData.highRiskProjects,
-                  )
-                }
-              >
-                View All
-              </button>
+              <span>{dashboardData.completionRate}% complete</span>
             </div>
 
-            <div className="dashboard-project-list">
-              {dashboardData.highRiskProjects.slice(0, 5).length > 0 ? (
-                dashboardData.highRiskProjects.slice(0, 5).map((project) => {
-                  const varianceInfo = getTargetPhysicalInfo(project)
+            <div className="dashboard-completion-grid">
+              <div className="dashboard-completion-gauge">
+                {dashboardData.totalProjects > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={dashboardData.completionData}
+                          dataKey="count"
+                          nameKey="name"
+                          innerRadius="70%"
+                          outerRadius="92%"
+                          startAngle={90}
+                          endAngle={-270}
+                          paddingAngle={dashboardData.completionData.length > 1 ? 2 : 0}
+                          cursor="pointer"
+                          onClick={(entry: any) => {
+                            const name = safeText(entry?.name, '')
+                            const selected =
+                              name === 'Completed'
+                                ? dashboardData.completedProjects
+                                : dashboardData.completionPendingProjects
 
-                  return (
-                    <button
-                      type="button"
-                      key={getProjectId(project) || getProjectName(project)}
-                      onClick={() =>
-                        openDrilldown(
-                          getProjectName(project),
-                          'Selected high risk project record.',
-                          [project],
-                        )
-                      }
-                    >
+                            openDrilldown(
+                              name === 'Completed'
+                                ? 'Completed Projects'
+                                : 'Remaining Projects',
+                              name === 'Completed'
+                                ? 'Projects counted as completed under the current dashboard filter.'
+                                : 'Projects not yet counted as completed under the current dashboard filter.',
+                              selected,
+                            )
+                          }}
+                        >
+                          {dashboardData.completionData.map((entry) => (
+                            <Cell
+                              key={entry.name}
+                              fill={entry.name === 'Completed' ? '#16a34a' : '#e2e8f0'}
+                            />
+                          ))}
+                        </Pie>
+
+                        <Tooltip
+                          formatter={(value) => [
+                            formatCount(asNumber(value)),
+                            'Projects',
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+
+                    <div className="dashboard-completion-center" aria-hidden="true">
                       <div>
-                        <strong>{getProjectName(project)}</strong>
-                        <span>{getLocation(project)}</span>
+                        <strong>{dashboardData.completionRate}%</strong>
+                        <span>Complete</span>
                       </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="dashboard-empty-state compact">
+                    <strong>No completion data</strong>
+                    <p>No project records match the current dashboard filters.</p>
+                  </div>
+                )}
+              </div>
 
-                      <em className={`dashboard-slippage-em ${varianceInfo.className}`}>
-                        {formatSignedVariance(varianceInfo.variance)}
-                      </em>
-                    </button>
-                  )
-                })
-              ) : (
-                <div className="dashboard-empty-state compact">
-                  <strong>No high risk projects</strong>
-                  <p>No project is currently tagged as high risk.</p>
+              <div className="dashboard-completion-breakdown">
+                <button
+                  type="button"
+                  className="dashboard-completion-breakdown-card"
+                  onClick={() =>
+                    openDrilldown(
+                      'Completed Projects',
+                      'Projects counted as completed under the current dashboard filter.',
+                      dashboardData.completedProjects,
+                    )
+                  }
+                >
+                  <i style={{ backgroundColor: '#16a34a' }} />
+                  <span>
+                    Completed
+                    <strong>100% physical or completed status</strong>
+                  </span>
+                  <em>{formatCount(dashboardData.completedProjects.length)}</em>
+                </button>
+
+                <button
+                  type="button"
+                  className="dashboard-completion-breakdown-card"
+                  onClick={() =>
+                    openDrilldown(
+                      'Remaining Projects',
+                      'Projects not yet counted as completed under the current dashboard filter.',
+                      dashboardData.completionPendingProjects,
+                    )
+                  }
+                >
+                  <i style={{ backgroundColor: '#94a3b8' }} />
+                  <span>
+                    Remaining
+                    <strong>Procurement, not started, ongoing, or critical status</strong>
+                  </span>
+                  <em>{formatCount(dashboardData.completionRemainingCount)}</em>
+                </button>
+
+                <div className="dashboard-completion-note">
+                  <strong>Scope:</strong> This completion rate uses the currently visible
+                  dashboard records, so it changes when you filter by program, funding
+                  year, province, or LGU.
                 </div>
-              )}
+              </div>
             </div>
           </article>
         </section>
