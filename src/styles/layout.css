@@ -2801,711 +2801,10 @@ main {
 }
 /* PMS10 BOTTOM NAV MATCH HEADER COLOR END */
 
-/* PMS10 IOS STANDALONE BOTTOM NAV HEIGHT FIX START
-   Fix excessive bottom navbar height when the PWA is saved to Home Screen.
-   Keeps safe-area protection, but prevents the blue nav from growing too tall.
-*/
-@media (display-mode: standalone) and (max-width: 768px) {
-  :root {
-    --pms10-standalone-nav-visual-height: 72px;
-    --pms10-standalone-nav-total-height: calc(
-      var(--pms10-standalone-nav-visual-height) + env(safe-area-inset-bottom, 0px)
-    );
-  }
 
-  body {
-    padding-bottom: var(--pms10-standalone-nav-total-height) !important;
-  }
 
-  .app-mobile-nav,
-  .pms10-bottom-nav-v17-rect-strip {
-    height: var(--pms10-standalone-nav-total-height) !important;
-    min-height: var(--pms10-standalone-nav-total-height) !important;
-    max-height: var(--pms10-standalone-nav-total-height) !important;
-    padding-top: 4px !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-    align-items: flex-start !important;
-    overflow: hidden !important;
-  }
 
-  .pms10-bottom-nav-v17-blue-fill {
-    height: 100% !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    top: 0 !important;
-    bottom: 0 !important;
-  }
 
-  .app-mobile-nav nav,
-  .app-mobile-nav > div,
-  .pms10-bottom-nav-v17-rect-strip nav,
-  .pms10-bottom-nav-v17-rect-strip > div {
-    height: var(--pms10-standalone-nav-visual-height) !important;
-    min-height: var(--pms10-standalone-nav-visual-height) !important;
-    max-height: var(--pms10-standalone-nav-visual-height) !important;
-    align-items: center !important;
-  }
-
-  .app-mobile-nav a,
-  .app-mobile-nav button,
-  .pms10-bottom-nav-v17-rect-strip a,
-  .pms10-bottom-nav-v17-rect-strip button {
-    transform: none !important;
-  }
-
-  .app-main,
-  main,
-  .app-content,
-  .page-shell {
-    padding-bottom: calc(var(--pms10-standalone-nav-total-height) + 18px) !important;
-  }
-}
-
-/* iOS Safari fallback: standalone media query support can vary across versions. */
-@supports (-webkit-touch-callout: none) {
-  @media (max-width: 768px) {
-    body.pms10-standalone-pwa {
-      padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip {
-      height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-      min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-      max-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-      padding-top: 4px !important;
-      padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-      align-items: flex-start !important;
-      overflow: hidden !important;
-    }
-
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-blue-fill {
-      height: 100% !important;
-      min-height: 0 !important;
-      max-height: none !important;
-      top: 0 !important;
-      bottom: 0 !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav nav,
-    body.pms10-standalone-pwa .app-mobile-nav > div,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip nav,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip > div {
-      height: 72px !important;
-      min-height: 72px !important;
-      max-height: 72px !important;
-      align-items: center !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav a,
-    body.pms10-standalone-pwa .app-mobile-nav button,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button {
-      transform: none !important;
-    }
-  }
-}
-/* PMS10 IOS STANDALONE BOTTOM NAV HEIGHT FIX END */
-
-/* PMS10 TRIM IOS STANDALONE BOTTOM NAV START
-   Further trims the Home Screen / standalone PWA bottom navbar.
-   Target total height is compact but still safe for iPhone home indicator.
-*/
-@media (display-mode: standalone) and (max-width: 768px) {
-  :root {
-    --pms10-standalone-nav-visual-height: 72px;
-    --pms10-standalone-nav-total-height: calc(
-      var(--pms10-standalone-nav-visual-height) + env(safe-area-inset-bottom, 0px)
-    );
-  }
-
-  body {
-    padding-bottom: var(--pms10-standalone-nav-total-height) !important;
-  }
-
-  .app-mobile-nav,
-  .pms10-bottom-nav-v17-rect-strip {
-    height: var(--pms10-standalone-nav-total-height) !important;
-    min-height: var(--pms10-standalone-nav-total-height) !important;
-    max-height: var(--pms10-standalone-nav-total-height) !important;
-    padding-top: 4px !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-    align-items: flex-start !important;
-    overflow: hidden !important;
-  }
-
-  .app-mobile-nav nav,
-  .app-mobile-nav > div,
-  .pms10-bottom-nav-v17-rect-strip nav,
-  .pms10-bottom-nav-v17-rect-strip > div {
-    height: var(--pms10-standalone-nav-visual-height) !important;
-    min-height: var(--pms10-standalone-nav-visual-height) !important;
-    max-height: var(--pms10-standalone-nav-visual-height) !important;
-    align-items: center !important;
-  }
-
-  .app-mobile-nav a,
-  .app-mobile-nav button,
-  .pms10-bottom-nav-v17-rect-strip a,
-  .pms10-bottom-nav-v17-rect-strip button {
-    min-height: 56px !important;
-    height: 56px !important;
-    max-height: 60px !important;
-    padding-top: 6px !important;
-    padding-bottom: 5px !important;
-    transform: none !important;
-    gap: 3px !important;
-  }
-
-  .app-mobile-nav a[aria-current='page'],
-  .app-mobile-nav a.active,
-  .app-mobile-nav button[aria-current='page'],
-  .app-mobile-nav button.active,
-  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
-  .pms10-bottom-nav-v17-rect-strip a.active,
-  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
-  .pms10-bottom-nav-v17-rect-strip button.active {
-    min-height: 58px !important;
-    height: 58px !important;
-    max-height: 62px !important;
-    border-radius: 22px !important;
-  }
-
-  .app-mobile-nav svg,
-  .pms10-bottom-nav-v17-rect-strip svg {
-    width: 22px !important;
-    height: 22px !important;
-  }
-
-  .app-mobile-nav span,
-  .app-mobile-nav small,
-  .pms10-bottom-nav-v17-rect-strip span,
-  .pms10-bottom-nav-v17-rect-strip small {
-    font-size: 0.78rem !important;
-    line-height: 1.05 !important;
-  }
-
-  .app-main,
-  main,
-  .app-content,
-  .page-shell {
-    padding-bottom: calc(var(--pms10-standalone-nav-total-height) + 10px) !important;
-  }
-}
-
-@supports (-webkit-touch-callout: none) {
-  @media (max-width: 768px) {
-    body.pms10-standalone-pwa {
-      padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip {
-      height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-      min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-      max-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
-      padding-top: 4px !important;
-      padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-      align-items: flex-start !important;
-      overflow: hidden !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav nav,
-    body.pms10-standalone-pwa .app-mobile-nav > div,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip nav,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip > div {
-      height: 72px !important;
-      min-height: 72px !important;
-      max-height: 72px !important;
-      align-items: center !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav a,
-    body.pms10-standalone-pwa .app-mobile-nav button,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button {
-      min-height: 56px !important;
-      height: 56px !important;
-      max-height: 60px !important;
-      padding-top: 6px !important;
-      padding-bottom: 5px !important;
-      transform: none !important;
-      gap: 3px !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'],
-    body.pms10-standalone-pwa .app-mobile-nav a.active,
-    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'],
-    body.pms10-standalone-pwa .app-mobile-nav button.active,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active {
-      min-height: 58px !important;
-      height: 58px !important;
-      max-height: 62px !important;
-      border-radius: 22px !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav svg,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip svg {
-      width: 22px !important;
-      height: 22px !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav span,
-    body.pms10-standalone-pwa .app-mobile-nav small,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip span,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip small {
-      font-size: 0.78rem !important;
-      line-height: 1.05 !important;
-    }
-  }
-}
-/* PMS10 TRIM IOS STANDALONE BOTTOM NAV END */
-
-/* PMS10 COMPACT IOS NAV ACTIVE HIGHLIGHT START
-   Keep the trimmed standalone navbar height, but make the active/highlight
-   button smaller so the rounded bubble is not clipped.
-*/
-@media (display-mode: standalone) and (max-width: 768px) {
-  .app-mobile-nav a[aria-current='page'],
-  .app-mobile-nav a.active,
-  .app-mobile-nav button[aria-current='page'],
-  .app-mobile-nav button.active,
-  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
-  .pms10-bottom-nav-v17-rect-strip a.active,
-  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
-  .pms10-bottom-nav-v17-rect-strip button.active {
-    height: 50px !important;
-    min-height: 50px !important;
-    max-height: 50px !important;
-    padding: 5px 10px 4px !important;
-    margin-top: 6px !important;
-    margin-bottom: 4px !important;
-    border-radius: 18px !important;
-    align-self: center !important;
-    gap: 2px !important;
-    box-sizing: border-box !important;
-    transform: none !important;
-  }
-
-  .app-mobile-nav a[aria-current='page'] svg,
-  .app-mobile-nav a.active svg,
-  .app-mobile-nav button[aria-current='page'] svg,
-  .app-mobile-nav button.active svg,
-  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] svg,
-  .pms10-bottom-nav-v17-rect-strip a.active svg,
-  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] svg,
-  .pms10-bottom-nav-v17-rect-strip button.active svg {
-    width: 20px !important;
-    height: 20px !important;
-  }
-
-  .app-mobile-nav a[aria-current='page'] span,
-  .app-mobile-nav a.active span,
-  .app-mobile-nav button[aria-current='page'] span,
-  .app-mobile-nav button.active span,
-  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] span,
-  .pms10-bottom-nav-v17-rect-strip a.active span,
-  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] span,
-  .pms10-bottom-nav-v17-rect-strip button.active span,
-  .app-mobile-nav a[aria-current='page'] small,
-  .app-mobile-nav a.active small,
-  .app-mobile-nav button[aria-current='page'] small,
-  .app-mobile-nav button.active small,
-  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] small,
-  .pms10-bottom-nav-v17-rect-strip a.active small,
-  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] small,
-  .pms10-bottom-nav-v17-rect-strip button.active small {
-    font-size: 0.74rem !important;
-    line-height: 1 !important;
-  }
-}
-
-@supports (-webkit-touch-callout: none) {
-  @media (max-width: 768px) {
-    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'],
-    body.pms10-standalone-pwa .app-mobile-nav a.active,
-    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'],
-    body.pms10-standalone-pwa .app-mobile-nav button.active,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active {
-      height: 50px !important;
-      min-height: 50px !important;
-      max-height: 50px !important;
-      padding: 5px 10px 4px !important;
-      margin-top: 6px !important;
-      margin-bottom: 4px !important;
-      border-radius: 18px !important;
-      align-self: center !important;
-      gap: 2px !important;
-      box-sizing: border-box !important;
-      transform: none !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'] svg,
-    body.pms10-standalone-pwa .app-mobile-nav a.active svg,
-    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'] svg,
-    body.pms10-standalone-pwa .app-mobile-nav button.active svg,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] svg,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active svg,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] svg,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active svg {
-      width: 20px !important;
-      height: 20px !important;
-    }
-
-    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'] span,
-    body.pms10-standalone-pwa .app-mobile-nav a.active span,
-    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'] span,
-    body.pms10-standalone-pwa .app-mobile-nav button.active span,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] span,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active span,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] span,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active span,
-    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'] small,
-    body.pms10-standalone-pwa .app-mobile-nav a.active small,
-    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'] small,
-    body.pms10-standalone-pwa .app-mobile-nav button.active small,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] small,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active small,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] small,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active small {
-      font-size: 0.74rem !important;
-      line-height: 1 !important;
-    }
-  }
-}
-/* PMS10 COMPACT IOS NAV ACTIVE HIGHLIGHT END */
-
-/* PMS10 STATIONARY BOTTOM NAV ICONS START
-   Prevent bottom navigation icons/items from moving on tap, press, focus,
-   route change, or active-state change. Only color/background/shadow may change.
-*/
-@media (max-width: 768px) {
-  .app-mobile-nav a,
-  .app-mobile-nav button,
-  .app-mobile-nav a *,
-  .app-mobile-nav button *,
-  .pms10-bottom-nav-v17-rect-strip a,
-  .pms10-bottom-nav-v17-rect-strip button,
-  .pms10-bottom-nav-v17-rect-strip a *,
-  .pms10-bottom-nav-v17-rect-strip button *,
-  .pms10-mobile-bottom-nav a,
-  .pms10-mobile-bottom-nav button,
-  .pms10-mobile-bottom-nav a *,
-  .pms10-mobile-bottom-nav button *,
-  [class*='bottom-nav'] a,
-  [class*='bottom-nav'] button,
-  [class*='bottom-nav'] a *,
-  [class*='bottom-nav'] button * {
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-    will-change: auto !important;
-  }
-
-  .app-mobile-nav a,
-  .app-mobile-nav button,
-  .pms10-bottom-nav-v17-rect-strip a,
-  .pms10-bottom-nav-v17-rect-strip button,
-  .pms10-mobile-bottom-nav a,
-  .pms10-mobile-bottom-nav button,
-  [class*='bottom-nav'] a,
-  [class*='bottom-nav'] button {
-    transition:
-      background-color 160ms ease,
-      color 160ms ease,
-      box-shadow 160ms ease,
-      border-color 160ms ease,
-      opacity 160ms ease !important;
-  }
-
-  .app-mobile-nav a:active,
-  .app-mobile-nav button:active,
-  .app-mobile-nav a:focus,
-  .app-mobile-nav button:focus,
-  .app-mobile-nav a:focus-visible,
-  .app-mobile-nav button:focus-visible,
-  .app-mobile-nav a[aria-current='page'],
-  .app-mobile-nav a.active,
-  .app-mobile-nav button[aria-current='page'],
-  .app-mobile-nav button.active,
-  .pms10-bottom-nav-v17-rect-strip a:active,
-  .pms10-bottom-nav-v17-rect-strip button:active,
-  .pms10-bottom-nav-v17-rect-strip a:focus,
-  .pms10-bottom-nav-v17-rect-strip button:focus,
-  .pms10-bottom-nav-v17-rect-strip a:focus-visible,
-  .pms10-bottom-nav-v17-rect-strip button:focus-visible,
-  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
-  .pms10-bottom-nav-v17-rect-strip a.active,
-  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
-  .pms10-bottom-nav-v17-rect-strip button.active,
-  [class*='bottom-nav'] a:active,
-  [class*='bottom-nav'] button:active,
-  [class*='bottom-nav'] a[aria-current='page'],
-  [class*='bottom-nav'] a.active,
-  [class*='bottom-nav'] button[aria-current='page'],
-  [class*='bottom-nav'] button.active {
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-  }
-
-  .app-mobile-nav svg,
-  .app-mobile-nav img,
-  .app-mobile-nav span,
-  .app-mobile-nav small,
-  .pms10-bottom-nav-v17-rect-strip svg,
-  .pms10-bottom-nav-v17-rect-strip img,
-  .pms10-bottom-nav-v17-rect-strip span,
-  .pms10-bottom-nav-v17-rect-strip small,
-  .pms10-mobile-bottom-nav svg,
-  .pms10-mobile-bottom-nav img,
-  .pms10-mobile-bottom-nav span,
-  .pms10-mobile-bottom-nav small,
-  [class*='bottom-nav'] svg,
-  [class*='bottom-nav'] img,
-  [class*='bottom-nav'] span,
-  [class*='bottom-nav'] small {
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-    transition:
-      color 160ms ease,
-      opacity 160ms ease,
-      fill 160ms ease,
-      stroke 160ms ease !important;
-    will-change: auto !important;
-  }
-}
-
-@supports (-webkit-touch-callout: none) {
-  @media (max-width: 768px) {
-    body.pms10-standalone-pwa .app-mobile-nav a,
-    body.pms10-standalone-pwa .app-mobile-nav button,
-    body.pms10-standalone-pwa .app-mobile-nav a *,
-    body.pms10-standalone-pwa .app-mobile-nav button *,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a *,
-    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button *,
-    body.pms10-standalone-pwa [class*='bottom-nav'] a,
-    body.pms10-standalone-pwa [class*='bottom-nav'] button,
-    body.pms10-standalone-pwa [class*='bottom-nav'] a *,
-    body.pms10-standalone-pwa [class*='bottom-nav'] button * {
-      transform: none !important;
-      translate: none !important;
-      animation: none !important;
-      will-change: auto !important;
-    }
-  }
-}
-/* PMS10 STATIONARY BOTTOM NAV ICONS END */
-
-/* PMS10 LOCK BOTTOM NAV HEIGHT AND ICONS START
-   Final navbar stability layer:
-   - fixed navbar height even while scrolling
-   - equal fixed slots for all six nav buttons
-   - active highlight uses the same footprint as inactive buttons
-   - no transform/translate movement on tap, active, focus, route change, or scroll
-*/
-@media (max-width: 768px) {
-  :root {
-    --pms10-locked-nav-visual-height: 72px;
-    --pms10-locked-nav-total-height: calc(
-      var(--pms10-locked-nav-visual-height) + env(safe-area-inset-bottom, 0px)
-    );
-    --pms10-locked-nav-item-width: 62px;
-    --pms10-locked-nav-item-height: 50px;
-    --pms10-locked-nav-icon-size: 20px;
-    --pms10-locked-nav-label-size: 0.72rem;
-  }
-
-  body {
-    padding-bottom: var(--pms10-locked-nav-total-height) !important;
-  }
-
-  body.app-scrolled .app-mobile-nav,
-  body.app-scrolled .pms10-bottom-nav-v17-rect-strip,
-  .app-scrolled .app-mobile-nav,
-  .app-scrolled .pms10-bottom-nav-v17-rect-strip,
-  .is-scrolled .app-mobile-nav,
-  .is-scrolled .pms10-bottom-nav-v17-rect-strip,
-  .app-mobile-nav,
-  .pms10-bottom-nav-v17-rect-strip,
-  [class*='bottom-nav'] {
-    height: var(--pms10-locked-nav-total-height) !important;
-    min-height: var(--pms10-locked-nav-total-height) !important;
-    max-height: var(--pms10-locked-nav-total-height) !important;
-    padding-top: 4px !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-    align-items: flex-start !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-  }
-
-  .app-mobile-nav nav,
-  .app-mobile-nav > div,
-  .pms10-bottom-nav-v17-rect-strip nav,
-  .pms10-bottom-nav-v17-rect-strip > div,
-  [class*='bottom-nav'] nav,
-  [class*='bottom-nav'] > div {
-    height: var(--pms10-locked-nav-visual-height) !important;
-    min-height: var(--pms10-locked-nav-visual-height) !important;
-    max-height: var(--pms10-locked-nav-visual-height) !important;
-    width: 100% !important;
-    display: grid !important;
-    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
-    align-items: center !important;
-    justify-items: center !important;
-    gap: 0 !important;
-    box-sizing: border-box !important;
-    overflow: visible !important;
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-  }
-
-  .app-mobile-nav a,
-  .app-mobile-nav button,
-  .pms10-bottom-nav-v17-rect-strip a,
-  .pms10-bottom-nav-v17-rect-strip button,
-  [class*='bottom-nav'] a,
-  [class*='bottom-nav'] button {
-    width: var(--pms10-locked-nav-item-width) !important;
-    min-width: var(--pms10-locked-nav-item-width) !important;
-    max-width: var(--pms10-locked-nav-item-width) !important;
-    height: var(--pms10-locked-nav-item-height) !important;
-    min-height: var(--pms10-locked-nav-item-height) !important;
-    max-height: var(--pms10-locked-nav-item-height) !important;
-    padding: 5px 4px 4px !important;
-    margin: 0 !important;
-    border-radius: 18px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    justify-self: center !important;
-    align-self: center !important;
-    gap: 2px !important;
-    box-sizing: border-box !important;
-    flex: 0 0 var(--pms10-locked-nav-item-width) !important;
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-    will-change: auto !important;
-    transition:
-      background-color 160ms ease,
-      color 160ms ease,
-      box-shadow 160ms ease,
-      border-color 160ms ease,
-      opacity 160ms ease !important;
-  }
-
-  .app-mobile-nav a:active,
-  .app-mobile-nav button:active,
-  .app-mobile-nav a:focus,
-  .app-mobile-nav button:focus,
-  .app-mobile-nav a:focus-visible,
-  .app-mobile-nav button:focus-visible,
-  .app-mobile-nav a[aria-current='page'],
-  .app-mobile-nav a.active,
-  .app-mobile-nav button[aria-current='page'],
-  .app-mobile-nav button.active,
-  .pms10-bottom-nav-v17-rect-strip a:active,
-  .pms10-bottom-nav-v17-rect-strip button:active,
-  .pms10-bottom-nav-v17-rect-strip a:focus,
-  .pms10-bottom-nav-v17-rect-strip button:focus,
-  .pms10-bottom-nav-v17-rect-strip a:focus-visible,
-  .pms10-bottom-nav-v17-rect-strip button:focus-visible,
-  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
-  .pms10-bottom-nav-v17-rect-strip a.active,
-  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
-  .pms10-bottom-nav-v17-rect-strip button.active,
-  [class*='bottom-nav'] a:active,
-  [class*='bottom-nav'] button:active,
-  [class*='bottom-nav'] a[aria-current='page'],
-  [class*='bottom-nav'] a.active,
-  [class*='bottom-nav'] button[aria-current='page'],
-  [class*='bottom-nav'] button.active {
-    width: var(--pms10-locked-nav-item-width) !important;
-    min-width: var(--pms10-locked-nav-item-width) !important;
-    max-width: var(--pms10-locked-nav-item-width) !important;
-    height: var(--pms10-locked-nav-item-height) !important;
-    min-height: var(--pms10-locked-nav-item-height) !important;
-    max-height: var(--pms10-locked-nav-item-height) !important;
-    padding: 5px 4px 4px !important;
-    margin: 0 !important;
-    border-radius: 18px !important;
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-  }
-
-  .app-mobile-nav svg,
-  .app-mobile-nav img,
-  .pms10-bottom-nav-v17-rect-strip svg,
-  .pms10-bottom-nav-v17-rect-strip img,
-  [class*='bottom-nav'] svg,
-  [class*='bottom-nav'] img {
-    width: var(--pms10-locked-nav-icon-size) !important;
-    min-width: var(--pms10-locked-nav-icon-size) !important;
-    max-width: var(--pms10-locked-nav-icon-size) !important;
-    height: var(--pms10-locked-nav-icon-size) !important;
-    min-height: var(--pms10-locked-nav-icon-size) !important;
-    max-height: var(--pms10-locked-nav-icon-size) !important;
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-    flex: 0 0 var(--pms10-locked-nav-icon-size) !important;
-  }
-
-  .app-mobile-nav span,
-  .app-mobile-nav small,
-  .pms10-bottom-nav-v17-rect-strip span,
-  .pms10-bottom-nav-v17-rect-strip small,
-  [class*='bottom-nav'] span,
-  [class*='bottom-nav'] small {
-    display: block !important;
-    max-width: 100% !important;
-    font-size: var(--pms10-locked-nav-label-size) !important;
-    line-height: 1 !important;
-    letter-spacing: 0 !important;
-    text-align: center !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: clip !important;
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-  }
-
-  .pms10-bottom-nav-v17-blue-fill {
-    top: 0 !important;
-    bottom: 0 !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    transform: none !important;
-    translate: none !important;
-    animation: none !important;
-  }
-
-  .app-main,
-  main,
-  .app-content,
-  .page-shell {
-    padding-bottom: calc(var(--pms10-locked-nav-total-height) + 10px) !important;
-  }
-}
-/* PMS10 LOCK BOTTOM NAV HEIGHT AND ICONS END */
 
 /* PMS10 REMOVE BOTTOM NAV WHITE OVERLAY START */
 @media (max-width: 768px) {
@@ -3536,3 +2835,348 @@ main {
   }
 }
 /* PMS10 REMOVE BOTTOM NAV WHITE OVERLAY END */
+
+/* PMS10 CLEAN MOBILE NAV RESPONSIVENESS START
+   Cleanup layer:
+   - one stable bottom nav layout
+   - no JS-driven nav movement
+   - no glass/white flash overlays
+   - fixed equal-width nav slots
+   - fixed height while scrolling
+*/
+@media (max-width: 768px) {
+  :root {
+    --pms10-nav-h: 72px;
+    --pms10-nav-total-h: calc(var(--pms10-nav-h) + env(safe-area-inset-bottom, 0px));
+    --pms10-nav-item-w: 62px;
+    --pms10-nav-item-h: 50px;
+    --pms10-nav-icon: 20px;
+    --pms10-nav-label: 0.72rem;
+  }
+
+  html,
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    padding-bottom: var(--pms10-nav-total-h) !important;
+  }
+
+  .app-mobile-nav,
+  .pms10-bottom-nav-v17-rect-strip,
+  .pms10-mobile-bottom-nav,
+  [class*='bottom-nav'] {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+
+    width: 100% !important;
+    height: var(--pms10-nav-total-h) !important;
+    min-height: var(--pms10-nav-total-h) !important;
+    max-height: var(--pms10-nav-total-h) !important;
+
+    padding: 4px 12px env(safe-area-inset-bottom, 0px) !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+
+    background: linear-gradient(135deg, #082f60 0%, #0f477f 54%, #1d6ec2 100%) !important;
+    background-image: linear-gradient(135deg, #082f60 0%, #0f477f 54%, #1d6ec2 100%) !important;
+
+    box-shadow: 0 -8px 24px rgba(8, 47, 96, 0.18) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    transition: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
+    contain: layout paint !important;
+  }
+
+  body.app-scrolled .app-mobile-nav,
+  body.app-scrolled .pms10-bottom-nav-v17-rect-strip,
+  body.app-scrolled [class*='bottom-nav'],
+  .app-scrolled .app-mobile-nav,
+  .app-scrolled .pms10-bottom-nav-v17-rect-strip,
+  .app-scrolled [class*='bottom-nav'],
+  .is-scrolled .app-mobile-nav,
+  .is-scrolled .pms10-bottom-nav-v17-rect-strip,
+  .is-scrolled [class*='bottom-nav'] {
+    height: var(--pms10-nav-total-h) !important;
+    min-height: var(--pms10-nav-total-h) !important;
+    max-height: var(--pms10-nav-total-h) !important;
+    padding-top: 4px !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    transform: none !important;
+    translate: none !important;
+  }
+
+  .app-mobile-nav nav,
+  .app-mobile-nav > div,
+  .pms10-bottom-nav-v17-rect-strip nav,
+  .pms10-bottom-nav-v17-rect-strip > div,
+  .pms10-mobile-bottom-nav nav,
+  .pms10-mobile-bottom-nav > div,
+  [class*='bottom-nav'] nav,
+  [class*='bottom-nav'] > div {
+    width: 100% !important;
+    height: var(--pms10-nav-h) !important;
+    min-height: var(--pms10-nav-h) !important;
+    max-height: var(--pms10-nav-h) !important;
+
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    align-items: center !important;
+    justify-items: center !important;
+    gap: 0 !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+
+    background: transparent !important;
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .app-mobile-nav a,
+  .app-mobile-nav button,
+  .pms10-bottom-nav-v17-rect-strip a,
+  .pms10-bottom-nav-v17-rect-strip button,
+  .pms10-mobile-bottom-nav a,
+  .pms10-mobile-bottom-nav button,
+  [class*='bottom-nav'] a,
+  [class*='bottom-nav'] button {
+    width: var(--pms10-nav-item-w) !important;
+    min-width: var(--pms10-nav-item-w) !important;
+    max-width: var(--pms10-nav-item-w) !important;
+
+    height: var(--pms10-nav-item-h) !important;
+    min-height: var(--pms10-nav-item-h) !important;
+    max-height: var(--pms10-nav-item-h) !important;
+
+    padding: 5px 4px 4px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+
+    display: flex !important;
+    flex: 0 0 var(--pms10-nav-item-w) !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    justify-self: center !important;
+    align-self: center !important;
+    gap: 2px !important;
+
+    border: 0 !important;
+    border-radius: 18px !important;
+    outline: 0 !important;
+
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    transition:
+      background-color 110ms ease,
+      color 110ms ease,
+      box-shadow 110ms ease,
+      opacity 110ms ease !important;
+
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    will-change: auto !important;
+  }
+
+  .app-mobile-nav a:active,
+  .app-mobile-nav button:active,
+  .app-mobile-nav a:focus,
+  .app-mobile-nav button:focus,
+  .app-mobile-nav a:focus-visible,
+  .app-mobile-nav button:focus-visible,
+  .app-mobile-nav a[aria-current='page'],
+  .app-mobile-nav a.active,
+  .app-mobile-nav button[aria-current='page'],
+  .app-mobile-nav button.active,
+  .pms10-bottom-nav-v17-rect-strip a:active,
+  .pms10-bottom-nav-v17-rect-strip button:active,
+  .pms10-bottom-nav-v17-rect-strip a:focus,
+  .pms10-bottom-nav-v17-rect-strip button:focus,
+  .pms10-bottom-nav-v17-rect-strip a:focus-visible,
+  .pms10-bottom-nav-v17-rect-strip button:focus-visible,
+  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip a.active,
+  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip button.active,
+  [class*='bottom-nav'] a:active,
+  [class*='bottom-nav'] button:active,
+  [class*='bottom-nav'] a:focus,
+  [class*='bottom-nav'] button:focus,
+  [class*='bottom-nav'] a[aria-current='page'],
+  [class*='bottom-nav'] a.active,
+  [class*='bottom-nav'] button[aria-current='page'],
+  [class*='bottom-nav'] button.active {
+    width: var(--pms10-nav-item-w) !important;
+    min-width: var(--pms10-nav-item-w) !important;
+    max-width: var(--pms10-nav-item-w) !important;
+
+    height: var(--pms10-nav-item-h) !important;
+    min-height: var(--pms10-nav-item-h) !important;
+    max-height: var(--pms10-nav-item-h) !important;
+
+    padding: 5px 4px 4px !important;
+    margin: 0 !important;
+    border-radius: 18px !important;
+    opacity: 1 !important;
+    filter: none !important;
+
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+  }
+
+  .app-mobile-nav a[aria-current='page'],
+  .app-mobile-nav a.active,
+  .app-mobile-nav button[aria-current='page'],
+  .app-mobile-nav button.active,
+  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip a.active,
+  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip button.active,
+  [class*='bottom-nav'] a[aria-current='page'],
+  [class*='bottom-nav'] a.active,
+  [class*='bottom-nav'] button[aria-current='page'],
+  [class*='bottom-nav'] button.active {
+    background: rgba(255, 255, 255, 0.14) !important;
+    background-image: none !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+      0 8px 18px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .app-mobile-nav svg,
+  .app-mobile-nav img,
+  .pms10-bottom-nav-v17-rect-strip svg,
+  .pms10-bottom-nav-v17-rect-strip img,
+  .pms10-mobile-bottom-nav svg,
+  .pms10-mobile-bottom-nav img,
+  [class*='bottom-nav'] svg,
+  [class*='bottom-nav'] img {
+    width: var(--pms10-nav-icon) !important;
+    min-width: var(--pms10-nav-icon) !important;
+    max-width: var(--pms10-nav-icon) !important;
+
+    height: var(--pms10-nav-icon) !important;
+    min-height: var(--pms10-nav-icon) !important;
+    max-height: var(--pms10-nav-icon) !important;
+
+    flex: 0 0 var(--pms10-nav-icon) !important;
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    transition: color 110ms ease, opacity 110ms ease, fill 110ms ease, stroke 110ms ease !important;
+  }
+
+  .app-mobile-nav span,
+  .app-mobile-nav small,
+  .pms10-bottom-nav-v17-rect-strip span,
+  .pms10-bottom-nav-v17-rect-strip small,
+  .pms10-mobile-bottom-nav span,
+  .pms10-mobile-bottom-nav small,
+  [class*='bottom-nav'] span,
+  [class*='bottom-nav'] small {
+    display: block !important;
+    max-width: 100% !important;
+    font-size: var(--pms10-nav-label) !important;
+    line-height: 1 !important;
+    letter-spacing: 0 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    transition: color 110ms ease, opacity 110ms ease !important;
+  }
+
+  .pms10-bottom-nav-v17-blue-fill,
+  .pms10-bottom-nav-v17-glass,
+  .pms10-bottom-nav-v17-glow,
+  .pms10-bottom-nav-v17-overlay,
+  .pms10-bottom-nav-v17-press,
+  .pms10-bottom-nav-v17-shine,
+  .pms10-nav-glass,
+  .pms10-nav-glow,
+  .pms10-nav-overlay,
+  .pms10-nav-shine {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    pointer-events: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .app-mobile-nav::before,
+  .app-mobile-nav::after,
+  .pms10-bottom-nav-v17-rect-strip::before,
+  .pms10-bottom-nav-v17-rect-strip::after,
+  .pms10-mobile-bottom-nav::before,
+  .pms10-mobile-bottom-nav::after,
+  [class*='bottom-nav']::before,
+  [class*='bottom-nav']::after,
+  .app-mobile-nav a::before,
+  .app-mobile-nav a::after,
+  .app-mobile-nav button::before,
+  .app-mobile-nav button::after,
+  [class*='bottom-nav'] a::before,
+  [class*='bottom-nav'] a::after,
+  [class*='bottom-nav'] button::before,
+  [class*='bottom-nav'] button::after {
+    content: none !important;
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    pointer-events: none !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .app-main,
+  main,
+  .app-content,
+  .page-shell {
+    padding-bottom: calc(var(--pms10-nav-total-h) + 10px) !important;
+  }
+}
+/* PMS10 CLEAN MOBILE NAV RESPONSIVENESS END */

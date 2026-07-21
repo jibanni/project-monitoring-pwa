@@ -227,3 +227,65 @@ textarea:focus {
   }
 }
 /* PMS10 DISABLE APP ZOOM EXCEPT MAP END */
+
+/* PMS10 APP TAP RESPONSIVENESS START
+   Mobile tap optimization without blocking map gestures.
+*/
+@media (hover: none), (pointer: coarse) {
+  button,
+  a,
+  [role='button'],
+  input,
+  select,
+  textarea,
+  label,
+  summary,
+  .clickable,
+  .fab,
+  [class*='fab'],
+  [class*='button'],
+  [class*='btn'] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  button,
+  a,
+  [role='button'],
+  label,
+  summary,
+  .clickable,
+  .fab,
+  [class*='fab'],
+  [class*='button'],
+  [class*='btn'] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  select,
+  textarea {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  button:active,
+  a:active,
+  [role='button']:active,
+  .fab:active,
+  [class*='fab']:active,
+  [class*='button']:active,
+  [class*='btn']:active {
+    filter: none !important;
+    transform: none !important;
+  }
+
+  .leaflet-container,
+  .pm-leaflet-map,
+  .pm-map-shell,
+  .pm-map-shell * {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+}
+/* PMS10 APP TAP RESPONSIVENESS END */
