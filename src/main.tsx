@@ -11,11 +11,13 @@ import './styles/dashboard.css'
 import App from './App.tsx'
 import './utils/titleCaseLocationsDom'
 import { initPms10ProgramDropdownCaps } from './utils/pms10ProgramDropdownCaps'
+import { initPms10StandalonePwaClass } from './utils/pms10StandalonePwaClass'
 
 initPms10BottomNavRuntimeFix();
 initPms10BottomNavLevelOverride();
 initPms10DisableZoomExceptMap();
 initPms10ProgramDropdownCaps()
+initPms10StandalonePwaClass()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
