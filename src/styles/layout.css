@@ -1075,7 +1075,7 @@ body > .app-header.app-header-scrolled {
 
 /* Keep normal desktop shrink behavior using the new header class */
 body > .app-header.app-header-scrolled {
-  padding-top: 8px !important;
+  padding-top: 4px !important;
   padding-bottom: 8px !important;
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.13) !important;
 }
@@ -2800,3 +2800,383 @@ main {
   }
 }
 /* PMS10 BOTTOM NAV MATCH HEADER COLOR END */
+
+/* PMS10 IOS STANDALONE BOTTOM NAV HEIGHT FIX START
+   Fix excessive bottom navbar height when the PWA is saved to Home Screen.
+   Keeps safe-area protection, but prevents the blue nav from growing too tall.
+*/
+@media (display-mode: standalone) and (max-width: 768px) {
+  :root {
+    --pms10-standalone-nav-visual-height: 72px;
+    --pms10-standalone-nav-total-height: calc(
+      var(--pms10-standalone-nav-visual-height) + env(safe-area-inset-bottom, 0px)
+    );
+  }
+
+  body {
+    padding-bottom: var(--pms10-standalone-nav-total-height) !important;
+  }
+
+  .app-mobile-nav,
+  .pms10-bottom-nav-v17-rect-strip {
+    height: var(--pms10-standalone-nav-total-height) !important;
+    min-height: var(--pms10-standalone-nav-total-height) !important;
+    max-height: var(--pms10-standalone-nav-total-height) !important;
+    padding-top: 4px !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    align-items: flex-start !important;
+    overflow: hidden !important;
+  }
+
+  .pms10-bottom-nav-v17-blue-fill {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    top: 0 !important;
+    bottom: 0 !important;
+  }
+
+  .app-mobile-nav nav,
+  .app-mobile-nav > div,
+  .pms10-bottom-nav-v17-rect-strip nav,
+  .pms10-bottom-nav-v17-rect-strip > div {
+    height: var(--pms10-standalone-nav-visual-height) !important;
+    min-height: var(--pms10-standalone-nav-visual-height) !important;
+    max-height: var(--pms10-standalone-nav-visual-height) !important;
+    align-items: center !important;
+  }
+
+  .app-mobile-nav a,
+  .app-mobile-nav button,
+  .pms10-bottom-nav-v17-rect-strip a,
+  .pms10-bottom-nav-v17-rect-strip button {
+    transform: none !important;
+  }
+
+  .app-main,
+  main,
+  .app-content,
+  .page-shell {
+    padding-bottom: calc(var(--pms10-standalone-nav-total-height) + 18px) !important;
+  }
+}
+
+/* iOS Safari fallback: standalone media query support can vary across versions. */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    body.pms10-standalone-pwa {
+      padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip {
+      height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+      min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+      max-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+      padding-top: 4px !important;
+      padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+      align-items: flex-start !important;
+      overflow: hidden !important;
+    }
+
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-blue-fill {
+      height: 100% !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      top: 0 !important;
+      bottom: 0 !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav nav,
+    body.pms10-standalone-pwa .app-mobile-nav > div,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip nav,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip > div {
+      height: 72px !important;
+      min-height: 72px !important;
+      max-height: 72px !important;
+      align-items: center !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav a,
+    body.pms10-standalone-pwa .app-mobile-nav button,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button {
+      transform: none !important;
+    }
+  }
+}
+/* PMS10 IOS STANDALONE BOTTOM NAV HEIGHT FIX END */
+
+/* PMS10 TRIM IOS STANDALONE BOTTOM NAV START
+   Further trims the Home Screen / standalone PWA bottom navbar.
+   Target total height is compact but still safe for iPhone home indicator.
+*/
+@media (display-mode: standalone) and (max-width: 768px) {
+  :root {
+    --pms10-standalone-nav-visual-height: 72px;
+    --pms10-standalone-nav-total-height: calc(
+      var(--pms10-standalone-nav-visual-height) + env(safe-area-inset-bottom, 0px)
+    );
+  }
+
+  body {
+    padding-bottom: var(--pms10-standalone-nav-total-height) !important;
+  }
+
+  .app-mobile-nav,
+  .pms10-bottom-nav-v17-rect-strip {
+    height: var(--pms10-standalone-nav-total-height) !important;
+    min-height: var(--pms10-standalone-nav-total-height) !important;
+    max-height: var(--pms10-standalone-nav-total-height) !important;
+    padding-top: 4px !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    align-items: flex-start !important;
+    overflow: hidden !important;
+  }
+
+  .app-mobile-nav nav,
+  .app-mobile-nav > div,
+  .pms10-bottom-nav-v17-rect-strip nav,
+  .pms10-bottom-nav-v17-rect-strip > div {
+    height: var(--pms10-standalone-nav-visual-height) !important;
+    min-height: var(--pms10-standalone-nav-visual-height) !important;
+    max-height: var(--pms10-standalone-nav-visual-height) !important;
+    align-items: center !important;
+  }
+
+  .app-mobile-nav a,
+  .app-mobile-nav button,
+  .pms10-bottom-nav-v17-rect-strip a,
+  .pms10-bottom-nav-v17-rect-strip button {
+    min-height: 56px !important;
+    height: 56px !important;
+    max-height: 60px !important;
+    padding-top: 6px !important;
+    padding-bottom: 5px !important;
+    transform: none !important;
+    gap: 3px !important;
+  }
+
+  .app-mobile-nav a[aria-current='page'],
+  .app-mobile-nav a.active,
+  .app-mobile-nav button[aria-current='page'],
+  .app-mobile-nav button.active,
+  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip a.active,
+  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip button.active {
+    min-height: 58px !important;
+    height: 58px !important;
+    max-height: 62px !important;
+    border-radius: 22px !important;
+  }
+
+  .app-mobile-nav svg,
+  .pms10-bottom-nav-v17-rect-strip svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .app-mobile-nav span,
+  .app-mobile-nav small,
+  .pms10-bottom-nav-v17-rect-strip span,
+  .pms10-bottom-nav-v17-rect-strip small {
+    font-size: 0.78rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .app-main,
+  main,
+  .app-content,
+  .page-shell {
+    padding-bottom: calc(var(--pms10-standalone-nav-total-height) + 10px) !important;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    body.pms10-standalone-pwa {
+      padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip {
+      height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+      min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+      max-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+      padding-top: 4px !important;
+      padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+      align-items: flex-start !important;
+      overflow: hidden !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav nav,
+    body.pms10-standalone-pwa .app-mobile-nav > div,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip nav,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip > div {
+      height: 72px !important;
+      min-height: 72px !important;
+      max-height: 72px !important;
+      align-items: center !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav a,
+    body.pms10-standalone-pwa .app-mobile-nav button,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button {
+      min-height: 56px !important;
+      height: 56px !important;
+      max-height: 60px !important;
+      padding-top: 6px !important;
+      padding-bottom: 5px !important;
+      transform: none !important;
+      gap: 3px !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'],
+    body.pms10-standalone-pwa .app-mobile-nav a.active,
+    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'],
+    body.pms10-standalone-pwa .app-mobile-nav button.active,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active {
+      min-height: 58px !important;
+      height: 58px !important;
+      max-height: 62px !important;
+      border-radius: 22px !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav svg,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip svg {
+      width: 22px !important;
+      height: 22px !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav span,
+    body.pms10-standalone-pwa .app-mobile-nav small,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip span,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip small {
+      font-size: 0.78rem !important;
+      line-height: 1.05 !important;
+    }
+  }
+}
+/* PMS10 TRIM IOS STANDALONE BOTTOM NAV END */
+
+/* PMS10 COMPACT IOS NAV ACTIVE HIGHLIGHT START
+   Keep the trimmed standalone navbar height, but make the active/highlight
+   button smaller so the rounded bubble is not clipped.
+*/
+@media (display-mode: standalone) and (max-width: 768px) {
+  .app-mobile-nav a[aria-current='page'],
+  .app-mobile-nav a.active,
+  .app-mobile-nav button[aria-current='page'],
+  .app-mobile-nav button.active,
+  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip a.active,
+  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip button.active {
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    padding: 5px 10px 4px !important;
+    margin-top: 6px !important;
+    margin-bottom: 4px !important;
+    border-radius: 18px !important;
+    align-self: center !important;
+    gap: 2px !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+  }
+
+  .app-mobile-nav a[aria-current='page'] svg,
+  .app-mobile-nav a.active svg,
+  .app-mobile-nav button[aria-current='page'] svg,
+  .app-mobile-nav button.active svg,
+  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] svg,
+  .pms10-bottom-nav-v17-rect-strip a.active svg,
+  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] svg,
+  .pms10-bottom-nav-v17-rect-strip button.active svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .app-mobile-nav a[aria-current='page'] span,
+  .app-mobile-nav a.active span,
+  .app-mobile-nav button[aria-current='page'] span,
+  .app-mobile-nav button.active span,
+  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] span,
+  .pms10-bottom-nav-v17-rect-strip a.active span,
+  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] span,
+  .pms10-bottom-nav-v17-rect-strip button.active span,
+  .app-mobile-nav a[aria-current='page'] small,
+  .app-mobile-nav a.active small,
+  .app-mobile-nav button[aria-current='page'] small,
+  .app-mobile-nav button.active small,
+  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] small,
+  .pms10-bottom-nav-v17-rect-strip a.active small,
+  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] small,
+  .pms10-bottom-nav-v17-rect-strip button.active small {
+    font-size: 0.74rem !important;
+    line-height: 1 !important;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'],
+    body.pms10-standalone-pwa .app-mobile-nav a.active,
+    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'],
+    body.pms10-standalone-pwa .app-mobile-nav button.active,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active {
+      height: 50px !important;
+      min-height: 50px !important;
+      max-height: 50px !important;
+      padding: 5px 10px 4px !important;
+      margin-top: 6px !important;
+      margin-bottom: 4px !important;
+      border-radius: 18px !important;
+      align-self: center !important;
+      gap: 2px !important;
+      box-sizing: border-box !important;
+      transform: none !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'] svg,
+    body.pms10-standalone-pwa .app-mobile-nav a.active svg,
+    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'] svg,
+    body.pms10-standalone-pwa .app-mobile-nav button.active svg,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] svg,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active svg,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] svg,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active svg {
+      width: 20px !important;
+      height: 20px !important;
+    }
+
+    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'] span,
+    body.pms10-standalone-pwa .app-mobile-nav a.active span,
+    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'] span,
+    body.pms10-standalone-pwa .app-mobile-nav button.active span,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] span,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active span,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] span,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active span,
+    body.pms10-standalone-pwa .app-mobile-nav a[aria-current='page'] small,
+    body.pms10-standalone-pwa .app-mobile-nav a.active small,
+    body.pms10-standalone-pwa .app-mobile-nav button[aria-current='page'] small,
+    body.pms10-standalone-pwa .app-mobile-nav button.active small,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a[aria-current='page'] small,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a.active small,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button[aria-current='page'] small,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button.active small {
+      font-size: 0.74rem !important;
+      line-height: 1 !important;
+    }
+  }
+}
+/* PMS10 COMPACT IOS NAV ACTIVE HIGHLIGHT END */
