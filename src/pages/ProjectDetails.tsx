@@ -477,7 +477,7 @@ export default function ProjectDetails() {
             ['Inspection Date', latestUpdate.inspection_date || '-'],
             ['Physical Accomplishment', `${latestUpdate.physical_accomplishment || 0}%`],
             ['Financial Accomplishment', `${latestUpdate.financial_accomplishment || 0}%`],
-            ['Risk Level', latestUpdate.risk_level || '-'],
+            ['Risk Level', computedRiskLevel === 'None' ? 'None' : latestUpdate.risk_level || '-'],
             [
               'Inspection GPS',
               `${latestUpdate.inspection_latitude || '-'}, ${
@@ -506,7 +506,7 @@ export default function ProjectDetails() {
           update.inspection_date || '-',
           `${update.physical_accomplishment || 0}%`,
           `${update.financial_accomplishment || 0}%`,
-          update.risk_level || '-',
+          computedRiskLevel === 'None' ? 'None' : update.risk_level || '-',
           update.remarks || '-',
         ]),
         styles: {
@@ -863,7 +863,7 @@ export default function ProjectDetails() {
 
                   <div className="pd-info-item">
                     <span>Risk Level</span>
-                    <strong>{getDisplayValue(latestUpdate.risk_level)}</strong>
+                    <strong>{computedRiskLevel === 'None' ? 'None' : getDisplayValue(latestUpdate.risk_level)}</strong>
                   </div>
 
                   <div className="pd-info-item">
@@ -1063,10 +1063,10 @@ export default function ProjectDetails() {
 
                       <span
                         className={`pd-risk-badge pd-risk-${normalizeClassName(
-                          update.risk_level,
+                          computedRiskLevel === 'None' ? 'None' : update.risk_level,
                         )}`}
                       >
-                        {getDisplayValue(update.risk_level, 'No Risk')}
+                        {computedRiskLevel === 'None' ? 'None' : getDisplayValue(update.risk_level, 'No Risk')}
                       </span>
                     </div>
 

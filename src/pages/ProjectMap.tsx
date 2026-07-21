@@ -14,6 +14,7 @@ import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
+import { normalizeProgramName } from '../utils/program'
 import {
   canUpdateProject as canUpdateProjectByAor,
   filterProjectsByAor,
@@ -720,7 +721,7 @@ export default function ProjectMap() {
       if (fundingYear) fundingYears.add(fundingYear)
 
       if (normalizeText(project.funding_source)) {
-        programs.add(normalizeText(project.funding_source))
+        programs.add(normalizeProgramName(normalizeText(project.funding_source)))
       }
 
       if (normalizeText(project.status)) statuses.add(normalizeText(project.status))
@@ -778,7 +779,7 @@ export default function ProjectMap() {
       const matchesFundingYear =
         fundingYearFilter === 'All' || projectFundingYear === fundingYearFilter
       const matchesProgram =
-        programFilter === 'All' || normalizeText(project.funding_source) === programFilter
+        programFilter === 'All' || normalizeProgramName(normalizeText(project.funding_source)) === programFilter
       const matchesStatus =
         statusFilter === 'All' || normalizeText(project.status) === statusFilter
       const matchesRisk =
@@ -1007,8 +1008,8 @@ export default function ProjectMap() {
                   onChange={(event) => setProgramFilter(event.target.value)}
                 >
                   {filterOptions.programs.map((program) => (
-                    <option key={program} value={program}>
-                      {program}
+                    <option key={program === 'All' ? 'ALL PROGRAMS' : String(program).toUpperCase()} value={program === 'All' ? 'ALL PROGRAMS' : String(program).toUpperCase()}>
+                      {program === 'All' ? 'ALL PROGRAMS' : String(program).toUpperCase()}
                     </option>
                   ))}
                 </select>

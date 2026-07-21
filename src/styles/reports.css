@@ -922,3 +922,67 @@
     font-size: 0.72rem !important;
   }
 }
+
+/* PMS10 PAGE-SPECIFIC FAB FIX — REPORTS START */
+@media (max-width: 900px) {
+  .reports-fab-stack {
+    position: fixed !important;
+    top: auto !important;
+    left: auto !important;
+    right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)) !important;
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 2147482500 !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+
+    transform: none !important;
+    translate: none !important;
+    pointer-events: auto !important;
+  }
+
+  .reports-fab {
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    min-height: 58px !important;
+    border-radius: 999px !important;
+    transform: none;
+  }
+
+  .reports-fab:hover:not(:disabled),
+  .reports-fab:active:not(:disabled) {
+    transform: translateY(-1px) scale(1.02) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .reports-fab-stack {
+    right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px)) !important;
+    bottom: calc(142px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 10px !important;
+  }
+
+  .reports-fab {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+  }
+
+  .reports-fab svg {
+    width: 23px !important;
+    height: 23px !important;
+  }
+}
+/* PMS10 PAGE-SPECIFIC FAB FIX — REPORTS END */
+
+/* PMS10 COMPLETED PROJECTS NO RISK V2 — REPORTS START */
+.reports-risk.none,
+.reports-risk.no-risk {
+  background: #ecfdf5;
+  color: #047857;
+}
+/* PMS10 COMPLETED PROJECTS NO RISK V2 — REPORTS END */

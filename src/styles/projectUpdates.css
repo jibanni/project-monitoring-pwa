@@ -4739,3 +4739,129 @@ body > .pu-back-fab {
   line-height: 1.15;
   overflow-wrap: anywhere;
 }
+
+/* PMS10 MOBILE LONG-TITLE HERO COMPACTNESS — PROJECT UPDATE START
+   Goal:
+   - Keep Project Update Form hero consistent with Project Details.
+   - Reduce title size for long project names.
+   - Clamp long titles instead of letting the hero consume the whole screen.
+   - Preserve the compact/sticky scrolled hero behavior.
+*/
+@media (max-width: 900px) {
+  .pu-page:not(.is-pu-scrolled) .pu-hero.pu-update-hero-card {
+    min-height: 230px !important;
+    height: auto !important;
+    max-height: 340px !important;
+
+    margin: 0 0 0.8rem !important;
+    padding: 1.18rem 1.1rem 1.2rem !important;
+    border-radius: 28px !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-end !important;
+    gap: 0.68rem !important;
+
+    overflow: hidden !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card > div:first-child {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-eyebrow {
+    margin: 0 0 0.42rem !important;
+    color: #facc15 !important;
+    font-size: 0.68rem !important;
+    line-height: 1.15 !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.2em !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-title,
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card h1 {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+
+    color: #ffffff !important;
+    font-size: clamp(1.45rem, 6.2vw, 2.05rem) !important;
+    line-height: 1.04 !important;
+    letter-spacing: -0.045em !important;
+
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 5 !important;
+    line-clamp: 5 !important;
+
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-location-line {
+    gap: 0.38rem !important;
+    margin-top: 0.72rem !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-location-line span {
+    min-height: 28px !important;
+    padding: 0.28rem 0.58rem !important;
+    font-size: 0.7rem !important;
+    font-weight: 850 !important;
+    line-height: 1.1 !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-hero-status {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 0.42rem !important;
+    margin-top: 0 !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-badge {
+    min-height: 32px !important;
+    padding: 0.36rem 0.72rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1 !important;
+    letter-spacing: 0.08em !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .pu-page:not(.is-pu-scrolled) .pu-hero.pu-update-hero-card {
+    min-height: 222px !important;
+    max-height: 315px !important;
+    margin: 0 0 0.75rem !important;
+    padding: 1.02rem 0.95rem 1.05rem !important;
+    border-radius: 26px !important;
+    gap: 0.58rem !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-title,
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card h1 {
+    font-size: clamp(1.32rem, 5.75vw, 1.68rem) !important;
+    line-height: 1.05 !important;
+    -webkit-line-clamp: 5 !important;
+    line-clamp: 5 !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-location-line {
+    margin-top: 0.62rem !important;
+  }
+
+  .pu-page:not(.is-pu-scrolled) .pu-badge {
+    min-height: 30px !important;
+    padding: 0.34rem 0.66rem !important;
+    font-size: 0.68rem !important;
+  }
+}
+/* PMS10 MOBILE LONG-TITLE HERO COMPACTNESS — PROJECT UPDATE END */

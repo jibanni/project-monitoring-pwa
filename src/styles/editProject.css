@@ -1249,3 +1249,90 @@ body > .edit-project-fab-stack .edit-project-fab-back svg,
     width: 100%;
   }
 }
+
+/* PMS10 PAGE-SPECIFIC FAB FIX — EDIT PROJECT START
+   Fixes Edit Project portal-mounted FAB stack so it clears the bottom navbar.
+   Target:
+   - body > .edit-project-fab-stack
+   - .edit-project-fab
+*/
+@media (max-width: 900px) {
+  body > .edit-project-fab-stack {
+    position: fixed !important;
+    top: auto !important;
+    left: auto !important;
+    right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)) !important;
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 2147482500 !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+
+    width: 58px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+
+    transform: none !important;
+    translate: none !important;
+    pointer-events: none !important;
+  }
+
+  body > .edit-project-fab-stack .edit-project-fab {
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    min-height: 58px !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    padding: 0 !important;
+    border-radius: 999px !important;
+    pointer-events: auto !important;
+
+    transform: none !important;
+    translate: none !important;
+    transition:
+      transform 0.14s ease,
+      filter 0.14s ease,
+      box-shadow 0.14s ease !important;
+  }
+
+  body > .edit-project-fab-stack .edit-project-fab:hover,
+  body > .edit-project-fab-stack .edit-project-fab:active {
+    transform: translateY(-1px) scale(1.02) !important;
+  }
+
+  body > .edit-project-fab-stack .edit-project-fab svg {
+    width: 24px !important;
+    height: 24px !important;
+    display: block !important;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 430px) {
+  body > .edit-project-fab-stack {
+    right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px)) !important;
+    bottom: calc(142px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 10px !important;
+    width: 56px !important;
+  }
+
+  body > .edit-project-fab-stack .edit-project-fab {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+  }
+
+  body > .edit-project-fab-stack .edit-project-fab svg {
+    width: 23px !important;
+    height: 23px !important;
+  }
+}
+/* PMS10 PAGE-SPECIFIC FAB FIX — EDIT PROJECT END */

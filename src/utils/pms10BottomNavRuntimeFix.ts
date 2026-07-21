@@ -73,16 +73,13 @@ function removeOldBodyLayers() {
 }
 
 function getBlueBackground(nav: HTMLElement) {
-  const style = window.getComputedStyle(nav);
-  const bgImage = style.backgroundImage;
-  if (bgImage && bgImage !== "none") return bgImage;
-
-  const bgColor = style.backgroundColor;
-  if (bgColor && bgColor !== "rgba(0, 0, 0, 0)" && bgColor !== "transparent") {
-    return bgColor;
-  }
-
-  return "linear-gradient(135deg, #0b4f9f 0%, #0f66bd 52%, #1f78ce 100%)";
+  /*
+    Keep the bottom navbar visually consistent with the main PMS10 header.
+    The nav may have older bright-blue inline/background values, so always use
+    the shared header gradient token.
+  */
+  void nav
+  return "var(--app-header-gradient)"
 }
 
 function ensureInternalBlueLayer(nav: HTMLElement) {

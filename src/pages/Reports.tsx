@@ -6,6 +6,8 @@ import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { filterProjectsByAor } from '../utils/aorAccess'
+import { normalizeProgramName } from '../utils/program'
+import { getPmsRiskLevel } from '../utils/projectStatus'
 import {
   formatSignedVariance,
   getTargetPhysicalInfo,
@@ -134,13 +136,14 @@ function getStatusClass(status: string | null) {
 function getRiskClass(risk: string | null) {
   const normalized = textValue(risk).toLowerCase()
 
+  if (!normalized || normalized === 'none' || normalized.includes('no risk')) return 'none'
   if (normalized.includes('high')) return 'high'
   if (normalized.includes('moderate') || normalized.includes('medium')) {
     return 'moderate'
   }
   if (normalized.includes('low')) return 'low'
 
-  return 'default'
+  return 'none'
 }
 
 function cleanFilename(value: string) {
@@ -149,6 +152,11 @@ function cleanFilename(value: string) {
 
 function getProjectVariance(project: ProjectRow) {
   return getTargetPhysicalInfo(project)
+}
+
+
+function getReportRisk(project: ProjectRow) {
+  return getPmsRiskLevel(project as unknown as Record<string, any>)
 }
 
 function sameText(left: unknown, right: unknown) {
@@ -713,7 +721,7 @@ export default function Reports() {
     return Array.from(
       new Set(
         aorProjects
-          .map((project) => textValue(project.funding_source || project.project_type))
+          .map((project) => normalizeProgramName(textValue(project.funding_source || project.project_type)))
           .filter(Boolean),
       ),
     ).sort()
@@ -727,7 +735,7 @@ export default function Reports() {
 
   const risks = useMemo(() => {
     return Array.from(
-      new Set(aorProjects.map((project) => textValue(project.risk_level)).filter(Boolean)),
+      new Set(aorProjects.map((project) => getReportRisk(project)).filter(Boolean)),
     ).sort()
   }, [aorProjects])
 
@@ -750,7 +758,7 @@ export default function Reports() {
       setStatusFilter('')
     }
 
-    if (riskFilter && !risks.includes(riskFilter)) {
+    if (riskFilter && !risks.map(String).includes(riskFilter)) {
       setRiskFilter('')
     }
   }, [
@@ -784,7 +792,7 @@ export default function Reports() {
         project.funding_source,
         project.project_type,
         project.status,
-        project.risk_level,
+        getReportRisk(project),
         project.contractor,
         project.implementing_office,
         assignedPoEngineers,
@@ -807,7 +815,7 @@ export default function Reports() {
         : true
 
       const programMatches = programFilter
-        ? textValue(project.funding_source || project.project_type) === programFilter
+        ? normalizeProgramName(textValue(project.funding_source || project.project_type)) === programFilter
         : true
 
       const statusMatches = statusFilter
@@ -815,7 +823,7 @@ export default function Reports() {
         : true
 
       const riskMatches = riskFilter
-        ? textValue(project.risk_level) === riskFilter
+        ? getReportRisk(project) === riskFilter
         : true
 
       return (
@@ -919,7 +927,7 @@ export default function Reports() {
           textValue(project.funding_source || project.project_type) || '-',
           formatCurrency(project.budget),
           textValue(project.status) || '-',
-          textValue(project.risk_level) || '-',
+          getReportRisk(project),
           formatPercent(varianceInfo.actualPhysical),
           formatPercent(varianceInfo.targetPhysical),
           formatSignedVariance(varianceInfo.variance),
@@ -991,7 +999,7 @@ export default function Reports() {
         Contractor: textValue(project.contractor),
         'Project Cost': toNumber(project.budget),
         Status: textValue(project.status),
-        'Risk Level': textValue(project.risk_level),
+        'Risk Level': getReportRisk(project),
         'Actual Physical': Number(varianceInfo.actualPhysical.toFixed(2)),
         'Target Physical': Number(varianceInfo.targetPhysical.toFixed(2)),
         Variance: Number(varianceInfo.variance.toFixed(2)),
@@ -1161,10 +1169,10 @@ export default function Reports() {
                   value={programFilter}
                   onChange={(event) => setProgramFilter(event.target.value)}
                 >
-                  <option value="">All Programs</option>
+                  <option value="">ALL PROGRAMS</option>
                   {programs.map((program) => (
-                    <option key={program} value={program}>
-                      {program}
+                    <option key={String(program).toUpperCase()} value={String(program).toUpperCase()}>
+                      {String(program).toUpperCase()}
                     </option>
                   ))}
                 </select>
@@ -1308,8 +1316,8 @@ export default function Reports() {
                               </span>
                             </td>
                             <td>
-                              <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
-                                {textValue(project.risk_level) || 'No Risk'}
+                              <span className={`reports-risk ${getRiskClass(getReportRisk(project))}`}>
+                                {getReportRisk(project)}
                               </span>
                             </td>
                             <td>{formatPercent(varianceInfo.actualPhysical)}</td>
@@ -1349,8 +1357,8 @@ export default function Reports() {
                           <span className={`reports-status ${getStatusClass(project.status)}`}>
                             {textValue(project.status) || 'No Status'}
                           </span>
-                          <span className={`reports-risk ${getRiskClass(project.risk_level)}`}>
-                            {textValue(project.risk_level) || 'No Risk'}
+                          <span className={`reports-risk ${getRiskClass(getReportRisk(project))}`}>
+                            {getReportRisk(project)}
                           </span>
                         </div>
 

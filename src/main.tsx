@@ -1,5 +1,7 @@
 import { initPms10BottomNavRuntimeFix } from "./utils/pms10BottomNavRuntimeFix";
 import { initPms10BottomNavLevelOverride } from "./utils/pms10BottomNavLevelOverride";
+import { initPms10DisableZoomExceptMap } from "./utils/disableAppZoomExceptMap";
+import { initPms10ProgramDropdownCaps } from "./utils/pms10ProgramDropdownCaps";
 import './utils/fitProjectUpdateHeroTitle'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -12,6 +14,8 @@ import './utils/titleCaseLocationsDom'
 
 initPms10BottomNavRuntimeFix();
 initPms10BottomNavLevelOverride();
+initPms10DisableZoomExceptMap();
+initPms10ProgramDropdownCaps();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

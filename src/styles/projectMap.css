@@ -2275,3 +2275,105 @@
     gap: 10px !important;
   }
 }
+
+/* PMS10 PAGE-SPECIFIC FAB FIX — GIS MAP START */
+@media (max-width: 900px) {
+  .pm-map-floating-actions {
+    position: fixed !important;
+    top: auto !important;
+    left: auto !important;
+    right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)) !important;
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 2147482500 !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+
+    transform: none !important;
+    translate: none !important;
+    pointer-events: auto !important;
+  }
+
+  .pm-map-floating-actions .pm-map-fab,
+  .pm-map-fab {
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    min-height: 58px !important;
+    border-radius: 999px !important;
+  }
+
+  .pm-map-fab:active {
+    transform: scale(0.97) !important;
+  }
+
+  .pm-map-shell.is-map-fullscreen ~ .pm-map-floating-actions,
+  .pm-map-page .pm-map-floating-actions {
+    z-index: 2147482500 !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .pm-map-floating-actions {
+    right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px)) !important;
+    bottom: calc(142px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 10px !important;
+  }
+
+  .pm-map-floating-actions .pm-map-fab,
+  .pm-map-fab {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+  }
+
+  .pm-map-fab svg {
+    width: 23px !important;
+    height: 23px !important;
+  }
+}
+/* PMS10 PAGE-SPECIFIC FAB FIX — GIS MAP END */
+
+/* PMS10 PROJECT MAP LAYER FAB CONTRAST START
+   Fix GIS Map layer/satellite FAB contrast:
+   the button is light, so the icon must be dark/black.
+*/
+.pm-map-fab-satellite {
+  color: #111827 !important;
+  background: linear-gradient(135deg, #ffffff, #e5edf6) !important;
+  box-shadow:
+    0 16px 30px rgba(15, 23, 42, 0.16),
+    0 6px 14px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.pm-map-fab-satellite svg,
+.pm-map-fab-satellite svg path,
+.pm-map-fab-satellite svg line,
+.pm-map-fab-satellite svg polyline,
+.pm-map-fab-satellite svg rect,
+.pm-map-fab-satellite svg circle {
+  color: #111827 !important;
+  stroke: #111827 !important;
+  fill: none !important;
+}
+
+.pm-map-fab-satellite.is-active {
+  color: #111827 !important;
+  background: linear-gradient(135deg, #eef6ff, #dbeafe) !important;
+}
+
+.pm-map-fab-satellite.is-active svg,
+.pm-map-fab-satellite.is-active svg path,
+.pm-map-fab-satellite.is-active svg line,
+.pm-map-fab-satellite.is-active svg polyline,
+.pm-map-fab-satellite.is-active svg rect,
+.pm-map-fab-satellite.is-active svg circle {
+  color: #111827 !important;
+  stroke: #111827 !important;
+  fill: none !important;
+}
+/* PMS10 PROJECT MAP LAYER FAB CONTRAST END */

@@ -190,3 +190,48 @@ textarea:focus {
     -webkit-overflow-scrolling: touch !important;
   }
 }
+
+/* PMS10 DISABLE APP ZOOM EXCEPT MAP START
+   Disable browser/page zoom behavior across PMS10 while keeping GIS map zoom usable.
+*/
+@media (max-width: 900px) {
+  html,
+  body,
+  #root {
+    touch-action: pan-y !important;
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+  }
+
+  /*
+    Allow pinch/pan gestures only in the actual GIS map area.
+    Leaflet can still handle pinch zoom and drag inside the map.
+  */
+  .pm-map-shell,
+  .pm-map-shell *,
+  .pm-leaflet-map,
+  .pm-leaflet-map *,
+  .leaflet-container,
+  .leaflet-container * {
+    touch-action: pan-x pan-y pinch-zoom !important;
+  }
+
+  /*
+    iOS Safari zooms the page when focusing fields below 16px.
+    Keep form controls at 16px minimum on mobile.
+  */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1rem) !important;
+  }
+}
+/* PMS10 DISABLE APP ZOOM EXCEPT MAP END */
+
+/* PMS10 PROGRAM DROPDOWN ALL CAPS V3 START
+   CSS fallback only. The runtime utility directly uppercases native option text.
+*/
+select option {
+  text-transform: uppercase;
+}
+/* PMS10 PROGRAM DROPDOWN ALL CAPS V3 END */

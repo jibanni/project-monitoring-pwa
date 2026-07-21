@@ -57,6 +57,19 @@ function textValue(value: unknown): string {
   return String(value).trim()
 }
 
+function isCompletedProjectForRisk(project?: ProjectLike | null): boolean {
+  if (!project) return false
+
+  const status = textValue(
+    (project as any).status ??
+      (project as any).project_status ??
+      (project as any).implementation_status ??
+      (project as any).current_status,
+  ).toLowerCase()
+
+  return clampProgress(project.physical_accomplishment) >= 100 || status.includes('complete')
+}
+
 function toBoolean(value: unknown): boolean {
   if (typeof value === 'boolean') return value
 
@@ -218,6 +231,13 @@ export function getComputedRiskLevel(
   project?: ProjectLike | null,
   referenceDate?: string | null,
 ): 'None' | 'Low' | 'Moderate' | 'High' {
+  /*
+    PMS10 rule:
+    Completed projects must not carry any risk level.
+    This overrides expired contracts, negative variance, and old stored risk values.
+  */
+  if (isCompletedProjectForRisk(project)) return 'None'
+
   if (getContractExpirationInfo(project, referenceDate).isExpired) return 'High'
 
   return getRiskLevelFromVariance(getTargetPhysicalInfo(project, referenceDate).variance)

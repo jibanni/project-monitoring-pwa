@@ -2429,8 +2429,8 @@ export default function ProjectUpdates() {
                         :'No GPS recorded'}
                     </p>
 
-                    <span className={`pu-badge ${getRiskClass(update.risk_level)}`}>
-                      {update.risk_level ||'No Risk'}
+                    <span className={`pu-badge ${getRiskClass(autoRiskLevel === 'None' ? 'None' : update.risk_level)}`}>
+                      {autoRiskLevel === 'None' ? 'None' : update.risk_level ||'No Risk'}
                     </span>
                   </div>
                 ))}

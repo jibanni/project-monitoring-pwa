@@ -2534,3 +2534,65 @@
   }
 }
 /* PMS10 ITEM 2 COMPLETION RATE DASHBOARD END */
+
+/* PMS10 DASHBOARD RISK CHIP COLORS START
+   Risk color coding:
+   - High = red
+   - Moderate/Medium = orange
+   - Low = yellow
+   - None/No Risk = green
+*/
+.dashboard-modal-project-meta .dashboard-modal-risk {
+  font-weight: 950 !important;
+  border-radius: 999px !important;
+  padding: 0.24rem 0.5rem !important;
+  border: 1px solid transparent !important;
+}
+
+.dashboard-modal-project-meta .dashboard-modal-risk.high,
+.dashboard-modal-project-meta .dashboard-modal-risk.critical,
+.dashboard-modal-risk.high,
+.dashboard-modal-risk.critical,
+.dashboard-risk-high,
+.dashboard-risk-critical {
+  color: #b91c1c !important;
+  background: #fee2e2 !important;
+  border-color: #fecaca !important;
+}
+
+.dashboard-modal-project-meta .dashboard-modal-risk.moderate,
+.dashboard-modal-project-meta .dashboard-modal-risk.medium,
+.dashboard-modal-risk.moderate,
+.dashboard-modal-risk.medium,
+.dashboard-risk-moderate,
+.dashboard-risk-medium {
+  color: #c2410c !important;
+  background: #ffedd5 !important;
+  border-color: #fed7aa !important;
+}
+
+.dashboard-modal-project-meta .dashboard-modal-risk.low,
+.dashboard-modal-risk.low,
+.dashboard-risk-low {
+  color: #ca8a04 !important;
+  background: #fef9c3 !important;
+  border-color: #fde68a !important;
+}
+
+.dashboard-modal-project-meta .dashboard-modal-risk.none,
+.dashboard-modal-project-meta .dashboard-modal-risk.no-risk,
+.dashboard-modal-project-meta .dashboard-modal-risk.neutral,
+.dashboard-modal-project-meta .dashboard-modal-risk.unknown,
+.dashboard-modal-risk.none,
+.dashboard-modal-risk.no-risk,
+.dashboard-modal-risk.neutral,
+.dashboard-modal-risk.unknown,
+.dashboard-risk-none,
+.dashboard-risk-no-risk,
+.dashboard-risk-neutral,
+.dashboard-risk-unknown {
+  color: #166534 !important;
+  background: #dcfce7 !important;
+  border-color: #bbf7d0 !important;
+}
+/* PMS10 DASHBOARD RISK CHIP COLORS END */

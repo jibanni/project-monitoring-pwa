@@ -853,7 +853,7 @@ export default function CreateProject() {
               <select value={status} onChange={(event) => handleStatusChange(event.target.value)}>
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {option.toUpperCase()}
                   </option>
                 ))}
               </select>
@@ -899,7 +899,7 @@ export default function CreateProject() {
               >
                 {PROJECT_TYPE_OPTIONS.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {option.toUpperCase()}
                   </option>
                 ))}
               </select>
@@ -927,7 +927,7 @@ export default function CreateProject() {
               >
                 {FUNDING_SOURCE_OPTIONS.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {option.toUpperCase()}
                   </option>
                 ))}
               </select>
@@ -1167,7 +1167,7 @@ export default function CreateProject() {
                   <option value="">Select modification type</option>
                   {contractModificationTypeOptions.map((option) => (
                     <option key={option} value={option}>
-                      {option}
+                      {option.toUpperCase()}
                     </option>
                   ))}
                 </select>

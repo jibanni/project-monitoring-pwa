@@ -172,6 +172,18 @@ function getRiskLevel(project: ProjectRecord) {
   return getPmsRiskLevel(project)
 }
 
+
+function getDashboardRiskClass(riskLevel: unknown) {
+  const risk = normalizeForCompare(riskLevel)
+
+  if (!risk || risk.includes('none') || risk.includes('no risk')) return 'none'
+  if (risk.includes('high') || risk.includes('critical')) return 'high'
+  if (risk.includes('moderate') || risk.includes('medium')) return 'moderate'
+  if (risk.includes('low')) return 'low'
+
+  return 'none'
+}
+
 function getFundingSource(project: ProjectRecord) {
   const source = safeText(
     project.funding_source ??
@@ -296,10 +308,10 @@ function getStatusColor(status: unknown, fallbackIndex = 0) {
 function getRiskColor(riskLevel: unknown, fallbackIndex = 0) {
   const risk = normalizeForCompare(riskLevel)
 
-  if (risk.includes('high')) return '#ef4444'
+  if (risk.includes('high') || risk.includes('critical')) return '#ef4444'
   if (risk.includes('moderate') || risk.includes('medium')) return '#f97316'
-  if (risk.includes('low')) return '#16a34a'
-  if (risk.includes('none') || risk.includes('no risk')) return '#2563eb'
+  if (risk.includes('low')) return '#eab308'
+  if (risk.includes('none') || risk.includes('no risk')) return '#16a34a'
 
   return CHART_COLORS[fallbackIndex % CHART_COLORS.length]
 }
@@ -692,7 +704,7 @@ export default function Dashboard() {
 
             <p className="dashboard-modal-project-meta">
               <span>{status}</span>
-              <span>Risk: {riskLevel}</span>
+              <span className={`dashboard-modal-risk ${getDashboardRiskClass(riskLevel)}`}>Risk: {riskLevel}</span>
               <span>{physicalProgress}</span>
             </p>
           </div>
@@ -912,10 +924,10 @@ export default function Dashboard() {
                   }))
                 }
               >
-                <option value={ALL_FILTER_VALUE}>All programs</option>
+                <option value={ALL_FILTER_VALUE}>ALL PROGRAMS</option>
                 {filterOptions.programs.map((program) => (
-                  <option key={program} value={program}>
-                    {program}
+                  <option key={String(program).toUpperCase()} value={String(program).toUpperCase()}>
+                    {String(program).toUpperCase()}
                   </option>
                 ))}
               </select>

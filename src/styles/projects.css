@@ -1968,3 +1968,50 @@
   max-width: 100% !important;
   flex: 1 1 auto !important;
 }
+
+/* PMS10 PAGE-SPECIFIC FAB FIX — PROJECT REGISTRY START */
+@media (max-width: 900px) {
+  .projects-floating-actions {
+    position: fixed !important;
+    right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)) !important;
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+    top: auto !important;
+    left: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    z-index: 2147482500 !important;
+    transform: none !important;
+  }
+
+  .projects-floating-btn {
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    min-height: 58px !important;
+    border-radius: 999px !important;
+    transform: none;
+  }
+
+  .projects-floating-btn:hover,
+  .projects-floating-btn:active {
+    transform: translateY(-1px) scale(1.02) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .projects-floating-actions {
+    right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px)) !important;
+    bottom: calc(142px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 11px !important;
+  }
+
+  .projects-floating-btn {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+  }
+}
+/* PMS10 PAGE-SPECIFIC FAB FIX — PROJECT REGISTRY END */

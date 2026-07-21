@@ -2094,3 +2094,46 @@
     padding: 0 16px !important;
   }
 }
+
+/* PMS10 PAGE-SPECIFIC FAB FIX — USER MANAGEMENT START */
+@media (max-width: 900px) {
+  .user-management-refresh-fab {
+    position: fixed !important;
+    top: auto !important;
+    left: auto !important;
+    right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)) !important;
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 2147482500 !important;
+
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    min-height: 58px !important;
+
+    border-radius: 999px !important;
+    transform: none !important;
+    translate: none !important;
+  }
+
+  .user-management-refresh-fab:hover:not(:disabled),
+  .user-management-refresh-fab:active:not(:disabled) {
+    transform: translateY(-1px) scale(1.02) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .user-management-refresh-fab {
+    right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px)) !important;
+    bottom: calc(142px + env(safe-area-inset-bottom, 0px)) !important;
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+  }
+
+  .user-management-refresh-fab svg {
+    width: 23px !important;
+    height: 23px !important;
+  }
+}
+/* PMS10 PAGE-SPECIFIC FAB FIX — USER MANAGEMENT END */

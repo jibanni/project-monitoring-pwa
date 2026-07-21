@@ -415,7 +415,7 @@ export default function Projects() {
     return Array.from(
       new Set(
         allowedProjects
-          .map((project) => textValue(project.funding_source || project.project_type))
+          .map((project) => normalizeProgramName(textValue(project.funding_source || project.project_type)))
           .filter(Boolean),
       ),
     ).sort()
@@ -473,7 +473,7 @@ export default function Projects() {
         : true
 
       const programMatches = programFilter
-        ? textValue(project.funding_source || project.project_type) === programFilter
+        ? normalizeProgramName(textValue(project.funding_source || project.project_type)) === programFilter
         : true
 
       const fundingYearMatches = fundingYearFilter
@@ -745,10 +745,10 @@ export default function Projects() {
                 value={programFilter}
                 onChange={(event) => setProgramFilter(event.target.value)}
               >
-                <option value="">All Programs</option>
+                <option value="">ALL PROGRAMS</option>
                 {programs.map((program) => (
-                  <option key={program} value={program}>
-                    {program}
+                  <option key={String(program).toUpperCase()} value={String(program).toUpperCase()}>
+                    {String(program).toUpperCase()}
                   </option>
                 ))}
               </select>

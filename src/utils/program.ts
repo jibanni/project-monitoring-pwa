@@ -1,3 +1,5 @@
+
+
 export function normalizeProgramName(value: unknown) {
   if (value === null || value === undefined) return ''
 
@@ -17,5 +19,9 @@ export function normalizeProgramName(value: unknown) {
     return 'FALGU'
   }
 
-  return raw
+  return upper
+}
+
+export function formatProgramDropdownLabel(value: unknown) {
+  return normalizeProgramName(value)
 }
