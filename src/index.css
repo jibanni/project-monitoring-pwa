@@ -289,3 +289,275 @@ textarea:focus {
   }
 }
 /* PMS10 APP TAP RESPONSIVENESS END */
+
+/* PMS10 MOBILE SMOOTHNESS OPTIMIZATION START
+   CSS-only performance tuning.
+   Purpose:
+   - faster taps
+   - smoother scrolling
+   - less heavy blur/shadow work on mobile
+   - no JS observers/timers
+   - does not affect map pinch/drag gestures
+*/
+@media (hover: none), (pointer: coarse) {
+  html,
+  body,
+  #root {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  button,
+  a,
+  [role='button'],
+  input,
+  select,
+  textarea,
+  label,
+  summary,
+  .clickable,
+  .fab,
+  [class*='fab'],
+  [class*='button'],
+  [class*='btn'] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  button,
+  a,
+  [role='button'],
+  label,
+  summary,
+  .clickable,
+  .fab,
+  [class*='fab'],
+  [class*='button'],
+  [class*='btn'] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  select,
+  textarea {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  .leaflet-container,
+  .leaflet-container *,
+  .pm-leaflet-map,
+  .pm-map-shell,
+  .pm-map-shell * {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  button:active,
+  a:active,
+  [role='button']:active,
+  .fab:active,
+  [class*='fab']:active,
+  [class*='button']:active,
+  [class*='btn']:active {
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --pms10-fast-transition: 120ms ease;
+    --pms10-soft-shadow-mobile: 0 8px 20px rgba(15, 23, 42, 0.08);
+    --pms10-card-shadow-mobile: 0 10px 24px rgba(15, 23, 42, 0.10);
+  }
+
+  * {
+    scroll-behavior: auto !important;
+  }
+
+  .app-shell,
+  .app-main,
+  .app-content,
+  main,
+  .page-shell,
+  .dashboard-page,
+  .projects-page,
+  .reports-page,
+  .pm-map-page,
+  .pd-page,
+  .pu-page,
+  .offline-page,
+  .users-page {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dashboard-card,
+  .dashboard-panel,
+  .dashboard-section,
+  .projects-card,
+  .project-card,
+  .reports-card,
+  .reports-panel,
+  .pd-card,
+  .pd-section,
+  .pu-card,
+  .pu-panel,
+  .pm-map-panel,
+  .pm-card,
+  .user-management-card,
+  .offline-card,
+  .stat-card,
+  .summary-card,
+  .filter-panel,
+  .filter-card {
+    contain: layout paint style;
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 180px;
+  }
+
+  .dashboard-card,
+  .projects-card,
+  .project-card,
+  .reports-card,
+  .pd-card,
+  .pu-card,
+  .pm-card,
+  .user-management-card,
+  .offline-card,
+  .stat-card,
+  .summary-card,
+  .filter-panel,
+  .filter-card {
+    box-shadow: var(--pms10-card-shadow-mobile) !important;
+  }
+
+  .dashboard-hero,
+  .projects-hero,
+  .reports-hero,
+  .pd-hero,
+  .pu-hero,
+  .pm-map-hero,
+  .app-hero,
+  .page-hero {
+    contain: layout paint;
+    box-shadow: var(--pms10-soft-shadow-mobile) !important;
+  }
+
+  .app-mobile-nav,
+  .pms10-bottom-nav-v17-rect-strip,
+  [class*='bottom-nav'] {
+    contain: layout paint !important;
+    will-change: auto !important;
+    transform: translateZ(0) !important;
+    backface-visibility: hidden !important;
+  }
+
+  .app-mobile-nav a,
+  .app-mobile-nav button,
+  .pms10-bottom-nav-v17-rect-strip a,
+  .pms10-bottom-nav-v17-rect-strip button,
+  [class*='bottom-nav'] a,
+  [class*='bottom-nav'] button {
+    transition:
+      background-color var(--pms10-fast-transition),
+      color var(--pms10-fast-transition),
+      box-shadow var(--pms10-fast-transition),
+      opacity var(--pms10-fast-transition) !important;
+    will-change: auto !important;
+  }
+
+  button,
+  .button,
+  .btn,
+  [class*='button'],
+  [class*='btn'],
+  .fab,
+  [class*='fab'],
+  .dashboard-card,
+  .project-card,
+  .reports-card,
+  .pd-card,
+  .pu-card {
+    transition-duration: 120ms !important;
+  }
+
+  .dashboard-card:hover,
+  .project-card:hover,
+  .reports-card:hover,
+  .pd-card:hover,
+  .pu-card:hover,
+  button:hover,
+  .button:hover,
+  .btn:hover,
+  [class*='button']:hover,
+  [class*='btn']:hover {
+    transform: none !important;
+  }
+
+  .app-mobile-nav,
+  .pms10-bottom-nav-v17-rect-strip,
+  .dashboard-card,
+  .project-card,
+  .reports-card,
+  .pd-card,
+  .pu-card,
+  .filter-panel,
+  .filter-card,
+  .modal,
+  .sheet,
+  [class*='glass'],
+  [class*='blur'] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  img,
+  svg,
+  canvas,
+  video {
+    max-width: 100%;
+  }
+
+  img {
+    image-rendering: auto;
+  }
+
+  .leaflet-container,
+  .pm-leaflet-map {
+    content-visibility: visible !important;
+    contain: strict;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .recharts-wrapper,
+  .recharts-surface {
+    contain: layout paint;
+  }
+
+  .modal,
+  .sheet,
+  .drawer,
+  [role='dialog'] {
+    contain: layout paint;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+/* PMS10 MOBILE SMOOTHNESS OPTIMIZATION END */
