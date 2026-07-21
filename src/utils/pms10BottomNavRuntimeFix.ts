@@ -287,7 +287,7 @@ function applyBottomNavFix(nav: BottomNavElement) {
   nav.style.boxShadow = "none";
   nav.style.border = "0";
   nav.style.outline = "0";
-  nav.style.transform = "none";
+  nav.style.transform = 'none';
   nav.style.willChange = "auto";
   nav.style.boxSizing = "border-box";
   nav.style.overflow = "visible";
@@ -315,14 +315,14 @@ function applyBottomNavFix(nav: BottomNavElement) {
       child.classList.add("pms10-bottom-nav-v17-item");
       child.style.position = "relative";
       child.style.zIndex = "2";
-      child.style.transform = "translateY(-10px)";
+      child.style.transform = 'none';
       child.style.pointerEvents = "auto";
       child.style.touchAction = "manipulation";
 
       const active = isActiveNavItem(child);
       child.classList.toggle("pms10-bottom-nav-v20-active", active);
       child.classList.toggle("pms10-bottom-nav-v20-inactive", !active);
-      child.style.transform = active ? "translateY(0px)" : "translateY(8px)";
+      child.style.transform = active ? "translateY(0px)" : "none";
       forceWhiteNavColors(child, active);
     }
   });

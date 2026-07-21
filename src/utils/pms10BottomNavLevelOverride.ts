@@ -162,7 +162,7 @@ const nav = findBottomNav();
       This prevents the old active item, such as Home, from jumping up/down
       while navigating to another tab.
     */
-    item.style.setProperty("transform", "translateY(10px)", "important");
+    item.style.setProperty("transform", "none", "important");
     item.style.setProperty(
       "transition",
       "background-color 160ms ease, box-shadow 160ms ease, filter 160ms ease",

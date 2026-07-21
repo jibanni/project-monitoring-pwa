@@ -3180,3 +3180,359 @@ main {
   }
 }
 /* PMS10 COMPACT IOS NAV ACTIVE HIGHLIGHT END */
+
+/* PMS10 STATIONARY BOTTOM NAV ICONS START
+   Prevent bottom navigation icons/items from moving on tap, press, focus,
+   route change, or active-state change. Only color/background/shadow may change.
+*/
+@media (max-width: 768px) {
+  .app-mobile-nav a,
+  .app-mobile-nav button,
+  .app-mobile-nav a *,
+  .app-mobile-nav button *,
+  .pms10-bottom-nav-v17-rect-strip a,
+  .pms10-bottom-nav-v17-rect-strip button,
+  .pms10-bottom-nav-v17-rect-strip a *,
+  .pms10-bottom-nav-v17-rect-strip button *,
+  .pms10-mobile-bottom-nav a,
+  .pms10-mobile-bottom-nav button,
+  .pms10-mobile-bottom-nav a *,
+  .pms10-mobile-bottom-nav button *,
+  [class*='bottom-nav'] a,
+  [class*='bottom-nav'] button,
+  [class*='bottom-nav'] a *,
+  [class*='bottom-nav'] button * {
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  .app-mobile-nav a,
+  .app-mobile-nav button,
+  .pms10-bottom-nav-v17-rect-strip a,
+  .pms10-bottom-nav-v17-rect-strip button,
+  .pms10-mobile-bottom-nav a,
+  .pms10-mobile-bottom-nav button,
+  [class*='bottom-nav'] a,
+  [class*='bottom-nav'] button {
+    transition:
+      background-color 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease,
+      border-color 160ms ease,
+      opacity 160ms ease !important;
+  }
+
+  .app-mobile-nav a:active,
+  .app-mobile-nav button:active,
+  .app-mobile-nav a:focus,
+  .app-mobile-nav button:focus,
+  .app-mobile-nav a:focus-visible,
+  .app-mobile-nav button:focus-visible,
+  .app-mobile-nav a[aria-current='page'],
+  .app-mobile-nav a.active,
+  .app-mobile-nav button[aria-current='page'],
+  .app-mobile-nav button.active,
+  .pms10-bottom-nav-v17-rect-strip a:active,
+  .pms10-bottom-nav-v17-rect-strip button:active,
+  .pms10-bottom-nav-v17-rect-strip a:focus,
+  .pms10-bottom-nav-v17-rect-strip button:focus,
+  .pms10-bottom-nav-v17-rect-strip a:focus-visible,
+  .pms10-bottom-nav-v17-rect-strip button:focus-visible,
+  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip a.active,
+  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip button.active,
+  [class*='bottom-nav'] a:active,
+  [class*='bottom-nav'] button:active,
+  [class*='bottom-nav'] a[aria-current='page'],
+  [class*='bottom-nav'] a.active,
+  [class*='bottom-nav'] button[aria-current='page'],
+  [class*='bottom-nav'] button.active {
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+  }
+
+  .app-mobile-nav svg,
+  .app-mobile-nav img,
+  .app-mobile-nav span,
+  .app-mobile-nav small,
+  .pms10-bottom-nav-v17-rect-strip svg,
+  .pms10-bottom-nav-v17-rect-strip img,
+  .pms10-bottom-nav-v17-rect-strip span,
+  .pms10-bottom-nav-v17-rect-strip small,
+  .pms10-mobile-bottom-nav svg,
+  .pms10-mobile-bottom-nav img,
+  .pms10-mobile-bottom-nav span,
+  .pms10-mobile-bottom-nav small,
+  [class*='bottom-nav'] svg,
+  [class*='bottom-nav'] img,
+  [class*='bottom-nav'] span,
+  [class*='bottom-nav'] small {
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    transition:
+      color 160ms ease,
+      opacity 160ms ease,
+      fill 160ms ease,
+      stroke 160ms ease !important;
+    will-change: auto !important;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    body.pms10-standalone-pwa .app-mobile-nav a,
+    body.pms10-standalone-pwa .app-mobile-nav button,
+    body.pms10-standalone-pwa .app-mobile-nav a *,
+    body.pms10-standalone-pwa .app-mobile-nav button *,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip a *,
+    body.pms10-standalone-pwa .pms10-bottom-nav-v17-rect-strip button *,
+    body.pms10-standalone-pwa [class*='bottom-nav'] a,
+    body.pms10-standalone-pwa [class*='bottom-nav'] button,
+    body.pms10-standalone-pwa [class*='bottom-nav'] a *,
+    body.pms10-standalone-pwa [class*='bottom-nav'] button * {
+      transform: none !important;
+      translate: none !important;
+      animation: none !important;
+      will-change: auto !important;
+    }
+  }
+}
+/* PMS10 STATIONARY BOTTOM NAV ICONS END */
+
+/* PMS10 LOCK BOTTOM NAV HEIGHT AND ICONS START
+   Final navbar stability layer:
+   - fixed navbar height even while scrolling
+   - equal fixed slots for all six nav buttons
+   - active highlight uses the same footprint as inactive buttons
+   - no transform/translate movement on tap, active, focus, route change, or scroll
+*/
+@media (max-width: 768px) {
+  :root {
+    --pms10-locked-nav-visual-height: 72px;
+    --pms10-locked-nav-total-height: calc(
+      var(--pms10-locked-nav-visual-height) + env(safe-area-inset-bottom, 0px)
+    );
+    --pms10-locked-nav-item-width: 62px;
+    --pms10-locked-nav-item-height: 50px;
+    --pms10-locked-nav-icon-size: 20px;
+    --pms10-locked-nav-label-size: 0.72rem;
+  }
+
+  body {
+    padding-bottom: var(--pms10-locked-nav-total-height) !important;
+  }
+
+  body.app-scrolled .app-mobile-nav,
+  body.app-scrolled .pms10-bottom-nav-v17-rect-strip,
+  .app-scrolled .app-mobile-nav,
+  .app-scrolled .pms10-bottom-nav-v17-rect-strip,
+  .is-scrolled .app-mobile-nav,
+  .is-scrolled .pms10-bottom-nav-v17-rect-strip,
+  .app-mobile-nav,
+  .pms10-bottom-nav-v17-rect-strip,
+  [class*='bottom-nav'] {
+    height: var(--pms10-locked-nav-total-height) !important;
+    min-height: var(--pms10-locked-nav-total-height) !important;
+    max-height: var(--pms10-locked-nav-total-height) !important;
+    padding-top: 4px !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    align-items: flex-start !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+  }
+
+  .app-mobile-nav nav,
+  .app-mobile-nav > div,
+  .pms10-bottom-nav-v17-rect-strip nav,
+  .pms10-bottom-nav-v17-rect-strip > div,
+  [class*='bottom-nav'] nav,
+  [class*='bottom-nav'] > div {
+    height: var(--pms10-locked-nav-visual-height) !important;
+    min-height: var(--pms10-locked-nav-visual-height) !important;
+    max-height: var(--pms10-locked-nav-visual-height) !important;
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    align-items: center !important;
+    justify-items: center !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+  }
+
+  .app-mobile-nav a,
+  .app-mobile-nav button,
+  .pms10-bottom-nav-v17-rect-strip a,
+  .pms10-bottom-nav-v17-rect-strip button,
+  [class*='bottom-nav'] a,
+  [class*='bottom-nav'] button {
+    width: var(--pms10-locked-nav-item-width) !important;
+    min-width: var(--pms10-locked-nav-item-width) !important;
+    max-width: var(--pms10-locked-nav-item-width) !important;
+    height: var(--pms10-locked-nav-item-height) !important;
+    min-height: var(--pms10-locked-nav-item-height) !important;
+    max-height: var(--pms10-locked-nav-item-height) !important;
+    padding: 5px 4px 4px !important;
+    margin: 0 !important;
+    border-radius: 18px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    justify-self: center !important;
+    align-self: center !important;
+    gap: 2px !important;
+    box-sizing: border-box !important;
+    flex: 0 0 var(--pms10-locked-nav-item-width) !important;
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    will-change: auto !important;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease,
+      border-color 160ms ease,
+      opacity 160ms ease !important;
+  }
+
+  .app-mobile-nav a:active,
+  .app-mobile-nav button:active,
+  .app-mobile-nav a:focus,
+  .app-mobile-nav button:focus,
+  .app-mobile-nav a:focus-visible,
+  .app-mobile-nav button:focus-visible,
+  .app-mobile-nav a[aria-current='page'],
+  .app-mobile-nav a.active,
+  .app-mobile-nav button[aria-current='page'],
+  .app-mobile-nav button.active,
+  .pms10-bottom-nav-v17-rect-strip a:active,
+  .pms10-bottom-nav-v17-rect-strip button:active,
+  .pms10-bottom-nav-v17-rect-strip a:focus,
+  .pms10-bottom-nav-v17-rect-strip button:focus,
+  .pms10-bottom-nav-v17-rect-strip a:focus-visible,
+  .pms10-bottom-nav-v17-rect-strip button:focus-visible,
+  .pms10-bottom-nav-v17-rect-strip a[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip a.active,
+  .pms10-bottom-nav-v17-rect-strip button[aria-current='page'],
+  .pms10-bottom-nav-v17-rect-strip button.active,
+  [class*='bottom-nav'] a:active,
+  [class*='bottom-nav'] button:active,
+  [class*='bottom-nav'] a[aria-current='page'],
+  [class*='bottom-nav'] a.active,
+  [class*='bottom-nav'] button[aria-current='page'],
+  [class*='bottom-nav'] button.active {
+    width: var(--pms10-locked-nav-item-width) !important;
+    min-width: var(--pms10-locked-nav-item-width) !important;
+    max-width: var(--pms10-locked-nav-item-width) !important;
+    height: var(--pms10-locked-nav-item-height) !important;
+    min-height: var(--pms10-locked-nav-item-height) !important;
+    max-height: var(--pms10-locked-nav-item-height) !important;
+    padding: 5px 4px 4px !important;
+    margin: 0 !important;
+    border-radius: 18px !important;
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+  }
+
+  .app-mobile-nav svg,
+  .app-mobile-nav img,
+  .pms10-bottom-nav-v17-rect-strip svg,
+  .pms10-bottom-nav-v17-rect-strip img,
+  [class*='bottom-nav'] svg,
+  [class*='bottom-nav'] img {
+    width: var(--pms10-locked-nav-icon-size) !important;
+    min-width: var(--pms10-locked-nav-icon-size) !important;
+    max-width: var(--pms10-locked-nav-icon-size) !important;
+    height: var(--pms10-locked-nav-icon-size) !important;
+    min-height: var(--pms10-locked-nav-icon-size) !important;
+    max-height: var(--pms10-locked-nav-icon-size) !important;
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+    flex: 0 0 var(--pms10-locked-nav-icon-size) !important;
+  }
+
+  .app-mobile-nav span,
+  .app-mobile-nav small,
+  .pms10-bottom-nav-v17-rect-strip span,
+  .pms10-bottom-nav-v17-rect-strip small,
+  [class*='bottom-nav'] span,
+  [class*='bottom-nav'] small {
+    display: block !important;
+    max-width: 100% !important;
+    font-size: var(--pms10-locked-nav-label-size) !important;
+    line-height: 1 !important;
+    letter-spacing: 0 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+  }
+
+  .pms10-bottom-nav-v17-blue-fill {
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    transform: none !important;
+    translate: none !important;
+    animation: none !important;
+  }
+
+  .app-main,
+  main,
+  .app-content,
+  .page-shell {
+    padding-bottom: calc(var(--pms10-locked-nav-total-height) + 10px) !important;
+  }
+}
+/* PMS10 LOCK BOTTOM NAV HEIGHT AND ICONS END */
+
+/* PMS10 REMOVE BOTTOM NAV WHITE OVERLAY START */
+@media (max-width: 768px) {
+  .app-mobile-nav,
+  .pms10-bottom-nav-v17-rect-strip,
+  [class*='bottom-nav'] {
+    background: linear-gradient(135deg, #082f60 0%, #0f477f 54%, #1d6ec2 100%) !important;
+    box-shadow: 0 -10px 28px rgba(8, 47, 96, 0.22) !important;
+  }
+
+  .pms10-bottom-nav-v17-blue-fill {
+    background: transparent !important;
+    opacity: 0 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+
+  .app-mobile-nav::before,
+  .app-mobile-nav::after,
+  .pms10-bottom-nav-v17-rect-strip::before,
+  .pms10-bottom-nav-v17-rect-strip::after,
+  [class*='bottom-nav']::before,
+  [class*='bottom-nav']::after {
+    background: transparent !important;
+    opacity: 0 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+}
+/* PMS10 REMOVE BOTTOM NAV WHITE OVERLAY END */
