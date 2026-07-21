@@ -924,7 +924,7 @@ export default function Dashboard() {
                   }))
                 }
               >
-                <option value={ALL_FILTER_VALUE}>ALL PROGRAMS</option>
+                <option value={ALL_FILTER_VALUE}>All Programs</option>
                 {filterOptions.programs.map((program) => (
                   <option key={String(program).toUpperCase()} value={String(program).toUpperCase()}>
                     {String(program).toUpperCase()}

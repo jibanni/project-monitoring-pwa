@@ -227,11 +227,3 @@ textarea:focus {
   }
 }
 /* PMS10 DISABLE APP ZOOM EXCEPT MAP END */
-
-/* PMS10 PROGRAM DROPDOWN ALL CAPS V3 START
-   CSS fallback only. The runtime utility directly uppercases native option text.
-*/
-select option {
-  text-transform: uppercase;
-}
-/* PMS10 PROGRAM DROPDOWN ALL CAPS V3 END */

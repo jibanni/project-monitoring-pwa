@@ -1,4 +1,32 @@
-const PROGRAM_OPTION_KEYWORDS = [
+const PROGRAM_OPTION_LABELS: Record<string, string> = {
+  'all programs': 'All Programs',
+  'all program': 'All Programs',
+  'all funding sources': 'All Funding Sources',
+  'all funding source': 'All Funding Sources',
+  'select program': 'Select Program',
+  'select funding source': 'Select Funding Source',
+  falgu: 'FALGU',
+  gef: 'GEF',
+  ggg: 'GGG',
+  rapid: 'RAPID',
+  safpb: 'SAFPB',
+  sbdp: 'SBDP',
+  salintubig: 'SALINTUBIG',
+  cmgp: 'CMGP',
+  kalsada: 'KALSADA',
+  lgff: 'LGFF',
+  lgsf: 'LGSF',
+  fmr: 'FMR',
+  'lgsf-falgu': 'LGSF-FALGU',
+  'lgsf gef': 'LGSF GEF',
+  'lgsf-gef': 'LGSF-GEF',
+  'lgsf sbdp': 'LGSF SBDP',
+  'lgsf-sbdp': 'LGSF-SBDP',
+  'lgsf safpb': 'LGSF SAFPB',
+  'lgsf-safpb': 'LGSF-SAFPB',
+}
+
+const PROGRAM_KEYWORDS = [
   'falgu',
   'gef',
   'ggg',
@@ -8,144 +36,126 @@ const PROGRAM_OPTION_KEYWORDS = [
   'salintubig',
   'cmgp',
   'kalsada',
-  'lgsf',
   'lgff',
+  'lgsf',
   'fmr',
 ]
 
-function normalizeText(value: string | null | undefined) {
-  return String(value ?? '').replace(/\s+/g, ' ').trim()
+function compact(value: unknown) {
+  return String(value ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-function getDirectLabelText(select: HTMLSelectElement) {
-  const label = select.closest('label')
-  if (!label) return ''
-
-  const directSpan = label.querySelector(':scope > span')
-  if (directSpan) return normalizeText(directSpan.textContent)
-
-  const directLabel = Array.from(label.childNodes)
-    .filter((node) => node.nodeType === Node.TEXT_NODE)
-    .map((node) => normalizeText(node.textContent))
-    .filter(Boolean)
-    .join(' ')
-
-  return directLabel
+function keyOf(value: unknown) {
+  return compact(value).toLowerCase()
 }
 
-function looksLikeProgramSelect(select: HTMLSelectElement) {
-  const labelText = getDirectLabelText(select)
-  const attributes = [
-    select.name,
-    select.id,
-    select.className,
-    select.getAttribute('aria-label'),
-    select.getAttribute('title'),
-    labelText,
-  ]
-    .map((value) => normalizeText(String(value ?? '')).toLowerCase())
-    .join(' ')
+function upperProgramOptionLabel(option: HTMLOptionElement) {
+  const originalText = compact(option.textContent || option.text || option.label || option.value)
+  const originalValue = compact(option.value)
+
+  const textKey = keyOf(originalText)
+  const valueKey = keyOf(originalValue)
+
+  const mapped =
+    PROGRAM_OPTION_LABELS[textKey] ||
+    PROGRAM_OPTION_LABELS[valueKey] ||
+    ''
+
+  if (mapped) return mapped
+
+  const candidate = originalText || originalValue
+  const candidateKey = keyOf(candidate)
 
   if (
-    attributes.includes('program') ||
-    attributes.includes('funding source') ||
-    attributes.includes('funding program')
+    PROGRAM_KEYWORDS.some(
+      (keyword) =>
+        candidateKey === keyword ||
+        candidateKey.startsWith(`${keyword} `) ||
+        candidateKey.startsWith(`${keyword}-`) ||
+        candidateKey.includes(` ${keyword}`) ||
+        candidateKey.includes(`-${keyword}`),
+    )
   ) {
-    return true
+    return candidate.toUpperCase()
   }
 
-  const optionTexts = Array.from(select.options).map((option) =>
-    normalizeText(option.textContent).toLowerCase(),
-  )
-
-  const programMatches = optionTexts.filter((text) =>
-    PROGRAM_OPTION_KEYWORDS.some((keyword) => text === keyword || text.includes(keyword)),
-  )
-
-  return programMatches.length >= 2
+  return ''
 }
 
-function toProgramOptionLabel(text: string) {
-  const clean = normalizeText(text)
-  if (!clean) return clean
-
-  if (/^all\s+programs?$/i.test(clean)) return 'ALL PROGRAMS'
-  if (/^all\s+funding\s+sources?$/i.test(clean)) return 'ALL FUNDING SOURCES'
-  if (/^select\s+funding\s+source$/i.test(clean)) return 'SELECT FUNDING SOURCE'
-  if (/^select\s+program$/i.test(clean)) return 'SELECT PROGRAM'
-
-  return clean.toUpperCase()
-}
-
-function uppercaseProgramSelectOptions(select: HTMLSelectElement) {
-  if (!looksLikeProgramSelect(select)) return
-
+function applyProgramCapsToSelect(select: HTMLSelectElement) {
   Array.from(select.options).forEach((option) => {
-    const nextLabel = toProgramOptionLabel(option.textContent || option.label || option.value)
-
+    const nextLabel = upperProgramOptionLabel(option)
     if (!nextLabel) return
 
-    if (option.textContent !== nextLabel) {
-      option.textContent = nextLabel
-    }
-
-    if (option.label !== nextLabel) {
-      option.label = nextLabel
-    }
+    if (option.text !== nextLabel) option.text = nextLabel
+    if (option.label !== nextLabel) option.label = nextLabel
+    if (option.textContent !== nextLabel) option.textContent = nextLabel
   })
 }
 
-function uppercaseAllProgramSelects() {
-  document.querySelectorAll<HTMLSelectElement>('select').forEach((select) => {
-    uppercaseProgramSelectOptions(select)
-  })
+function applyProgramCaps() {
+  document.querySelectorAll<HTMLSelectElement>('select').forEach(applyProgramCapsToSelect)
 }
 
-let timer: number | undefined
+let quickRunId: number | undefined
+let observer: MutationObserver | undefined
 
-function scheduleUppercase() {
-  window.clearTimeout(timer)
-  timer = window.setTimeout(uppercaseAllProgramSelects, 40)
+function startQuickRun() {
+  window.clearInterval(quickRunId)
+  let count = 0
+
+  quickRunId = window.setInterval(() => {
+    applyProgramCaps()
+    count += 1
+
+    if (count >= 60) {
+      window.clearInterval(quickRunId)
+      quickRunId = undefined
+    }
+  }, 100)
 }
 
 export function initPms10ProgramDropdownCaps() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return
 
-  uppercaseAllProgramSelects()
+  applyProgramCaps()
+  startQuickRun()
 
-  const observer = new MutationObserver(scheduleUppercase)
-  observer.observe(document.body, {
+  observer?.disconnect()
+  observer = new MutationObserver(() => {
+    applyProgramCaps()
+  })
+
+  observer.observe(document.documentElement, {
     childList: true,
     subtree: true,
     characterData: true,
   })
 
-  document.addEventListener(
-    'pointerdown',
-    (event) => {
-      const target = event.target
-      if (!(target instanceof Element)) return
+  const runBeforeNativeDropdown = (event: Event) => {
+    const target = event.target
+    if (!(target instanceof Element)) {
+      applyProgramCaps()
+      return
+    }
 
-      const select = target.closest('select')
-      if (select instanceof HTMLSelectElement) {
-        uppercaseProgramSelectOptions(select)
-      }
-    },
-    { capture: true, passive: true },
-  )
+    const select = target.closest('select')
+    if (select instanceof HTMLSelectElement) {
+      applyProgramCapsToSelect(select)
+    }
 
-  document.addEventListener(
-    'focusin',
-    (event) => {
-      const target = event.target
-      if (target instanceof HTMLSelectElement) {
-        uppercaseProgramSelectOptions(target)
-      }
-    },
-    { capture: true },
-  )
+    applyProgramCaps()
+  }
 
-  window.setTimeout(uppercaseAllProgramSelects, 100)
-  window.setTimeout(uppercaseAllProgramSelects, 350)
-  window.setTimeout(uppercaseAllProgramSelects, 900)
+  document.addEventListener('pointerdown', runBeforeNativeDropdown, { capture: true, passive: true })
+  document.addEventListener('mousedown', runBeforeNativeDropdown, { capture: true, passive: true })
+  document.addEventListener('touchstart', runBeforeNativeDropdown, { capture: true, passive: true })
+  document.addEventListener('focusin', runBeforeNativeDropdown, { capture: true })
+
+  window.addEventListener('pageshow', () => {
+    applyProgramCaps()
+    startQuickRun()
+  })
+
+  window.setInterval(applyProgramCaps, 2000)
 }

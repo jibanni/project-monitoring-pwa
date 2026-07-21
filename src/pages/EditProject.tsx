@@ -1104,7 +1104,7 @@ export default function EditProject() {
                 value={form.funding_source}
                 onChange={(event) => updateField('funding_source', event.target.value)}
               >
-                <option value="">SELECT FUNDING SOURCE</option>
+                <option value="">Select Funding Source</option>
                 {FUNDING_SOURCE_OPTIONS.map((source) => (
                   <option key={source} value={source}>
                     {source.toUpperCase()}

@@ -1169,7 +1169,7 @@ export default function Reports() {
                   value={programFilter}
                   onChange={(event) => setProgramFilter(event.target.value)}
                 >
-                  <option value="">ALL PROGRAMS</option>
+                  <option value="">All Programs</option>
                   {programs.map((program) => (
                     <option key={String(program).toUpperCase()} value={String(program).toUpperCase()}>
                       {String(program).toUpperCase()}

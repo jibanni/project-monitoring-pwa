@@ -1008,8 +1008,8 @@ export default function ProjectMap() {
                   onChange={(event) => setProgramFilter(event.target.value)}
                 >
                   {filterOptions.programs.map((program) => (
-                    <option key={program === 'All' ? 'ALL PROGRAMS' : String(program).toUpperCase()} value={program === 'All' ? 'ALL PROGRAMS' : String(program).toUpperCase()}>
-                      {program === 'All' ? 'ALL PROGRAMS' : String(program).toUpperCase()}
+                    <option key={program === 'All' ? 'All Programs' : String(program).toUpperCase()} value={program === 'All' ? 'All Programs' : String(program).toUpperCase()}>
+                      {program === 'All' ? 'All Programs' : String(program).toUpperCase()}
                     </option>
                   ))}
                 </select>
