@@ -53,12 +53,9 @@ function upperProgramOptionLabel(option: HTMLOptionElement) {
   const originalText = compact(option.textContent || option.text || option.label || option.value)
   const originalValue = compact(option.value)
 
-  const textKey = keyOf(originalText)
-  const valueKey = keyOf(originalValue)
-
   const mapped =
-    PROGRAM_OPTION_LABELS[textKey] ||
-    PROGRAM_OPTION_LABELS[valueKey] ||
+    PROGRAM_OPTION_LABELS[keyOf(originalText)] ||
+    PROGRAM_OPTION_LABELS[keyOf(originalValue)] ||
     ''
 
   if (mapped) return mapped
@@ -97,42 +94,12 @@ function applyProgramCaps() {
   document.querySelectorAll<HTMLSelectElement>('select').forEach(applyProgramCapsToSelect)
 }
 
-let quickRunId: number | undefined
-let observer: MutationObserver | undefined
-
-function startQuickRun() {
-  window.clearInterval(quickRunId)
-  let count = 0
-
-  quickRunId = window.setInterval(() => {
-    applyProgramCaps()
-    count += 1
-
-    if (count >= 60) {
-      window.clearInterval(quickRunId)
-      quickRunId = undefined
-    }
-  }, 100)
-}
-
 export function initPms10ProgramDropdownCaps() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return
 
   applyProgramCaps()
-  startQuickRun()
 
-  observer?.disconnect()
-  observer = new MutationObserver(() => {
-    applyProgramCaps()
-  })
-
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-    characterData: true,
-  })
-
-  const runBeforeNativeDropdown = (event: Event) => {
+  const runForSelect = (event: Event) => {
     const target = event.target
     if (!(target instanceof Element)) {
       applyProgramCaps()
@@ -143,19 +110,13 @@ export function initPms10ProgramDropdownCaps() {
     if (select instanceof HTMLSelectElement) {
       applyProgramCapsToSelect(select)
     }
-
-    applyProgramCaps()
   }
 
-  document.addEventListener('pointerdown', runBeforeNativeDropdown, { capture: true, passive: true })
-  document.addEventListener('mousedown', runBeforeNativeDropdown, { capture: true, passive: true })
-  document.addEventListener('touchstart', runBeforeNativeDropdown, { capture: true, passive: true })
-  document.addEventListener('focusin', runBeforeNativeDropdown, { capture: true })
+  document.addEventListener('pointerdown', runForSelect, { capture: true, passive: true })
+  document.addEventListener('focusin', runForSelect, { capture: true })
+  window.addEventListener('pageshow', applyProgramCaps, { passive: true })
 
-  window.addEventListener('pageshow', () => {
-    applyProgramCaps()
-    startQuickRun()
-  })
-
-  window.setInterval(applyProgramCaps, 2000)
+  window.setTimeout(applyProgramCaps, 100)
+  window.setTimeout(applyProgramCaps, 350)
+  window.setTimeout(applyProgramCaps, 900)
 }
