@@ -17,7 +17,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
-import { normalizeProgramName } from '../utils/program'
+import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
 
 type ProjectRecord = Record<string, any>
 
@@ -446,7 +446,7 @@ export default function Dashboard() {
     )
 
     return {
-      programs: uniqueSortedTextValues(aorProjects.map(getProgramFilterValue)),
+      programs: buildProgramFilterOptions(aorProjects.map(getProgramFilterValue), false),
       years,
       provinces: uniqueSortedTextValues(aorProjects.map(getProvinceFilterValue)),
       lgus: uniqueSortedTextValues(aorProjects.map(getLguFilterValue)),
@@ -924,12 +924,27 @@ export default function Dashboard() {
                   }))
                 }
               >
-                <option value={ALL_FILTER_VALUE}>All Programs</option>
-                {filterOptions.programs.map((program) => (
-                  <option key={String(program).toUpperCase()} value={String(program).toUpperCase()}>
-                    {String(program).toUpperCase()}
-                  </option>
-                ))}
+                <option
+                  value={ALL_FILTER_VALUE}
+                  label="All Programs"
+                  style={{ textTransform: 'none' }}
+                >
+                  All Programs
+                </option>
+                {filterOptions.programs.map((program) => {
+                  const programLabel = String(program).toUpperCase()
+
+                  return (
+                    <option
+                      key={programLabel}
+                      value={programLabel}
+                      label={programLabel}
+                      style={{ textTransform: 'none' }}
+                    >
+                      {programLabel}
+                    </option>
+                  )
+                })}
               </select>
             </label>
 

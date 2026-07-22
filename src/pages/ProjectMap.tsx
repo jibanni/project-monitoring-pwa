@@ -14,7 +14,7 @@ import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
-import { normalizeProgramName } from '../utils/program'
+import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
 import {
   canUpdateProject as canUpdateProjectByAor,
   filterProjectsByAor,
@@ -733,7 +733,7 @@ export default function ProjectMap() {
       provinces: ['All', ...Array.from(provinces).sort()],
       municipalities: ['All', ...Array.from(municipalities).sort()],
       fundingYears: ['All', ...Array.from(fundingYears).sort()],
-      programs: ['All', ...Array.from(programs).sort()],
+      programs: ['All', ...buildProgramFilterOptions(programs, false)],
       statuses: ['All', ...Array.from(statuses).sort()],
       risks: ['All', ...Array.from(risks).sort()],
     }

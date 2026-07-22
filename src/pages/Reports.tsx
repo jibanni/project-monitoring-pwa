@@ -924,7 +924,7 @@ export default function Reports() {
           textValue(project.project_name) || 'Untitled Project',
           textValue(project.province) || '-',
           textValue(project.municipality) || '-',
-          textValue(project.funding_source || project.project_type) || '-',
+          normalizeProgramName(project.funding_source || project.project_type) || '-',
           formatCurrency(project.budget),
           textValue(project.status) || '-',
           getReportRisk(project),

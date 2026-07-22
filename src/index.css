@@ -561,3 +561,46 @@ textarea:focus {
   }
 }
 /* PMS10 MOBILE SMOOTHNESS OPTIMIZATION END */
+
+
+/* PMS10 PROGRAM DROPDOWN UPPERCASE FIX START */
+select,
+select option,
+select optgroup {
+  text-transform: none !important;
+}
+
+select option[value="FALGU"],
+select option[value="GEF"],
+select option[value="GREEN, GREEN, GREEN"],
+select option[value="RAPID"],
+select option[value="SAFPB"],
+select option[value="SBDP"],
+select option[value="CMGP"],
+select option[value="KALSADA"],
+select option[value="SALINTUBIG"],
+select option[value="LRBIP"],
+select option[value="RBIS"],
+select option[value="LIME-20"] {
+  text-transform: uppercase !important;
+}
+/* PMS10 PROGRAM DROPDOWN UPPERCASE FIX END */
+
+
+/* PMS10 PROGRAM FILTER DISPLAY FIX START */
+select option[value="FALGU"],
+select option[value="GEF"],
+select option[value="GREEN, GREEN, GREEN"],
+select option[value="RAPID"],
+select option[value="SAFPB"],
+select option[value="SBDP"],
+select option[value="CMGP"],
+select option[value="KALSADA"],
+select option[value="SALINTUBIG"],
+select option[value="LRBIP"],
+select option[value="RBIS"],
+select option[value="LIME-20"] {
+  text-transform: uppercase !important;
+}
+/* PMS10 PROGRAM FILTER DISPLAY FIX END */
+
