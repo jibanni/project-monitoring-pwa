@@ -95,7 +95,7 @@ begin
      or compact like '%RAPIDGROWTH%'
      or compact like '%RURALAGROENTERPRISEPARTNERSHIP%'
      or compact like '%INVESTMENTDEVELOPMENT%' then
-    return 'RAPID';
+    return 'RAPID Growth Project';
   end if;
 
   if compact = 'SALINTUBIG'
@@ -152,3 +152,32 @@ select
 from public.projects
 group by funding_source
 order by funding_source;
+
+/*
+PMS10 cleanup: remove FY from funding_source and rename RAPID to RAPID Growth Project.
+Safe to run after import or after existing data has already been imported.
+*/
+
+update public.projects
+set
+  funding_source = case
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%FALGU%' then 'FALGU'
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%GEF%' then 'GEF'
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%GREENGREENGREEN%' then 'GREEN, GREEN, GREEN'
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%GGG%' then 'GREEN, GREEN, GREEN'
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%RAPID%' then 'RAPID Growth Project'
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%SAFPB%' then 'SAFPB'
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%SBDP%' then 'SBDP'
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%CMGP%' then 'CMGP'
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%KALSADA%' then 'KALSADA'
+    when regexp_replace(upper(coalesce(funding_source, '')), '[^A-Z0-9]+', '', 'g') like '%SALINTUBIG%' then 'SALINTUBIG'
+    else trim(regexp_replace(coalesce(funding_source, ''), '^\s*(FY\s*)?\d{4}\s*[•\-–—:|/]*\s*', '', 'i'))
+  end,
+  updated_at = now()
+where funding_source is not null;
+
+select funding_source, count(*) as project_count
+from public.projects
+group by funding_source
+order by funding_source;
+

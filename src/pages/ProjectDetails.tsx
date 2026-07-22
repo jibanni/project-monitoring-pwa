@@ -9,6 +9,7 @@ import { offlineDb } from '../lib/offlineDb'
 import { getComputedRiskLevel, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
+import { normalizeProgramName } from '../utils/program'
 import '../styles/projectDetails.css'
 import '../styles/pageHero.css'
 import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveImageUrl'
@@ -84,11 +85,8 @@ function formatFundingYear(value: unknown) {
 }
 
 function formatFundingDisplay(project: any) {
-  const year = getDisplayValue(project?.funding_year, '')
-  const source = getDisplayValue(project?.funding_source, '')
+  const source = normalizeProgramName(project?.funding_source)
 
-  if (year && source) return `${formatFundingYear(year)} · ${source}`
-  if (year) return formatFundingYear(year)
   return source || '-'
 }
 
@@ -424,7 +422,7 @@ export default function ProjectDetails() {
         ['Description', project.description || '-'],
         ['Project Type', project.project_type || '-'],
         ['Funding Year', formatFundingYear(project.funding_year)],
-        ['Funding Source', project.funding_source || '-'],
+        ['Funding Source', normalizeProgramName(project.funding_source) || '-'],
         ['Implementing Office', project.implementing_office || '-'],
         ['Contractor', project.contractor || '-'],
         ['Total Project Cost', formatCurrency(project.budget)],

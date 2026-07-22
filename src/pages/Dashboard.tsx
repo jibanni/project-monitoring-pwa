@@ -932,7 +932,7 @@ export default function Dashboard() {
                   All Programs
                 </option>
                 {filterOptions.programs.map((program) => {
-                  const programLabel = String(program).toUpperCase()
+                  const programLabel = normalizeProgramName(program) || String(program)
 
                   return (
                     <option

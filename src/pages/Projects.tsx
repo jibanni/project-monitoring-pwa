@@ -122,7 +122,7 @@ function formatFundingYear(value: unknown) {
 function formatFundingDisplay(project: ProjectRow) {
   const year = formatFundingYear(project.funding_year)
   const source = normalizeProgramName(
-    textValue(project.funding_source || project.project_type),
+    normalizeProgramName(project.funding_source || project.project_type),
   )
 
   if (year && source) return `${year} · ${source}`
@@ -415,7 +415,7 @@ export default function Projects() {
     return Array.from(
       new Set(
         allowedProjects
-          .map((project) => normalizeProgramName(textValue(project.funding_source || project.project_type)))
+          .map((project) => normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)))
           .filter(Boolean),
       ),
     ).sort()
@@ -473,7 +473,7 @@ export default function Projects() {
         : true
 
       const programMatches = programFilter
-        ? normalizeProgramName(textValue(project.funding_source || project.project_type)) === programFilter
+        ? normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)) === programFilter
         : true
 
       const fundingYearMatches = fundingYearFilter
@@ -745,12 +745,21 @@ export default function Projects() {
                 value={programFilter}
                 onChange={(event) => setProgramFilter(event.target.value)}
               >
-                <option value="">All Programs</option>
-                {programs.map((program) => (
-                  <option key={String(program).toUpperCase()} value={String(program).toUpperCase()}>
-                    {String(program).toUpperCase()}
-                  </option>
-                ))}
+                <option value="" label="All Programs" style={{ textTransform: 'none' }}>All Programs</option>
+                {programs.map((program) => {
+                  const programLabel = normalizeProgramName(program) || String(program)
+
+                  return (
+                    <option
+                      key={programLabel}
+                      value={programLabel}
+                      label={programLabel}
+                      style={{ textTransform: 'none' }}
+                    >
+                      {programLabel}
+                    </option>
+                  )
+                })}
               </select>
             </label>
 

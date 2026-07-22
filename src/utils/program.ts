@@ -2,7 +2,7 @@ const PROGRAM_SORT_ORDER = [
   'FALGU',
   'GEF',
   'GREEN, GREEN, GREEN',
-  'RAPID',
+  'RAPID Growth Project',
   'SAFPB',
   'SBDP',
   'CMGP',
@@ -46,8 +46,13 @@ export function normalizeProgramName(value: unknown) {
 
   if (!raw) return ''
 
-  const upper = normalizedUpperProgramText(raw)
-  const compact = compactProgramText(raw)
+  const withoutFundingYear = raw
+    .replace(/^FY\s*\d{4}\s*[•\-–—:|/]*\s*/i, '')
+    .replace(/^\d{4}\s*[•\-–—:|/]*\s*/i, '')
+    .trim()
+
+  const upper = normalizedUpperProgramText(withoutFundingYear)
+  const compact = compactProgramText(withoutFundingYear)
 
   if (!compact) return ''
 
@@ -84,7 +89,7 @@ export function normalizeProgramName(value: unknown) {
   }
 
   if (
-    compact === 'GEF' ||
+    compact === 'GEF' || compact.includes('GEF') ||
     compact.startsWith('LGSFGEF') ||
     compact.includes('GROWTHEQUITYFUND')
   ) {
@@ -92,7 +97,7 @@ export function normalizeProgramName(value: unknown) {
   }
 
   if (
-    compact === 'SBDP' ||
+    compact === 'SBDP' || compact.includes('SBDP') ||
     compact.startsWith('LGSFSBDP') ||
     compact.includes('SUPPORTTOTHEBARANGAYDEVELOPMENTPROGRAM') ||
     compact.includes('SUPPORTTOBARANGAYDEVELOPMENTPROGRAM') ||
@@ -102,7 +107,7 @@ export function normalizeProgramName(value: unknown) {
   }
 
   if (
-    compact === 'SAFPB' ||
+    compact === 'SAFPB' || compact.includes('SAFPB') ||
     compact.startsWith('LGSFSAFPB') ||
     compact.includes('SUPPORTANDASSISTANCEFUNDTOPARTICIPATORYBUDGETING') ||
     compact.includes('SUPPORTASSISTANCEFUNDTOPARTICIPATORYBUDGETING') ||
@@ -131,13 +136,13 @@ export function normalizeProgramName(value: unknown) {
   }
 
   if (
-    compact === 'RAPID' ||
+    compact === 'RAPID' || compact.includes('RAPID') ||
     compact.startsWith('RAPIDGROWTH') ||
     compact.includes('RAPIDGROWTH') ||
     compact.includes('RURALAGROENTERPRISEPARTNERSHIP') ||
     compact.includes('INVESTMENTDEVELOPMENT')
   ) {
-    return 'RAPID'
+    return 'RAPID Growth Project'
   }
 
   if (
@@ -176,7 +181,7 @@ export function normalizeProgramName(value: unknown) {
     return upper
   }
 
-  return raw
+  return withoutFundingYear || raw
 }
 
 export function buildProgramFilterOptions(
