@@ -1161,13 +1161,13 @@ export default function ProjectMap() {
                           project.displayLatitude as number,
                           project.displayLongitude as number,
                         ]}
-                        radius={5}
+                        radius={7}
                         pathOptions={{
                           color: '#ffffff',
                           fillColor: getProjectMarkerColor(project),
                           fillOpacity: 1,
                           opacity: 1,
-                          weight: 3,
+                          weight: 3.5,
                         }}
                       
                         bubblingMouseEvents={false}
@@ -1183,7 +1183,7 @@ export default function ProjectMap() {
                           keepInView={false}
                           closeButton
                           autoClose={true}
-                          offset={[0, -1]}
+                          offset={[0, -7]}
                         >
                           <div className="pm-map-popup">
                             <h3>{project.project_name || 'Untitled Project'}</h3>

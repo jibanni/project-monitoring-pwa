@@ -3144,36 +3144,3 @@
   transition: none !important;
   animation: none !important;
 }
-
-/* =========================
-   PMS10 MAP CENTER PRESSED MARKER FIX
-   Marker tap recenters map so the anchored popup is not truncated.
-========================= */
-
-/* Keep popup compact and close to marker after the map recenters. */
-.pm-map-shell .leaflet-popup.pm-map-project-popup {
-  margin-bottom: 1px !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-tip-container {
-  margin-top: -1px !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-tip {
-  width: 12px !important;
-  height: 12px !important;
-  margin-top: -6px !important;
-}
-
-/* Keep the marker/popup interaction responsive after auto-pan. */
-.pm-map-shell .leaflet-interactive {
-  cursor: pointer !important;
-  touch-action: manipulation !important;
-}
-
-.pm-map-shell .leaflet-popup,
-.pm-map-shell .leaflet-popup-content-wrapper,
-.pm-map-shell .leaflet-popup-tip {
-  transition: none !important;
-  animation: none !important;
-}

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  CircleMarker,
   MapContainer,
+  Marker,
   Popup,
   TileLayer,
   useMap,
@@ -20,6 +20,25 @@ import {
 } from '../utils/aorAccess'
 import '../styles/projectMap.css'
 import '../styles/pageHero.css'
+
+
+const pms10ReliableMarkerHandlers: any = {
+  click: (event: any) => {
+    const originalEvent = event?.originalEvent
+
+    originalEvent?.preventDefault?.()
+    originalEvent?.stopPropagation?.()
+
+    const marker = event?.target
+
+    window.requestAnimationFrame(() => {
+      marker?.openPopup?.()
+    })
+  },
+}
+
+const pms10MarkerIconCache = new Map<string, L.DivIcon>()
+
 
 const MINDANAO_BOUNDS = {
   minLat: 4,
@@ -348,51 +367,34 @@ function getStatusClass(status: string | null | undefined) {
   return 'pm-status-neutral'
 }
 
-function pms10CenterPressedMapMarker(event: any) {
-  const layer = event?.target
-  const map = layer?._map as L.Map | undefined
-  const latLng = layer?.getLatLng?.() ?? event?.latlng
-
-  if (!map || !latLng) return
-
-  const centerMarkerWithPopup = () => {
-    try {
-      map.invalidateSize({ pan: false })
-
-      const zoom = map.getZoom()
-      const mapSize = map.getSize()
-      const markerPoint = map.project(latLng, zoom)
-
-      /*
-        Put the selected marker slightly below the map center.
-        This centers the marker + popup together so the popup is not cut off.
-      */
-      const verticalOffset = Math.min(Math.max(mapSize.y * 0.12, 46), 88)
-      const targetPoint = markerPoint.subtract([0, verticalOffset])
-      const targetLatLng = map.unproject(targetPoint, zoom)
-
-      map.panTo(targetLatLng, {
-        animate: true,
-        duration: 0.25,
-        easeLinearity: 0.25,
-      })
-    } catch {
-      // Keep marker click working even if the map is not ready.
-    }
-  }
-
-  centerMarkerWithPopup()
-  window.setTimeout(centerMarkerWithPopup, 80)
-}
-
-function getProjectMarkerColor(project: MapProject) {
+function createProjectMarker(project: MapProject) {
   const risk = getComputedRiskLevel(project).toLowerCase()
 
-  if (risk.includes('high') || risk.includes('critical')) return '#dc2626'
-  if (risk.includes('moderate') || risk.includes('medium')) return '#f97316'
-  if (risk.includes('low')) return '#facc15'
+  let markerClass = 'pm-marker-neutral'
 
-  return '#16a34a'
+  if (risk.includes('low')) markerClass = 'pm-marker-low'
+  if (risk.includes('moderate')) markerClass = 'pm-marker-moderate'
+  if (risk.includes('high')) markerClass = 'pm-marker-high'
+
+  const cachedIcon = pms10MarkerIconCache.get(markerClass)
+
+  if (cachedIcon) return cachedIcon
+
+  const icon = L.divIcon({
+    className: 'pm-marker-wrapper pm-marker-hitbox',
+    html: `
+      <div class="pm-marker ${markerClass}">
+        <span></span>
+      </div>
+    `,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+    popupAnchor: [0, -20],
+  })
+
+  pms10MarkerIconCache.set(markerClass, icon)
+
+  return icon
 }
 
 function SearchIcon() {
@@ -1123,8 +1125,11 @@ export default function ProjectMap() {
                   scrollWheelZoom
                   className="pm-leaflet-map"
                   zoomControl
+                
                   closePopupOnClick={false}
-                >
+                  zoomAnimation={false}
+                  fadeAnimation={false}
+                  markerZoomAnimation={false}>
                   {mapLayer === 'satellite' ? (
                     <TileLayer
                       key="satellite"
@@ -1155,36 +1160,22 @@ export default function ProjectMap() {
                     const varianceInfo = getTargetPhysicalInfo(project)
 
                     return (
-                      <CircleMarker
+                      <Marker
                         key={project.id}
-                        center={[
+                        position={[
                           project.displayLatitude as number,
                           project.displayLongitude as number,
                         ]}
-                        radius={5}
-                        pathOptions={{
-                          color: '#ffffff',
-                          fillColor: getProjectMarkerColor(project),
-                          fillOpacity: 1,
-                          opacity: 1,
-                          weight: 3,
-                        }}
+                        icon={createProjectMarker(project)}
                       
+                        eventHandlers={pms10ReliableMarkerHandlers}
                         bubblingMouseEvents={false}
-                        eventHandlers={{
-                          click: pms10CenterPressedMapMarker,
-                          popupopen: pms10CenterPressedMapMarker,
-                        }}>
-                        <Popup
-                          className="pm-map-project-popup"
-                          minWidth={220}
-                          maxWidth={260}
+                        riseOnHover>
+<Popup
                           autoPan={false}
-                          keepInView={false}
-                          closeButton
-                          autoClose={true}
-                          offset={[0, -1]}
-                        >
+                          closeOnClick={false}
+                          autoClose={false}
+                          keepInView={false}>
                           <div className="pm-map-popup">
                             <h3>{project.project_name || 'Untitled Project'}</h3>
                             <p>{getProjectLocation(project)}</p>
@@ -1236,7 +1227,7 @@ export default function ProjectMap() {
                             <Link to={`/projects/${project.id}`}>View Details</Link>
                           </div>
                         </Popup>
-                      </CircleMarker>
+                      </Marker>
                     )
                   })}
                 </MapContainer>

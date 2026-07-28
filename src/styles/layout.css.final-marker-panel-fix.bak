@@ -3183,3 +3183,66 @@ main {
 
 
 
+/* =========================
+   PMS10 MAP MARKER GHOST TAP RESET FIX
+   Labels are display-only; marker tap is the single reliable popup trigger.
+========================= */
+
+/*
+  The earlier interactive Tooltip patch caused mobile tap races:
+  - tap label/marker
+  - tooltip fires
+  - map also receives tap
+  - popup closes or a temporary/ghost marker appears elsewhere
+
+  This reset makes project labels read-only and lets taps reach the real marker.
+*/
+
+.leaflet-tooltip.pms10-map-label-readonly,
+.pms10-map-label-readonly {
+  pointer-events: none !important;
+  cursor: default !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Do not override Leaflet transform. Leaflet needs transform for correct marker/label positions. */
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tooltip,
+.leaflet-popup,
+.leaflet-pane,
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane {
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+}
+
+/* Improve mobile tap reliability without creating extra visual hit objects */
+.leaflet-marker-icon {
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.leaflet-container {
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.leaflet-container * {
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Reduce repaint/fade flicker only; keep positioning transforms untouched */
+.leaflet-fade-anim .leaflet-tile,
+.leaflet-fade-anim .leaflet-popup,
+.leaflet-zoom-animated {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}

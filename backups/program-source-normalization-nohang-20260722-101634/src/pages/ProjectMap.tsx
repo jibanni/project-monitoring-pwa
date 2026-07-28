@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  CircleMarker,
   MapContainer,
+  Marker,
   Popup,
   TileLayer,
+  Tooltip,
   useMap,
 } from 'react-leaflet'
 import L from 'leaflet'
@@ -13,7 +14,7 @@ import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
-import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
+import { normalizeProgramName } from '../utils/program'
 import {
   canUpdateProject as canUpdateProjectByAor,
   filterProjectsByAor,
@@ -348,51 +349,26 @@ function getStatusClass(status: string | null | undefined) {
   return 'pm-status-neutral'
 }
 
-function pms10CenterPressedMapMarker(event: any) {
-  const layer = event?.target
-  const map = layer?._map as L.Map | undefined
-  const latLng = layer?.getLatLng?.() ?? event?.latlng
-
-  if (!map || !latLng) return
-
-  const centerMarkerWithPopup = () => {
-    try {
-      map.invalidateSize({ pan: false })
-
-      const zoom = map.getZoom()
-      const mapSize = map.getSize()
-      const markerPoint = map.project(latLng, zoom)
-
-      /*
-        Put the selected marker slightly below the map center.
-        This centers the marker + popup together so the popup is not cut off.
-      */
-      const verticalOffset = Math.min(Math.max(mapSize.y * 0.12, 46), 88)
-      const targetPoint = markerPoint.subtract([0, verticalOffset])
-      const targetLatLng = map.unproject(targetPoint, zoom)
-
-      map.panTo(targetLatLng, {
-        animate: true,
-        duration: 0.25,
-        easeLinearity: 0.25,
-      })
-    } catch {
-      // Keep marker click working even if the map is not ready.
-    }
-  }
-
-  centerMarkerWithPopup()
-  window.setTimeout(centerMarkerWithPopup, 80)
-}
-
-function getProjectMarkerColor(project: MapProject) {
+function createProjectMarker(project: MapProject) {
   const risk = getComputedRiskLevel(project).toLowerCase()
 
-  if (risk.includes('high') || risk.includes('critical')) return '#dc2626'
-  if (risk.includes('moderate') || risk.includes('medium')) return '#f97316'
-  if (risk.includes('low')) return '#facc15'
+  let markerClass = 'pm-marker-neutral'
 
-  return '#16a34a'
+  if (risk.includes('low')) markerClass = 'pm-marker-low'
+  if (risk.includes('moderate')) markerClass = 'pm-marker-moderate'
+  if (risk.includes('high')) markerClass = 'pm-marker-high'
+
+  return L.divIcon({
+    className: 'pm-marker-wrapper',
+    html: `
+      <div class="pm-marker ${markerClass}">
+        <span></span>
+      </div>
+    `,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -18],
+  })
 }
 
 function SearchIcon() {
@@ -757,7 +733,7 @@ export default function ProjectMap() {
       provinces: ['All', ...Array.from(provinces).sort()],
       municipalities: ['All', ...Array.from(municipalities).sort()],
       fundingYears: ['All', ...Array.from(fundingYears).sort()],
-      programs: ['All', ...buildProgramFilterOptions(programs, false)],
+      programs: ['All', ...Array.from(programs).sort()],
       statuses: ['All', ...Array.from(statuses).sort()],
       risks: ['All', ...Array.from(risks).sort()],
     }
@@ -1123,7 +1099,6 @@ export default function ProjectMap() {
                   scrollWheelZoom
                   className="pm-leaflet-map"
                   zoomControl
-                  closePopupOnClick={false}
                 >
                   {mapLayer === 'satellite' ? (
                     <TileLayer
@@ -1155,36 +1130,19 @@ export default function ProjectMap() {
                     const varianceInfo = getTargetPhysicalInfo(project)
 
                     return (
-                      <CircleMarker
-                        key={project.id}
-                        center={[
+                      <Marker
+                        key={`${project.id}-${project.displayLatitude}-${project.displayLongitude}-${project.coordinateSource}-${project.coordinateDate || ''}`}
+                        position={[
                           project.displayLatitude as number,
                           project.displayLongitude as number,
                         ]}
-                        radius={5}
-                        pathOptions={{
-                          color: '#ffffff',
-                          fillColor: getProjectMarkerColor(project),
-                          fillOpacity: 1,
-                          opacity: 1,
-                          weight: 3,
-                        }}
-                      
-                        bubblingMouseEvents={false}
-                        eventHandlers={{
-                          click: pms10CenterPressedMapMarker,
-                          popupopen: pms10CenterPressedMapMarker,
-                        }}>
-                        <Popup
-                          className="pm-map-project-popup"
-                          minWidth={220}
-                          maxWidth={260}
-                          autoPan={false}
-                          keepInView={false}
-                          closeButton
-                          autoClose={true}
-                          offset={[0, -1]}
-                        >
+                        icon={createProjectMarker(project)}
+                      >
+                        <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+                          {project.project_name || 'Untitled Project'}
+                        </Tooltip>
+
+                        <Popup>
                           <div className="pm-map-popup">
                             <h3>{project.project_name || 'Untitled Project'}</h3>
                             <p>{getProjectLocation(project)}</p>
@@ -1236,7 +1194,7 @@ export default function ProjectMap() {
                             <Link to={`/projects/${project.id}`}>View Details</Link>
                           </div>
                         </Popup>
-                      </CircleMarker>
+                      </Marker>
                     )
                   })}
                 </MapContainer>

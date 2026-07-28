@@ -348,43 +348,6 @@ function getStatusClass(status: string | null | undefined) {
   return 'pm-status-neutral'
 }
 
-function pms10CenterPressedMapMarker(event: any) {
-  const layer = event?.target
-  const map = layer?._map as L.Map | undefined
-  const latLng = layer?.getLatLng?.() ?? event?.latlng
-
-  if (!map || !latLng) return
-
-  const centerMarkerWithPopup = () => {
-    try {
-      map.invalidateSize({ pan: false })
-
-      const zoom = map.getZoom()
-      const mapSize = map.getSize()
-      const markerPoint = map.project(latLng, zoom)
-
-      /*
-        Put the selected marker slightly below the map center.
-        This centers the marker + popup together so the popup is not cut off.
-      */
-      const verticalOffset = Math.min(Math.max(mapSize.y * 0.12, 46), 88)
-      const targetPoint = markerPoint.subtract([0, verticalOffset])
-      const targetLatLng = map.unproject(targetPoint, zoom)
-
-      map.panTo(targetLatLng, {
-        animate: true,
-        duration: 0.25,
-        easeLinearity: 0.25,
-      })
-    } catch {
-      // Keep marker click working even if the map is not ready.
-    }
-  }
-
-  centerMarkerWithPopup()
-  window.setTimeout(centerMarkerWithPopup, 80)
-}
-
 function getProjectMarkerColor(project: MapProject) {
   const risk = getComputedRiskLevel(project).toLowerCase()
 
@@ -1161,7 +1124,8 @@ export default function ProjectMap() {
                           project.displayLatitude as number,
                           project.displayLongitude as number,
                         ]}
-                        radius={5}
+                        radius={6}
+                        bubblingMouseEvents={false}
                         pathOptions={{
                           color: '#ffffff',
                           fillColor: getProjectMarkerColor(project),
@@ -1169,21 +1133,15 @@ export default function ProjectMap() {
                           opacity: 1,
                           weight: 3,
                         }}
-                      
-                        bubblingMouseEvents={false}
-                        eventHandlers={{
-                          click: pms10CenterPressedMapMarker,
-                          popupopen: pms10CenterPressedMapMarker,
-                        }}>
+                      >
                         <Popup
                           className="pm-map-project-popup"
-                          minWidth={220}
-                          maxWidth={260}
-                          autoPan={false}
-                          keepInView={false}
+                          minWidth={320}
+                          maxWidth={360}
+                          autoPan
+                          keepInView
                           closeButton
-                          autoClose={true}
-                          offset={[0, -1]}
+                          autoClose={false}
                         >
                           <div className="pm-map-popup">
                             <h3>{project.project_name || 'Untitled Project'}</h3>

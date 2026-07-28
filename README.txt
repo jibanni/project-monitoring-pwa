@@ -1,59 +1,44 @@
-PMS10 Runtime Hero Logic Final Patch
+PMS10 Revert Before Disable Zoom
 
-This all-in-one patch applies the requested UI and display logic fixes.
+This rollback returns the app to the state before the request:
+"make sure that the app cannot be zoomed except for the map leaflet"
 
-Fixes included:
-1. Project Update hero bubbles
-- Smaller bubbles.
-- No duplicated outer bubble.
-- Uses Project Details-style bubble behavior, but with Project Update hero height.
+It reverts:
+- Disable app zoom patch
+- Wrong/cleanup import changes related to disableAppZoomExceptMap
+- Later GIS banner/card-order patches that happened after that request
 
-2. Project Details hero
-- Auto-fits long project titles so the full title can show with smaller font.
-- Keeps the Project Details hero readable.
+It restores from existing local backups created by the previous patch scripts:
+- index.html.disable-app-zoom-except-map.bak
+- src/main.tsx.disable-app-zoom-except-map.bak
+- src/styles/layout.css.disable-app-zoom-except-map.bak
+- src/pages/ProjectMap.tsx.map-banner-marker-visibility-fix.bak
+- src/styles/projectMap.css.map-banner-marker-visibility-fix.bak
 
-3. Completed project risk logic display
-- If a card/hero shows Completed or 100%, visible High/Medium/Low/Critical risk is changed to None.
-
-4. Risk / percent colors
-- Risk values and percentage/variance values receive tone colors.
-
-5. Province / LGU / Barangay title case
-- Visible all-caps location text such as BUKIDNON and CABANGLASAN becomes Bukidnon and Cabanglasan.
-- Does not change database values.
+It also removes:
+- src/utils/disableAppZoomExceptMap.ts
 
 Apply:
 
 cd ~/Downloads
-unzip -o pms10_runtime_hero_logic_final_patch.zip
+unzip -o pms10_revert_before_disable_zoom.zip
 
 cd ~/project-monitoring-pwa
-rsync -av "$HOME/Downloads/pms10_runtime_hero_logic_final_patch/" ./
+rsync -av "$HOME/Downloads/pms10_revert_before_disable_zoom/" ./
 
-node scripts/apply-pms10-runtime-hero-logic-final-patch.cjs
+node scripts/revert-before-disable-zoom.cjs
 
 npm run build
 npm run dev -- --host 0.0.0.0
 
 Test:
-- Project Update page: bubbles should be smaller and no duplicated outer bubble.
-- Project Details page: long title should auto-fit smaller.
-- Completed projects should not show High risk; they should show None.
-- Edit Project page risk/percent values should have color.
-- Locations should show Title Case instead of ALL CAPS.
+1. App banner/header should return to the state before the zoom-lock request.
+2. GIS banner/cards should return to the previously working layout.
+3. Map popup/marker behavior should retain the state before the zoom request.
 
-Push live if okay:
+After testing, push only if okay:
 
 git status
 git add .
-git commit -m "Fix hero bubbles titles risk and location display"
+git commit -m "Revert zoom lock and restore GIS layout"
 git push origin main
-
-Rollback:
-cp src/styles/layout.css.runtime-hero-logic-final.bak src/styles/layout.css
-cp src/main.tsx.runtime-hero-logic-final.bak src/main.tsx
-
-If src/utils/pms10RuntimeHeroLogicFix.ts did not exist before:
-rm src/utils/pms10RuntimeHeroLogicFix.ts
-
-npm run build

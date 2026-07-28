@@ -2507,10 +2507,117 @@
 /* PMS10 GIS MAP SUMMARY BELOW FILTER END */
 
 /* =========================
-   PMS10 MAP ANCHORED POPUP FINAL FIX
-   CircleMarker + full anchored details popup, no tooltips/ghost labels.
+   PMS10 MAP MARKER POPUP RELIABLE FIX
+   Real marker tap opens popup; tooltips are removed to avoid ghost labels.
 ========================= */
 
+/* Larger reliable tap target, same clean visual marker */
+.pm-marker-wrapper.pm-marker-hitbox {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.pm-marker-wrapper.pm-marker-hitbox,
+.pm-marker-hitbox .pm-marker {
+  width: 44px !important;
+  height: 44px !important;
+}
+
+.pm-marker-hitbox .pm-marker span {
+  inset: 6px !important;
+}
+
+.pm-marker-hitbox .pm-marker span::after {
+  inset: 8px !important;
+}
+
+/* No interactive project-name tooltip. Tooltip labels were causing the "other mark/label" behavior. */
+.leaflet-tooltip.pms10-map-label-readonly,
+.pms10-map-label-readonly,
+.leaflet-tooltip.pms10-map-project-label,
+.pms10-map-project-label,
+.leaflet-tooltip.pms10-map-project-label-fixed,
+.pms10-map-project-label-fixed {
+  pointer-events: none !important;
+  display: none !important;
+}
+
+/* Keep Leaflet transform positioning intact. Never override transform on markers/tooltips. */
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-popup,
+.leaflet-pane,
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-marker-pane,
+.leaflet-popup-pane {
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+}
+
+.leaflet-marker-icon {
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.leaflet-container,
+.leaflet-container * {
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Reduce animation flicker without changing map/marker position transforms */
+.leaflet-fade-anim .leaflet-tile,
+.leaflet-fade-anim .leaflet-popup,
+.leaflet-zoom-animated {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
+/* On phone, reduce the floating controls so they block fewer markers. */
+@media (max-width: 760px) {
+  .pm-map-floating-actions {
+    right: max(6px, env(safe-area-inset-right, 0px)) !important;
+    gap: 8px !important;
+    pointer-events: none !important;
+  }
+
+  .pm-map-floating-actions .pm-map-fab,
+  .pm-map-fab {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+    pointer-events: auto !important;
+  }
+
+  .pm-map-fab svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .pm-map-floating-actions {
+    right: max(4px, env(safe-area-inset-right, 0px)) !important;
+    bottom: calc(142px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .pm-map-floating-actions .pm-map-fab,
+  .pm-map-fab {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* =========================
+   PMS10 MAP FINAL MARKER PANEL FIX
+   Removes ghost labels/popups and uses a stable React details panel.
+========================= */
+
+/* Labels/tooltips are disabled by JSX; this is a safety net. */
 .pm-map-shell .leaflet-tooltip,
 .pm-map-shell .pms10-map-label-readonly,
 .pm-map-shell .pms10-map-project-label,
@@ -2519,135 +2626,176 @@
   pointer-events: none !important;
 }
 
-.pm-map-shell .leaflet-interactive {
-  cursor: pointer !important;
-  outline: none !important;
-  -webkit-tap-highlight-color: transparent !important;
+/* Hide Leaflet popup shell because the map now uses the stable details panel. */
+.pm-map-shell .leaflet-popup {
+  display: none !important;
+  pointer-events: none !important;
 }
 
-.pm-map-project-popup.leaflet-popup {
-  margin-bottom: 12px !important;
+.pm-marker-wrapper,
+.pm-cluster-wrapper {
+  background: transparent !important;
+  border: 0 !important;
 }
 
-.pm-map-project-popup .leaflet-popup-content-wrapper {
-  width: min(360px, calc(100vw - 38px)) !important;
-  max-width: calc(100vw - 38px) !important;
-  border-radius: 22px !important;
-  background: rgba(255, 255, 255, 0.985) !important;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.28) !important;
-  overflow: visible !important;
-}
-
-.pm-map-project-popup .leaflet-popup-content {
-  width: auto !important;
-  min-width: min(320px, calc(100vw - 72px)) !important;
-  max-width: calc(100vw - 72px) !important;
-  max-height: none !important;
-  margin: 14px !important;
-  overflow: visible !important;
-}
-
-.pm-map-project-popup .leaflet-popup-tip {
-  background: rgba(255, 255, 255, 0.985) !important;
-  box-shadow: 4px 4px 12px rgba(15, 23, 42, 0.12) !important;
-}
-
-.pm-map-project-popup .leaflet-popup-close-button {
-  top: 10px !important;
-  right: 10px !important;
-  display: inline-grid !important;
-  place-items: center !important;
-  width: 30px !important;
-  height: 30px !important;
-  border-radius: 999px !important;
-  color: #334155 !important;
-  background: #e2e8f0 !important;
-  font-size: 1.25rem !important;
-  font-weight: 950 !important;
-  line-height: 1 !important;
-  text-decoration: none !important;
-}
-
-.pm-map-project-popup .pm-map-popup {
-  width: auto !important;
-  max-height: none !important;
-  overflow: visible !important;
-}
-
-.pm-map-project-popup .pm-map-popup h3 {
-  margin: 0 38px 7px 0 !important;
-  color: #0f172a !important;
-  font-size: 1rem !important;
-  font-weight: 950 !important;
-  line-height: 1.12 !important;
-  letter-spacing: -0.02em !important;
-}
-
-.pm-map-project-popup .pm-map-popup p {
-  margin: 0 38px 10px 0 !important;
-  color: #475569 !important;
-  font-size: 0.82rem !important;
-  font-weight: 820 !important;
-  line-height: 1.28 !important;
-}
-
-.pm-map-project-popup .pm-map-popup-badges {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 6px !important;
-  margin: 0 0 10px !important;
-}
-
-.pm-map-project-popup .pm-map-popup dl {
+.pm-marker-wrapper {
   display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 8px !important;
-  margin: 0 !important;
-}
-
-.pm-map-project-popup .pm-map-popup dl div {
-  display: block !important;
-  min-width: 0 !important;
-  padding: 8px 9px !important;
-  border: 1px solid rgba(226, 232, 240, 0.9) !important;
-  border-radius: 12px !important;
-  background: #f8fafc !important;
-}
-
-.pm-map-project-popup .pm-map-popup dt {
-  margin: 0 0 3px !important;
-  color: #64748b !important;
-  font-size: 0.62rem !important;
-  font-weight: 950 !important;
-  line-height: 1 !important;
-  letter-spacing: 0.13em !important;
-  text-transform: uppercase !important;
-}
-
-.pm-map-project-popup .pm-map-popup dd {
-  min-width: 0 !important;
-  margin: 0 !important;
-  color: #0f172a !important;
-  font-size: 0.76rem !important;
-  font-weight: 900 !important;
-  line-height: 1.18 !important;
-  overflow-wrap: anywhere !important;
-}
-
-.pm-map-project-popup .pm-map-popup a {
-  min-height: 38px !important;
-  margin-top: 11px !important;
-  border-radius: 13px !important;
-  background: linear-gradient(135deg, #16467a, #1d64a8) !important;
-}
-
-/* Use compact vector markers. No DivIcon marker shell is used by the final map. */
-.pm-map-shell svg.leaflet-zoom-animated,
-.pm-map-shell .leaflet-overlay-pane svg {
+  place-items: center !important;
+  width: 38px !important;
+  height: 38px !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
   -webkit-tap-highlight-color: transparent !important;
 }
 
-/* Keep Leaflet transform positioning intact. Do not override transform. */
+.pm-marker-touch-target {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pm-marker {
+  position: relative !important;
+  width: 24px !important;
+  height: 24px !important;
+  pointer-events: none !important;
+}
+
+.pm-marker span {
+  position: absolute !important;
+  inset: 2px !important;
+  display: block !important;
+  border: 3px solid #ffffff !important;
+  border-radius: 999px !important;
+  background: #16a34a;
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.24) !important;
+}
+
+.pm-marker span::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 5px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+.pm-marker-neutral span,
+.pm-marker-none span,
+.pm-marker-no-risk span {
+  background: #16a34a !important;
+}
+
+.pm-marker-low span {
+  background: #facc15 !important;
+}
+
+.pm-marker-moderate span,
+.pm-marker-medium span {
+  background: #f97316 !important;
+}
+
+.pm-marker-high span,
+.pm-marker-critical span {
+  background: #dc2626 !important;
+}
+
+.pm-map-active-project-panel {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 720;
+  max-height: min(52%, 360px);
+  overflow: auto;
+  padding: 14px 14px 16px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.22);
+  -webkit-overflow-scrolling: touch;
+}
+
+.pm-map-active-project-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  color: #334155;
+  background: #e2e8f0;
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.pm-map-active-project-panel h3 {
+  margin: 0 38px 6px 0;
+  color: #0f172a;
+  font-size: 0.98rem;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.pm-map-active-project-panel p {
+  margin: 0 38px 10px 0;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+.pm-map-active-project-panel dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.pm-map-active-project-panel dl div {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.pm-map-active-project-panel dt {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pm-map-active-project-panel dd {
+  min-width: 0;
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 820;
+  overflow-wrap: anywhere;
+}
+
+.pm-map-active-project-panel a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 12px;
+  border-radius: 12px;
+  color: #ffffff;
+  background: #16467a;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+/* Keep Leaflet positioning intact. Never override transform on markers/panes. */
 .pm-map-shell .leaflet-container,
 .pm-map-shell .leaflet-pane,
 .pm-map-shell .leaflet-marker-icon,
@@ -2659,521 +2807,32 @@
 }
 
 @media (max-width: 430px) {
-  .pm-map-project-popup .leaflet-popup-content-wrapper {
-    width: min(336px, calc(100vw - 30px)) !important;
-    max-width: calc(100vw - 30px) !important;
-    border-radius: 20px !important;
+  .pm-marker-wrapper,
+  .pm-marker-touch-target {
+    width: 36px !important;
+    height: 36px !important;
   }
 
-  .pm-map-project-popup .leaflet-popup-content {
-    min-width: min(306px, calc(100vw - 62px)) !important;
-    max-width: calc(100vw - 62px) !important;
-    margin: 12px !important;
+  .pm-marker {
+    width: 22px !important;
+    height: 22px !important;
   }
 
-  .pm-map-project-popup .pm-map-popup h3 {
-    font-size: 0.94rem !important;
+  .pm-marker span {
+    inset: 2px !important;
+    border-width: 3px !important;
   }
 
-  .pm-map-project-popup .pm-map-popup p {
-    font-size: 0.78rem !important;
+  .pm-marker span::after {
+    inset: 4px !important;
   }
 
-  .pm-map-project-popup .pm-map-popup dl {
-    gap: 7px !important;
+  .pm-map-active-project-panel {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    max-height: 58%;
+    padding: 13px 13px 15px;
+    border-radius: 18px;
   }
-
-  .pm-map-project-popup .pm-map-popup dl div {
-    padding: 7px 8px !important;
-  }
-
-  .pm-map-project-popup .pm-map-popup dt {
-    font-size: 0.58rem !important;
-  }
-
-  .pm-map-project-popup .pm-map-popup dd {
-    font-size: 0.72rem !important;
-  }
-}
-
-/* =========================
-   PMS10 MAP POPUP COMPACT AUTOCLOSE FIX
-   Smaller anchored popup + only one project popup open at a time.
-========================= */
-
-/* Keep the popup anchored to the selected marker, but make it reasonably sized. */
-.pm-map-shell .leaflet-popup.pm-map-project-popup {
-  margin-bottom: 4px !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-content-wrapper {
-  width: min(292px, 76vw) !important;
-  max-width: min(292px, 76vw) !important;
-  border-radius: 18px !important;
-  background: rgba(255, 255, 255, 0.98) !important;
-  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.22) !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-content {
-  width: auto !important;
-  max-width: 100% !important;
-  margin: 10px 10px 11px !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-tip {
-  width: 15px !important;
-  height: 15px !important;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.15) !important;
-}
-
-/* Move close button slightly inside and make it smaller. */
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-close-button {
-  top: 8px !important;
-  right: 8px !important;
-  display: grid !important;
-  place-items: center !important;
-  width: 30px !important;
-  height: 30px !important;
-  border-radius: 999px !important;
-  color: #334155 !important;
-  background: #e2e8f0 !important;
-  font-size: 1.25rem !important;
-  font-weight: 950 !important;
-  line-height: 1 !important;
-}
-
-/* Compact popup content */
-.pm-map-popup {
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-.pm-map-popup h3 {
-  display: -webkit-box !important;
-  -webkit-line-clamp: 2 !important;
-  -webkit-box-orient: vertical !important;
-  margin: 0 38px 5px 0 !important;
-  overflow: hidden !important;
-  color: #0f172a !important;
-  font-size: 0.84rem !important;
-  font-weight: 950 !important;
-  line-height: 1.08 !important;
-  letter-spacing: -0.02em !important;
-}
-
-.pm-map-popup p {
-  display: -webkit-box !important;
-  -webkit-line-clamp: 2 !important;
-  -webkit-box-orient: vertical !important;
-  margin: 0 38px 8px 0 !important;
-  overflow: hidden !important;
-  color: #475569 !important;
-  font-size: 0.68rem !important;
-  font-weight: 820 !important;
-  line-height: 1.22 !important;
-  text-transform: none !important;
-}
-
-.pm-map-popup-badges {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 5px !important;
-  margin: 0 0 8px !important;
-}
-
-.pm-map-popup-badges span,
-.pm-map-popup .pm-status-completed,
-.pm-map-popup .pm-status-ongoing,
-.pm-map-popup .pm-status-not-started,
-.pm-map-popup .pm-status-suspended,
-.pm-map-popup .pm-status-cancelled,
-.pm-map-popup .pm-status-neutral,
-.pm-map-popup .pm-risk-high,
-.pm-map-popup .pm-risk-moderate,
-.pm-map-popup .pm-risk-low,
-.pm-map-popup .pm-risk-neutral {
-  min-height: 22px !important;
-  padding: 4px 8px !important;
-  font-size: 0.58rem !important;
-  letter-spacing: 0.05em !important;
-}
-
-.pm-map-popup dl {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 6px !important;
-  margin: 0 !important;
-}
-
-.pm-map-popup dl div {
-  display: block !important;
-  min-width: 0 !important;
-  min-height: 52px !important;
-  padding: 8px 9px !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 12px !important;
-  background: #f8fafc !important;
-}
-
-.pm-map-popup dt {
-  margin: 0 0 3px !important;
-  color: #64748b !important;
-  font-size: 0.58rem !important;
-  font-weight: 950 !important;
-  letter-spacing: 0.12em !important;
-  line-height: 1 !important;
-  text-transform: uppercase !important;
-}
-
-.pm-map-popup dd {
-  min-width: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  color: #0f172a !important;
-  font-size: 0.7rem !important;
-  font-weight: 900 !important;
-  line-height: 1.1 !important;
-  overflow-wrap: anywhere !important;
-}
-
-.pm-map-popup .pm-map-variance {
-  font-weight: 950 !important;
-}
-
-.pm-map-popup a {
-  min-height: 34px !important;
-  margin-top: 8px !important;
-  border-radius: 11px !important;
-  font-size: 0.78rem !important;
-  font-weight: 950 !important;
-}
-
-/* Keep only one popup visually prominent and prevent old popups from stacking on tap. */
-.pm-map-shell .leaflet-popup {
-  transition: none !important;
-  animation: none !important;
-}
-
-@media (max-width: 430px) {
-  .pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-content-wrapper {
-    width: min(282px, 74vw) !important;
-    max-width: min(282px, 74vw) !important;
-  }
-
-  .pm-map-popup h3 {
-    font-size: 0.8rem !important;
-  }
-
-  .pm-map-popup p {
-    font-size: 0.64rem !important;
-  }
-
-  .pm-map-popup dl {
-    gap: 5px !important;
-  }
-
-  .pm-map-popup dl div {
-    min-height: 48px !important;
-    padding: 7px 8px !important;
-    border-radius: 11px !important;
-  }
-
-  .pm-map-popup dt {
-    font-size: 0.54rem !important;
-  }
-
-  .pm-map-popup dd {
-    font-size: 0.66rem !important;
-  }
-}
-
-/* =========================
-   PMS10 MAP POPUP SMALLER MARKER VISIBLE FIX
-   Compact anchored popup that does not cover the selected marker.
-========================= */
-
-/* Popup is intentionally smaller and raised above the marker. */
-.pm-map-shell .leaflet-popup.pm-map-project-popup {
-  margin-bottom: 18px !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-content-wrapper {
-  width: min(258px, 68vw) !important;
-  max-width: min(258px, 68vw) !important;
-  min-width: 0 !important;
-  border-radius: 15px !important;
-  background: rgba(255, 255, 255, 0.985) !important;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.2) !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-content {
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  margin: 8px !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-tip {
-  width: 12px !important;
-  height: 12px !important;
-}
-
-/* Small close button */
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-close-button {
-  top: 7px !important;
-  right: 7px !important;
-  display: grid !important;
-  place-items: center !important;
-  width: 24px !important;
-  height: 24px !important;
-  border-radius: 999px !important;
-  color: #334155 !important;
-  background: #e2e8f0 !important;
-  font-size: 1rem !important;
-  font-weight: 950 !important;
-  line-height: 1 !important;
-  text-decoration: none !important;
-}
-
-/* Compact content */
-.pm-map-project-popup .pm-map-popup {
-  width: 100% !important;
-  max-width: 100% !important;
-  max-height: none !important;
-  overflow: visible !important;
-}
-
-.pm-map-project-popup .pm-map-popup h3 {
-  display: -webkit-box !important;
-  -webkit-line-clamp: 2 !important;
-  -webkit-box-orient: vertical !important;
-  margin: 0 30px 4px 0 !important;
-  overflow: hidden !important;
-  color: #0f172a !important;
-  font-size: 0.72rem !important;
-  font-weight: 950 !important;
-  line-height: 1.08 !important;
-  letter-spacing: -0.015em !important;
-}
-
-.pm-map-project-popup .pm-map-popup p {
-  display: -webkit-box !important;
-  -webkit-line-clamp: 1 !important;
-  -webkit-box-orient: vertical !important;
-  margin: 0 30px 6px 0 !important;
-  overflow: hidden !important;
-  color: #475569 !important;
-  font-size: 0.58rem !important;
-  font-weight: 820 !important;
-  line-height: 1.15 !important;
-  text-transform: none !important;
-}
-
-.pm-map-project-popup .pm-map-popup-badges {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 4px !important;
-  margin: 0 0 6px !important;
-}
-
-.pm-map-project-popup .pm-map-popup-badges span,
-.pm-map-project-popup .pm-map-popup [class*='pm-status'],
-.pm-map-project-popup .pm-map-popup [class*='pm-risk'] {
-  min-height: 18px !important;
-  padding: 3px 7px !important;
-  border-radius: 999px !important;
-  font-size: 0.48rem !important;
-  line-height: 1 !important;
-  letter-spacing: 0.05em !important;
-  font-weight: 950 !important;
-}
-
-/* Tiny but readable cards */
-.pm-map-project-popup .pm-map-popup dl {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 4px !important;
-  margin: 0 !important;
-}
-
-.pm-map-project-popup .pm-map-popup dl div {
-  display: block !important;
-  min-width: 0 !important;
-  min-height: 38px !important;
-  padding: 5px 6px !important;
-  border: 1px solid rgba(226, 232, 240, 0.9) !important;
-  border-radius: 9px !important;
-  background: #f8fafc !important;
-}
-
-.pm-map-project-popup .pm-map-popup dt {
-  margin: 0 0 2px !important;
-  color: #64748b !important;
-  font-size: 0.45rem !important;
-  font-weight: 950 !important;
-  line-height: 1 !important;
-  letter-spacing: 0.1em !important;
-  text-transform: uppercase !important;
-}
-
-.pm-map-project-popup .pm-map-popup dd {
-  display: -webkit-box !important;
-  -webkit-line-clamp: 2 !important;
-  -webkit-box-orient: vertical !important;
-  min-width: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  color: #0f172a !important;
-  font-size: 0.56rem !important;
-  font-weight: 900 !important;
-  line-height: 1.08 !important;
-  overflow-wrap: anywhere !important;
-}
-
-.pm-map-project-popup .pm-map-popup a {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 100% !important;
-  min-height: 28px !important;
-  margin-top: 6px !important;
-  border-radius: 9px !important;
-  color: #ffffff !important;
-  background: linear-gradient(135deg, #16467a, #1d64a8) !important;
-  font-size: 0.66rem !important;
-  font-weight: 950 !important;
-  text-decoration: none !important;
-}
-
-/* Keep selected marker visible above map paths and below popup. */
-.pm-map-shell .leaflet-overlay-pane svg path.leaflet-interactive {
-  stroke-width: 3px !important;
-}
-
-.pm-map-shell .leaflet-popup-pane {
-  pointer-events: auto !important;
-}
-
-/* Do not animate popup open/close; less flicker. */
-.pm-map-shell .leaflet-popup,
-.pm-map-shell .leaflet-popup-content-wrapper,
-.pm-map-shell .leaflet-popup-tip {
-  transition: none !important;
-  animation: none !important;
-}
-
-@media (max-width: 430px) {
-  .pm-map-shell .leaflet-popup.pm-map-project-popup {
-    margin-bottom: 20px !important;
-  }
-
-  .pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-content-wrapper {
-    width: min(248px, 66vw) !important;
-    max-width: min(248px, 66vw) !important;
-    border-radius: 14px !important;
-  }
-
-  .pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-content {
-    margin: 7px !important;
-  }
-
-  .pm-map-project-popup .pm-map-popup h3 {
-    font-size: 0.68rem !important;
-  }
-
-  .pm-map-project-popup .pm-map-popup p {
-    font-size: 0.54rem !important;
-  }
-
-  .pm-map-project-popup .pm-map-popup dl div {
-    min-height: 36px !important;
-    padding: 5px !important;
-  }
-
-  .pm-map-project-popup .pm-map-popup dt {
-    font-size: 0.42rem !important;
-  }
-
-  .pm-map-project-popup .pm-map-popup dd {
-    font-size: 0.52rem !important;
-  }
-}
-
-/* =========================
-   PMS10 MAP POPUP POINTER CLOSER FIX
-   Brings anchored popup pointer closer to the selected marker.
-========================= */
-
-/* Reduce the vertical gap between popup tip and marker */
-.pm-map-shell .leaflet-popup.pm-map-project-popup {
-  margin-bottom: 6px !important;
-}
-
-/* Make the tip shorter/closer-looking */
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-tip {
-  width: 13px !important;
-  height: 13px !important;
-  margin-top: -7px !important;
-}
-
-/* Keep popup compact but not too far from marker */
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-content-wrapper {
-  width: min(258px, 68vw) !important;
-  max-width: min(258px, 68vw) !important;
-  border-radius: 15px !important;
-}
-
-/* Prevent popup from visually floating too high */
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-content {
-  margin: 8px !important;
-}
-
-/* Keep marker visible and clickable under the popup */
-.pm-map-shell .leaflet-interactive {
-  cursor: pointer !important;
-}
-
-.pm-map-shell .leaflet-popup-pane {
-  pointer-events: auto !important;
-}
-
-/* No popup animation to reduce flicker */
-.pm-map-shell .leaflet-popup,
-.pm-map-shell .leaflet-popup-content-wrapper,
-.pm-map-shell .leaflet-popup-tip {
-  transition: none !important;
-  animation: none !important;
-}
-
-/* =========================
-   PMS10 MAP CENTER PRESSED MARKER FIX
-   Marker tap recenters map so the anchored popup is not truncated.
-========================= */
-
-/* Keep popup compact and close to marker after the map recenters. */
-.pm-map-shell .leaflet-popup.pm-map-project-popup {
-  margin-bottom: 1px !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-tip-container {
-  margin-top: -1px !important;
-}
-
-.pm-map-shell .leaflet-popup.pm-map-project-popup .leaflet-popup-tip {
-  width: 12px !important;
-  height: 12px !important;
-  margin-top: -6px !important;
-}
-
-/* Keep the marker/popup interaction responsive after auto-pan. */
-.pm-map-shell .leaflet-interactive {
-  cursor: pointer !important;
-  touch-action: manipulation !important;
-}
-
-.pm-map-shell .leaflet-popup,
-.pm-map-shell .leaflet-popup-content-wrapper,
-.pm-map-shell .leaflet-popup-tip {
-  transition: none !important;
-  animation: none !important;
 }

@@ -3181,5 +3181,67 @@ main {
 }
 /* PMS10 CLEAN MOBILE NAV RESPONSIVENESS END */
 
+/* =========================
+   PMS10 MAP LABEL CLICK AND FLICKER FIX
+   Makes project labels clickable and reduces iOS/Safari Leaflet flicker.
+========================= */
 
+/* Project name labels on the GIS map */
+.leaflet-tooltip.pms10-map-project-label,
+.pms10-map-project-label {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: none !important;
+  animation: none !important;
+  will-change: transform !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  transform: translateZ(0) !important;
+}
 
+/* Prevent label hover/tap from creating visual jump/flicker */
+.leaflet-tooltip.pms10-map-project-label:hover,
+.leaflet-tooltip.pms10-map-project-label:active,
+.leaflet-tooltip.pms10-map-project-label:focus {
+  transform: translateZ(0) !important;
+  filter: none !important;
+}
+
+/* Stabilize Leaflet layers on mobile Safari/Chrome */
+.leaflet-container,
+.leaflet-pane,
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane,
+.leaflet-marker-icon,
+.leaflet-tooltip,
+.leaflet-popup {
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+}
+
+.leaflet-marker-icon,
+.leaflet-tooltip,
+.leaflet-popup {
+  will-change: transform !important;
+}
+
+/* Keep tile transitions from flickering during taps and label clicks */
+.leaflet-tile {
+  transition: none !important;
+  animation: none !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+}
+
+/* Prevent accidental text selection or blue tap overlays on the map */
+.leaflet-container * {
+  -webkit-tap-highlight-color: transparent !important;
+}

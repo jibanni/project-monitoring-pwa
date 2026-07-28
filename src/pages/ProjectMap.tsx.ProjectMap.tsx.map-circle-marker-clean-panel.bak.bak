@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   CircleMarker,
   MapContainer,
-  Popup,
   TileLayer,
   useMap,
 } from 'react-leaflet'
@@ -99,6 +98,27 @@ type CoordinateCandidate = {
 function normalizeText(value: unknown) {
   if (value === null || value === undefined) return ''
   return String(value).trim()
+}
+
+
+function toTitleCasePlace(value: unknown) {
+  const raw = normalizeText(value)
+  if (!raw) return ''
+
+  return raw
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[a-zñ]+(?:[-'][a-zñ]+)*/gi, (word) =>
+      word
+        .split(/([-'])/)
+        .map((part) => {
+          if (part === '-' || part === "'") return part
+          if (!part) return part
+          return part.charAt(0).toUpperCase() + part.slice(1)
+        })
+        .join(''),
+    )
 }
 
 function toNumber(value: unknown) {
@@ -314,9 +334,9 @@ function getFundingLabel(project: ProjectRecord) {
 
 function getProjectLocation(project: ProjectRecord) {
   const parts = [
-    normalizeText(project.barangay),
-    normalizeText(project.municipality),
-    normalizeText(project.province),
+    toTitleCasePlace(project.barangay),
+    toTitleCasePlace(project.municipality),
+    toTitleCasePlace(project.province),
   ].filter(Boolean)
 
   return parts.length > 0 ? parts.join(', ') : 'Location not specified'
@@ -348,51 +368,35 @@ function getStatusClass(status: string | null | undefined) {
   return 'pm-status-neutral'
 }
 
-function pms10CenterPressedMapMarker(event: any) {
-  const layer = event?.target
-  const map = layer?._map as L.Map | undefined
-  const latLng = layer?.getLatLng?.() ?? event?.latlng
-
-  if (!map || !latLng) return
-
-  const centerMarkerWithPopup = () => {
-    try {
-      map.invalidateSize({ pan: false })
-
-      const zoom = map.getZoom()
-      const mapSize = map.getSize()
-      const markerPoint = map.project(latLng, zoom)
-
-      /*
-        Put the selected marker slightly below the map center.
-        This centers the marker + popup together so the popup is not cut off.
-      */
-      const verticalOffset = Math.min(Math.max(mapSize.y * 0.12, 46), 88)
-      const targetPoint = markerPoint.subtract([0, verticalOffset])
-      const targetLatLng = map.unproject(targetPoint, zoom)
-
-      map.panTo(targetLatLng, {
-        animate: true,
-        duration: 0.25,
-        easeLinearity: 0.25,
-      })
-    } catch {
-      // Keep marker click working even if the map is not ready.
-    }
-  }
-
-  centerMarkerWithPopup()
-  window.setTimeout(centerMarkerWithPopup, 80)
-}
-
-function getProjectMarkerColor(project: MapProject) {
+function getProjectMarkerPathOptions(project: MapProject, isActive: boolean): L.PathOptions {
   const risk = getComputedRiskLevel(project).toLowerCase()
 
-  if (risk.includes('high') || risk.includes('critical')) return '#dc2626'
-  if (risk.includes('moderate') || risk.includes('medium')) return '#f97316'
-  if (risk.includes('low')) return '#facc15'
+  let fillColor = '#16a34a'
+  let className = 'pm-circle-marker pm-circle-marker-neutral'
 
-  return '#16a34a'
+  if (risk.includes('low')) {
+    fillColor = '#facc15'
+    className = 'pm-circle-marker pm-circle-marker-low'
+  }
+
+  if (risk.includes('moderate') || risk.includes('medium')) {
+    fillColor = '#f97316'
+    className = 'pm-circle-marker pm-circle-marker-moderate'
+  }
+
+  if (risk.includes('high') || risk.includes('critical')) {
+    fillColor = '#dc2626'
+    className = 'pm-circle-marker pm-circle-marker-high'
+  }
+
+  return {
+    color: '#ffffff',
+    weight: isActive ? 4 : 3,
+    opacity: 1,
+    fillColor,
+    fillOpacity: 1,
+    className: isActive ? `${className} is-active` : className,
+  }
 }
 
 function SearchIcon() {
@@ -608,6 +612,7 @@ export default function ProjectMap() {
   const [focusSignal, setFocusSignal] = useState(0)
   const [isMapFullscreen, setIsMapFullscreen] = useState(false)
   const [mapLayer, setMapLayer] = useState<MapLayer>('street')
+  const [activeMapProjectId, setActiveMapProjectId] = useState('')
 
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('All')
@@ -718,6 +723,7 @@ export default function ProjectMap() {
   ])
 
   function clearFilters() {
+    setActiveMapProjectId('')
     setSearchTerm('')
     setProvinceFilter('All')
     setMunicipalityFilter('All')
@@ -843,6 +849,28 @@ export default function ProjectMap() {
       (project) => project.displayLatitude === null || project.displayLongitude === null,
     )
   }, [filteredProjects])
+
+  const activeMapProject = useMemo(() => {
+    if (!activeMapProjectId) return null
+    return displayedProjects.find((project) => project.id === activeMapProjectId) || null
+  }, [activeMapProjectId, displayedProjects])
+
+  const activeMapVarianceInfo = useMemo(() => {
+    return activeMapProject ? getTargetPhysicalInfo(activeMapProject) : null
+  }, [activeMapProject])
+
+  useEffect(() => {
+    if (!selectedProjectMode) return
+    if (displayedProjects.length !== 1) return
+    setActiveMapProjectId(displayedProjects[0].id)
+  }, [displayedProjects, selectedProjectMode])
+
+  useEffect(() => {
+    if (!activeMapProjectId) return
+
+    const stillDisplayed = displayedProjects.some((project) => project.id === activeMapProjectId)
+    if (!stillDisplayed) setActiveMapProjectId('')
+  }, [activeMapProjectId, displayedProjects])
 
   const hasActiveFilters =
     !selectedProjectMode &&
@@ -1117,6 +1145,7 @@ export default function ProjectMap() {
               {loading ? (
                 <div className="pm-map-loading">Loading GIS map records...</div>
               ) : (
+                <>
                 <MapContainer
                   center={MINDANAO_CENTER}
                   zoom={DEFAULT_ZOOM}
@@ -1150,9 +1179,8 @@ export default function ProjectMap() {
                     projects={displayedProjects}
                     focusSignal={focusSignal}
                   />
-
                   {displayedProjects.map((project) => {
-                    const varianceInfo = getTargetPhysicalInfo(project)
+                    const isActive = activeMapProjectId === project.id
 
                     return (
                       <CircleMarker
@@ -1161,85 +1189,85 @@ export default function ProjectMap() {
                           project.displayLatitude as number,
                           project.displayLongitude as number,
                         ]}
-                        radius={5}
-                        pathOptions={{
-                          color: '#ffffff',
-                          fillColor: getProjectMarkerColor(project),
-                          fillOpacity: 1,
-                          opacity: 1,
-                          weight: 3,
-                        }}
-                      
+                        radius={isActive ? 8 : 7}
+                        pathOptions={getProjectMarkerPathOptions(project, isActive)}
                         bubblingMouseEvents={false}
                         eventHandlers={{
-                          click: pms10CenterPressedMapMarker,
-                          popupopen: pms10CenterPressedMapMarker,
-                        }}>
-                        <Popup
-                          className="pm-map-project-popup"
-                          minWidth={220}
-                          maxWidth={260}
-                          autoPan={false}
-                          keepInView={false}
-                          closeButton
-                          autoClose={true}
-                          offset={[0, -1]}
-                        >
-                          <div className="pm-map-popup">
-                            <h3>{project.project_name || 'Untitled Project'}</h3>
-                            <p>{getProjectLocation(project)}</p>
-
-                            <div className="pm-map-popup-badges">
-                              <span className={getStatusClass(project.status)}>
-                                {project.status || 'No Status'}
-                              </span>
-
-                              <span className={getRiskClass(getComputedRiskLevel(project))}>
-                                {getComputedRiskLevel(project)}
-                              </span>
-                            </div>
-
-                            <dl>
-                              <div>
-                                <dt>Program</dt>
-                                <dd>{getFundingLabel(project)}</dd>
-                              </div>
-
-                              <div>
-                                <dt>Project Cost</dt>
-                                <dd>{formatPhpFull(project.budget)}</dd>
-                              </div>
-
-                              <div>
-                                <dt>Physical</dt>
-                                <dd>{formatPercent(project.physical_accomplishment)}</dd>
-                              </div>
-
-                              <div>
-                                <dt>Financial</dt>
-                                <dd>{formatPercent(project.financial_accomplishment)}</dd>
-                              </div>
-
-                              <div>
-                                <dt>Variance</dt>
-                                <dd className={`pm-map-variance ${varianceInfo.className}`}>
-                                  {varianceInfo.compactLabel}
-                                </dd>
-                              </div>
-
-                              <div>
-                                <dt>As of</dt>
-                                <dd>{varianceInfo.asOfLabel.replace('As of ', '')}</dd>
-                              </div>
-                            </dl>
-
-                            <Link to={`/projects/${project.id}`}>View Details</Link>
-                          </div>
-                        </Popup>
-                      </CircleMarker>
+                          click: (event: L.LeafletMouseEvent) => {
+                            event.originalEvent?.preventDefault?.()
+                            event.originalEvent?.stopPropagation?.()
+                            setActiveMapProjectId(project.id)
+                          },
+                        }}
+                      />
                     )
                   })}
                 </MapContainer>
+
+                  {activeMapProject && activeMapVarianceInfo ? (
+                    <div className="pm-map-selected-project-card" role="dialog" aria-label="Selected project details">
+                      <button
+                        type="button"
+                        className="pm-map-selected-project-close"
+                        onClick={() => setActiveMapProjectId('')}
+                        aria-label="Close selected project details"
+                      >
+                        ×
+                      </button>
+
+                      <div className="pm-map-selected-project-head">
+                        <h3>{activeMapProject.project_name || 'Untitled Project'}</h3>
+                        <p>{getProjectLocation(activeMapProject)}</p>
+                      </div>
+
+                      <div className="pm-map-selected-project-badges">
+                        <span className={getStatusClass(activeMapProject.status)}>
+                          {activeMapProject.status || 'No Status'}
+                        </span>
+
+                        <span className={getRiskClass(getComputedRiskLevel(activeMapProject))}>
+                          {getComputedRiskLevel(activeMapProject)}
+                        </span>
+                      </div>
+
+                      <div className="pm-map-selected-project-grid">
+                        <div>
+                          <span>Program</span>
+                          <strong>{getFundingLabel(activeMapProject)}</strong>
+                        </div>
+
+                        <div>
+                          <span>Cost</span>
+                          <strong>{formatPhpFull(activeMapProject.budget)}</strong>
+                        </div>
+
+                        <div>
+                          <span>Physical</span>
+                          <strong>{formatPercent(activeMapProject.physical_accomplishment)}</strong>
+                        </div>
+
+                        <div>
+                          <span>Financial</span>
+                          <strong>{formatPercent(activeMapProject.financial_accomplishment)}</strong>
+                        </div>
+
+                        <div>
+                          <span>Variance</span>
+                          <strong className={`pm-map-variance ${activeMapVarianceInfo.className}`}>
+                            {activeMapVarianceInfo.compactLabel}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>As of</span>
+                          <strong>{activeMapVarianceInfo.asOfLabel.replace('As of ', '')}</strong>
+                        </div>
+                      </div>
+
+                      <Link to={`/projects/${activeMapProject.id}`}>View Details</Link>
+                    </div>
+                  ) : null}
+                </>
               )}
             </div>
           </div>
@@ -1263,7 +1291,7 @@ export default function ProjectMap() {
                     return (
                       <article className="pm-map-project-card" key={project.id}>
                         <div>
-                          <span>{project.province || 'No Province'}</span>
+                          <span>{toTitleCasePlace(project.province) || 'No Province'}</span>
                           <h3>{project.project_name || 'Untitled Project'}</h3>
                           <p>{getProjectLocation(project)}</p>
                           <p>{getFundingLabel(project)}</p>
@@ -1331,7 +1359,7 @@ export default function ProjectMap() {
                   coordinateIssueProjects.map((project) => (
                     <article className="pm-map-review-item" key={project.id}>
                       <div>
-                        <span>{project.province || 'No Province'}</span>
+                        <span>{toTitleCasePlace(project.province) || 'No Province'}</span>
                         <h3>{project.project_name || 'Untitled Project'}</h3>
                         <p>{project.coordinateIssue || 'GPS needs review.'}</p>
                       </div>
