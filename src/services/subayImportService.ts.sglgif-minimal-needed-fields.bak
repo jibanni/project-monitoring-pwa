@@ -5,10 +5,9 @@ import { normalizeProgramName } from '../utils/program'
 /*
   PMS10 SubayBAYAN guided parser.
 
-  This parser intentionally supports three guided masterlist formats:
-  - SubayBAYAN FY 2024 and below extract
-  - SubayBAYAN FY 2025 and above extract
-  - SGLGIF Portal projects extraction
+  This parser intentionally supports the two known SubayBAYAN masterlist formats:
+  - FY 2024 and below extract
+  - FY 2025 and above extract
 
   It avoids relying on column guessing for critical fields. Format detection is
   based on header signatures, then each format is parsed through a fixed profile.
@@ -16,7 +15,7 @@ import { normalizeProgramName } from '../utils/program'
 
 export const SUBAY_MIN_FUNDING_YEAR = 2017
 
-export type SubayFormatId = 'fy2024_below' | 'fy2025_above' | 'sglgif_portal' | 'unknown'
+export type SubayFormatId = 'fy2024_below' | 'fy2025_above' | 'unknown'
 
 export type SubayDetectedFormat = {
   id: SubayFormatId
@@ -40,8 +39,8 @@ export type SubayImportRecord = {
   fundingSource: string
   projectType: string
   status: string
-  physicalAccomplishment: number | null
-  financialAccomplishment: number | null
+  physicalAccomplishment: number
+  financialAccomplishment: number
   riskLevel: string
   implementingOffice: string
   contractor: string
@@ -189,42 +188,7 @@ const FY_2025_ABOVE_PROFILE: SubayFormatProfile = {
   },
 }
 
-const SGLGIF_PORTAL_PROFILE: SubayFormatProfile = {
-  id: 'sglgif_portal',
-  label: 'SGLGIF Portal Projects Extraction',
-  expectedHeaderRowNumber: 2,
-  dataStartOffset: 1,
-  requiredSignature: [
-    'YEAR',
-    'REGION',
-    'PROVINCE',
-    'LGU',
-    'TITLE',
-    'AMOUNT',
-    'TYPE',
-    'CATEGORY',
-    'STATUS',
-  ],
-  strongSignature: ['LGU REFERENCE CODE'],
-  columns: {
-    projectCode: 0, // A LGU Reference Code, used to build a stable import key
-    fundingYear: 2, // C Year
-    region: 3, // D Region
-    province: 4, // E Province
-    municipality: 5, // F LGU
-    projectTitle: 8, // I Title
-    budget: 9, // J Amount
-    projectType: 10, // K Type
-    description: 11, // L Category
-    status: 12, // M Status
-  },
-}
-
-const FORMAT_PROFILES = [
-  FY_2024_BELOW_PROFILE,
-  FY_2025_ABOVE_PROFILE,
-  SGLGIF_PORTAL_PROFILE,
-]
+const FORMAT_PROFILES = [FY_2024_BELOW_PROFILE, FY_2025_ABOVE_PROFILE]
 
 function textValue(value: unknown) {
   if (value === null || value === undefined) return ''
@@ -250,20 +214,6 @@ function normalizeComparable(value: unknown) {
 
 function normalizeProjectCode(value: unknown) {
   return textValue(value).toUpperCase()
-}
-
-function buildSglgifProjectCode(
-  row: unknown[],
-  profile: SubayFormatProfile,
-  fundingYear: number | null,
-) {
-  const rawReferenceCode = textValue(getProfileCell(row, profile, 'projectCode'))
-    .replace(/\.0+$/, '')
-  const referenceCode = rawReferenceCode.replace(/\D/g, '')
-
-  if (!fundingYear || referenceCode.length !== 10) return ''
-
-  return `SGLGIF-${fundingYear}-${referenceCode}`
 }
 
 function getCell(row: unknown[], columnIndex: number | undefined) {
@@ -546,35 +496,6 @@ export function getSimplifiedImportStatus(record: SubayImportRecord) {
   if (rawStatus.includes('terminat')) return 'Terminated'
   if (rawStatus.includes('cancel')) return 'Cancelled'
   if (rawStatus.includes('suspend')) return 'Suspended'
-
-  if (record.subayFormat === 'sglgif_portal') {
-    if (
-      rawStatus.includes('ongoing') ||
-      rawStatus.includes('on-going') ||
-      rawStatus.includes('implementation')
-    ) {
-      return 'Ongoing'
-    }
-
-    if (rawStatus.includes('review')) return 'Under Review'
-
-    if (
-      rawStatus.includes('not yet') ||
-      rawStatus.includes('not started') ||
-      rawStatus.includes('no implementation')
-    ) {
-      return 'Not Yet Started'
-    }
-
-    if (
-      rawStatus.includes('procurement') ||
-      rawStatus.includes('approved') ||
-      rawStatus.includes('pending')
-    ) {
-      return 'Under Procurement'
-    }
-  }
-
   if (physical > 0) return 'Ongoing'
   if (hasImportContractEvidence(record)) return 'Not Yet Started'
 
@@ -584,18 +505,6 @@ export function getSimplifiedImportStatus(record: SubayImportRecord) {
 export function getSubayEnrollmentEligibility(record: SubayImportRecord) {
   const year = record.fundingYear
   const simplifiedStatus = getSimplifiedImportStatus(record)
-
-  if (record.subayFormat === 'sglgif_portal') {
-    return {
-      eligible: Boolean(year && year >= SUBAY_MIN_FUNDING_YEAR),
-      reason:
-        year && year >= SUBAY_MIN_FUNDING_YEAR
-          ? `FY ${year} SGLGIF project included`
-          : year
-            ? `FY ${year} is below FY ${SUBAY_MIN_FUNDING_YEAR}`
-            : 'Missing funding year excluded by import rule',
-    }
-  }
 
   if (year === 2021) {
     if (simplifiedStatus === 'Ongoing') {
@@ -634,10 +543,7 @@ export function getSubayEnrollmentEligibility(record: SubayImportRecord) {
 }
 
 
-export function projectPayloadFromSubayRecord(
-  record: SubayImportRecord,
-  options: { isCreate?: boolean; existingBudget?: unknown } = {},
-) {
+export function projectPayloadFromSubayRecord(record: SubayImportRecord) {
   const projectCost = record.budget || record.contractAmount || 0
   const payload: Record<string, unknown> = {
     subaybayan_project_code: record.projectCode,
@@ -649,6 +555,7 @@ export function projectPayloadFromSubayRecord(
     funding_year: record.fundingYear,
     implementing_office: record.implementingOffice || null,
     contractor: record.contractor || null,
+    budget: projectCost,
     barangay: record.barangay || null,
     municipality: record.municipality || null,
     province: record.province || null,
@@ -658,20 +565,6 @@ export function projectPayloadFromSubayRecord(
       ? 'None'
       : record.riskLevel || 'None',
     updated_at: new Date().toISOString(),
-  }
-
-  if (projectCost > 0) {
-    payload.budget = projectCost
-  } else if (record.subayFormat === 'sglgif_portal') {
-    const existingBudget = parseNumber(options.existingBudget)
-
-    // Keep the SGLGIF project cost blank when the Portal extract has no Amount.
-    // If a user already entered a positive cost manually, omit the field during
-    // re-import so the manual value is preserved.
-    if (options.isCreate || existingBudget <= 0) payload.budget = null
-  } else {
-    // Preserve the existing behavior of the two SubayBAYAN formats.
-    payload.budget = 0
   }
 
   if (record.startDate) payload.start_date = record.startDate
@@ -722,17 +615,8 @@ function getRecordWarnings(record: Omit<SubayImportRecord, 'validationWarnings'>
   if (!record.fundingSource) warnings.push('Missing program/funding source')
   if (!record.province) warnings.push('Missing province')
   if (!record.municipality) warnings.push('Missing city/municipality')
-  if (
-    record.subayFormat !== 'sglgif_portal' &&
-    !record.budget &&
-    !record.contractAmount
-  ) {
-    warnings.push('Missing project cost/contract amount')
-  }
-  if (
-    record.physicalAccomplishment !== null &&
-    (record.physicalAccomplishment < 0 || record.physicalAccomplishment > 100)
-  ) {
+  if (!record.budget && !record.contractAmount) warnings.push('Missing project cost/contract amount')
+  if (record.physicalAccomplishment < 0 || record.physicalAccomplishment > 100) {
     warnings.push('Physical accomplishment outside 0-100 range')
   }
 
@@ -745,58 +629,31 @@ function parseRecordFromRow(
   sheetName: string,
   profile: SubayFormatProfile,
 ): SubayImportRecord | null {
+  const projectCode = normalizeProjectCode(getProfileCell(row, profile, 'projectCode'))
   const rawTitle = textValue(getProfileCell(row, profile, 'projectTitle'))
 
-  if (!rawTitle && !textValue(getProfileCell(row, profile, 'projectCode'))) return null
+  if (!projectCode && !rawTitle) return null
 
   const fundingYear = parseFundingYear(getProfileCell(row, profile, 'fundingYear'))
-  const projectCode =
-    profile.id === 'sglgif_portal'
-      ? buildSglgifProjectCode(row, profile, fundingYear)
-      : normalizeProjectCode(getProfileCell(row, profile, 'projectCode'))
-
   const physicalValue = getProfileCell(row, profile, 'physicalAccomplishment')
-  const rawPortalStatus = textValue(getProfileCell(row, profile, 'status')).toLowerCase()
-  const isSglgifCompleted =
-    profile.id === 'sglgif_portal' && rawPortalStatus.includes('complete')
-  const physicalAccomplishment =
-    profile.id === 'sglgif_portal'
-      ? isSglgifCompleted
-        ? 100
-        : null
-      : parsePercent(physicalValue)
-  const financialAccomplishment =
-    profile.id === 'sglgif_portal'
-      ? isSglgifCompleted
-        ? 100
-        : null
-      : parsePercent(getProfileCell(row, profile, 'financialAccomplishment'))
+  const physicalAccomplishment = parsePercent(physicalValue)
   const status = normalizeStatus(
     getProfileCell(row, profile, 'status'),
     getProfileCell(row, profile, 'physicalStatus'),
-    physicalAccomplishment,
+    physicalValue,
   )
 
-  const fundingSource =
-    profile.id === 'sglgif_portal'
-      ? 'SGLGIF'
-      : normalizeProgramName(
-          firstNonEmpty(
-            getProfileCell(row, profile, 'fundingSource'),
-            profile.id === 'fy2025_above'
-              ? getProfileCell(row, profile, 'projectType')
-              : '',
-            'SubayBAYAN',
-          ),
-        )
+  const fundingSource = normalizeProgramName(
+    firstNonEmpty(
+      getProfileCell(row, profile, 'fundingSource'),
+      profile.id === 'fy2025_above' ? getProfileCell(row, profile, 'projectType') : '',
+      'SubayBAYAN',
+    ),
+  )
 
   const projectTitle = toProjectTitleCase(rawTitle)
-  const targetCompletionDate = firstDate(
-    getProfileCell(row, profile, 'targetCompletionDate'),
-  )
-  const contractExpirationDate = firstDate(
-    getProfileCell(row, profile, 'contractExpirationDate'),
-  )
+  const targetCompletionDate = firstDate(getProfileCell(row, profile, 'targetCompletionDate'))
+  const contractExpirationDate = firstDate(getProfileCell(row, profile, 'contractExpirationDate'))
   const ntpDate = firstDate(getProfileCell(row, profile, 'ntpDate'))
 
   const baseRecord = {
@@ -817,15 +674,8 @@ function parseRecordFromRow(
     projectType: getCompositeProjectType(row, profile),
     status,
     physicalAccomplishment,
-    financialAccomplishment,
-    riskLevel:
-      profile.id === 'sglgif_portal'
-        ? 'None'
-        : normalizeRiskLevel(
-            getProfileCell(row, profile, 'riskLevel'),
-            physicalAccomplishment,
-            status,
-          ),
+    financialAccomplishment: parsePercent(getProfileCell(row, profile, 'financialAccomplishment')),
+    riskLevel: normalizeRiskLevel(getProfileCell(row, profile, 'riskLevel'), physicalAccomplishment, status),
     implementingOffice: firstNonEmpty(
       getProfileCell(row, profile, 'implementingOffice'),
       getProfileCell(row, profile, 'projectOwner'),
@@ -882,7 +732,7 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
         sheetName,
         rowNumber: 0,
         message:
-          'Skipped sheet because PMS10 could not confidently detect SubayBAYAN FY 2024-below, SubayBAYAN FY 2025-above, or SGLGIF Portal format.',
+          'Skipped sheet because PMS10 could not confidently detect either SubayBAYAN FY 2024-below or FY 2025-above format.',
       })
       return
     }
@@ -893,7 +743,7 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
       issues.push({
         sheetName,
         rowNumber: detectedFormat.headerRowNumber,
-        message: 'Skipped sheet because the detected masterlist format has no parser profile.',
+        message: 'Skipped sheet because detected SubayBAYAN format has no parser profile.',
       })
       return
     }
@@ -979,7 +829,7 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
       sheetName: file.name,
       rowNumber: 0,
       message:
-        'No supported masterlist format was detected. Upload SubayBAYAN FY 2024-below, SubayBAYAN FY 2025-above, or an SGLGIF Portal projects extraction.',
+        'No supported SubayBAYAN masterlist format was detected. Upload either FY 2024-below or FY 2025-above extract.',
     })
   }
 

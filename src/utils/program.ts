@@ -1,6 +1,7 @@
 const PROGRAM_SORT_ORDER = [
   'FALGU',
   'GEF',
+  'SGLGIF',
   'GREEN, GREEN, GREEN',
   'RAPID Growth Project',
   'SAFPB',
@@ -94,6 +95,16 @@ export function normalizeProgramName(value: unknown) {
     compact.includes('GROWTHEQUITYFUND')
   ) {
     return 'GEF'
+  }
+
+  if (
+    compact === 'SGLGIF' ||
+    compact.startsWith('LGSFSGLGIF') ||
+    compact.includes('SEALOFGOODLOCALGOVERNANCEINCENTIVEFUND') ||
+    compact.includes('SEALOFGOODLOCALGOVERNANCEINCENTIVE') ||
+    compact.includes('SGLGINCENTIVEFUND')
+  ) {
+    return 'SGLGIF'
   }
 
   if (

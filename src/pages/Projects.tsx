@@ -607,8 +607,8 @@ export default function Projects() {
             type="button"
             className="projects-floating-btn import"
             onClick={() => navigate('/projects/import-subaybayan')}
-            aria-label="Import SubayBAYAN masterlist"
-            title="Import SubayBAYAN masterlist"
+            aria-label="Import SubayBAYAN or SGLGIF masterlist"
+            title="Import SubayBAYAN or SGLGIF masterlist"
           >
             <ImportIcon />
           </button>

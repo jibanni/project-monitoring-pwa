@@ -107,6 +107,7 @@ const FUNDING_SOURCE_OPTIONS = [
   'LGSF-SBDP',
   'LGSF - SBDP UA',
   'LGSF-SAFPB',
+  'SGLGIF',
   'SALINTUBIG',
   'CMGP / KALSADA',
   'Other',
@@ -292,7 +293,7 @@ function analyzeCoordinates(latitudeValue: string, longitudeValue: string): Coor
 function formatPhp(value: string) {
   const amount = Number(value)
 
-  if (!Number.isFinite(amount) || amount <= 0) return 'Php 0.00'
+  if (!value.trim() || !Number.isFinite(amount) || amount <= 0) return 'Not entered'
 
   return `Php ${amount.toLocaleString('en-PH', {
     minimumFractionDigits: 2,
@@ -824,7 +825,7 @@ export default function EditProject() {
       funding_year: cleanText(form.funding_year) ? Number(form.funding_year) : null,
       implementing_office: cleanText(form.implementing_office),
       contractor: cleanText(form.contractor),
-      budget: toNullableNumber(form.budget) ?? 0,
+      budget: toNullableNumber(form.budget),
       disbursement_amount: disbursementAmount > 0 ? disbursementAmount : 0,
       start_date: cleanText(form.start_date),
       target_completion_date: cleanText(form.target_completion_date),

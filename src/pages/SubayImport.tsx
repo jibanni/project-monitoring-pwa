@@ -22,6 +22,7 @@ type ExistingProject = {
   province?: string | null
   municipality?: string | null
   subaybayan_project_code?: string | null
+  budget?: number | string | null
 }
 
 type PreviewAction = 'create' | 'update_by_code' | 'link_manual' | 'invalid'
@@ -31,6 +32,7 @@ type PreviewRow = {
   action: PreviewAction
   actionLabel: string
   projectId?: string
+  existingBudget?: number | string | null
   issue?: string
 }
 
@@ -51,6 +53,13 @@ function getProjectCode(project: ExistingProject) {
   return textValue(project.subaybayan_project_code).toUpperCase()
 }
 
+function getCanonicalSglgifCode(value: unknown) {
+  const code = textValue(value).toUpperCase()
+  const match = code.match(/^SGLGIF-(\d{4})-(\d{10})(?:-|$)/)
+
+  return match ? `SGLGIF-${match[1]}-${match[2]}` : ''
+}
+
 function getStatusClass(action: PreviewAction) {
   if (action === 'create') return 'create'
   if (action === 'update_by_code') return 'update'
@@ -58,11 +67,19 @@ function getStatusClass(action: PreviewAction) {
   return 'invalid'
 }
 
-function formatCurrency(value: number) {
-  return `Php ${Number(value || 0).toLocaleString('en-US', {
+function formatCurrency(value: number | null | undefined) {
+  const amount = Number(value || 0)
+
+  if (!Number.isFinite(amount) || amount <= 0) return ''
+
+  return `Php ${amount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`
+}
+
+function getImportCost(record: SubayImportRecord) {
+  return record.budget || record.contractAmount || 0
 }
 
 function formatDate(value: string | null) {
@@ -106,6 +123,13 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
 
     if (code) byCode.set(code, project)
 
+    // Match and migrate SGLGIF codes created by the earlier importer, which
+    // appended the project title after the 10-digit LGU reference code.
+    const canonicalSglgifCode = getCanonicalSglgifCode(code)
+    if (canonicalSglgifCode && !byCode.has(canonicalSglgifCode)) {
+      byCode.set(canonicalSglgifCode, project)
+    }
+
     const fingerprint = createProjectFingerprint({
       funding_year: project.funding_year,
       funding_source: project.funding_source,
@@ -137,6 +161,7 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
         action: 'update_by_code',
         actionLabel: 'Update Existing',
         projectId: existingByCode.id,
+        existingBudget: existingByCode.budget,
       }
     }
 
@@ -149,6 +174,7 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
         action: 'link_manual',
         actionLabel: 'Link Manual Record',
         projectId: manualMatch.id,
+        existingBudget: manualMatch.budget,
       }
     }
 
@@ -190,7 +216,7 @@ export default function SubayImport() {
   async function fetchExistingProjects() {
     const { data, error } = await supabase
       .from('projects')
-      .select('id, project_name, funding_year, funding_source, province, municipality, subaybayan_project_code')
+      .select('id, project_name, funding_year, funding_source, province, municipality, subaybayan_project_code, budget')
 
     if (error) throw error
 
@@ -233,7 +259,7 @@ export default function SubayImport() {
       console.error(error)
       setErrorMessage(
         error?.message ||
-          'Unable to read the SubayBAYAN masterlist. Please check the XLS/XLSX file.',
+          'Unable to read the project masterlist. Please check the XLS/XLSX file.',
       )
     } finally {
       setLoading(false)
@@ -247,7 +273,7 @@ export default function SubayImport() {
     }
 
     const confirmed = window.confirm(
-      'Proceed with SubayBAYAN Priority Import? Existing project master data with the same PROJECT CODE will be overwritten, but inspection updates and photos will be preserved.',
+      'Proceed with the project masterlist import? Existing project master data with the same import code will be overwritten, but inspection updates and photos will be preserved.',
     )
 
     if (!confirmed) return
@@ -270,7 +296,10 @@ export default function SubayImport() {
         continue
       }
 
-      const payload = projectPayloadFromSubayRecord(row.record)
+      const payload = projectPayloadFromSubayRecord(row.record, {
+        isCreate: row.action === 'create',
+        existingBudget: row.existingBudget,
+      })
 
       try {
         if (row.action === 'create') {
@@ -311,7 +340,7 @@ export default function SubayImport() {
         `Import completed with ${result.errors.length} row error(s). Review the result summary below.`,
       )
     } else {
-      setSuccessMessage('SubayBAYAN import completed successfully.')
+      setSuccessMessage('Project masterlist import completed successfully.')
     }
   }
 
@@ -334,7 +363,7 @@ export default function SubayImport() {
       <main className="subay-import-page">
         <section className="subay-import-access-card">
           <h1>Admin Access Required</h1>
-          <p>Only Admin accounts can import SubayBAYAN masterlists.</p>
+          <p>Only Admin accounts can import SubayBAYAN and SGLGIF masterlists.</p>
           <button type="button" onClick={() => navigate('/projects')}>
             Back to Projects
           </button>
@@ -348,12 +377,13 @@ export default function SubayImport() {
       <section className="subay-import-hero">
         <div>
           <p className="subay-import-eyebrow">Admin Tool</p>
-          <h1>SubayBAYAN Import</h1>
+          <h1>Project Masterlist Import</h1>
           <p>
-            Upload a SubayBAYAN XLS/XLSX masterlist. PMS10 will include only FY{' '}
-            {SUBAY_MIN_FUNDING_YEAR} onwards and use PROJECT CODE to update existing
-            projects, link matching manual records, and add new projects without
-            duplicating inspection history.
+            Upload a supported SubayBAYAN or SGLGIF XLS/XLSX masterlist. PMS10
+            keeps the two SubayBAYAN formats and also detects the SGLGIF Portal
+            projects extraction. SGLGIF import codes use the format
+            SGLGIF-FY-########## and do not include the project title. Existing
+            records are matched without duplicating inspection history.
           </p>
         </div>
 
@@ -375,11 +405,11 @@ export default function SubayImport() {
             <UploadIcon />
           </span>
           <div>
-            <h2>Upload SubayBAYAN Masterlist</h2>
+            <h2>Upload SubayBAYAN or SGLGIF Masterlist</h2>
             <p>
-              Accepted formats: .xls and .xlsx. The importer adapts to different
-              SubayBAYAN masterlist formats and captures intended completion and
-              contract expiration dates when available.
+              Accepted formats: .xls and .xlsx. Supported layouts are
+              SubayBAYAN FY 2024-below, SubayBAYAN FY 2025-above, and the SGLGIF
+              Portal projects extraction.
             </p>
           </div>
         </div>
@@ -427,7 +457,7 @@ export default function SubayImport() {
 
       {detectedSheets.length > 0 && (
         <section className="subay-import-sheet-note">
-          Detected SubayBAYAN sheet(s): <strong>{detectedSheets.join(', ')}</strong>
+          Detected supported sheet(s): <strong>{detectedSheets.join(', ')}</strong>
         </section>
       )}
 
@@ -454,9 +484,10 @@ export default function SubayImport() {
           <div>
             <h2>Preview Before Import</h2>
             <p>
-              PROJECT CODE is the main matching key. Only FY {SUBAY_MIN_FUNDING_YEAR}
-              onwards will be included. Existing PMS10 inspection updates, photos,
-              and Google Drive records are preserved.
+              SubayBAYAN uses PROJECT CODE. SGLGIF uses a stable import code
+              generated from its LGU reference code, year, LGU, and title. Only FY{' '}
+              {SUBAY_MIN_FUNDING_YEAR} onwards will be included. Existing PMS10
+              inspection updates, photos, and Google Drive records are preserved.
             </p>
           </div>
 
@@ -478,11 +509,11 @@ export default function SubayImport() {
         {loading ? (
           <div className="subay-import-loading">
             <div className="subay-import-loader" />
-            <p>Reading SubayBAYAN masterlist...</p>
+            <p>Reading project masterlist...</p>
           </div>
         ) : previewRows.length === 0 ? (
           <div className="subay-import-empty">
-            Upload a SubayBAYAN masterlist to preview projects before import.
+            Upload a supported SubayBAYAN or SGLGIF masterlist to preview projects before import.
           </div>
         ) : (
           <div className="subay-import-table-wrap">
@@ -490,7 +521,7 @@ export default function SubayImport() {
               <thead>
                 <tr>
                   <th>Action</th>
-                  <th>Project Code</th>
+                  <th>Project / Import Code</th>
                   <th>Project Title</th>
                   <th>LGU</th>
                   <th>Program / FY</th>
@@ -523,7 +554,16 @@ export default function SubayImport() {
                       <strong>{row.record.fundingSource || '-'}</strong>
                       <small>{row.record.fundingYear ? `FY ${row.record.fundingYear}` : 'No FY'}</small>
                     </td>
-                    <td>{formatCurrency(row.record.budget || row.record.contractAmount)}</td>
+                    <td>
+                      {formatCurrency(getImportCost(row.record)) || (
+                        <>
+                          <span>Blank</span>
+                          {row.record.subayFormat === 'sglgif_portal' && (
+                            <small>Enter manually after import</small>
+                          )}
+                        </>
+                      )}
+                    </td>
                     <td>{row.record.status}</td>
                     <td>{formatDate(row.record.targetCompletionDate)}</td>
                     <td>{formatDate(row.record.contractExpirationDate)}</td>

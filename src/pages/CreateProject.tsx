@@ -119,6 +119,7 @@ const FUNDING_SOURCE_OPTIONS = [
   'LGSF-SBDP',
   'LGSF - SBDP UA',
   'LGSF-SAFPB',
+  'SGLGIF',
   'SALINTUBIG',
   'CMGP / KALSADA',
   'Other',
