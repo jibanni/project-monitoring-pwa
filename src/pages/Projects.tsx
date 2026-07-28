@@ -11,6 +11,10 @@ import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCano
 import '../styles/projects.css'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
 import { normalizeProgramName } from '../utils/program'
+import {
+  getCanonicalProjectLgu,
+  getCanonicalProjectProvinceOrHuc,
+} from '../data/region10Directory'
 
 type ProjectRow = {
   id: string
@@ -394,7 +398,13 @@ export default function Projects() {
 
   const provinces = useMemo(() => {
     return Array.from(
-      new Set(allowedProjects.map((project) => textValue(project.province)).filter(Boolean)),
+      new Set(
+        allowedProjects
+          .map((project) =>
+            getCanonicalProjectProvinceOrHuc(project.province, project.municipality),
+          )
+          .filter(Boolean),
+      ),
     ).sort()
   }, [allowedProjects])
 
@@ -403,9 +413,16 @@ export default function Projects() {
       new Set(
         allowedProjects
           .filter((project) =>
-            provinceFilter ? textValue(project.province) === provinceFilter : true,
+            provinceFilter
+              ? getCanonicalProjectProvinceOrHuc(
+                  project.province,
+                  project.municipality,
+                ) === provinceFilter
+              : true,
           )
-          .map((project) => textValue(project.municipality))
+          .map((project) =>
+            getCanonicalProjectLgu(project.province, project.municipality),
+          )
           .filter(Boolean),
       ),
     ).sort()
@@ -465,11 +482,15 @@ export default function Projects() {
         : true
 
       const provinceMatches = provinceFilter
-        ? textValue(project.province) === provinceFilter
+        ? getCanonicalProjectProvinceOrHuc(
+            project.province,
+            project.municipality,
+          ) === provinceFilter
         : true
 
       const municipalityMatches = municipalityFilter
-        ? textValue(project.municipality) === municipalityFilter
+        ? getCanonicalProjectLgu(project.province, project.municipality) ===
+          municipalityFilter
         : true
 
       const programMatches = programFilter
@@ -707,7 +728,7 @@ export default function Projects() {
 
           <div className="projects-filter-grid">
             <label>
-              Province
+              Province/HUC
               <select
                 value={provinceFilter}
                 onChange={(event) => {
@@ -715,7 +736,7 @@ export default function Projects() {
                   setMunicipalityFilter('')
                 }}
               >
-                <option value="">All Provinces</option>
+                <option value="">All Provinces/HUCs</option>
                 {provinces.map((province) => (
                   <option key={province} value={province}>
                     {province}

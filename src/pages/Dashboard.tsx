@@ -18,6 +18,10 @@ import { useAuth } from '../context/AuthContext'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
+import {
+  getCanonicalProjectLgu,
+  getCanonicalProjectProvinceOrHuc,
+} from '../data/region10Directory'
 
 type ProjectRecord = Record<string, any>
 
@@ -233,18 +237,27 @@ function getYearFilterValue(project: ProjectRecord) {
 }
 
 function getProvinceFilterValue(project: ProjectRecord) {
-  return safeText(project.province ?? project.province_name, '')
+  const province = project.province ?? project.province_name
+  const lgu =
+    project.city_municipality ??
+    project.municipality ??
+    project.city ??
+    project.lgu ??
+    project.lgu_name
+
+  return getCanonicalProjectProvinceOrHuc(province, lgu)
 }
 
 function getLguFilterValue(project: ProjectRecord) {
-  return safeText(
+  const province = project.province ?? project.province_name
+  const lgu =
     project.city_municipality ??
-      project.municipality ??
-      project.city ??
-      project.lgu ??
-      project.lgu_name,
-    '',
-  )
+    project.municipality ??
+    project.city ??
+    project.lgu ??
+    project.lgu_name
+
+  return getCanonicalProjectLgu(province, lgu)
 }
 
 function uniqueSortedTextValues(values: string[]) {
@@ -444,14 +457,19 @@ export default function Dashboard() {
     const years = uniqueSortedTextValues(aorProjects.map(getYearFilterValue)).sort(
       (a, b) => asNumber(b) - asNumber(a),
     )
+    const provinceFilteredProjects = aorProjects.filter((project) =>
+      dashboardFilters.province === ALL_FILTER_VALUE
+        ? true
+        : getProvinceFilterValue(project) === dashboardFilters.province,
+    )
 
     return {
       programs: buildProgramFilterOptions(aorProjects.map(getProgramFilterValue), false),
       years,
       provinces: uniqueSortedTextValues(aorProjects.map(getProvinceFilterValue)),
-      lgus: uniqueSortedTextValues(aorProjects.map(getLguFilterValue)),
+      lgus: uniqueSortedTextValues(provinceFilteredProjects.map(getLguFilterValue)),
     }
-  }, [aorProjects])
+  }, [aorProjects, dashboardFilters.province])
 
   const hasActiveDashboardFilters = useMemo(() => {
     return Object.values(dashboardFilters).some(
@@ -969,7 +987,7 @@ export default function Dashboard() {
             </label>
 
             <label>
-              <span>Province</span>
+              <span>Province/HUC</span>
               <select
                 value={dashboardFilters.province}
                 onChange={(event) =>
@@ -980,7 +998,7 @@ export default function Dashboard() {
                   }))
                 }
               >
-                <option value={ALL_FILTER_VALUE}>All provinces</option>
+                <option value={ALL_FILTER_VALUE}>All Provinces/HUCs</option>
                 {filterOptions.provinces.map((province) => (
                   <option key={province} value={province}>
                     {province}

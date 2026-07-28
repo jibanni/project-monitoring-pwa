@@ -9,6 +9,12 @@ import { filterProjectsByAor } from '../utils/aorAccess'
 import { normalizeProgramName } from '../utils/program'
 import { getPmsRiskLevel } from '../utils/projectStatus'
 import {
+  canonicalizeRegion10Lgu,
+  canonicalizeRegion10ProvinceOrHuc,
+  getCanonicalProjectLgu,
+  getCanonicalProjectProvinceOrHuc,
+} from '../data/region10Directory'
+import {
   formatSignedVariance,
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
@@ -203,11 +209,22 @@ function getCanonicalReportRole(role: unknown) {
 }
 
 function reportProjectMatchesProvince(project: ProjectRow, province: unknown) {
-  return sameText(project.province, province)
+  return sameText(
+    getCanonicalProjectProvinceOrHuc(project.province, project.municipality),
+    canonicalizeRegion10ProvinceOrHuc(province),
+  )
 }
 
 function reportProjectMatchesMunicipality(project: ProjectRow, municipality: unknown) {
-  return sameText(project.municipality, municipality)
+  const provinceOrHuc = getCanonicalProjectProvinceOrHuc(
+    project.province,
+    project.municipality,
+  )
+
+  return sameText(
+    getCanonicalProjectLgu(project.province, project.municipality),
+    canonicalizeRegion10Lgu(municipality, provinceOrHuc),
+  )
 }
 
 function getStrictReportAorProjects(projects: ProjectRow[], auth: ReturnType<typeof useAuth>) {
@@ -314,42 +331,54 @@ function getReportProvinceOptions(
   if (!profile || profile.approved !== true || profile.is_active === false) return []
 
   if (auth.isAdmin || role === 'Admin' || role === 'RD' || role === 'ARD' || role === 'PDMU Chief') {
-    return uniqueSortedTextValues(aorProjects.map((project) => project.province))
+    return uniqueSortedTextValues(
+      aorProjects.map((project) =>
+        getCanonicalProjectProvinceOrHuc(project.province, project.municipality),
+      ),
+    )
   }
 
   if (auth.isROEngineer || role === 'RO Engineer') {
     const assignments = getActiveReportRoAssignments(auth)
     const assignedProvinces = uniqueSortedTextValues(
-      assignments.map((assignment) => assignment.province),
+      assignments.map((assignment) =>
+        canonicalizeRegion10ProvinceOrHuc(assignment.province),
+      ),
     )
 
     return assignedProvinces.length > 0
       ? assignedProvinces
-      : uniqueSortedTextValues([profile.province])
+      : uniqueSortedTextValues([canonicalizeRegion10ProvinceOrHuc(profile.province)])
   }
 
   if (auth.isPOEngineer || auth.isEngineer || role === 'PO Engineer') {
     const assignments = getActiveReportPoAssignments(auth)
     const assignedProvinces = uniqueSortedTextValues(
-      assignments.map((assignment) => assignment.province),
+      assignments.map((assignment) =>
+        canonicalizeRegion10ProvinceOrHuc(assignment.province),
+      ),
     )
 
     return assignedProvinces.length > 0
       ? assignedProvinces
-      : uniqueSortedTextValues([profile.province])
+      : uniqueSortedTextValues([canonicalizeRegion10ProvinceOrHuc(profile.province)])
   }
 
   if (auth.isPD || auth.isPEO || role === 'PD' || role === 'PEO') {
-    return uniqueSortedTextValues([profile.province])
+    return uniqueSortedTextValues([canonicalizeRegion10ProvinceOrHuc(profile.province)])
   }
 
   const aorProjectProvinces = uniqueSortedTextValues(
-    aorProjects.map((project) => project.province),
+    aorProjects.map((project) =>
+      getCanonicalProjectProvinceOrHuc(project.province, project.municipality),
+    ),
   )
 
   if (aorProjectProvinces.length > 0) return aorProjectProvinces
 
-  return uniqueSortedTextValues([profile.province])
+  return uniqueSortedTextValues([
+    canonicalizeRegion10ProvinceOrHuc(profile.province || profile.huc),
+  ])
 }
 
 function getReportMunicipalityOptions(
@@ -367,34 +396,59 @@ function getReportMunicipalityOptions(
     const assignedMunicipalities = uniqueSortedTextValues(
       assignments
         .filter((assignment) =>
-          provinceFilter ? sameText(assignment.province, provinceFilter) : true,
+          provinceFilter
+            ? sameText(
+                canonicalizeRegion10ProvinceOrHuc(assignment.province),
+                provinceFilter,
+              )
+            : true,
         )
-        .map((assignment) => assignment.municipality),
+        .map((assignment) =>
+          canonicalizeRegion10Lgu(
+            assignment.municipality,
+            assignment.province,
+          ),
+        ),
     )
 
     return assignedMunicipalities.length > 0
       ? assignedMunicipalities
-      : uniqueSortedTextValues([profile.municipality])
+      : uniqueSortedTextValues([
+          canonicalizeRegion10Lgu(profile.municipality, profile.province),
+        ])
   }
 
   if (auth.isCD || role === 'CD') {
-    return uniqueSortedTextValues([profile.huc])
+    return uniqueSortedTextValues([
+      canonicalizeRegion10ProvinceOrHuc(profile.huc),
+    ])
   }
 
   if (auth.isCLGOO || role === 'CLGOO') {
-    return uniqueSortedTextValues([profile.city])
+    return uniqueSortedTextValues([
+      canonicalizeRegion10Lgu(profile.city, profile.province),
+    ])
   }
 
   if (auth.isMLGOO || role === 'MLGOO') {
-    return uniqueSortedTextValues([profile.municipality])
+    return uniqueSortedTextValues([
+      canonicalizeRegion10Lgu(profile.municipality, profile.province),
+    ])
   }
 
   return uniqueSortedTextValues(
     aorProjects
       .filter((project) =>
-        provinceFilter ? sameText(project.province, provinceFilter) : true,
+        provinceFilter
+          ? getCanonicalProjectProvinceOrHuc(
+              project.province,
+              project.municipality,
+            ) === provinceFilter
+          : true,
       )
-      .map((project) => project.municipality),
+      .map((project) =>
+        getCanonicalProjectLgu(project.province, project.municipality),
+      ),
   )
 }
 
@@ -807,11 +861,15 @@ export default function Reports() {
         : true
 
       const provinceMatches = provinceFilter
-        ? sameText(project.province, provinceFilter)
+        ? getCanonicalProjectProvinceOrHuc(
+            project.province,
+            project.municipality,
+          ) === provinceFilter
         : true
 
       const municipalityMatches = municipalityFilter
-        ? sameText(project.municipality, municipalityFilter)
+        ? getCanonicalProjectLgu(project.province, project.municipality) ===
+          municipalityFilter
         : true
 
       const programMatches = programFilter
@@ -1131,7 +1189,7 @@ export default function Reports() {
           {showFilters && (
             <div className="reports-filter-grid">
               <label>
-                <span>Province</span>
+                <span>Province/HUC</span>
                 <select
                   value={provinceFilter}
                   onChange={(event) => {
@@ -1139,7 +1197,7 @@ export default function Reports() {
                     setMunicipalityFilter('')
                   }}
                 >
-                  <option value="">Available Provinces</option>
+                  <option value="">Available Provinces/HUCs</option>
                   {provinces.map((province) => (
                     <option key={province} value={province}>
                       {province}

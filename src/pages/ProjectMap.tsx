@@ -18,6 +18,10 @@ import {
   canUpdateProject as canUpdateProjectByAor,
   filterProjectsByAor,
 } from '../utils/aorAccess'
+import {
+  getCanonicalProjectLgu,
+  getCanonicalProjectProvinceOrHuc,
+} from '../data/region10Directory'
 import '../styles/projectMap.css'
 import '../styles/pageHero.css'
 
@@ -736,9 +740,21 @@ export default function ProjectMap() {
     const risks = new Set<string>()
 
     projects.forEach((project) => {
-      if (normalizeText(project.province)) provinces.add(normalizeText(project.province))
-      if (normalizeText(project.municipality)) {
-        municipalities.add(normalizeText(project.municipality))
+      const provinceOrHuc = getCanonicalProjectProvinceOrHuc(
+        project.province,
+        project.municipality,
+      )
+      const municipalityOrLgu = getCanonicalProjectLgu(
+        project.province,
+        project.municipality,
+      )
+
+      if (provinceOrHuc) provinces.add(provinceOrHuc)
+      if (
+        municipalityOrLgu &&
+        (provinceFilter === 'All' || provinceOrHuc === provinceFilter)
+      ) {
+        municipalities.add(municipalityOrLgu)
       }
 
       const fundingYear = formatFundingYear(project.funding_year)
@@ -761,7 +777,7 @@ export default function ProjectMap() {
       statuses: ['All', ...Array.from(statuses).sort()],
       risks: ['All', ...Array.from(risks).sort()],
     }
-  }, [projects])
+  }, [projects, provinceFilter])
 
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null
@@ -797,9 +813,15 @@ export default function ProjectMap() {
 
       const matchesSearch = !query || searchable.includes(query)
       const matchesProvince =
-        provinceFilter === 'All' || normalizeText(project.province) === provinceFilter
+        provinceFilter === 'All' ||
+        getCanonicalProjectProvinceOrHuc(
+          project.province,
+          project.municipality,
+        ) === provinceFilter
       const matchesMunicipality =
-        municipalityFilter === 'All' || normalizeText(project.municipality) === municipalityFilter
+        municipalityFilter === 'All' ||
+        getCanonicalProjectLgu(project.province, project.municipality) ===
+          municipalityFilter
       const matchesFundingYear =
         fundingYearFilter === 'All' || projectFundingYear === fundingYearFilter
       const matchesProgram =
@@ -981,7 +1003,7 @@ export default function ProjectMap() {
           {showFilters && (
             <div className="pm-map-filter-grid">
               <label>
-                <span>Province</span>
+                <span>Province/HUC</span>
                 <select
                   value={provinceFilter}
                   onChange={(event) => {
@@ -991,7 +1013,7 @@ export default function ProjectMap() {
                 >
                   {filterOptions.provinces.map((province) => (
                     <option key={province} value={province}>
-                      {province}
+                      {province === 'All' ? 'All Provinces/HUCs' : province}
                     </option>
                   ))}
                 </select>
@@ -1005,7 +1027,7 @@ export default function ProjectMap() {
                 >
                   {filterOptions.municipalities.map((municipality) => (
                     <option key={municipality} value={municipality}>
-                      {municipality}
+                      {municipality === 'All' ? 'All LGUs' : municipality}
                     </option>
                   ))}
                 </select>
