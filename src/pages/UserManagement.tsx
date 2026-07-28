@@ -54,18 +54,18 @@ type StatusFilter = 'all' | 'approved' | 'pending' | 'inactive'
 type RoleFilter = 'all' | UserRole
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'Admin', label: 'Admin' },
-  { value: 'RO Engineer', label: 'RO Engineer' },
-  { value: 'PO Engineer', label: 'PO Engineer' },
+  { value: 'Admin', label: 'ADMIN' },
+  { value: 'RO Engineer', label: 'RO ENGINEER' },
+  { value: 'PO Engineer', label: 'PO ENGINEER' },
   { value: 'RD', label: 'RD' },
   { value: 'ARD', label: 'ARD' },
-  { value: 'PDMU Chief', label: 'PDMU Chief' },
+  { value: 'PDMU Chief', label: 'PDMU CHIEF' },
   { value: 'PD', label: 'PD' },
   { value: 'CD', label: 'CD' },
   { value: 'CLGOO', label: 'CLGOO' },
   { value: 'MLGOO', label: 'MLGOO' },
   { value: 'PEO', label: 'PEO' },
-  { value: 'Viewer', label: 'Viewer' },
+  { value: 'Viewer', label: 'VIEWER' },
 ]
 
 function getDefaultAorLevel(role: UserRole) {
@@ -561,11 +561,11 @@ export default function UserManagement() {
             <strong>{summary.inactive}</strong>
           </article>
           <article className="user-management-summary-card">
-            <span>RO Engineer</span>
+            <span>RO ENGINEER</span>
             <strong>{summary.roEngineers}</strong>
           </article>
           <article className="user-management-summary-card">
-            <span>PO Engineer</span>
+            <span>PO ENGINEER</span>
             <strong>{summary.poEngineers}</strong>
           </article>
         </section>
@@ -589,12 +589,22 @@ export default function UserManagement() {
             <label htmlFor="role-filter">Role</label>
             <select
               id="role-filter"
-              value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
+              value={
+                roleFilter === 'all'
+                  ? 'ALL'
+                  : ROLE_OPTIONS.find((roleOption) => roleOption.value === roleFilter)?.label ||
+                    roleFilter.toLocaleUpperCase('en-PH')
+              }
+              onChange={(event) => {
+                const selectedRole = event.target.value
+                setRoleFilter(selectedRole === 'ALL' ? 'all' : normalizeRole(selectedRole))
+              }}
             >
-              <option value="all">All Roles</option>
+              <option value="ALL" label="ALL ROLES">
+                ALL ROLES
+              </option>
               {ROLE_OPTIONS.map((role) => (
-                <option key={role.value} value={role.value}>
+                <option key={role.value} value={role.label} label={role.label}>
                   {role.label}
                 </option>
               ))}
@@ -669,14 +679,18 @@ export default function UserManagement() {
                           <td>
                             <select
                               className="user-management-role-select"
-                              value={role}
+                              value={roleLabel(role)}
                               disabled={isCurrentUser || actionLoading === `role-${item.id}`}
                               onChange={(event) =>
-                                updateUserRole(item, event.target.value as UserRole)
+                                updateUserRole(item, normalizeRole(event.target.value))
                               }
                             >
                               {ROLE_OPTIONS.map((roleOption) => (
-                                <option key={roleOption.value} value={roleOption.value}>
+                                <option
+                                  key={roleOption.value}
+                                  value={roleOption.label}
+                                  label={roleOption.label}
+                                >
                                   {roleOption.label}
                                 </option>
                               ))}
@@ -770,12 +784,18 @@ export default function UserManagement() {
                         <span>Role</span>
                         <select
                           className="user-management-role-select"
-                          value={role}
+                          value={roleLabel(role)}
                           disabled={isCurrentUser || actionLoading === `role-${item.id}`}
-                          onChange={(event) => updateUserRole(item, event.target.value as UserRole)}
+                          onChange={(event) =>
+                            updateUserRole(item, normalizeRole(event.target.value))
+                          }
                         >
                           {ROLE_OPTIONS.map((roleOption) => (
-                            <option key={roleOption.value} value={roleOption.value}>
+                            <option
+                              key={roleOption.value}
+                              value={roleOption.label}
+                              label={roleOption.label}
+                            >
                               {roleOption.label}
                             </option>
                           ))}

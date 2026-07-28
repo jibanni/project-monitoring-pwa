@@ -82,18 +82,18 @@ type AccessForm = {
 }
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'Admin', label: 'Admin' },
-  { value: 'RO Engineer', label: 'RO Engineer' },
-  { value: 'PO Engineer', label: 'PO Engineer' },
+  { value: 'Admin', label: 'ADMIN' },
+  { value: 'RO Engineer', label: 'RO ENGINEER' },
+  { value: 'PO Engineer', label: 'PO ENGINEER' },
   { value: 'RD', label: 'RD' },
   { value: 'ARD', label: 'ARD' },
-  { value: 'PDMU Chief', label: 'PDMU Chief' },
+  { value: 'PDMU Chief', label: 'PDMU CHIEF' },
   { value: 'PD', label: 'PD' },
   { value: 'CD', label: 'CD' },
   { value: 'CLGOO', label: 'CLGOO' },
   { value: 'MLGOO', label: 'MLGOO' },
   { value: 'PEO', label: 'PEO' },
-  { value: 'Viewer', label: 'Viewer' },
+  { value: 'Viewer', label: 'VIEWER' },
 ]
 
 const AOR_OPTIONS: { value: AorLevel; label: string }[] = [
@@ -157,17 +157,41 @@ function getInitials(name?: string | null, email?: string | null) {
   return source.slice(0, 2).toUpperCase()
 }
 
+function locationKey(value: unknown) {
+  return normalizeLocationText(value).toLocaleLowerCase('en-PH')
+}
+
+function getCanonicalRegion10Province(value: unknown) {
+  const key = locationKey(value)
+  if (!key) return ''
+
+  return REGION10_PROVINCE_NAMES.find((province) => locationKey(province) === key) || ''
+}
+
+function uppercaseOptionLabel(value: unknown) {
+  return normalizeLocationText(value).toLocaleUpperCase('en-PH')
+}
+
 function uniqueSorted(values: string[]) {
-  return Array.from(new Set(values.map(normalizeLocationText).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b),
-  )
+  const uniqueValues = new Map<string, string>()
+
+  for (const value of values) {
+    const normalizedValue = normalizeLocationText(value)
+    const key = locationKey(normalizedValue)
+    if (!key || uniqueValues.has(key)) continue
+    uniqueValues.set(key, normalizedValue)
+  }
+
+  return Array.from(uniqueValues.values()).sort((a, b) => a.localeCompare(b))
 }
 
 function mergeLgus(directoryLgus: string[], projectLocations: ProjectLocation[], province: string) {
+  const selectedProvinceKey = locationKey(province)
+
   return uniqueSorted([
     ...directoryLgus,
     ...projectLocations
-      .filter((item) => normalizeLocationText(item.province) === normalizeLocationText(province))
+      .filter((item) => locationKey(item.province) === selectedProvinceKey)
       .map((item) => item.municipality),
   ])
 }
@@ -270,24 +294,35 @@ export default function UserAccess() {
 
       const uniqueLocations = new Map<string, ProjectLocation>()
       for (const row of locationsResult.data || []) {
-        const province = normalizeLocationText(row.province)
+        const province = getCanonicalRegion10Province(row.province)
         const municipality = normalizeLocationText(row.municipality)
         if (!province || !municipality) continue
-        uniqueLocations.set(`${province}|||${municipality}`, { province, municipality })
+
+        uniqueLocations.set(`${locationKey(province)}|||${locationKey(municipality)}`, {
+          province,
+          municipality,
+        })
       }
+
+      const canonicalProfileProvince = getCanonicalRegion10Province(userRecord.province)
+      const canonicalRoProvinces = uniqueSorted(
+        roAssignments
+          .map((assignment) => getCanonicalRegion10Province(assignment.province))
+          .filter(Boolean),
+      )
 
       setTargetUser(userRecord)
       setProjectLocations(Array.from(uniqueLocations.values()))
       setForm({
         role,
         aor_level: aorLevel,
-        province: normalizeLocationText(userRecord.province),
+        province: canonicalProfileProvince,
         huc: normalizeLocationText(userRecord.huc),
         city: normalizeLocationText(userRecord.city),
         municipality: normalizeLocationText(userRecord.municipality),
         is_active: userRecord.is_active !== false,
-        poAssignedLgus: poAssignments.map((assignment) => assignment.municipality).sort(),
-        roAssignedProvinces: roAssignments.map((assignment) => assignment.province).sort(),
+        poAssignedLgus: uniqueSorted(poAssignments.map((assignment) => assignment.municipality)),
+        roAssignedProvinces: canonicalRoProvinces,
       })
     } catch (err: any) {
       setError(err?.message || 'Unable to load user access settings.')
@@ -480,12 +515,7 @@ export default function UserAccess() {
     }
   }
 
-  const provinceOptions = useMemo(() => {
-    return uniqueSorted([
-      ...REGION10_PROVINCE_NAMES,
-      ...projectLocations.map((item) => item.province),
-    ])
-  }, [projectLocations])
+  const provinceOptions = useMemo(() => [...REGION10_PROVINCE_NAMES], [])
 
   const lguOptions = useMemo(() => {
     if (!form?.province) return []
@@ -564,12 +594,15 @@ export default function UserAccess() {
           <label>
             <span>Role</span>
             <select
-              value={form.role}
+              value={
+                ROLE_OPTIONS.find((roleOption) => roleOption.value === form.role)?.label ||
+                form.role.toLocaleUpperCase('en-PH')
+              }
               disabled={targetUser.id === user?.id}
-              onChange={(event) => updateForm('role', event.target.value as UserRole)}
+              onChange={(event) => updateForm('role', normalizeRole(event.target.value))}
             >
               {ROLE_OPTIONS.map((role) => (
-                <option key={role.value} value={role.value}>
+                <option key={role.value} value={role.label} label={role.label}>
                   {role.label}
                 </option>
               ))}
@@ -609,7 +642,7 @@ export default function UserAccess() {
                   checked={form.roAssignedProvinces.includes(province)}
                   onChange={() => toggleRoProvince(province)}
                 />
-                <span>{province}</span>
+                <span>{uppercaseOptionLabel(province)}</span>
               </label>
             ))}
           </div>
@@ -624,10 +657,10 @@ export default function UserAccess() {
           <label className="user-access-field">
             <span>Province</span>
             <select value={form.province} onChange={(event) => updateForm('province', event.target.value)}>
-              <option value="">Select Province</option>
+              <option value="">SELECT PROVINCE</option>
               {provinceOptions.map((province) => (
                 <option key={province} value={province}>
-                  {province}
+                  {uppercaseOptionLabel(province)}
                 </option>
               ))}
             </select>
@@ -658,10 +691,10 @@ export default function UserAccess() {
           <label className="user-access-field">
             <span>Province</span>
             <select value={form.province} onChange={(event) => updateForm('province', event.target.value)}>
-              <option value="">Select Province</option>
+              <option value="">SELECT PROVINCE</option>
               {provinceOptions.map((province) => (
                 <option key={province} value={province}>
-                  {province}
+                  {uppercaseOptionLabel(province)}
                 </option>
               ))}
             </select>
@@ -695,10 +728,10 @@ export default function UserAccess() {
             <label>
               <span>Province</span>
               <select value={form.province} onChange={(event) => updateForm('province', event.target.value)}>
-                <option value="">Select Province</option>
+                <option value="">SELECT PROVINCE</option>
                 {provinceOptions.map((province) => (
                   <option key={province} value={province}>
-                    {province}
+                    {uppercaseOptionLabel(province)}
                   </option>
                 ))}
               </select>
@@ -736,10 +769,10 @@ export default function UserAccess() {
             <label>
               <span>Province</span>
               <select value={form.province} onChange={(event) => updateForm('province', event.target.value)}>
-                <option value="">Select Province</option>
+                <option value="">SELECT PROVINCE</option>
                 {provinceOptions.map((province) => (
                   <option key={province} value={province}>
-                    {province}
+                    {uppercaseOptionLabel(province)}
                   </option>
                 ))}
               </select>
