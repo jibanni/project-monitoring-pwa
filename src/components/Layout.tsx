@@ -508,7 +508,15 @@ export default function Layout({ children }: LayoutProps) {
         <main className="app-main">{children || <Outlet />}</main>
       </div>
 
-      <nav className="app-mobile-nav" aria-label="Mobile navigation">
+      <nav
+        className="app-mobile-nav"
+        aria-label="Mobile navigation"
+        style={
+          {
+            '--pms10-mobile-nav-count': String(visibleNavItems.length),
+          } as CSSProperties
+        }
+      >
         <div className="app-mobile-nav-scroll">
           {visibleNavItems.map((item) => {
             const active = isItemActive(item)
