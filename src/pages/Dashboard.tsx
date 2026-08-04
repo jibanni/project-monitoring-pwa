@@ -13,9 +13,9 @@ import {
   Tooltip,
   } from 'recharts'
 
-import { supabase } from '../lib/supabase'
+import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
-import { filterProjectsByAor } from '../utils/aorAccess'
+import { filterProjectsByAor, type AorProjectLike } from '../utils/aorAccess'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
 import {
@@ -23,7 +23,7 @@ import {
   getCanonicalProjectProvinceOrHuc,
 } from '../data/region10Directory'
 
-type ProjectRecord = Record<string, any>
+type ProjectRecord = SharedProjectRow & AorProjectLike & Record<string, any>
 
 type DrilldownState = {
   title: string
@@ -334,9 +334,12 @@ export default function Dashboard() {
   const auth = useAuth()
   const modalCloseTimerRef = useRef<number | null>(null)
 
-  const [projects, setProjects] = useState<ProjectRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
+  const {
+    projects,
+    loading,
+    errorMessage,
+    refreshProjects,
+  } = useSharedProjects<ProjectRecord>()
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
   const [isDrilldownClosing, setIsDrilldownClosing] = useState(false)
   const [drilldownVisibleCount, setDrilldownVisibleCount] = useState(DRILLDOWN_PAGE_SIZE)
@@ -347,8 +350,6 @@ export default function Dashboard() {
   const [showDashboardFilters, setShowDashboardFilters] = useState(false)
 
   useEffect(() => {
-    loadProjects()
-
     return () => {
       if (modalCloseTimerRef.current) {
         window.clearTimeout(modalCloseTimerRef.current)
@@ -398,27 +399,6 @@ export default function Dashboard() {
       window.removeEventListener('keydown', handleEscape)
     }
   }, [drilldown])
-
-  async function loadProjects() {
-    setLoading(true)
-    setErrorMessage('')
-
-    const { data, error } = await supabase.from('projects').select('*')
-
-    if (error) {
-      setErrorMessage(error.message)
-      setProjects([])
-      setLoading(false)
-      return
-    }
-
-    const sortedProjects = ((data ?? []) as ProjectRecord[]).sort(
-      (a, b) => getUpdatedTime(b) - getUpdatedTime(a),
-    )
-
-    setProjects(sortedProjects)
-    setLoading(false)
-  }
 
   function openDrilldown(
     title: string,
@@ -847,7 +827,7 @@ export default function Dashboard() {
           <h2>Unable to load dashboard records</h2>
           <p>{errorMessage}</p>
 
-          <button type="button" onClick={loadProjects}>
+          <button type="button" onClick={() => void refreshProjects()}>
             Try Again
           </button>
         </div>

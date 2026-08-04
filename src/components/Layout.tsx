@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { preloadRoute, scheduleRoutePreloads } from '../lib/routePreload'
+import { initializeSharedProjects } from '../lib/projectDataCache'
 import '../styles/layout.css'
 
 type LayoutProps = {
@@ -321,6 +322,10 @@ export default function Layout({ children }: LayoutProps) {
       return true
     })
   }, [isAdmin, isEngineer])
+
+  useEffect(() => {
+    void initializeSharedProjects()
+  }, [])
 
   useEffect(() => {
     const lightweightPaths = visibleNavItems

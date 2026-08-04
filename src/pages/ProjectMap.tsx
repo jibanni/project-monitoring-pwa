@@ -11,6 +11,7 @@ import {
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
+import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
@@ -40,7 +41,7 @@ const REGION_10_BOUNDS: [[number, number], [number, number]] = [
   [9.75, 125.85],
 ]
 
-type ProjectRecord = {
+type ProjectRecord = SharedProjectRow & {
   id: string
   project_name: string | null
   description: string | null
@@ -602,6 +603,12 @@ export default function ProjectMap() {
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const {
+    projects: sharedProjects,
+    loading: sharedProjectsLoading,
+    errorMessage: sharedProjectsError,
+    refreshProjects,
+  } = useSharedProjects<ProjectRecord>()
 
   const [projects, setProjects] = useState<MapProject[]>([])
   const [loading, setLoading] = useState(true)
@@ -660,20 +667,26 @@ export default function ProjectMap() {
   }, [])
 
   async function loadProjects() {
+    if (sharedProjects.length === 0) {
+      setProjects([])
+      setLoading(sharedProjectsLoading)
+      setErrorMessage(sharedProjectsError)
+      return
+    }
+
+    const baseProjects = sharedProjects.map((project) => buildMapProject(project, []))
+    setProjects(filterProjectsByAor(baseProjects, auth))
+    setLoading(false)
+    setErrorMessage('')
+
+    if (!navigator.onLine) return
+
     try {
-      setLoading(true)
-      setErrorMessage('')
-
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .order('updated_at', { ascending: false })
-
-      if (projectError) throw projectError
-
       const { data: updateData, error: updateError } = await supabase
         .from('project_updates')
-        .select('*')
+        .select(
+          'project_id, inspection_date, inspection_latitude, inspection_longitude, created_at',
+        )
         .order('created_at', { ascending: false })
 
       if (updateError) throw updateError
@@ -688,19 +701,14 @@ export default function ProjectMap() {
         updateMap.set(update.project_id, currentUpdates)
       }
 
-      const mappedProjects = ((projectData || []) as unknown as ProjectRecord[]).map((project) =>
+      const mappedProjects = sharedProjects.map((project) =>
         buildMapProject(project, updateMap.get(project.id) || []),
       )
-      const aorFilteredProjects = filterProjectsByAor(mappedProjects, auth)
 
-      setProjects(aorFilteredProjects)
-    } catch (error: any) {
-      console.error(error)
-      setErrorMessage(
-        error?.message || 'Unable to load GIS map records. Please try again.',
-      )
-    } finally {
-      setLoading(false)
+      setProjects(filterProjectsByAor(mappedProjects, auth))
+    } catch (error) {
+      console.error('Unable to refresh inspection GPS records.', error)
+      // Keep the already rendered project coordinates visible.
     }
   }
 
@@ -708,6 +716,9 @@ export default function ProjectMap() {
     loadProjects()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    sharedProjects,
+    sharedProjectsLoading,
+    sharedProjectsError,
     auth.profile?.id,
     auth.profile?.role,
     auth.profile?.approved,
@@ -923,7 +934,10 @@ export default function ProjectMap() {
       <button
         type="button"
         className="pm-map-fab pm-map-fab-refresh"
-        onClick={loadProjects}
+        onClick={() => {
+          void refreshProjects()
+          void loadProjects()
+        }}
         disabled={loading}
         aria-label="Refresh GIS map"
         title="Refresh"

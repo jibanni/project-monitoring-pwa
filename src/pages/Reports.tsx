@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
+import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import { normalizeProgramName } from '../utils/program'
@@ -18,7 +19,7 @@ import {
 import '../styles/reports.css'
 import '../styles/pageHero.css'
 
-type ProjectRow = {
+type ProjectRow = SharedProjectRow & {
   id: string
   project_name: string | null
   description: string | null
@@ -65,7 +66,6 @@ type ProfileLookupRow = {
 type ProfileLookupMap = Record<string, ProfileLookupRow>
 
 type ReportsMemoryCache = {
-  projects: ProjectRow[]
   assignments: PoEngineerAssignmentRow[]
   profiles: ProfileLookupMap
   loadedAt: number
@@ -73,45 +73,22 @@ type ReportsMemoryCache = {
 
 const REPORTS_CACHE_TTL_MS = 5 * 60 * 1000
 const reportsMemoryCache: ReportsMemoryCache = {
-  projects: [],
   assignments: [],
   profiles: {},
   loadedAt: 0,
 }
 
-function hasFreshReportsCache() {
+function hasFreshReportsReferenceCache() {
   return (
-    reportsMemoryCache.projects.length > 0 &&
+    reportsMemoryCache.loadedAt > 0 &&
     Date.now() - reportsMemoryCache.loadedAt < REPORTS_CACHE_TTL_MS
   )
 }
 
-let reportsProjectsRequest: Promise<ProjectRow[]> | null = null
 let reportsReferenceRequest: Promise<{
   assignments: PoEngineerAssignmentRow[]
   profiles: ProfileLookupMap
 }> | null = null
-
-function requestReportProjects(): Promise<ProjectRow[]> {
-  if (reportsProjectsRequest) return reportsProjectsRequest
-
-  reportsProjectsRequest = (async (): Promise<ProjectRow[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('updated_at', { ascending: false })
-
-      if (error) throw error
-
-      return (data || []) as ProjectRow[]
-    } finally {
-      reportsProjectsRequest = null
-    }
-  })()
-
-  return reportsProjectsRequest
-}
 
 function requestReportReferenceData() {
   if (reportsReferenceRequest) return reportsReferenceRequest
@@ -641,20 +618,21 @@ function ExcelIcon() {
 export default function Reports() {
   const auth = useAuth()
 
-  const cachedAtMount = hasFreshReportsCache()
-  const [projects, setProjects] = useState<ProjectRow[]>(() =>
-    cachedAtMount ? reportsMemoryCache.projects : [],
-  )
+  const {
+    projects,
+    loading,
+    errorMessage,
+    refreshProjects,
+  } = useSharedProjects<ProjectRow>()
+  const cachedReferenceAtMount = hasFreshReportsReferenceCache()
   const [poEngineerAssignments, setPoEngineerAssignments] = useState<PoEngineerAssignmentRow[]>(() =>
-    cachedAtMount ? reportsMemoryCache.assignments : [],
+    cachedReferenceAtMount ? reportsMemoryCache.assignments : [],
   )
   const [profileMap, setProfileMap] = useState<ProfileLookupMap>(() =>
-    cachedAtMount ? reportsMemoryCache.profiles : {},
+    cachedReferenceAtMount ? reportsMemoryCache.profiles : {},
   )
-  const [loading, setLoading] = useState(!cachedAtMount)
-  const [referenceLoading, setReferenceLoading] = useState(!cachedAtMount)
+  const [referenceLoading, setReferenceLoading] = useState(!cachedReferenceAtMount)
   const [exporting, setExporting] = useState<'pdf' | 'excel' | ''>('')
-  const [errorMessage, setErrorMessage] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const [isReportsScrolled, setIsReportsScrolled] = useState(false)
@@ -671,7 +649,9 @@ export default function Reports() {
   }, [])
 
   useEffect(() => {
-    loadProjects()
+    if (!cachedReferenceAtMount) {
+      void loadReportReferenceData()
+    }
   }, [])
 
   useEffect(() => {
@@ -695,31 +675,6 @@ export default function Reports() {
       window.removeEventListener('scroll', handleScroll)
     }
   }, [])
-
-  async function loadProjects() {
-    const hasVisibleProjects = projects.length > 0
-
-    try {
-      if (!hasVisibleProjects) setLoading(true)
-      setErrorMessage('')
-
-      const loadedProjects = await requestReportProjects()
-      reportsMemoryCache.projects = loadedProjects
-      reportsMemoryCache.loadedAt = Date.now()
-      setProjects(loadedProjects)
-      setLoading(false)
-
-      void loadReportReferenceData()
-    } catch (error) {
-      console.error(error)
-
-      if (!hasVisibleProjects) {
-        setErrorMessage('Unable to load report data. Please check your connection and try again.')
-      }
-    } finally {
-      if (!hasVisibleProjects) setLoading(false)
-    }
-  }
 
   async function loadReportReferenceData() {
     try {
@@ -1154,7 +1109,7 @@ export default function Reports() {
         <div className="reports-error-card">
           <h2>Reports Error</h2>
           <p>{errorMessage}</p>
-          <button type="button" onClick={loadProjects}>
+          <button type="button" onClick={() => void refreshProjects()}>
             Reload Reports
           </button>
         </div>
