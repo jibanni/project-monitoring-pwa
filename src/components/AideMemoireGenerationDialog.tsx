@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import {
   aideMemoireDocumentToBlob,
@@ -25,6 +26,7 @@ type Props = {
   projectId: string
   updateRef: string
   source: Source
+  returnTo?: string
   onClose: () => void
   onGenerated?: () => void | Promise<void>
 }
@@ -103,9 +105,11 @@ export default function AideMemoireGenerationDialog({
   projectId,
   updateRef,
   source,
+  returnTo,
   onClose,
   onGenerated,
 }: Props) {
+  const navigate = useNavigate()
   const [record, setRecord] = useState<OfflineAideMemoire | null>(null)
   const [photos, setPhotos] = useState<Array<AideMemoirePhoto & { blob?: Blob }>>([])
   const [format, setFormat] = useState<AideMemoireExportFormat>('pdf')
@@ -116,6 +120,7 @@ export default function AideMemoireGenerationDialog({
   const [error, setError] = useState('')
   const [latestPdfBlob, setLatestPdfBlob] = useState<Blob | null>(null)
   const [latestPdfName, setLatestPdfName] = useState('Aide_Memoire.pdf')
+  const [latestPdfDocumentId, setLatestPdfDocumentId] = useState('')
 
   const aideMemoireId = useMemo(
     () => buildRecordId(projectId, source, updateRef),
@@ -169,9 +174,11 @@ export default function AideMemoireGenerationDialog({
         if (storedPdf) {
           setLatestPdfBlob(aideMemoireDocumentToBlob(storedPdf))
           setLatestPdfName(storedPdf.file_name || 'Aide_Memoire.pdf')
+          setLatestPdfDocumentId(storedPdf.id)
         } else {
           setLatestPdfBlob(null)
           setLatestPdfName('Aide_Memoire.pdf')
+          setLatestPdfDocumentId('')
         }
       } catch (loadError: any) {
         if (!cancelled) {
@@ -206,14 +213,28 @@ export default function AideMemoireGenerationDialog({
 
   function openLatestPdf() {
     if (!latestPdfBlob) return
-    const url = URL.createObjectURL(latestPdfBlob)
-    const opened = window.open(url, '_blank', 'noopener,noreferrer')
-    if (!opened) {
-      const link = document.createElement('a')
-      link.href = url
-      link.download = latestPdfName
-      link.click()
+
+    if (latestPdfDocumentId) {
+      const fallbackReturnTo = returnTo || `/projects/${projectId}`
+      const source = fallbackReturnTo.endsWith('/updates') ? 'update' : 'details'
+      const params = new URLSearchParams({
+        documentId: latestPdfDocumentId,
+        from: source,
+        returnTo: fallbackReturnTo,
+      })
+
+      onClose()
+      navigate(`/projects/${projectId}/aide-memoire/pdf?${params.toString()}`)
+      return
     }
+
+    const url = URL.createObjectURL(latestPdfBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = latestPdfName
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
@@ -233,7 +254,7 @@ export default function AideMemoireGenerationDialog({
         setLatestPdfBlob(result.pdfBlob)
         setLatestPdfName(result.pdfFileName)
         try {
-          await saveAideMemoireDocument({
+          const storedPdf = await saveAideMemoireDocument({
             aideMemoireId: record.id,
             projectId: record.project_id,
             updateRef: record.update_ref,
@@ -242,6 +263,7 @@ export default function AideMemoireGenerationDialog({
             blob: result.pdfBlob,
             generatedAt,
           })
+          setLatestPdfDocumentId(storedPdf.id)
         } catch (cacheError) {
           console.error('PDF generated but the local Latest PDF cache could not be saved.', cacheError)
           cacheWarnings.push('The PDF downloaded, but its local Latest PDF copy could not be retained on this device.')

@@ -248,29 +248,44 @@ function stripLegacyBinaryFields(record: OfflineAideMemoire): OfflineAideMemoire
 
 export async function saveAideMemoireRecord(record: OfflineAideMemoire) {
   const createdAt = new Date().toISOString()
-  const assets: OfflineAideMemoirePhotoAsset[] = []
+  const existingAssets = await offlineDb.aide_memoire_photo_assets
+    .where('aide_memoire_id')
+    .equals(record.id)
+    .toArray()
+  const existingAssetMap = new Map(existingAssets.map((asset) => [asset.photo_ref, asset]))
+  const assetsToWrite: OfflineAideMemoirePhotoAsset[] = []
 
   for (const photo of record.photos || []) {
     if (!photo.file_blob) continue
-    assets.push({
+
+    const existing = existingAssetMap.get(photo.photo_ref)
+    const fileName = photo.file_name || `photo-${assetsToWrite.length + 1}.jpg`
+    const mimeType = photo.file_type || photo.file_blob.type || 'image/jpeg'
+
+    const binaryIsAlreadyStored = Boolean(
+      existing &&
+      existing.file_name === fileName &&
+      existing.mime_type === mimeType &&
+      existing.data.byteLength === photo.file_blob.size,
+    )
+
+    if (binaryIsAlreadyStored) continue
+
+    assetsToWrite.push({
       id: `${record.id}:${photo.photo_ref}`,
       aide_memoire_id: record.id,
       project_id: record.project_id,
       update_ref: record.update_ref,
       photo_ref: photo.photo_ref,
-      photo_number: Number(photo.photo_number || assets.length + 1),
-      file_name: photo.file_name || `photo-${assets.length + 1}.jpg`,
-      mime_type: photo.file_type || photo.file_blob.type || 'image/jpeg',
+      photo_number: Number(photo.photo_number || assetsToWrite.length + 1),
+      file_name: fileName,
+      mime_type: mimeType,
       data: await photo.file_blob.arrayBuffer(),
-      created_at: createdAt,
+      created_at: existing?.created_at || createdAt,
     })
   }
 
   const expectedPhotoRefs = new Set((record.photos || []).map((photo) => photo.photo_ref))
-  const existingAssets = await offlineDb.aide_memoire_photo_assets
-    .where('aide_memoire_id')
-    .equals(record.id)
-    .toArray()
   const staleAssetIds = existingAssets
     .filter((asset) => !expectedPhotoRefs.has(asset.photo_ref))
     .map((asset) => asset.id)
@@ -278,8 +293,8 @@ export async function saveAideMemoireRecord(record: OfflineAideMemoire) {
   if (staleAssetIds.length > 0) {
     await offlineDb.aide_memoire_photo_assets.bulkDelete(staleAssetIds)
   }
-  if (assets.length > 0) {
-    await offlineDb.aide_memoire_photo_assets.bulkPut(assets)
+  if (assetsToWrite.length > 0) {
+    await offlineDb.aide_memoire_photo_assets.bulkPut(assetsToWrite)
   }
 
   const sanitized = stripLegacyBinaryFields(record)

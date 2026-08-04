@@ -3,7 +3,7 @@ import { createPortal } from'react-dom'
 import type { ChangeEvent, FormEvent, KeyboardEvent } from'react'
 import { Link, useLocation, useNavigate, useParams } from'react-router-dom'
 import { supabase } from'../lib/supabase'
-import { aideMemoireDocumentToBlob, aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
+import { aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
 import { useAuth } from'../context/AuthContext'
 import {
   formatProgressInput,
@@ -548,6 +548,33 @@ function getGpsErrorMessage(error: GeolocationPositionError) {
   return'Unable to capture GPS. Please allow location permission and try again.'
 }
 
+function requestGeolocation(options: PositionOptions) {
+  return new Promise<GeolocationPosition>((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, options)
+  })
+}
+
+function isRecentGpsPosition(position: GeolocationPosition | null, maxAgeMs = 120_000) {
+  return Boolean(position && Date.now() - Number(position.timestamp || 0) <= maxAgeMs)
+}
+
+function promiseWithTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs)
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        window.clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
+}
+
 async function getOfflineTable(tableNames: string[]) {
   const db = offlineDb as any
 
@@ -762,10 +789,10 @@ function IconPdf() {
 
 function SavingDots() {
   return (
-    <span className="pu-saving-dots" aria-hidden="true">
-      <b />
-      <b />
-      <b />
+    <span className="pms10-save-dots" aria-hidden="true">
+      <span className="pms10-save-dot" />
+      <span className="pms10-save-dot" />
+      <span className="pms10-save-dot" />
     </span>
   )
 }
@@ -809,7 +836,8 @@ export default function ProjectUpdates() {
   const attendeeInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const restoredDraftIdRef = useRef<string | null>(null)
   const autoSaveTimerRef = useRef<number | null>(null)
-  const autoSaveInFlightRef = useRef(false)
+  const draftSavePromiseRef = useRef<Promise<OfflineAideMemoire> | null>(null)
+  const lastGpsPositionRef = useRef<GeolocationPosition | null>(null)
   const lastAutoSaveFingerprintRef = useRef('')
   const autoSaveSuspendedRef = useRef(false)
 
@@ -1698,20 +1726,45 @@ export default function ProjectUpdates() {
 
   async function saveLatestUpdateDraft(options: { silent?: boolean } = {}) {
     if (!workingUpdateRef || !workingDraftId) throw new Error('Draft reference is unavailable.')
-    if (autoSaveInFlightRef.current) return workingAideDraft
 
     const silent = Boolean(options.silent)
-    autoSaveInFlightRef.current = true
+    const requestedFingerprint = workingDraftFingerprint
+
+    if (draftSavePromiseRef.current) {
+      const activeResult = await promiseWithTimeout(
+        draftSavePromiseRef.current,
+        12_000,
+        'The previous local draft save is taking longer than expected. You may continue navigating while PMS10 finishes it in the background.',
+      )
+
+      if (silent || lastAutoSaveFingerprintRef.current === requestedFingerprint) {
+        return activeResult
+      }
+    }
+
     if (!silent) setDraftSaving(true)
 
-    try {
-      const draft = buildAideMemoireRecord(workingUpdateRef, 'offline', 'draft')
-      const storedDraft = await saveAideMemoireRecord(draft)
+    const draft = buildAideMemoireRecord(workingUpdateRef, 'offline', 'draft')
+    const savePromise = saveAideMemoireRecord(draft).then((storedDraft) => {
       setWorkingAideDraft(storedDraft)
-      lastAutoSaveFingerprintRef.current = workingDraftFingerprint
-      return draft
+      lastAutoSaveFingerprintRef.current = requestedFingerprint
+      return storedDraft
+    })
+
+    draftSavePromiseRef.current = savePromise
+    void savePromise.finally(() => {
+      if (draftSavePromiseRef.current === savePromise) {
+        draftSavePromiseRef.current = null
+      }
+    }).catch(() => undefined)
+
+    try {
+      return await promiseWithTimeout(
+        savePromise,
+        15_000,
+        'Draft saving is still finishing on this device. PMS10 has released the page so you can continue navigating; please try Save Draft again after a moment.',
+      )
     } finally {
-      autoSaveInFlightRef.current = false
       if (!silent) setDraftSaving(false)
     }
   }
@@ -1784,22 +1837,15 @@ export default function ProjectUpdates() {
   }
 
   function viewLatestProjectPdf() {
-    if (!latestPdfRecord) return
+    if (!id || !latestPdfRecord) return
 
-    const pdfBlob = aideMemoireDocumentToBlob(latestPdfRecord)
-    const objectUrl = URL.createObjectURL(pdfBlob)
-    const openedWindow = window.open(objectUrl, '_blank', 'noopener,noreferrer')
+    const params = new URLSearchParams({
+      documentId: latestPdfRecord.id,
+      from: 'update',
+      returnTo: `/projects/${id}/updates`,
+    })
 
-    if (!openedWindow) {
-      const link = document.createElement('a')
-      link.href = objectUrl
-      link.download = latestPdfRecord.file_name || 'Latest_Aide_Memoire.pdf'
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-    }
-
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+    navigate(`/projects/${id}/aide-memoire/pdf?${params.toString()}`)
   }
 
 
@@ -1973,6 +2019,13 @@ export default function ProjectUpdates() {
     }
   }
 
+  function cacheGpsPosition(position: GeolocationPosition) {
+    const normalized = normalizeCoordinatePair(position.coords.latitude, position.coords.longitude)
+    if (normalized.isValid) lastGpsPositionRef.current = position
+    return normalized
+  }
+
+
   async function capturePhotoMetadata(): Promise<PhotoCaptureMetadata> {
     const capturedAt = new Date().toISOString()
 
@@ -1985,34 +2038,74 @@ export default function ProjectUpdates() {
       }
     }
 
-    return await new Promise<PhotoCaptureMetadata>((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const normalized = normalizeCoordinatePair(position.coords.latitude, position.coords.longitude)
-          resolve({
-            latitude: normalized.isValid ? normalized.latitude : null,
-            longitude: normalized.isValid ? normalized.longitude : null,
-            capturedAt,
-            gpsMessage: normalized.isValid
-              ? `GPS captured: ${Number(normalized.latitude).toFixed(7)}, ${Number(normalized.longitude).toFixed(7)}`
-              : normalized.reason,
-          })
-        },
-        (gpsError) => {
-          resolve({
-            latitude: null,
-            longitude: null,
-            capturedAt,
-            gpsMessage: getGpsErrorMessage(gpsError),
-          })
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15_000,
-          maximumAge: 0,
-        },
-      )
-    })
+    const inspectionCoordinates = normalizeCoordinatePair(inspectionLatitude, inspectionLongitude)
+    if (inspectionCoordinates.isValid) {
+      return {
+        latitude: inspectionCoordinates.latitude,
+        longitude: inspectionCoordinates.longitude,
+        capturedAt,
+        gpsMessage: `GPS captured: ${Number(inspectionCoordinates.latitude).toFixed(7)}, ${Number(inspectionCoordinates.longitude).toFixed(7)}`,
+      }
+    }
+
+    const cachedPosition = lastGpsPositionRef.current
+    if (isRecentGpsPosition(cachedPosition)) {
+      const normalized = cacheGpsPosition(cachedPosition as GeolocationPosition)
+      if (normalized.isValid) {
+        return {
+          latitude: normalized.latitude,
+          longitude: normalized.longitude,
+          capturedAt,
+          gpsMessage: `GPS captured: ${Number(normalized.latitude).toFixed(7)}, ${Number(normalized.longitude).toFixed(7)}`,
+        }
+      }
+    }
+
+    let lastError: GeolocationPositionError | null = null
+
+    try {
+      const quickPosition = await requestGeolocation({
+        enableHighAccuracy: false,
+        timeout: 3_500,
+        maximumAge: 120_000,
+      })
+      const normalized = cacheGpsPosition(quickPosition)
+      if (normalized.isValid) {
+        return {
+          latitude: normalized.latitude,
+          longitude: normalized.longitude,
+          capturedAt,
+          gpsMessage: `GPS captured: ${Number(normalized.latitude).toFixed(7)}, ${Number(normalized.longitude).toFixed(7)}`,
+        }
+      }
+    } catch (gpsError) {
+      lastError = gpsError as GeolocationPositionError
+    }
+
+    try {
+      const precisePosition = await requestGeolocation({
+        enableHighAccuracy: true,
+        timeout: 8_000,
+        maximumAge: 0,
+      })
+      const normalized = cacheGpsPosition(precisePosition)
+      return {
+        latitude: normalized.isValid ? normalized.latitude : null,
+        longitude: normalized.isValid ? normalized.longitude : null,
+        capturedAt,
+        gpsMessage: normalized.isValid
+          ? `GPS captured: ${Number(normalized.latitude).toFixed(7)}, ${Number(normalized.longitude).toFixed(7)}`
+          : normalized.reason,
+      }
+    } catch (gpsError) {
+      lastError = gpsError as GeolocationPositionError
+      return {
+        latitude: null,
+        longitude: null,
+        capturedAt,
+        gpsMessage: lastError ? getGpsErrorMessage(lastError) : 'GPS location could not be captured.',
+      }
+    }
   }
 
 
@@ -2070,13 +2163,21 @@ export default function ProjectUpdates() {
     setMessage(`Preparing ${imageFiles.length} inspection photo(s)…`)
 
     try {
-      const metadata = options.captureGps ? await capturePhotoMetadata() : {
-        latitude: null,
-        longitude: null,
-        capturedAt: new Date().toISOString(),
-        gpsMessage: '',
-      }
-      const mappedPhotos: PhotoInput[] = []
+      const metadataPromise: Promise<PhotoCaptureMetadata> = options.captureGps
+        ? capturePhotoMetadata()
+        : Promise.resolve({
+            latitude: null,
+            longitude: null,
+            capturedAt: new Date().toISOString(),
+            gpsMessage: '',
+          })
+
+      const preparedPhotos: Array<{
+        file: File
+        originalSize: number
+        compressedSize: number
+        compressed: boolean
+      }> = []
       const warnings: string[] = []
       let originalBytes = 0
       let compressedBytes = 0
@@ -2087,40 +2188,40 @@ export default function ProjectUpdates() {
         try {
           const result = await compressInspectionImage(sourceFile)
           compressedBytes += result.compressedSize
-          mappedPhotos.push({
-            id: makeLocalId(),
+          preparedPhotos.push({
             file: result.file,
-            previewUrl: URL.createObjectURL(result.file),
-            caption: '',
             originalSize: result.originalSize,
             compressedSize: result.compressedSize,
             compressed: result.compressed,
-            latitude: metadata.latitude,
-            longitude: metadata.longitude,
-            capturedAt: metadata.capturedAt,
-            findingId: options.findingId,
-            photoKind: options.photoKind,
           })
         } catch (compressionError: any) {
           console.warn(`Unable to compress ${sourceFile.name}; keeping the original image.`, compressionError)
           compressedBytes += sourceFile.size
-          mappedPhotos.push({
-            id: makeLocalId(),
+          preparedPhotos.push({
             file: sourceFile,
-            previewUrl: URL.createObjectURL(sourceFile),
-            caption: '',
             originalSize: sourceFile.size,
             compressedSize: sourceFile.size,
             compressed: false,
-            latitude: metadata.latitude,
-            longitude: metadata.longitude,
-            capturedAt: metadata.capturedAt,
-            findingId: options.findingId,
-            photoKind: options.photoKind,
           })
           warnings.push(`${sourceFile.name} could not be compressed on this device.`)
         }
       }
+
+      const metadata = await metadataPromise
+      const mappedPhotos: PhotoInput[] = preparedPhotos.map((prepared) => ({
+        id: makeLocalId(),
+        file: prepared.file,
+        previewUrl: URL.createObjectURL(prepared.file),
+        caption: '',
+        originalSize: prepared.originalSize,
+        compressedSize: prepared.compressedSize,
+        compressed: prepared.compressed,
+        latitude: metadata.latitude,
+        longitude: metadata.longitude,
+        capturedAt: metadata.capturedAt,
+        findingId: options.findingId,
+        photoKind: options.photoKind,
+      }))
 
       setPhotoInputs((previous) => [...previous, ...mappedPhotos])
 
@@ -2234,62 +2335,88 @@ export default function ProjectUpdates() {
     )
   }
 
-  function captureGps() {
+  async function captureGps() {
     setGpsMessage('')
     setErrorMessage('')
 
     if (!navigator.geolocation) {
-      const gpsError ='GPS is not supported by this browser or device.'
+      const gpsError = 'GPS is not supported by this browser or device.'
       setErrorMessage(gpsError)
-      setNoticeDialog({ title:'GPS Unavailable', message: gpsError, tone:'warning' })
+      setNoticeDialog({ title: 'GPS Unavailable', message: gpsError, tone: 'warning' })
       return
     }
 
     if (!window.isSecureContext) {
-      const gpsError ='GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
+      const gpsError = 'GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
       setErrorMessage(gpsError)
-      setNoticeDialog({ title:'GPS Permission Needed', message: gpsError, tone:'warning' })
+      setNoticeDialog({ title: 'GPS Permission Needed', message: gpsError, tone: 'warning' })
       return
     }
 
     setGpsLoading(true)
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const latitude = position.coords.latitude
-        const longitude = position.coords.longitude
+    try {
+      const quickPosition = isRecentGpsPosition(lastGpsPositionRef.current)
+        ? lastGpsPositionRef.current as GeolocationPosition
+        : await requestGeolocation({
+            enableHighAccuracy: false,
+            timeout: 4_000,
+            maximumAge: 120_000,
+          })
 
-        if (!isMindanaoCoordinate(latitude, longitude)) {
-          const gpsError ='Captured GPS is outside the Mindanao range. Please verify your device location or manually encode the correct project coordinates.'
-          setErrorMessage(gpsError)
-          setNoticeDialog({ title:'Check GPS Location', message: gpsError, tone:'warning' })
-          setGpsLoading(false)
-          return
+      const quickCoordinates = cacheGpsPosition(quickPosition)
+      if (!quickCoordinates.isValid) {
+        throw new Error(quickCoordinates.reason)
+      }
+
+      setInspectionLatitude(Number(quickCoordinates.latitude).toFixed(7))
+      setInspectionLongitude(Number(quickCoordinates.longitude).toFixed(7))
+      setGpsMessage(`GPS captured quickly with approximately ${Math.round(quickPosition.coords.accuracy)}m accuracy. Refining in the background…`)
+      setGpsLoading(false)
+
+      void requestGeolocation({
+        enableHighAccuracy: true,
+        timeout: 10_000,
+        maximumAge: 0,
+      }).then((precisePosition) => {
+        const preciseCoordinates = cacheGpsPosition(precisePosition)
+        if (!preciseCoordinates.isValid) return
+        if (precisePosition.coords.accuracy > quickPosition.coords.accuracy) return
+
+        setInspectionLatitude(Number(preciseCoordinates.latitude).toFixed(7))
+        setInspectionLongitude(Number(preciseCoordinates.longitude).toFixed(7))
+        setGpsMessage(`GPS refined successfully with approximately ${Math.round(precisePosition.coords.accuracy)}m accuracy.`)
+      }).catch(() => undefined)
+    } catch {
+      try {
+        const precisePosition = await requestGeolocation({
+          enableHighAccuracy: true,
+          timeout: 10_000,
+          maximumAge: 0,
+        })
+        const preciseCoordinates = cacheGpsPosition(precisePosition)
+
+        if (!preciseCoordinates.isValid) {
+          throw new Error(preciseCoordinates.reason)
         }
 
-        setInspectionLatitude(latitude.toFixed(7))
-        setInspectionLongitude(longitude.toFixed(7))
-        setGpsMessage(
-          `GPS updated successfully with approximately ${Math.round(
-            position.coords.accuracy
-          )}m accuracy.`
-        )
+        setInspectionLatitude(Number(preciseCoordinates.latitude).toFixed(7))
+        setInspectionLongitude(Number(preciseCoordinates.longitude).toFixed(7))
+        setGpsMessage(`GPS updated successfully with approximately ${Math.round(precisePosition.coords.accuracy)}m accuracy.`)
         setErrorMessage('')
-        setGpsLoading(false)
-      },
-      (error) => {
+      } catch (error) {
         console.error(error)
-        const gpsError = getGpsErrorMessage(error)
+        const gpsError = typeof (error as GeolocationPositionError)?.code === 'number'
+          ? getGpsErrorMessage(error as GeolocationPositionError)
+          : error instanceof Error
+            ? error.message
+            : 'Unable to capture GPS.'
         setErrorMessage(gpsError)
-        setNoticeDialog({ title:'GPS Capture Failed', message: gpsError, tone:'warning' })
+        setNoticeDialog({ title: 'GPS Capture Failed', message: gpsError, tone: 'warning' })
+      } finally {
         setGpsLoading(false)
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 0,
       }
-    )
+    }
   }
 
 
@@ -3987,7 +4114,7 @@ export default function ProjectUpdates() {
                 type="button"
                 className="pu-secondary-btn pu-wizard-back-btn"
                 onClick={goToPreviousWizardStep}
-                disabled={saving || draftSaving || photoProcessing}
+                disabled={saving || photoProcessing}
               >
                 Back
               </button>
@@ -4002,15 +4129,15 @@ export default function ProjectUpdates() {
                 type="button"
                 className="pu-primary-btn pu-wizard-next-btn"
                 onClick={() => void goToNextWizardStep()}
-                disabled={saving || draftSaving || photoProcessing}
+                disabled={saving || photoProcessing}
               >
-                {photoProcessing ? 'Compressing Photos…' : draftSaving ? 'Saving…' : 'Next'}
+                {photoProcessing ? 'Compressing Photos…' : 'Next'}
               </button>
             ) : (
               <button
                 type="submit"
                 className={`pu-main-save-btn ${online ? 'online' : 'offline'}`}
-                disabled={saving || draftSaving || photoProcessing}
+                disabled={saving || photoProcessing}
               >
                 <span className="pu-main-save-label">
                   {photoProcessing ? (
@@ -4253,6 +4380,7 @@ export default function ProjectUpdates() {
           projectId={id}
           updateRef={aideGenerationRequest.updateRef}
           source={aideGenerationRequest.source}
+          returnTo={`/projects/${id}/updates`}
           onClose={() => setAideGenerationRequest(null)}
           onGenerated={refreshLatestProjectOutputs}
         />
