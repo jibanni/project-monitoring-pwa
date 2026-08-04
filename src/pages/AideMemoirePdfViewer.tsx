@@ -37,6 +37,31 @@ function getSafeReturnPath(
   return defaultPath
 }
 
+function isIosLikeDevice() {
+  if (typeof navigator === 'undefined') return false
+
+  const userAgent = navigator.userAgent || ''
+  const platform = navigator.platform || ''
+
+  return /iPad|iPhone|iPod/i.test(userAgent) ||
+    (platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+function openObjectUrlOutsideApp(objectUrl: string) {
+  const link = document.createElement('a')
+
+  link.href = objectUrl
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  link.setAttribute('aria-hidden', 'true')
+  link.style.position = 'fixed'
+  link.style.left = '-9999px'
+
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}
+
 export default function AideMemoirePdfViewer() {
   const { id = '' } = useParams()
   const [searchParams] = useSearchParams()
@@ -46,6 +71,7 @@ export default function AideMemoirePdfViewer() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [sharing, setSharing] = useState(false)
+  const useNativeViewer = useMemo(isIosLikeDevice, [])
 
   const documentId = searchParams.get('documentId')
   const source = searchParams.get('from')
@@ -117,6 +143,17 @@ export default function AideMemoirePdfViewer() {
 
   function goBack() {
     navigate(returnPath, { replace: true })
+  }
+
+  function openPdf() {
+    if (!objectUrl) return
+
+    try {
+      openObjectUrlOutsideApp(objectUrl)
+    } catch (openError) {
+      console.error('Unable to open the PDF in the device viewer.', openError)
+      setError('Unable to open the PDF in the device viewer. Use Share / Save instead.')
+    }
   }
 
   async function sharePdf() {
@@ -191,6 +228,13 @@ export default function AideMemoirePdfViewer() {
             <strong>PDF unavailable</strong>
             <p>{error}</p>
             <button type="button" onClick={goBack}>{backLabel}</button>
+          </div>
+        ) : objectUrl && useNativeViewer ? (
+          <div className="am-pdf-viewer-state is-native-viewer">
+            <strong>PDF ready</strong>
+            <p>Open the file in the iPhone or iPad PDF viewer to prevent the app from freezing.</p>
+            <button type="button" onClick={openPdf}>Open PDF</button>
+            <small>The Project Update page remains available when you return to PMS10.</small>
           </div>
         ) : objectUrl ? (
           <iframe

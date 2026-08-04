@@ -194,3 +194,12 @@
     height: calc(100dvh - 11.5rem - var(--mobile-bottom-nav-height, 0px));
   }
 }
+
+/* PMS10 Phase 5.9 — use the native iOS PDF viewer instead of embedding a
+   Blob PDF in an iframe, which can freeze an installed WebKit PWA. */
+.am-pdf-viewer-state.is-native-viewer button {
+  min-width: 11rem;
+  margin-top: 0.45rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f5ca8, #123f7a);
+}

@@ -203,6 +203,7 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const headerRef = useRef<HTMLElement | null>(null)
   const lastMobilePointerNavRef = useRef<{ path: string; at: number } | null>(null)
+  const mobileViewportBaselineRef = useRef(0)
 
   const user = auth?.user
   const profile = auth?.profile
@@ -222,9 +223,73 @@ export default function Layout({ children }: LayoutProps) {
   const [headerHeight, setHeaderHeight] = useState(74)
   const [pendingMobilePath, setPendingMobilePath] = useState('')
   const [headerPortalReady, setHeaderPortalReady] = useState(false)
+  const [mobileKeyboardOffset, setMobileKeyboardOffset] = useState(0)
 
   useEffect(() => {
     setHeaderPortalReady(true)
+  }, [])
+
+
+  useEffect(() => {
+    const visualViewport = window.visualViewport
+    if (!visualViewport) return
+
+    const isEditableElement = (element: Element | null) => {
+      if (!(element instanceof HTMLElement)) return false
+      if (element.isContentEditable) return true
+      return element.matches('input, textarea, select, [role="textbox"]')
+    }
+
+    const updateKeyboardOffset = () => {
+      const viewportBottom = visualViewport.height + visualViewport.offsetTop
+      const activeElement = document.activeElement
+      const editing = isEditableElement(activeElement)
+
+      if (!editing) {
+        mobileViewportBaselineRef.current = Math.max(
+          mobileViewportBaselineRef.current,
+          viewportBottom,
+          window.innerHeight,
+        )
+        setMobileKeyboardOffset(0)
+        return
+      }
+
+      const baseline = Math.max(
+        mobileViewportBaselineRef.current,
+        window.innerHeight,
+      )
+      const hiddenBelowViewport = Math.max(0, baseline - viewportBottom)
+      const nextOffset = hiddenBelowViewport >= 120
+        ? Math.ceil(hiddenBelowViewport)
+        : 0
+
+      setMobileKeyboardOffset((current) => current === nextOffset ? current : nextOffset)
+    }
+
+    mobileViewportBaselineRef.current = Math.max(
+      visualViewport.height + visualViewport.offsetTop,
+      window.innerHeight,
+    )
+
+    const handleFocusOut = () => {
+      window.setTimeout(updateKeyboardOffset, 80)
+    }
+
+    updateKeyboardOffset()
+    visualViewport.addEventListener('resize', updateKeyboardOffset)
+    visualViewport.addEventListener('scroll', updateKeyboardOffset)
+    window.addEventListener('focusin', updateKeyboardOffset)
+    window.addEventListener('focusout', handleFocusOut)
+    window.addEventListener('orientationchange', updateKeyboardOffset)
+
+    return () => {
+      visualViewport.removeEventListener('resize', updateKeyboardOffset)
+      visualViewport.removeEventListener('scroll', updateKeyboardOffset)
+      window.removeEventListener('focusin', updateKeyboardOffset)
+      window.removeEventListener('focusout', handleFocusOut)
+      window.removeEventListener('orientationchange', updateKeyboardOffset)
+    }
   }, [])
 
 
@@ -553,6 +618,7 @@ export default function Layout({ children }: LayoutProps) {
         {
           '--pms10-mobile-nav-count': String(visibleNavItems.length),
           '--pms10-mobile-nav-active-index': String(activeMobileIndex),
+          '--pms10-keyboard-offset': `${mobileKeyboardOffset}px`,
         } as CSSProperties
       }
     >
