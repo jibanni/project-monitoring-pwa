@@ -273,9 +273,18 @@ export function getComputedRiskLevelWithDeadline(project: Record<string, any> | 
   }
 
   const baseRisk = normalizeRisk(getComputedRiskLevel(project || {}))
-  const deadlineRisk = getDeadlineRiskInfo(project).level
+  const deadlineInfo = getDeadlineRiskInfo(project)
 
-  return maxRisk(baseRisk, deadlineRisk)
+  // A project that is on target or ahead must display No Risk. Upcoming
+  // deadlines alone must not turn a positive or zero variance into Moderate.
+  // An already-lapsed contract or a critical project status remains High Risk.
+  if (deadlineInfo.basis === 'Status' || (deadlineInfo.daysRemaining ?? 0) < 0) {
+    return 'High'
+  }
+
+  if (baseRisk === 'None') return 'None'
+
+  return maxRisk(baseRisk, deadlineInfo.level)
 }
 
 export function getDeadlineRiskBasisLabel(project: Record<string, any> | null | undefined) {

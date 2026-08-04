@@ -1,11 +1,13 @@
 import { supabase } from '../lib/supabase'
 import {
   offlineDb,
+  type OfflineAideMemoire,
   type OfflineProjectPhoto,
   type OfflineProjectUpdate,
 } from '../lib/offlineDb'
 import { getComputedRiskLevel } from '../utils/projectVariance'
 import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from './googleDrivePhotoUploadService'
+import { compressInspectionImage } from '../utils/imageCompression'
 
 type SyncResult = {
   success: boolean
@@ -181,7 +183,8 @@ function isPendingRecord(record: { synced?: boolean; sync_status?: string; is_of
     status === 'pending' ||
     status === 'failed' ||
     status === 'syncing' ||
-    status === 'uploading_photos'
+    status === 'uploading_photos' ||
+    status === 'orphaned'
   )
 }
 
@@ -266,6 +269,80 @@ function getSafeFileName(name: string) {
 
 function getUpdateLocalId(update: OfflineProjectUpdate) {
   return textValue(update.local_id) || textValue(update.id)
+}
+
+function getUpdateReferenceKeys(update: OfflineProjectUpdate) {
+  return new Set(
+    [update.id, update.local_id, update.online_update_id]
+      .map((value) => textValue(value))
+      .filter(Boolean),
+  )
+}
+
+function photoMatchesUpdate(photo: OfflineProjectPhoto, update: OfflineProjectUpdate) {
+  const references = getUpdateReferenceKeys(update)
+
+  return [
+    photo.offline_update_id,
+    photo.local_update_id,
+    photo.project_update_id,
+  ].some((value) => references.has(textValue(value)))
+}
+
+function aideMemoireMatchesUpdate(
+  record: OfflineAideMemoire,
+  update: OfflineProjectUpdate,
+) {
+  if (textValue(record.project_id) !== textValue(update.project_id)) return false
+
+  const references = getUpdateReferenceKeys(update)
+  const updateRef = textValue(record.update_ref)
+  const sameInspectionDate =
+    textValue(record.inspection_date).slice(0, 10) ===
+    textValue(update.inspection_date).slice(0, 10)
+
+  if (references.has(updateRef)) return true
+
+  if (updateRef.startsWith(`working-${update.project_id}-`) && sameInspectionDate) {
+    return true
+  }
+
+  const snapshot = (record.update_snapshot || {}) as Record<string, unknown>
+  const snapshotLocalId = textValue(snapshot.local_id)
+  const snapshotOnlineId = textValue(snapshot.online_update_id)
+  const snapshotUpdateId = textValue(snapshot.id)
+
+  return (
+    references.has(snapshotLocalId) ||
+    references.has(snapshotOnlineId) ||
+    references.has(snapshotUpdateId) ||
+    (sameInspectionDate && record.update_source === 'offline')
+  )
+}
+
+function isOrphanedSyncError(error: unknown) {
+  const code = textValue((error as any)?.code).toLowerCase()
+  const message = textValue((error as any)?.message || error).toLowerCase()
+
+  return (
+    code === '23503' ||
+    code === 'pms10_orphaned_update' ||
+    message.includes('project_updates_project_id_fkey') ||
+    message.includes('key is not present in table \"projects\"') ||
+    message.includes('original project no longer exists') ||
+    message.includes('original project was deleted')
+  )
+}
+
+class OrphanedOfflineUpdateError extends Error {
+  code = 'PMS10_ORPHANED_UPDATE'
+
+  constructor() {
+    super(
+      'The original project no longer exists in PMS10. This pending update cannot be synchronized and should be removed from this device.',
+    )
+    this.name = 'OrphanedOfflineUpdateError'
+  }
 }
 
 async function markUpdateStatus(
@@ -416,9 +493,31 @@ async function syncPhotosForOfflineUpdate(
             lastModified: Date.now(),
           })
 
+    let uploadFile = file
+
+    try {
+      if (file.size > 700 * 1024 || file.type !== 'image/jpeg') {
+        const compressed = await compressInspectionImage(file)
+        uploadFile = compressed.file
+
+        if (hasKey(photo.id) && uploadFile !== file) {
+          await offlineDb.project_photos.update(photo.id as number | string, {
+            file_blob: uploadFile,
+            file: uploadFile,
+            file_name: uploadFile.name,
+            file_type: uploadFile.type,
+            file_size: uploadFile.size,
+            error: '',
+          })
+        }
+      }
+    } catch (compressionError) {
+      console.warn(`Unable to compress pending photo ${file.name}; retrying the original file.`, compressionError)
+    }
+
     try {
       const uploadedFile = await uploadProjectPhotoToDrive({
-        file,
+        file: uploadFile,
         projectId: update.project_id,
         updateId: onlineProjectUpdateId,
         projectTitle: driveProjectTitle,
@@ -466,6 +565,34 @@ async function syncPhotosForOfflineUpdate(
   return uploadedPhotoCount
 }
 
+async function ensureOnlineProjectExists(update: OfflineProjectUpdate) {
+  const projectId = textValue(update.project_id)
+
+  if (!projectId) {
+    throw new Error('Pending update has no project ID.')
+  }
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  if (!data?.id) {
+    await markUpdateStatus(update, {
+      sync_status: 'orphaned',
+      error:
+        'The original project no longer exists in PMS10. This update cannot be synchronized.',
+    })
+
+    throw new OrphanedOfflineUpdateError()
+  }
+}
+
 async function createOrReuseOnlineUpdate(update: OfflineProjectUpdate) {
   if (textValue(update.online_update_id)) {
     return textValue(update.online_update_id)
@@ -501,6 +628,122 @@ async function createOrReuseOnlineUpdate(update: OfflineProjectUpdate) {
   return onlineProjectUpdateId
 }
 
+export type PendingUpdateRemovalPreview = {
+  linkedPhotoCount: number
+  aideMemoireRecordCount: number
+  hasLocalPdf: boolean
+  hasLocalDocx: boolean
+}
+
+export async function getPendingUpdateRemovalPreview(
+  update: OfflineProjectUpdate,
+): Promise<PendingUpdateRemovalPreview> {
+  const [allPhotos, allAideMemoires, allDocuments] = await Promise.all([
+    offlineDb.project_photos.toArray(),
+    offlineDb.aide_memoires.toArray(),
+    offlineDb.aide_memoire_documents.toArray(),
+  ])
+
+  const linkedPhotos = allPhotos.filter((photo) => photoMatchesUpdate(photo, update))
+  const linkedAideMemoires = allAideMemoires.filter((record) =>
+    aideMemoireMatchesUpdate(record, update),
+  )
+
+  const aideMemoireIds = new Set(linkedAideMemoires.map((record) => record.id))
+  const linkedDocuments = allDocuments.filter((document) =>
+    aideMemoireIds.has(document.aide_memoire_id),
+  )
+
+  return {
+    linkedPhotoCount: linkedPhotos.length,
+    aideMemoireRecordCount: linkedAideMemoires.length,
+    hasLocalPdf:
+      linkedDocuments.some((document) => document.format === 'pdf') ||
+      linkedAideMemoires.some((record) => Boolean(record.latest_pdf_blob)),
+    hasLocalDocx:
+      linkedDocuments.some((document) => document.format === 'docx') ||
+      linkedAideMemoires.some((record) => Boolean(record.latest_docx_blob)),
+  }
+}
+
+export async function removePendingOfflineUpdate(update: OfflineProjectUpdate) {
+  const updateKeys = getUpdateReferenceKeys(update)
+
+  await offlineDb.transaction(
+    'rw',
+    offlineDb.project_updates,
+    offlineDb.project_photos,
+    offlineDb.aide_memoires,
+    offlineDb.aide_memoire_documents,
+    offlineDb.aide_memoire_photo_assets,
+    async () => {
+      const [allUpdates, allPhotos, allAideMemoires, allDocuments, allAidePhotoAssets] = await Promise.all([
+        offlineDb.project_updates.toArray(),
+        offlineDb.project_photos.toArray(),
+        offlineDb.aide_memoires.toArray(),
+        offlineDb.aide_memoire_documents.toArray(),
+        offlineDb.aide_memoire_photo_assets.toArray(),
+      ])
+
+      const updateIds = allUpdates
+        .filter((candidate) => {
+          if (hasKey(update.id) && keysMatch(candidate.id, update.id)) return true
+
+          const candidateKeys = getUpdateReferenceKeys(candidate)
+          return [...candidateKeys].some((key) => updateKeys.has(key))
+        })
+        .map((candidate) => candidate.id)
+        .filter(hasKey) as Array<number | string>
+
+      const photoIds = allPhotos
+        .filter((photo) => photoMatchesUpdate(photo, update))
+        .map((photo) => photo.id)
+        .filter(hasKey) as Array<number | string>
+
+      const aideMemoireIds = allAideMemoires
+        .filter((record) => aideMemoireMatchesUpdate(record, update))
+        .map((record) => record.id)
+        .filter(Boolean)
+
+      const aideMemoireIdSet = new Set(aideMemoireIds)
+      const documentIds = allDocuments
+        .filter((document) => aideMemoireIdSet.has(document.aide_memoire_id))
+        .map((document) => document.id)
+        .filter(Boolean)
+
+      const aidePhotoAssetIds = allAidePhotoAssets
+        .filter((asset) => aideMemoireIdSet.has(asset.aide_memoire_id))
+        .map((asset) => asset.id)
+        .filter(Boolean)
+
+      if (photoIds.length > 0) {
+        await offlineDb.project_photos.bulkDelete(photoIds)
+      }
+
+      if (documentIds.length > 0) {
+        await offlineDb.aide_memoire_documents.bulkDelete(documentIds)
+      }
+
+      if (aidePhotoAssetIds.length > 0) {
+        await offlineDb.aide_memoire_photo_assets.bulkDelete(aidePhotoAssetIds)
+      }
+
+      if (aideMemoireIds.length > 0) {
+        await offlineDb.aide_memoires.bulkDelete(aideMemoireIds)
+      }
+
+      if (updateIds.length > 0) {
+        await offlineDb.project_updates.bulkDelete(updateIds)
+      }
+    },
+  )
+
+  return {
+    success: true,
+    message: 'The pending update and its linked local files were removed from this device.',
+  }
+}
+
 export async function syncOfflineUpdates(): Promise<SyncResult> {
   const pendingUpdates = await getPendingOfflineUpdates()
 
@@ -528,6 +771,8 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
         sync_status: 'syncing',
         error: '',
       })
+
+      await ensureOnlineProjectExists(update)
 
       const onlineProjectUpdateId = await createOrReuseOnlineUpdate(update)
 
@@ -571,9 +816,13 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
       failedCount += 1
       console.error('Unable to sync offline update:', error)
 
+      const orphaned = isOrphanedSyncError(error)
+
       await markUpdateStatus(update, {
-        sync_status: 'failed',
-        error: error?.message || 'Sync failed. Please try again.',
+        sync_status: orphaned ? 'orphaned' : 'failed',
+        error: orphaned
+          ? 'The original project no longer exists in PMS10. This update cannot be synchronized.'
+          : error?.message || 'Sync failed. Please try again.',
       })
     }
   }

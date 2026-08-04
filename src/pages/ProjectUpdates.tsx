@@ -3,7 +3,7 @@ import { createPortal } from'react-dom'
 import type { ChangeEvent, FormEvent, KeyboardEvent } from'react'
 import { Link, useLocation, useNavigate, useParams } from'react-router-dom'
 import { supabase } from'../lib/supabase'
-import { offlineDb } from'../lib/offlineDb'
+import { aideMemoireDocumentToBlob, aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
 import { useAuth } from'../context/AuthContext'
 import {
   formatProgressInput,
@@ -14,11 +14,15 @@ import {
   getTargetPhysicalInfo,
   requiresProjectReason,
 } from'../utils/projectVariance'
-import { canUpdateProject } from'../utils/aorAccess'
-import { formatFileSize } from'../utils/imageCompression'
+import { canUpdateProject, getCanonicalRole } from'../utils/aorAccess'
+import { getDilgOfficeDirectoryEntry, normalizeDilgOfficeLocation } from'../data/dilgOfficeDirectory'
 import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from'../services/googleDrivePhotoUploadService'
+import { compressInspectionImage } from'../utils/imageCompression'
+import ActionMenu from'../components/ActionMenu'
+import AideMemoireGenerationDialog from'../components/AideMemoireGenerationDialog'
 import'../styles/projectUpdates.css'
 import'../styles/projectUpdatesModalFix.css'
+import'../styles/projectUpdateSubpage.css'
 
 type ProjectRecord = {
   id: string
@@ -57,6 +61,22 @@ type ProjectRecord = {
   risk_level?: string | null
   last_inspection_date?: string | null
   updated_at?: string | null
+  project_code?: string | null
+  subaybayan_project_code?: string | null
+  lgu_reference_code?: string | null
+  reference_code?: string | null
+  lgu_equity?: number | string | null
+  mode_of_implementation?: string | null
+  contractor_office_address?: string | null
+  contractor_address?: string | null
+  contract_perfection_date?: string | null
+  date_of_perfection_of_contract?: string | null
+  ntp_receipt_date?: string | null
+  date_of_receipt_of_ntp?: string | null
+  contract_amount?: number | string | null
+  contract_duration?: number | string | null
+  revised_contract_duration?: number | string | null
+  disbursement_amount?: number | string | null
 }
 
 type ProjectUpdateRouteState = {
@@ -109,6 +129,18 @@ type PhotoInput = {
   originalSize?: number
   compressedSize?: number
   compressed?: boolean
+  latitude?: number | null
+  longitude?: number | null
+  capturedAt?: string
+  findingId?: string
+  photoKind?: 'finding' | 'additional'
+}
+
+type PhotoCaptureMetadata = {
+  latitude: number | null
+  longitude: number | null
+  capturedAt: string
+  gpsMessage: string
 }
 
 type SaveMode ='online' |'offline'
@@ -117,6 +149,7 @@ type SaveSuccessDialog = {
   title: string
   message: string
   mode: SaveMode
+  updateRef: string
 } | null
 
 type NoticeDialog = {
@@ -133,11 +166,22 @@ type CoordinateResult = {
   reason: string
 }
 
-const MAX_PHOTOS_PER_UPDATE = 3
 const RECENT_UPDATE_LIMIT = 4
 
-const statusOptions = ['Ongoing','Completed','Suspended','Terminated','Under Review','Under Procurement','Not Yet Started',
-]
+const statusOptions = ['Ongoing', 'Completed', 'Suspended', 'Terminated']
+
+const WIZARD_STEPS = [
+  { number: 1, title: 'Inspection Details', shortTitle: 'Inspection' },
+  { number: 2, title: 'Progress and Financial', shortTitle: 'Progress' },
+  { number: 3, title: 'Project Status', shortTitle: 'Status' },
+  { number: 4, title: 'Contract Monitoring', shortTitle: 'Contract' },
+  { number: 5, title: 'Photo Findings and Recommendations', shortTitle: 'Findings' },
+  { number: 6, title: 'General Observations', shortTitle: 'Observations' },
+  { number: 7, title: 'Attendance', shortTitle: 'Attendance' },
+  { number: 8, title: 'Additional Photos and Final Review', shortTitle: 'Review' },
+] as const
+
+const WIZARD_STEP_COUNT = WIZARD_STEPS.length
 
 const NOT_YET_STARTED_REASONS = ['No TDRs Submitted','Lacking TDRs Submitted','TDRs under PO Engineers Review','TDRs under Review (PO)','TDRs under Review (RO)',
 ]
@@ -293,8 +337,8 @@ function evaluateAmountExpression(value: string) {
   return amount
 }
 
-function cleanText(value: string) {
-  const trimmed = value.trim()
+function cleanText(value?: string | null) {
+  const trimmed = (value ?? '').trim()
   return trimmed.length > 0 ? trimmed : null
 }
 
@@ -438,6 +482,17 @@ function normalizeCoordinatePair(
   }
 }
 
+function getPhotoCoordinatePair(latitude: unknown, longitude: unknown) {
+  const normalized = normalizeCoordinatePair(latitude, longitude)
+  if (!normalized.isValid || normalized.latitude === null || normalized.longitude === null) {
+    return null
+  }
+  return {
+    latitude: normalized.latitude,
+    longitude: normalized.longitude,
+  }
+}
+
 function getRiskClass(risk?: string | null) {
   const normalized = String(risk ||'').toLowerCase()
 
@@ -447,22 +502,6 @@ function getRiskClass(risk?: string | null) {
 
   return'pu-risk-none'
 }
-
-function getStatusClass(status?: string | null) {
-  const normalized = String(status ||'').toLowerCase()
-
-  if (normalized.includes('completed')) return'pu-badge-success'
-  if (normalized.includes('ongoing')) return'pu-badge-primary'
-  if (normalized.includes('under review')) return'pu-badge-warning'
-  if (normalized.includes('under procurement')) return'pu-badge-warning'
-  if (normalized.includes('suspended') || normalized.includes('terminated')) {
-    return'pu-badge-danger'
-  }
-  if (normalized.includes('not yet')) return'pu-badge-neutral'
-
-  return'pu-badge-neutral'
-}
-
 
 function getStatusHelperText(status: string) {
   const normalized = normalizeText(status)
@@ -576,12 +615,183 @@ async function putCachedProject(projectRecord: ProjectRecord) {
   })
 }
 
+
+function createAideRowId(prefix: string) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function createBlankAideFinding(): AideMemoireFinding {
+  return {
+    id: createAideRowId('finding'),
+    finding: '',
+    recommendation: '',
+    timeline: '',
+    remarks: '',
+    photo_refs: [],
+  }
+}
+
+function createBlankAideAttendee(): AideMemoireAttendance {
+  return {
+    id: createAideRowId('attendee'),
+    name: '',
+    designation_agency: '',
+  }
+}
+
+function normalizeUpdateStatus(value: unknown, physical: unknown) {
+  if (clampProgress(physical) >= 100) return 'Completed'
+
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'completed') return 'Completed'
+  if (normalized === 'suspended') return 'Suspended'
+  if (normalized === 'terminated') return 'Terminated'
+  return 'Ongoing'
+}
+
+function getProjectCodeValue(projectRecord?: ProjectRecord | null) {
+  return String(
+    projectRecord?.project_code ||
+      projectRecord?.subaybayan_project_code ||
+      projectRecord?.lgu_reference_code ||
+      projectRecord?.reference_code ||
+      '',
+  ).trim()
+}
+
+function getProjectFundingYearValue(projectRecord?: ProjectRecord | null) {
+  return String(
+    projectRecord?.funding_year ||
+      projectRecord?.fiscal_year ||
+      projectRecord?.year ||
+      '',
+  ).replace(/^FY\s*/i, '').trim()
+}
+
+function getExactProjectLocation(projectRecord?: ProjectRecord | null) {
+  return [projectRecord?.barangay, projectRecord?.municipality, projectRecord?.province]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(', ')
+}
+
+function calculateDateDifference(startValue?: string | null, endValue?: string | null) {
+  if (!startValue || !endValue) return ''
+  const start = new Date(`${String(startValue).slice(0, 10)}T00:00:00Z`).getTime()
+  const end = new Date(`${String(endValue).slice(0, 10)}T00:00:00Z`).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return ''
+  return String(Math.floor((end - start) / 86400000))
+}
+
+function getAideOfficeLocation(projectRecord: ProjectRecord | null, authContext: any) {
+  const role = getCanonicalRole(authContext?.profile?.role)
+  if (authContext?.isAdmin || authContext?.isROEngineer || role === 'RO Engineer') {
+    return 'REGIONAL OFFICE 10'
+  }
+
+  const assignedProvince = normalizeDilgOfficeLocation(authContext?.profile?.province)
+  if (assignedProvince) return assignedProvince
+  return normalizeDilgOfficeLocation(projectRecord?.province)
+}
+
+function hasAideFindingContent(row: AideMemoireFinding) {
+  return Boolean(
+    String(row.finding || '').trim() ||
+      String(row.recommendation || '').trim() ||
+      String(row.timeline || '').trim() ||
+      String(row.remarks || '').trim() ||
+      (row.photo_refs || []).length > 0,
+  )
+}
+
+function formatPhotoCoordinateRemarks(row: AideMemoireFinding, photos: PhotoInput[]) {
+  const linkedPhotos = photos.filter((photo) => (row.photo_refs || []).includes(photo.id))
+  const coordinateLines = linkedPhotos.map((photo, index) => {
+    const coordinates = getPhotoCoordinatePair(photo.latitude, photo.longitude)
+    if (!coordinates) return `Photo ${index + 1}: GPS not available`
+    return `Photo ${index + 1} GPS: ${coordinates.latitude.toFixed(7)}, ${coordinates.longitude.toFixed(7)}`
+  })
+
+  return [String(row.remarks || '').trim(), ...coordinateLines].filter(Boolean).join('\n')
+}
+
+function hasAideAttendeeContent(row: AideMemoireAttendance) {
+  return Boolean(String(row.name || '').trim() || String(row.designation_agency || '').trim())
+}
+
 function IconBack() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M15 18 9 12l6-6" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 18 9 12l6-6" fill="none" />
     </svg>
   )
+}
+
+function IconDraft() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 4h11l3 3v13H5V4Z" fill="none" />
+      <path d="M8 4v6h8V4" fill="none" />
+      <path d="M8 20v-6h8v6" fill="none" />
+    </svg>
+  )
+}
+
+function IconCamera() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7h3l1.5-2h7L17 7h3v12H4V7Z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
+  )
+}
+
+function IconPdf() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h8l4 4v14H6V3Z" fill="none" />
+      <path d="M14 3v5h5" fill="none" />
+      <path d="M8 16h8M8 12h8" fill="none" />
+    </svg>
+  )
+}
+
+function SavingDots() {
+  return (
+    <span className="pu-saving-dots" aria-hidden="true">
+      <b />
+      <b />
+      <b />
+    </span>
+  )
+}
+
+function toLocationTitleCase(value?: string | null) {
+  const normalized = String(value ?? '').trim().replace(/\s+/g, ' ')
+
+  if (!normalized) return ''
+
+  return normalized
+    .toLocaleLowerCase('en-PH')
+    .replace(/(^|[\s,./()\-–—])([a-z])/g, (_match, separator: string, letter: string) => {
+      return `${separator}${letter.toLocaleUpperCase('en-PH')}`
+    })
+    .replace(/\bLgu\b/g, 'LGU')
+    .replace(/\bHuc\b/g, 'HUC')
+    .replace(/\bCdo\b/g, 'CDO')
+}
+
+function getHeroTitleSizeClass(value?: string | null) {
+  const length = String(value ?? '').trim().length
+
+  if (length <= 24) return 'pu-title-short'
+  if (length <= 42) return 'pu-title-medium'
+  if (length <= 68) return 'pu-title-long'
+  return 'pu-title-extra-long'
 }
 
 export default function ProjectUpdates() {
@@ -592,9 +802,21 @@ export default function ProjectUpdates() {
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const revisedContractExpirationDateInputRef = useRef<HTMLInputElement | null>(null)
   const photoInputsRef = useRef<PhotoInput[]>([])
+  const wizardTopRef = useRef<HTMLDivElement | null>(null)
+  const wizardProgressRef = useRef<HTMLDivElement | null>(null)
+  const wizardStepButtonRefs = useRef<Record<number, HTMLButtonElement | null>>({})
+  const findingInputRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
+  const attendeeInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const restoredDraftIdRef = useRef<string | null>(null)
+  const autoSaveTimerRef = useRef<number | null>(null)
+  const autoSaveInFlightRef = useRef(false)
+  const lastAutoSaveFingerprintRef = useRef('')
+  const autoSaveSuspendedRef = useRef(false)
 
   const [project, setProject] = useState<ProjectRecord | null>(null)
   const [recentUpdates, setRecentUpdates] = useState<ProjectUpdateRecord[]>([])
+  const [recentUpdateIndex, setRecentUpdateIndex] = useState(0)
+  const [historyExpanded, setHistoryExpanded] = useState(false)
   const [loading, setLoading] = useState(true)
   const [accessDenied, setAccessDenied] = useState(false)
   const [projectMissingOffline, setProjectMissingOffline] = useState(false)
@@ -612,6 +834,7 @@ export default function ProjectUpdates() {
   const targetPhysicalSource ='manual' as const
   const [financialAccomplishment, setFinancialAccomplishment] = useState('')
   const [disbursementAmount, setDisbursementAmount] = useState('')
+  const [contractAmount, setContractAmount] = useState('')
   const [notYetStartedReason, setNotYetStartedReason] = useState('')
   const [hasContractModification, setHasContractModification] = useState(false)
   const [contractModificationType, setContractModificationType] = useState('')
@@ -629,7 +852,21 @@ export default function ProjectUpdates() {
   const [portalReady, setPortalReady] = useState(false)
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
   const [saveSuccessDialog, setSaveSuccessDialog] = useState<SaveSuccessDialog>(null)
+  const [aideGenerationRequest, setAideGenerationRequest] = useState<{ updateRef: string; source: 'online' | 'offline' } | null>(null)
   const [noticeDialog, setNoticeDialog] = useState<NoticeDialog>(null)
+  const [aideFindings, setAideFindings] = useState<AideMemoireFinding[]>([createBlankAideFinding()])
+  const [noFindingsObserved, setNoFindingsObserved] = useState(false)
+  const [aideAttendance, setAideAttendance] = useState<AideMemoireAttendance[]>([createBlankAideAttendee()])
+  const [generalObservations, setGeneralObservations] = useState('')
+  const [modeOfImplementation, setModeOfImplementation] = useState('BY CONTRACT')
+  const [workingAideDraft, setWorkingAideDraft] = useState<OfflineAideMemoire | null>(null)
+  const [workingDraftLoaded, setWorkingDraftLoaded] = useState(false)
+  const [draftSaving, setDraftSaving] = useState(false)
+  const [photoProcessing, setPhotoProcessing] = useState(false)
+  const [latestPdfRecord, setLatestPdfRecord] = useState<OfflineAideMemoireDocument | null>(null)
+  const [wizardStep, setWizardStep] = useState(1)
+  const [maxReachedStep, setMaxReachedStep] = useState(1)
+  const [wizardError, setWizardError] = useState('')
 
   const routeProject = useMemo(() => {
     const state = location.state as ProjectUpdateRouteState | null
@@ -640,17 +877,135 @@ export default function ProjectUpdates() {
     return String(candidate.id) === String(id) ? candidate : null
   }, [location.state, id])
 
-  const currentPhysical = useMemo(
-    () => clampProgress(project?.physical_accomplishment),
-    [project?.physical_accomplishment]
+
+  const draftOwnerKey = String(auth?.user?.id || auth?.profile?.id || 'local-user').replace(/[^a-zA-Z0-9_-]/g, '-')
+  const workingUpdateRef = id ? `working-${id}-${draftOwnerKey}` : ''
+  const workingDraftId = id && workingUpdateRef ? `aide-${id}-offline-${workingUpdateRef}` : ''
+
+  const workingDraftFingerprint = useMemo(
+    () =>
+      JSON.stringify({
+        inspectionDate,
+        projectStatus,
+        physicalAccomplishment,
+        targetPhysicalAccomplishment,
+        financialAccomplishment,
+        disbursementAmount,
+        contractAmount,
+        notYetStartedReason,
+        hasContractModification,
+        contractModificationType,
+        revisedProjectCost,
+        revisedContractExpirationDate,
+        inspectionLatitude,
+        inspectionLongitude,
+        aideFindings,
+        noFindingsObserved,
+        aideAttendance,
+        generalObservations,
+        modeOfImplementation,
+        wizardStep,
+        maxReachedStep,
+        photos: photoInputs.map((photo) => ({
+          id: photo.id,
+          name: photo.file.name,
+          size: photo.file.size,
+          lastModified: photo.file.lastModified,
+          caption: photo.caption,
+          latitude: photo.latitude ?? null,
+          longitude: photo.longitude ?? null,
+          capturedAt: photo.capturedAt || '',
+          findingId: photo.findingId || '',
+          photoKind: photo.photoKind || 'additional',
+        })),
+      }),
+    [
+      inspectionDate,
+      projectStatus,
+      physicalAccomplishment,
+      targetPhysicalAccomplishment,
+      financialAccomplishment,
+      disbursementAmount,
+      contractAmount,
+      notYetStartedReason,
+      hasContractModification,
+      contractModificationType,
+      revisedProjectCost,
+      revisedContractExpirationDate,
+      inspectionLatitude,
+      inspectionLongitude,
+      aideFindings,
+      noFindingsObserved,
+      aideAttendance,
+      generalObservations,
+      modeOfImplementation,
+      wizardStep,
+      maxReachedStep,
+      photoInputs,
+    ],
   )
 
-  const currentFinancial = useMemo(
-    () => clampProgress(project?.financial_accomplishment),
-    [project?.financial_accomplishment]
-  )
+  const hasMeaningfulWorkingUpdate = useMemo(() => {
+    if (!project) return false
 
-  const projectCost = useMemo(() => toNumber(project?.budget), [project?.budget])
+    const defaultStatus = normalizeUpdateStatus(project.status, project.physical_accomplishment)
+    const defaultContractAmount = String(project.contract_amount ?? project.budget ?? '')
+    const defaultMode = String(project.mode_of_implementation || 'BY CONTRACT').trim().toUpperCase()
+
+    return Boolean(
+      wizardStep > 1 ||
+        maxReachedStep > 1 ||
+        inspectionDate !== todayInputValue() ||
+        projectStatus !== defaultStatus ||
+        physicalAccomplishment !== String(project.physical_accomplishment ?? '') ||
+        targetPhysicalAccomplishment ||
+        financialAccomplishment !== String(project.financial_accomplishment ?? '') ||
+        disbursementAmount ||
+        (contractAmount && contractAmount !== defaultContractAmount) ||
+        notYetStartedReason ||
+        hasContractModification ||
+        contractModificationType ||
+        revisedProjectCost ||
+        revisedContractExpirationDate ||
+        inspectionLatitude ||
+        inspectionLongitude ||
+        aideFindings.some(hasAideFindingContent) ||
+        noFindingsObserved ||
+        aideAttendance.some(hasAideAttendeeContent) ||
+        generalObservations ||
+        photoInputs.length > 0 ||
+        modeOfImplementation !== defaultMode
+    )
+  }, [
+    project,
+    wizardStep,
+    maxReachedStep,
+    inspectionDate,
+    projectStatus,
+    physicalAccomplishment,
+    targetPhysicalAccomplishment,
+    financialAccomplishment,
+    disbursementAmount,
+    contractAmount,
+    notYetStartedReason,
+    hasContractModification,
+    contractModificationType,
+    revisedProjectCost,
+    revisedContractExpirationDate,
+    inspectionLatitude,
+    inspectionLongitude,
+    aideFindings,
+    noFindingsObserved,
+    aideAttendance,
+    generalObservations,
+    photoInputs.length,
+    modeOfImplementation,
+  ])
+
+  const effectiveContractAmount = useMemo(
+    () => toNumber(contractAmount || project?.contract_amount || project?.budget),
+    [contractAmount, project?.contract_amount, project?.budget],
+  )
 
   const activeModificationType = hasContractModification ? contractModificationType :''
   const isSuspendedSelected = useMemo(() => {
@@ -666,20 +1021,52 @@ export default function ProjectUpdates() {
   const projectReasonLabel = getProjectReasonLabel(projectStatus, activeModificationType)
   const heroDisplayStatus = getStatusFromContractModification(activeModificationType) || projectStatus || project?.status ||'No Status'
 
-  const latestUpdateDate = useMemo(() => {
-    const latestUpdate = recentUpdates[0]
-    return (
-      getUpdateDateValue(latestUpdate) ||
-      project?.last_inspection_date ||
-      project?.updated_at ||
-      null
+  useEffect(() => {
+    setRecentUpdateIndex((current) =>
+      Math.min(current, Math.max(0, recentUpdates.length - 1)),
     )
-  }, [project?.last_inspection_date, project?.updated_at, recentUpdates])
+  }, [recentUpdates.length])
 
-  const latestUpdateAge = useMemo(() => {
-    return getDaysSinceDate(latestUpdateDate)
-  }, [latestUpdateDate])
+  useEffect(() => {
+    setRecentUpdateIndex(0)
+  }, [id])
 
+  useEffect(() => {
+    if (!project || workingAideDraft) return
+    const storedMode = String(project.mode_of_implementation || '').trim().toUpperCase()
+    if (storedMode === 'BY ADMINISTRATION' || storedMode === 'OTHER' || storedMode === 'BY CONTRACT') {
+      setModeOfImplementation(storedMode)
+    } else {
+      setModeOfImplementation('BY CONTRACT')
+    }
+
+    setContractAmount(String(project.contract_amount ?? project.budget ?? ''))
+  }, [project?.id, project?.mode_of_implementation, project?.contract_amount, project?.budget, workingAideDraft?.id])
+
+  useEffect(() => {
+    centerWizardStep(wizardStep)
+  }, [wizardStep])
+
+  useEffect(() => {
+    const completedRows = aideFindings.filter(hasAideFindingContent)
+    setIssues(completedRows.map((row) => row.finding.trim()).filter(Boolean).join('\n\n'))
+    setRecommendations(completedRows.map((row) => row.recommendation.trim()).filter(Boolean).join('\n\n'))
+
+    const structuredRemarks = completedRows
+      .map((row, index) => {
+        const parts = [
+          row.timeline.trim() ? `Timeline ${index + 1}: ${row.timeline.trim()}` : '',
+          formatPhotoCoordinateRemarks(row, photoInputs)
+            ? `Remarks ${index + 1}: ${formatPhotoCoordinateRemarks(row, photoInputs)}`
+            : '',
+        ].filter(Boolean)
+        return parts.join('\n')
+      })
+      .filter(Boolean)
+      .join('\n\n')
+
+    setRemarks([generalObservations.trim(), structuredRemarks].filter(Boolean).join('\n\n'))
+  }, [aideFindings, generalObservations, photoInputs])
 
   useEffect(() => {
     if (!requiresUpdateReason && notYetStartedReason) {
@@ -790,6 +1177,26 @@ export default function ProjectUpdates() {
     ],
   )
 
+  const normalizedHeroRisk = normalizeText(autoRiskLevel)
+  const heroRiskLabel =
+    !normalizedHeroRisk ||
+    normalizedHeroRisk ==='none' ||
+    normalizedHeroRisk ==='no risk'
+      ?'No Risk'
+      : autoRiskLevel
+  const heroRiskTone = normalizedHeroRisk.includes('high')
+    ? 'high'
+    : normalizedHeroRisk.includes('moderate') || normalizedHeroRisk.includes('medium')
+      ? 'moderate'
+      : normalizedHeroRisk.includes('low')
+        ? 'low'
+        : 'none'
+  const heroVarianceTone = targetVarianceInfo.className === 'behind'
+    ? 'negative'
+    : targetVarianceInfo.className === 'ahead'
+      ? 'positive'
+      : 'neutral'
+
   const inspectionCoordinateStatus = useMemo(() => {
     return normalizeCoordinatePair(inspectionLatitude, inspectionLongitude)
   }, [inspectionLatitude, inspectionLongitude])
@@ -821,6 +1228,8 @@ export default function ProjectUpdates() {
   useEffect(() => {
     setPortalReady(true)
   }, [])
+
+
 
   useEffect(() => {
     function handleOnline() {
@@ -856,6 +1265,119 @@ export default function ProjectUpdates() {
     auth?.profile?.municipality,
     auth?.poEngineerLguAssignments?.length,
     auth?.roEngineerProvinceAssignments?.length,
+  ])
+
+  useEffect(() => {
+    setWorkingDraftLoaded(false)
+    void refreshWorkingAideDraft()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workingDraftId])
+
+
+  useEffect(() => {
+    void refreshLatestProjectOutputs()
+
+    function handleRefreshLatestOutputs() {
+      if (document.visibilityState === 'visible') void refreshLatestProjectOutputs()
+    }
+
+    window.addEventListener('focus', handleRefreshLatestOutputs)
+    document.addEventListener('visibilitychange', handleRefreshLatestOutputs)
+
+    return () => {
+      window.removeEventListener('focus', handleRefreshLatestOutputs)
+      document.removeEventListener('visibilitychange', handleRefreshLatestOutputs)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+
+  useEffect(() => {
+    if (!workingAideDraft || !project) return
+    if (restoredDraftIdRef.current === workingAideDraft.id) return
+
+    restoredDraftIdRef.current = workingAideDraft.id
+    void restoreWorkingAideDraft()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workingAideDraft?.id, project?.id])
+
+  useEffect(() => {
+    if (
+      !workingDraftLoaded ||
+      loading ||
+      !project ||
+      !workingDraftId ||
+      saving ||
+      autoSaveSuspendedRef.current ||
+      !hasMeaningfulWorkingUpdate ||
+      lastAutoSaveFingerprintRef.current === workingDraftFingerprint
+    ) {
+      return
+    }
+
+    if (autoSaveTimerRef.current !== null) {
+      window.clearTimeout(autoSaveTimerRef.current)
+    }
+
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      autoSaveTimerRef.current = null
+      void saveLatestUpdateDraft({ silent: true }).catch((error) => {
+        console.error('Automatic Project Update draft save failed.', error)
+      })
+    }, 650)
+
+    return () => {
+      if (autoSaveTimerRef.current !== null) {
+        window.clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    workingDraftLoaded,
+    loading,
+    project?.id,
+    workingDraftId,
+    saving,
+    hasMeaningfulWorkingUpdate,
+    workingDraftFingerprint,
+  ])
+
+  useEffect(() => {
+    function flushWorkingDraft() {
+      if (
+        !workingDraftLoaded ||
+        !project ||
+        !workingDraftId ||
+        autoSaveSuspendedRef.current ||
+        !hasMeaningfulWorkingUpdate
+      ) {
+        return
+      }
+
+      void saveLatestUpdateDraft({ silent: true }).catch((error) => {
+        console.error('Unable to preserve the Project Update before leaving the page.', error)
+      })
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'hidden') flushWorkingDraft()
+    }
+
+    window.addEventListener('pagehide', flushWorkingDraft)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('pagehide', flushWorkingDraft)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    workingDraftLoaded,
+    project?.id,
+    workingDraftId,
+    hasMeaningfulWorkingUpdate,
+    workingDraftFingerprint,
   ])
 
   useEffect(() => {
@@ -951,13 +1473,13 @@ export default function ProjectUpdates() {
 
   function applyDisbursementComputation(rawValue = disbursementAmount) {
     try {
-      if (projectCost <= 0) {
-        setErrorMessage('Project Cost is required before computing financial accomplishment from disbursement.')
+      if (effectiveContractAmount <= 0) {
+        setErrorMessage('Contract Amount is required before computing financial accomplishment from disbursement.')
         return
       }
 
       const amount = evaluateAmountExpression(rawValue)
-      const percentage = Math.min(100, Math.max(0, (amount / projectCost) * 100))
+      const percentage = Math.min(100, Math.max(0, (amount / effectiveContractAmount) * 100))
 
       setDisbursementAmount(String(amount))
       setFinancialAccomplishment(formatProgressInput(percentage))
@@ -985,6 +1507,299 @@ export default function ProjectUpdates() {
     if (remarksValue.includes(reasonLine)) return remarksValue
 
     return `${reasonLine}\n\n${remarksValue}`
+  }
+
+
+
+  async function refreshWorkingAideDraft() {
+    if (!workingDraftId) {
+      setWorkingDraftLoaded(true)
+      return
+    }
+
+    try {
+      const draft = await offlineDb.aide_memoires.get(workingDraftId)
+      setWorkingAideDraft(draft || null)
+      lastAutoSaveFingerprintRef.current = draft ? JSON.stringify(draft.update_snapshot || {}) : ''
+    } catch (error) {
+      console.error('Unable to load the latest Project Update draft.', error)
+    } finally {
+      setWorkingDraftLoaded(true)
+    }
+  }
+
+  async function restoreWorkingAideDraft(draftOverride?: OfflineAideMemoire) {
+    const draft = draftOverride || workingAideDraft
+    if (!draft) return 1
+
+    const snapshot = (draft.update_snapshot || {}) as Record<string, any>
+    setInspectionDate(String(snapshot.inspection_date || draft.inspection_date || todayInputValue()).slice(0, 10))
+    setProjectStatus(normalizeUpdateStatus(snapshot.status, snapshot.physical_accomplishment))
+    setPhysicalAccomplishment(String(snapshot.physical_accomplishment ?? draft.actual_to_date ?? ''))
+    setTargetPhysicalAccomplishment(String(snapshot.target_physical_accomplishment ?? draft.target_to_date ?? ''))
+    setFinancialAccomplishment(String(snapshot.financial_accomplishment ?? draft.financial_accomplishment ?? ''))
+    setDisbursementAmount(String(snapshot.disbursement_amount ?? draft.total_disbursement ?? ''))
+    setContractAmount(String(snapshot.contract_amount ?? draft.contract_amount ?? project?.contract_amount ?? project?.budget ?? ''))
+    setHasContractModification(Boolean(snapshot.has_contract_modification))
+    setContractModificationType(String(snapshot.contract_modification_type || ''))
+    setRevisedProjectCost(String(snapshot.revised_project_cost ?? ''))
+    setRevisedContractExpirationDate(String(snapshot.revised_contract_expiration_date || draft.revised_expiration_date || '').slice(0, 10))
+    setInspectionLatitude(String(snapshot.inspection_latitude ?? ''))
+    setInspectionLongitude(String(snapshot.inspection_longitude ?? ''))
+    setAideFindings(draft.findings?.length ? draft.findings.map((row) => ({ ...row })) : [createBlankAideFinding()])
+    setNoFindingsObserved(Boolean(snapshot.no_findings_observed))
+    setAideAttendance(draft.attendance?.length ? draft.attendance.map((row) => ({ ...row })) : [createBlankAideAttendee()])
+    setGeneralObservations(draft.general_observations || '')
+    setModeOfImplementation(
+      String(snapshot.mode_of_implementation || draft.mode_of_implementation || project?.mode_of_implementation || 'BY CONTRACT'),
+    )
+    const restoredWizardStep = Math.min(8, Math.max(1, Number(snapshot.wizard_step || 1)))
+    const restoredMaxStep = Math.min(8, Math.max(restoredWizardStep, Number(snapshot.max_reached_step || restoredWizardStep)))
+    setWizardStep(restoredWizardStep)
+    setMaxReachedStep(restoredMaxStep)
+
+    photoInputsRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
+    const assets = await getAideMemoirePhotoAssets(draft.id)
+    const assetMap = new Map(assets.map((asset) => [asset.photo_ref, asset]))
+    const restoredPhotos = (draft.photos || []).flatMap<PhotoInput>((photo) => {
+      const asset = assetMap.get(photo.photo_ref)
+      const blob = asset ? aideMemoirePhotoAssetToBlob(asset) : photo.file_blob
+      if (!blob) return []
+
+      const file = new File([blob], photo.file_name || `aide-photo-${photo.photo_number}.jpg`, {
+        type: photo.file_type || blob.type || 'image/jpeg',
+      })
+
+      return [
+        {
+          id: photo.id || createAideRowId('photo'),
+          file,
+          previewUrl: URL.createObjectURL(file),
+          caption: photo.caption || '',
+          originalSize: file.size,
+          compressedSize: file.size,
+          compressed: true,
+          latitude: photo.latitude ?? null,
+          longitude: photo.longitude ?? null,
+          capturedAt: photo.captured_at || '',
+          findingId: photo.finding_id || '',
+          photoKind: photo.photo_kind || (photo.finding_id ? 'finding' : 'additional'),
+        },
+      ]
+    })
+    setPhotoInputs(restoredPhotos)
+    return restoredWizardStep
+  }
+
+  function getInspectionPhotoCaption(photo: PhotoInput, index: number) {
+    const linkedFinding = aideFindings.find((row) => (row.photo_refs || []).includes(photo.id))
+    return cleanText(photo.caption) || cleanText(linkedFinding?.finding) || `Project update photo ${index + 1}`
+  }
+
+  function buildAideMemoireRecord(
+    updateRef: string,
+    updateSource: 'online' | 'offline',
+    recordStatus: 'draft' | 'final',
+  ): OfflineAideMemoire {
+    if (!id || !project) throw new Error('Project information is not available.')
+
+    const now = new Date().toISOString()
+    const officeLocation = getAideOfficeLocation(project, auth)
+    const office = getDilgOfficeDirectoryEntry(officeLocation)
+    const parsedCost = effectiveContractAmount
+    const parsedDisbursement = disbursementAmount ? toNumber(disbursementAmount) : 0
+    const photos: AideMemoirePhoto[] = photoInputs.map((photo, index) => ({
+      id: photo.id,
+      photo_ref: photo.id,
+      photo_number: index + 1,
+      caption: getInspectionPhotoCaption(photo, index),
+      file_name: photo.file.name,
+      file_type: photo.file.type,
+      file_blob: photo.file,
+      latitude: photo.latitude ?? null,
+      longitude: photo.longitude ?? null,
+      captured_at: photo.capturedAt || '',
+      finding_id: photo.findingId || '',
+      photo_kind: photo.photoKind || 'additional',
+    }))
+
+    return {
+      id: `aide-${id}-${updateSource}-${updateRef}`,
+      project_id: id,
+      update_ref: updateRef,
+      update_source: updateSource,
+      created_by: auth?.user?.id || auth?.profile?.id || null,
+      province_huc: office.location || officeLocation || String(project.province || ''),
+      office_name: office.officeName || '',
+      office_address: office.address || '',
+      inspection_date: inspectionDate,
+      project_title: String(project.project_name || ''),
+      program: getDriveFundingSource(project),
+      project_code: getProjectCodeValue(project),
+      funding_year: getProjectFundingYearValue(project),
+      national_subsidy: project.budget === null || project.budget === undefined ? '' : String(project.budget),
+      lgu_equity: project.lgu_equity === null || project.lgu_equity === undefined ? '' : String(project.lgu_equity),
+      project_type: String(project.project_type || ''),
+      exact_location: getExactProjectLocation(project),
+      implementing_unit: String(project.implementing_office || project.municipality || ''),
+      mode_of_implementation: modeOfImplementation || 'BY CONTRACT',
+      contractor_name: String(project.contractor || ''),
+      contractor_office_address: String(project.contractor_office_address || project.contractor_address || ''),
+      contract_perfection_date: String(project.contract_perfection_date || project.date_of_perfection_of_contract || '').slice(0, 10),
+      ntp_receipt_date: String(project.ntp_receipt_date || project.date_of_receipt_of_ntp || project.start_date || '').slice(0, 10),
+      contract_amount: contractAmount || String(project.contract_amount ?? project.budget ?? ''),
+      contract_duration: String(project.contract_duration || calculateDateDifference(project.ntp_receipt_date || project.date_of_receipt_of_ntp || project.start_date, project.contract_expiration_date) || ''),
+      revised_contract_duration: String(project.revised_contract_duration || calculateDateDifference(project.ntp_receipt_date || project.date_of_receipt_of_ntp || project.start_date, revisedContractExpirationDate) || ''),
+      original_expiration_date: String(project.contract_expiration_date || '').slice(0, 10),
+      revised_expiration_date: revisedContractExpirationDate || String(project.revised_contract_expiration_date || '').slice(0, 10),
+      target_to_date: targetPhysicalAccomplishment,
+      actual_to_date: physicalAccomplishment,
+      physical_variance: String(Number((toNumber(physicalAccomplishment) - toNumber(targetPhysicalAccomplishment)).toFixed(2))),
+      balance: parsedCost > 0 ? String(Math.max(0, parsedCost - parsedDisbursement)) : '',
+      total_disbursement: disbursementAmount,
+      financial_accomplishment: financialAccomplishment,
+      findings: aideFindings.filter(hasAideFindingContent).map((row) => ({
+        ...row,
+        photo_refs: [...(row.photo_refs || [])],
+      })),
+      general_observations: generalObservations,
+      attendance: aideAttendance.filter(hasAideAttendeeContent).map((row) => ({ ...row })),
+      photos,
+      project_snapshot: { ...project },
+      update_snapshot: {
+        inspection_date: inspectionDate,
+        status: projectStatus,
+        physical_accomplishment: physicalAccomplishment,
+        target_physical_accomplishment: targetPhysicalAccomplishment,
+        financial_accomplishment: financialAccomplishment,
+        disbursement_amount: disbursementAmount,
+        contract_amount: contractAmount || String(project.contract_amount ?? project.budget ?? ''),
+        has_contract_modification: hasContractModification,
+        contract_modification_type: contractModificationType,
+        revised_project_cost: revisedProjectCost,
+        revised_contract_expiration_date: revisedContractExpirationDate,
+        inspection_latitude: inspectionLatitude,
+        inspection_longitude: inspectionLongitude,
+        findings: aideFindings,
+        no_findings_observed: noFindingsObserved,
+        attendance: aideAttendance,
+        general_observations: generalObservations,
+        mode_of_implementation: modeOfImplementation || 'BY CONTRACT',
+        wizard_step: wizardStep,
+        max_reached_step: maxReachedStep,
+      },
+      status: recordStatus,
+      sync_status: 'local',
+      synced: false,
+      created_at: recordStatus === 'draft' && workingAideDraft?.created_at ? workingAideDraft.created_at : now,
+      updated_at: now,
+    }
+  }
+
+  async function saveLatestUpdateDraft(options: { silent?: boolean } = {}) {
+    if (!workingUpdateRef || !workingDraftId) throw new Error('Draft reference is unavailable.')
+    if (autoSaveInFlightRef.current) return workingAideDraft
+
+    const silent = Boolean(options.silent)
+    autoSaveInFlightRef.current = true
+    if (!silent) setDraftSaving(true)
+
+    try {
+      const draft = buildAideMemoireRecord(workingUpdateRef, 'offline', 'draft')
+      const storedDraft = await saveAideMemoireRecord(draft)
+      setWorkingAideDraft(storedDraft)
+      lastAutoSaveFingerprintRef.current = workingDraftFingerprint
+      return draft
+    } finally {
+      autoSaveInFlightRef.current = false
+      if (!silent) setDraftSaving(false)
+    }
+  }
+
+
+  async function saveUpdateDraftFromFab() {
+    setErrorMessage('')
+    try {
+      await saveLatestUpdateDraft()
+      setNoticeDialog({
+        title: 'Draft Saved Successfully',
+        message:
+          'The latest Project Update draft was saved on this device. Open this project and use Resume Draft to continue from the saved step.',
+        tone: 'info',
+      })
+    } catch (error: any) {
+      console.error('Unable to save the Project Update draft.', error)
+      setNoticeDialog({
+        title: 'Draft Not Saved',
+        message: error?.message || 'Unable to save the draft on this device. Please try again.',
+        tone: 'danger',
+      })
+    }
+  }
+
+  async function finalizeAideMemoireForSavedUpdate(updateRef: string, source: 'online' | 'offline') {
+    if (!updateRef) return
+    const finalRecord = buildAideMemoireRecord(updateRef, source, 'final')
+    await saveAideMemoireRecord(finalRecord)
+    if (workingDraftId) await offlineDb.aide_memoires.delete(workingDraftId)
+    setWorkingAideDraft(null)
+  }
+
+
+  async function refreshLatestProjectOutputs() {
+    if (!id) {
+      setLatestPdfRecord(null)
+      return
+    }
+
+    try {
+      let latestPdf = await getLatestAideMemoireDocument(id, 'pdf')
+      if (!latestPdf) {
+        const records = await offlineDb.aide_memoires.where('project_id').equals(id).toArray()
+        const legacyRecord = records
+          .filter((record) => Boolean(record.latest_pdf_blob))
+          .sort((first, second) =>
+            String(second.latest_pdf_generated_at || second.updated_at || '').localeCompare(
+              String(first.latest_pdf_generated_at || first.updated_at || ''),
+            ),
+          )[0]
+
+        if (legacyRecord?.latest_pdf_blob) {
+          latestPdf = await saveAideMemoireDocument({
+            aideMemoireId: legacyRecord.id,
+            projectId: id,
+            updateRef: legacyRecord.update_ref,
+            format: 'pdf',
+            fileName: legacyRecord.latest_pdf_file_name || 'Aide_Memoire.pdf',
+            blob: legacyRecord.latest_pdf_blob,
+            generatedAt: legacyRecord.latest_pdf_generated_at || legacyRecord.updated_at,
+          })
+        }
+      }
+      setLatestPdfRecord(latestPdf)
+    } catch (error) {
+      console.error('Unable to load the latest locally generated Aide Memoire PDF.', error)
+      setLatestPdfRecord(null)
+    }
+  }
+
+  function viewLatestProjectPdf() {
+    if (!latestPdfRecord) return
+
+    const pdfBlob = aideMemoireDocumentToBlob(latestPdfRecord)
+    const objectUrl = URL.createObjectURL(pdfBlob)
+    const openedWindow = window.open(objectUrl, '_blank', 'noopener,noreferrer')
+
+    if (!openedWindow) {
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = latestPdfRecord.file_name || 'Latest_Aide_Memoire.pdf'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
   }
 
 
@@ -1022,7 +1837,7 @@ export default function ProjectUpdates() {
         await putCachedProject(onlineProject)
         applyTargetPhysicalFromProject(onlineProject)
         applyContractFieldsFromProject(onlineProject)
-        setProjectStatus(onlineProject?.status ||'Ongoing')
+        setProjectStatus(normalizeUpdateStatus(onlineProject?.status, onlineProject?.physical_accomplishment))
         setPhysicalAccomplishment(
           onlineProject?.physical_accomplishment !== null &&
             onlineProject?.physical_accomplishment !== undefined
@@ -1098,7 +1913,7 @@ export default function ProjectUpdates() {
     setProject(cachedProject)
     applyTargetPhysicalFromProject(cachedProject as ProjectRecord)
     applyContractFieldsFromProject(cachedProject as ProjectRecord)
-    setProjectStatus(cachedProject?.status ||'Ongoing')
+    setProjectStatus(normalizeUpdateStatus(cachedProject?.status, cachedProject?.physical_accomplishment))
     setPhysicalAccomplishment(
       cachedProject?.physical_accomplishment !== null &&
         cachedProject?.physical_accomplishment !== undefined
@@ -1114,7 +1929,9 @@ export default function ProjectUpdates() {
 
     const offlineUpdates = await readOfflineTable(offlineUpdateTables)
     const filteredUpdates = offlineUpdates
-      .filter((update: ProjectUpdateRecord) => update?.project_id === id)
+      .filter((update: ProjectUpdateRecord & { photo_retry_only?: boolean }) =>
+        update?.project_id === id && !update.photo_retry_only,
+      )
       .sort((a: ProjectUpdateRecord, b: ProjectUpdateRecord) => {
         const dateA = new Date(
           a.inspection_date || a.created_at ||'1970-01-01'
@@ -1156,62 +1973,248 @@ export default function ProjectUpdates() {
     }
   }
 
-  async function handlePhotoSelect(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || [])
-    event.target.value =''
+  async function capturePhotoMetadata(): Promise<PhotoCaptureMetadata> {
+    const capturedAt = new Date().toISOString()
 
-    if (files.length === 0) return
+    if (typeof navigator === 'undefined' || !navigator.geolocation || !window.isSecureContext) {
+      return {
+        latitude: null,
+        longitude: null,
+        capturedAt,
+        gpsMessage: 'Photo saved without GPS. Location services were unavailable.',
+      }
+    }
 
+    return await new Promise<PhotoCaptureMetadata>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const normalized = normalizeCoordinatePair(position.coords.latitude, position.coords.longitude)
+          resolve({
+            latitude: normalized.isValid ? normalized.latitude : null,
+            longitude: normalized.isValid ? normalized.longitude : null,
+            capturedAt,
+            gpsMessage: normalized.isValid
+              ? `GPS captured: ${Number(normalized.latitude).toFixed(7)}, ${Number(normalized.longitude).toFixed(7)}`
+              : normalized.reason,
+          })
+        },
+        (gpsError) => {
+          resolve({
+            latitude: null,
+            longitude: null,
+            capturedAt,
+            gpsMessage: getGpsErrorMessage(gpsError),
+          })
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15_000,
+          maximumAge: 0,
+        },
+      )
+    })
+  }
+
+
+  async function retryPhotoGps(photoId: string) {
+    setPhotoProcessing(true)
+    setErrorMessage('')
+    setMessage('Capturing GPS location…')
+
+    try {
+      const metadata = await capturePhotoMetadata()
+      if (metadata.latitude === null || metadata.longitude === null) {
+        setErrorMessage(metadata.gpsMessage || 'GPS location could not be captured.')
+        setMessage('')
+        return
+      }
+
+      setPhotoInputs((photos) => photos.map((photo) =>
+        photo.id === photoId
+          ? {
+              ...photo,
+              latitude: metadata.latitude,
+              longitude: metadata.longitude,
+              capturedAt: metadata.capturedAt,
+            }
+          : photo,
+      ))
+
+      if (!inspectionLatitude.trim() && !inspectionLongitude.trim()) {
+        setInspectionLatitude(String(metadata.latitude))
+        setInspectionLongitude(String(metadata.longitude))
+      }
+
+      setMessage(`GPS updated: ${metadata.latitude.toFixed(7)}, ${metadata.longitude.toFixed(7)}`)
+    } finally {
+      setPhotoProcessing(false)
+    }
+  }
+
+  async function processSelectedPhotos(
+    files: File[],
+    options: { findingId?: string; photoKind: 'finding' | 'additional'; captureGps?: boolean },
+  ) {
     const imageFiles = files.filter(isLikelyImage)
     const rejectedCount = files.length - imageFiles.length
 
-    const availableSlots = MAX_PHOTOS_PER_UPDATE - photoInputs.length
-    const acceptedFiles = imageFiles.slice(0, Math.max(availableSlots, 0))
-
-    if (acceptedFiles.length === 0) {
+    if (imageFiles.length === 0) {
       if (rejectedCount > 0) {
         setErrorMessage(`${rejectedCount} file(s) were skipped because they are not images.`)
-      } else if (imageFiles.length > 0) {
-        setErrorMessage(`Only ${MAX_PHOTOS_PER_UPDATE} photos are allowed per update.`)
       }
-
-      return
+      return [] as PhotoInput[]
     }
 
+    setPhotoProcessing(true)
+    setErrorMessage('')
+    setMessage(`Preparing ${imageFiles.length} inspection photo(s)…`)
+
     try {
-      const mappedPhotos = acceptedFiles.map((file) => ({
-        id: makeLocalId(),
-        file,
-        previewUrl: URL.createObjectURL(file),
-        caption:'',
-        originalSize: file.size,
-        compressedSize: file.size,
-        compressed: false,
-      }))
+      const metadata = options.captureGps ? await capturePhotoMetadata() : {
+        latitude: null,
+        longitude: null,
+        capturedAt: new Date().toISOString(),
+        gpsMessage: '',
+      }
+      const mappedPhotos: PhotoInput[] = []
+      const warnings: string[] = []
+      let originalBytes = 0
+      let compressedBytes = 0
+
+      for (const sourceFile of imageFiles) {
+        originalBytes += sourceFile.size
+
+        try {
+          const result = await compressInspectionImage(sourceFile)
+          compressedBytes += result.compressedSize
+          mappedPhotos.push({
+            id: makeLocalId(),
+            file: result.file,
+            previewUrl: URL.createObjectURL(result.file),
+            caption: '',
+            originalSize: result.originalSize,
+            compressedSize: result.compressedSize,
+            compressed: result.compressed,
+            latitude: metadata.latitude,
+            longitude: metadata.longitude,
+            capturedAt: metadata.capturedAt,
+            findingId: options.findingId,
+            photoKind: options.photoKind,
+          })
+        } catch (compressionError: any) {
+          console.warn(`Unable to compress ${sourceFile.name}; keeping the original image.`, compressionError)
+          compressedBytes += sourceFile.size
+          mappedPhotos.push({
+            id: makeLocalId(),
+            file: sourceFile,
+            previewUrl: URL.createObjectURL(sourceFile),
+            caption: '',
+            originalSize: sourceFile.size,
+            compressedSize: sourceFile.size,
+            compressed: false,
+            latitude: metadata.latitude,
+            longitude: metadata.longitude,
+            capturedAt: metadata.capturedAt,
+            findingId: options.findingId,
+            photoKind: options.photoKind,
+          })
+          warnings.push(`${sourceFile.name} could not be compressed on this device.`)
+        }
+      }
 
       setPhotoInputs((previous) => [...previous, ...mappedPhotos])
 
-      if (rejectedCount > 0) {
-        setErrorMessage(`${rejectedCount} file(s) were skipped because they are not images.`)
-      } else if (imageFiles.length > acceptedFiles.length) {
-        setErrorMessage(
-          `Only ${MAX_PHOTOS_PER_UPDATE} photos are allowed per update. Extra photos were not added.`
-        )
-      } else {
-        setErrorMessage('')
+      if (
+        options.captureGps &&
+        metadata.latitude !== null &&
+        metadata.longitude !== null &&
+        !inspectionLatitude.trim() &&
+        !inspectionLongitude.trim()
+      ) {
+        setInspectionLatitude(String(metadata.latitude))
+        setInspectionLongitude(String(metadata.longitude))
       }
 
+      if (options.findingId && mappedPhotos.length > 0) {
+        const refs = mappedPhotos.map((photo) => photo.id)
+        setAideFindings((rows) => rows.map((row) =>
+          row.id === options.findingId
+            ? { ...row, photo_refs: [...new Set([...(row.photo_refs || []), ...refs])] }
+            : row,
+        ))
+      }
+
+      const originalMb = originalBytes / (1024 * 1024)
+      const compressedMb = compressedBytes / (1024 * 1024)
+      const savedPercent = originalBytes > 0
+        ? Math.max(0, Math.round((1 - compressedBytes / originalBytes) * 100))
+        : 0
+      const skippedMessage = rejectedCount > 0 ? ` ${rejectedCount} non-image file(s) were skipped.` : ''
+      const warningMessage = warnings.length > 0 ? ` ${warnings.length} photo(s) kept their original size.` : ''
+      const gpsMessage = options.captureGps ? ` ${metadata.gpsMessage}` : ''
+
       setMessage(
-        `${acceptedFiles.length} photo(s) added. Original image files will be uploaded to Google Drive when this update is saved.`
+        `${mappedPhotos.length} photo(s) ready. ${originalMb.toFixed(1)} MB was reduced to ${compressedMb.toFixed(1)} MB (${savedPercent}% smaller).${gpsMessage}${skippedMessage}${warningMessage}`,
       )
+
+      if (rejectedCount > 0 || warnings.length > 0 || (options.captureGps && metadata.latitude === null)) {
+        setErrorMessage(`${gpsMessage}${skippedMessage}${warningMessage}`.trim())
+      }
+
+      return mappedPhotos
     } catch (photoError) {
       console.error(photoError)
       setErrorMessage('Unable to process the selected photo(s). Please try again.')
       setMessage('')
+      return [] as PhotoInput[]
+    } finally {
+      setPhotoProcessing(false)
+    }
+  }
+
+  async function handlePhotoSelect(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || [])
+    event.target.value = ''
+    if (files.length === 0) return
+    await processSelectedPhotos(files, { photoKind: 'additional', captureGps: false })
+  }
+
+  async function handleFindingPhotoSelect(event: ChangeEvent<HTMLInputElement>, findingId?: string) {
+    const files = Array.from(event.target.files || [])
+    event.target.value = ''
+    if (files.length === 0) return
+
+    let targetId = findingId
+    if (!targetId) {
+      const blankRow = aideFindings.find((row) => !hasAideFindingContent(row))
+      const target = blankRow || createBlankAideFinding()
+      targetId = target.id
+      if (!blankRow) setAideFindings((rows) => [...rows, target])
+    }
+
+    const mapped = await processSelectedPhotos(files, {
+      findingId: targetId,
+      photoKind: 'finding',
+      captureGps: true,
+    })
+
+    if (mapped.length > 0) {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(() => {
+          const input = findingInputRefs.current[targetId as string]
+          input?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          input?.focus({ preventScroll: true })
+        }, 0)
+      })
     }
   }
 
   function removePhoto(photoId: string) {
+    setAideFindings((rows) => rows.map((row) => ({
+      ...row,
+      photo_refs: (row.photo_refs || []).filter((ref) => ref !== photoId),
+    })))
+
     setPhotoInputs((previous) => {
       const photoToRemove = previous.find((photo) => photo.id === photoId)
 
@@ -1290,6 +2293,170 @@ export default function ProjectUpdates() {
   }
 
 
+  function validateWizardStep(step: number) {
+    if (step === 1) {
+      if (!inspectionDate) return 'Please select the inspection date.'
+      return ''
+    }
+
+    if (step === 2) {
+      if (physicalAccomplishment === '') return 'Please enter the physical accomplishment.'
+      if (targetPhysicalAccomplishment === '') return 'Please enter the target physical accomplishment.'
+      if (financialAccomplishment === '') return 'Please enter the financial accomplishment.'
+      if (disbursementAmount.trim() === '') return 'Please enter the total disbursement. Enter 0 when there is no disbursement yet.'
+
+      const physical = toNumber(physicalAccomplishment)
+      const target = toNumber(targetPhysicalAccomplishment)
+      const financial = toNumber(financialAccomplishment)
+      if (physical < 0 || physical > 100) return 'Physical accomplishment must be between 0 and 100.'
+      if (target < 0 || target > 100) return 'Target physical accomplishment must be between 0 and 100.'
+      if (financial < 0 || financial > 100) return 'Financial accomplishment must be between 0 and 100.'
+      return ''
+    }
+
+    if (step === 3) {
+      if (!projectStatus) return 'Please select the project status.'
+      if (requiresUpdateReason && !notYetStartedReason.trim()) {
+        return `Please provide the ${projectReasonLabel.toLowerCase()}.`
+      }
+      return ''
+    }
+
+    if (step === 4) {
+      if (hasContractModification && !contractModificationType.trim()) {
+        return 'Please select the type of contract modification.'
+      }
+      if (hasContractModification && !revisedProjectCost.trim()) {
+        return 'Please enter the revised project cost.'
+      }
+      if (hasContractModification && !revisedContractExpirationDate.trim()) {
+        return 'Please enter the revised contract expiration date.'
+      }
+      return ''
+    }
+
+    if (step === 5) {
+      if (noFindingsObserved) return ''
+
+      const contentRows = aideFindings.filter(hasAideFindingContent)
+      if (contentRows.length === 0) {
+        return 'Add at least one finding or select “No findings observed.”'
+      }
+
+      const incompleteRow = contentRows.find(
+        (row) => !row.finding.trim() || !row.recommendation.trim() || !row.timeline.trim(),
+      )
+      if (incompleteRow) {
+        return 'Each finding must include a finding, recommendation, and timeline date.'
+      }
+
+      const findingWithoutPhoto = contentRows.find((row) => (row.photo_refs || []).length === 0)
+      if (findingWithoutPhoto) {
+        return 'Attach at least one supporting photo to every finding.'
+      }
+      return ''
+    }
+
+    if (step === 6) {
+      if (!generalObservations.trim()) {
+        return 'Please enter the general observations. Enter “No additional observations” when none apply.'
+      }
+      return ''
+    }
+
+    if (step === 7) {
+      const attendees = aideAttendance.filter(hasAideAttendeeContent)
+      if (attendees.length === 0) return 'Please add at least one attendee.'
+      if (attendees.some((row) => !row.name.trim() || !row.designation_agency.trim())) {
+        return 'Each attendee must include a name and designation/agency.'
+      }
+      return ''
+    }
+
+    if (step === 8) {
+      return ''
+    }
+
+    return ''
+  }
+
+  function centerWizardStep(step: number) {
+    window.requestAnimationFrame(() => {
+      const container = wizardProgressRef.current
+      const stepButton = wizardStepButtonRefs.current[step]
+
+      if (!container || !stepButton) return
+
+      const targetLeft =
+        stepButton.offsetLeft - (container.clientWidth - stepButton.offsetWidth) / 2
+
+      container.scrollTo({
+        left: Math.max(0, targetLeft),
+        behavior: 'smooth',
+      })
+    })
+  }
+
+  function scrollToWizardTop() {
+    window.requestAnimationFrame(() => {
+      wizardTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      centerWizardStep(wizardStep)
+    })
+  }
+
+
+  function addAttendeeRow() {
+    const existingBlankRow = aideAttendance.find((row) => !hasAideAttendeeContent(row))
+    const targetRow = existingBlankRow || createBlankAideAttendee()
+
+    if (!existingBlankRow) {
+      setAideAttendance((rows) => [...rows, targetRow])
+    }
+
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        const input = attendeeInputRefs.current[targetRow.id]
+        input?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        input?.focus({ preventScroll: true })
+      }, 0)
+    })
+  }
+
+  async function goToNextWizardStep() {
+    const stepError = validateWizardStep(wizardStep)
+    if (stepError) {
+      setWizardError(stepError)
+      setNoticeDialog({ title: 'Complete This Step', message: stepError, tone: 'warning' })
+      return
+    }
+
+    setWizardError('')
+
+    try {
+      await saveLatestUpdateDraft()
+    } catch (error) {
+      console.error('Unable to preserve the working update.', error)
+    }
+
+    const nextStep = Math.min(WIZARD_STEP_COUNT, wizardStep + 1)
+    setWizardStep(nextStep)
+    setMaxReachedStep((current) => Math.max(current, nextStep))
+    scrollToWizardTop()
+  }
+
+  function goToPreviousWizardStep() {
+    setWizardError('')
+    setWizardStep((current) => Math.max(1, current - 1))
+    scrollToWizardTop()
+  }
+
+  function jumpToWizardStep(step: number) {
+    if (step > maxReachedStep) return
+    setWizardError('')
+    setWizardStep(step)
+    scrollToWizardTop()
+  }
+
   function validateForm() {
     if (!id) {
       return'Project ID is missing.'
@@ -1356,6 +2523,16 @@ export default function ProjectUpdates() {
 
     if (hasLatitude && hasLongitude && !inspectionCoordinateStatus.isValid) {
       return inspectionCoordinateStatus.reason
+    }
+
+    for (let step = 1; step <= WIZARD_STEP_COUNT; step += 1) {
+      const stepError = validateWizardStep(step)
+      if (stepError) {
+        setWizardStep(step)
+        setMaxReachedStep((current) => Math.max(current, step))
+        scrollToWizardTop()
+        return stepError
+      }
     }
 
     return''
@@ -1510,23 +2687,105 @@ export default function ProjectUpdates() {
       throw projectUpdateError
     }
 
-    if (photoInputs.length > 0 && updateId) {
-      await uploadPhotosOnline(projectId, updateId)
+    let photoUploadResult = {
+      uploadedCount: 0,
+      queuedCount: 0,
+      failedMessages: [] as string[],
     }
 
+    if (photoInputs.length > 0 && updateId) {
+      photoUploadResult = await uploadPhotosOnline(projectId, String(updateId))
+    }
+
+    await finalizeAideMemoireForSavedUpdate(String(updateId || ''), 'online')
+    await refreshLatestProjectOutputs()
     clearFormAfterSave()
-    setMessage('Project update saved online successfully.')
+
+    const hasQueuedPhotos = photoUploadResult.queuedCount > 0
+    const successMessage = hasQueuedPhotos
+      ? `Project update saved. ${photoUploadResult.queuedCount} compressed photo(s) remain safely on this device for Offline Sync.`
+      : 'Project update saved online successfully.'
+
+    setMessage(successMessage)
     setSaveSuccessDialog({
-      title:'Update Saved',
-      message:'Project update saved successfully. The project record has been updated.',
+      title: hasQueuedPhotos ? 'Update Saved — Drive Upload Pending' : 'Update Saved',
+      message: hasQueuedPhotos
+        ? `The inspection update is saved and the Aide Memoire can be generated now, even without syncing. ${photoUploadResult.uploadedCount} photo(s) reached Google Drive and ${photoUploadResult.queuedCount} compressed photo(s) remain safely on this device for Offline Sync.`
+        : 'Project update saved successfully. The project record and compressed photos have been updated.',
       mode:'online',
+      updateRef: String(updateId || ''),
     })
 
   }
 
+  async function queueFailedOnlinePhotos(
+    projectId: string,
+    updateId: string,
+    failedPhotos: Array<{ photo: PhotoInput; index: number; message: string }>,
+  ) {
+    if (failedPhotos.length === 0) return 0
+
+    const localQueueId = `photo-retry-${updateId}-${Date.now()}`
+    const currentTimestamp = new Date().toISOString()
+    const projectName = project?.project_name || 'Untitled Project'
+    const driveFundingYear = getDriveFundingYear(project, inspectionDate)
+    const driveFundingSource = getDriveFundingSource(project)
+    const updatePayload = buildUpdatePayload(projectId)
+
+    const offlineUpdateId = await offlineDb.project_updates.add({
+      ...updatePayload,
+      local_id: localQueueId,
+      online_update_id: updateId,
+      project_name: projectName,
+      funding_year: driveFundingYear || null,
+      funding_source: driveFundingSource || project?.funding_source || null,
+      funding_program: driveFundingSource || null,
+      status: projectStatus,
+      contract_expiration_date: project?.contract_expiration_date || null,
+      has_contract_modification: hasContractModification,
+      contract_modification_type: hasContractModification ? contractModificationType : null,
+      revised_project_cost: hasContractModification ? toNumber(revisedProjectCost) : null,
+      revised_contract_expiration_date: hasContractModification
+        ? revisedContractExpirationDate
+        : null,
+      not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
+      updated_at: currentTimestamp,
+      synced: false,
+      sync_status: 'pending',
+      is_offline: false,
+      error: failedPhotos.map((item) => item.message).filter(Boolean).join(' | '),
+      photo_retry_only: true,
+    } as any)
+
+    const photoRows = failedPhotos.map(({ photo, index, message }) => ({
+      offline_update_id: offlineUpdateId,
+      local_update_id: localQueueId,
+      project_update_id: updateId,
+      project_id: projectId,
+      project_name: projectName,
+      funding_year: driveFundingYear || null,
+      funding_source: driveFundingSource || project?.funding_source || null,
+      funding_program: driveFundingSource || null,
+      file_blob: photo.file,
+      file: photo.file,
+      file_name: photo.file.name,
+      file_type: photo.file.type,
+      file_size: photo.file.size,
+      caption: getInspectionPhotoCaption(photo, index),
+      created_at: currentTimestamp,
+      uploaded_at: currentTimestamp,
+      synced: false,
+      sync_status: 'pending',
+      is_offline: true,
+      error: message,
+    }))
+
+    await offlineDb.project_photos.bulkAdd(photoRows)
+    return photoRows.length
+  }
+
   async function uploadPhotosOnline(projectId: string, updateId: string) {
-    const photoRows = []
-    const projectTitle = project?.project_name ||'Untitled Project'
+    const projectTitle = project?.project_name || 'Untitled Project'
     const driveFundingYear = getDriveFundingYear(project, inspectionDate)
     const driveFundingSource = getDriveFundingSource(project)
     const uploadedBy =
@@ -1534,41 +2793,66 @@ export default function ProjectUpdates() {
       auth?.profile?.email ||
       auth?.user?.email ||
       auth?.user?.id ||
-      auth?.profile?.id ||'PMS10 User'
+      auth?.profile?.id ||
+      'PMS10 User'
+
+    let uploadedCount = 0
+    const failedPhotos: Array<{ photo: PhotoInput; index: number; message: string }> = []
 
     for (let index = 0; index < photoInputs.length; index += 1) {
       const photo = photoInputs[index]
-      const uploadedFile = await uploadProjectPhotoToDrive({
-        file: photo.file,
-        projectId,
-        updateId,
-        projectTitle,
-        inspectionDate,
-        fundingYear: driveFundingYear,
-        fundingSource: driveFundingSource,
-        fundingProgram: driveFundingSource,
-        uploadedBy,
-      })
 
-      photoRows.push({
-        project_id: projectId,
-        project_update_id: updateId,
-        photo_url: getDrivePhotoUrl(uploadedFile),
-        caption:
-          cleanText(photo.caption) ||
-          `Project update photo ${index + 1}`,
-        uploaded_at: new Date().toISOString(),
-      })
+      try {
+        const uploadedFile = await uploadProjectPhotoToDrive({
+          file: photo.file,
+          projectId,
+          updateId,
+          projectTitle,
+          inspectionDate,
+          fundingYear: driveFundingYear,
+          fundingSource: driveFundingSource,
+          fundingProgram: driveFundingSource,
+          uploadedBy,
+        })
+
+        const { error: photoInsertError } = await supabase.from('project_photos').insert([
+          {
+            project_id: projectId,
+            project_update_id: updateId,
+            photo_url: getDrivePhotoUrl(uploadedFile),
+            caption: getInspectionPhotoCaption(photo, index),
+            uploaded_at: new Date().toISOString(),
+          },
+        ])
+
+        if (photoInsertError) throw photoInsertError
+        uploadedCount += 1
+      } catch (error: any) {
+        console.error(`Unable to upload project photo ${index + 1}.`, error)
+        failedPhotos.push({
+          photo,
+          index,
+          message:
+            error?.message ||
+            'Google Drive photo upload failed. This photo was queued for Offline Sync.',
+        })
+      }
     }
 
-    if (photoRows.length > 0) {
-      const { error: photoInsertError } = await supabase
-        .from('project_photos')
-        .insert(photoRows)
+    let queuedCount = 0
 
-      if (photoInsertError) {
-        throw photoInsertError
+    if (failedPhotos.length > 0) {
+      try {
+        queuedCount = await queueFailedOnlinePhotos(projectId, updateId, failedPhotos)
+      } catch (queueError) {
+        console.error('Unable to queue failed online photos for Offline Sync.', queueError)
       }
+    }
+
+    return {
+      uploadedCount,
+      queuedCount,
+      failedMessages: failedPhotos.map((item) => item.message),
     }
   }
 
@@ -1627,9 +2911,7 @@ export default function ProjectUpdates() {
       file_name: photo.file.name,
       file_type: photo.file.type,
       file_size: photo.file.size,
-      caption:
-        cleanText(photo.caption) ||
-        `Project update photo ${index + 1}`,
+      caption: getInspectionPhotoCaption(photo, index),
       created_at: new Date().toISOString(),
       uploaded_at: new Date().toISOString(),
       synced: false,
@@ -1672,21 +2954,29 @@ export default function ProjectUpdates() {
       updated_at: currentTimestamp,
     })
 
+    await finalizeAideMemoireForSavedUpdate(localUpdateId, 'offline')
+    await refreshLatestProjectOutputs()
     clearFormAfterSave()
     setMessage('Project update saved offline. Sync it when internet is available.')
     setSaveSuccessDialog({
-      title:'Saved Offline',
-      message:'Project update saved offline successfully. Sync it when internet is available.',
+      title:'Saved Offline — Ready to Generate',
+      message:'The inspection update and compressed photo files are safely stored on this device. You can generate the Aide Memoire now without synchronizing, then use Offline Sync when internet is available.',
       mode:'offline',
+      updateRef: localUpdateId,
     })
 
     await loadOfflineData()
   }
 
   function clearFormAfterSave() {
+    autoSaveSuspendedRef.current = true
     setIssues('')
     setRecommendations('')
     setRemarks('')
+    setAideFindings([createBlankAideFinding()])
+    setNoFindingsObserved(false)
+    setAideAttendance([createBlankAideAttendee()])
+    setGeneralObservations('')
     setDisbursementAmount('')
     setNotYetStartedReason('')
     setInspectionDate(todayInputValue())
@@ -1699,15 +2989,25 @@ export default function ProjectUpdates() {
 
     photoInputs.forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
     setPhotoInputs([])
+    setWizardStep(1)
+    setMaxReachedStep(1)
+    setWizardError('')
   }
 
   function closeSuccessDialog() {
-    const completedMode = saveSuccessDialog?.mode
     setSaveSuccessDialog(null)
 
-    if (completedMode ==='online' && id) {
+    if (id) {
       navigate(`/projects/${id}`)
     }
+  }
+
+  function prepareAideMemoire() {
+    if (!id || !saveSuccessDialog?.updateRef) return
+
+    const source = saveSuccessDialog.mode === 'offline' ? 'offline' : 'online'
+    setAideGenerationRequest({ updateRef: saveSuccessDialog.updateRef, source })
+    setSaveSuccessDialog(null)
   }
 
   if (loading) {
@@ -1765,7 +3065,7 @@ export default function ProjectUpdates() {
           <p className="pu-eyebrow">Unauthorized</p>
           <h2>Project update access is restricted.</h2>
           <p>
-            Only Admin, RO Engineer, or assigned PO Engineer accounts can submit
+            Only Admin, RO Engineer, assigned PO Engineer, or PEO accounts can submit
             project updates within their assigned AOR.
           </p>
           <Link className="pu-secondary-btn" to={`/projects/${id}`}>
@@ -1779,27 +3079,44 @@ export default function ProjectUpdates() {
   return (
     <div className={`pu-page ${isUpdateScrolled ?'is-pu-scrolled' :''}`}>
       <section className="pu-hero pu-update-hero-card">
-        <div className="">
-          <p className="pu-eyebrow">Project Update Form</p>
-          <h1 className=" pu-update-hero-title">{project?.project_name ||'Project Update'}</h1>
+        <div className="pu-update-hero-content">
+          <p className="pu-eyebrow">Project Update</p>
+          <h1
+            className={`pu-update-hero-title ${getHeroTitleSizeClass(project?.project_name)}`}
+            title={project?.project_name || 'Project Update'}
+          >
+            {project?.project_name || 'Project Update'}
+          </h1>
 
-          <div className="pu-location-line">
-            <span>{project?.province ||'No province'}</span>
-            <span>{project?.municipality ||'No LGU'}</span>
-            <span>{project?.barangay ||'No barangay'}</span>
-          </div>
-        </div>
+          <p className="pu-compact-location" aria-label="Project location">
+            {[
+              toLocationTitleCase(project?.barangay),
+              toLocationTitleCase(project?.municipality),
+              toLocationTitleCase(project?.province),
+            ]
+              .filter(Boolean)
+              .join(', ') || 'Location Not Available'}
+          </p>
 
-        <div className="pu-hero-status">
-          <span className={`pu-badge ${getStatusClass(heroDisplayStatus)}`}>
-            {heroDisplayStatus}
-          </span>
-          <span className={`pu-badge pu-variance-badge ${targetVarianceInfo.className}`}>
-            {targetVarianceInfo.compactLabel}
-          </span>
-          <span className={`pu-badge ${getRiskClass(autoRiskLevel)}`}>
-            {autoRiskLevel}
-          </span>
+          <p className="pu-flat-monitoring" aria-label="Project status, variance, and risk">
+            <span className="pu-flat-monitoring__value pu-flat-monitoring__status">
+              {heroDisplayStatus}
+            </span>
+            <span className="pu-flat-monitoring__separator" aria-hidden="true">•</span>
+            <span
+              className="pu-flat-monitoring__value pu-flat-monitoring__variance"
+              data-tone={heroVarianceTone}
+            >
+              {targetVarianceInfo.compactLabel}
+            </span>
+            <span className="pu-flat-monitoring__separator" aria-hidden="true">•</span>
+            <span
+              className="pu-flat-monitoring__value pu-flat-monitoring__risk"
+              data-tone={heroRiskTone}
+            >
+              {heroRiskLabel}
+            </span>
+          </p>
         </div>
       </section>
 
@@ -1816,50 +3133,76 @@ export default function ProjectUpdates() {
         <div className="pu-alert pu-alert-danger">{errorMessage}</div>
       )}
 
-      <section className="pu-summary-grid">
-        <div className="pu-summary-card pu-progress-summary">
-          <span>Physical</span>
-          <strong>{formatPercent(currentPhysical)}</strong>
-        </div>
-        <div className="pu-summary-card pu-progress-summary">
-          <span>Financial</span>
-          <strong>{formatPercent(currentFinancial)}</strong>
-        </div>
-        <div className="pu-summary-card">
-          <span>Latest Update</span>
-          <strong>{latestUpdateAge.label}</strong>
-        </div>
-        <div className="pu-summary-card pu-variance-summary">
-          <span>Variance</span>
-          <strong className={targetVarianceInfo.className}>
-            {targetVarianceInfo.label}
-          </strong>
-        </div>
-      </section>
-
-      <div className="pu-content-grid">
-        <form className="pu-form-card" onSubmit={handleSubmit} noValidate>
-          <div className="pu-card-header">
-            <div>
-              <p className="pu-eyebrow">Project Update</p>
-              <h2>Project Update</h2>
-              <span className="pu-field-mode-note">
-                Use the large buttons first, then encode progress, status, contract actions, findings, photos, and final remarks.
+      <div className="pu-content-grid pu-update-subpage-system">
+        <form className="pu-form-card pu-wizard-form-card" onSubmit={handleSubmit} noValidate>
+          <div className="pu-wizard-shell" ref={wizardTopRef}>
+            <div className="pu-wizard-title-row">
+              <span className="pu-wizard-count">Step {wizardStep} of {WIZARD_STEP_COUNT}</span>
+              <span
+                className={`pu-wizard-save-state ${draftSaving ? 'is-saving' : !online ? 'is-offline' : workingAideDraft ? 'is-saved' : ''}`}
+                aria-live="polite"
+              >
+                <strong>{online ? 'Online' : 'Offline'}</strong>
+                <span aria-hidden="true">•</span>
+                <span>
+                  {draftSaving
+                    ? 'Saving draft…'
+                    : !online
+                      ? 'Saved on device'
+                      : workingAideDraft
+                        ? 'Draft saved'
+                        : 'Working update'}
+                </span>
               </span>
             </div>
 
-            <div className={`pu-network-state ${online ?'online' :'offline'}`} aria-live="polite">
-              <strong>{online ?'Online' :'Offline'}</strong>
-              <span>{online ?'Will save to cloud' :'Will save to device'}</span>
+            <div className="pu-wizard-progress" ref={wizardProgressRef} aria-label="Project Update steps">
+              {WIZARD_STEPS.map((step) => {
+                const isCurrent = wizardStep === step.number
+                const isReached = step.number <= maxReachedStep
+                const isCompleted = step.number < wizardStep || (step.number < maxReachedStep && !isCurrent)
+
+                return (
+                  <button
+                    key={step.number}
+                    ref={(element) => {
+                      wizardStepButtonRefs.current[step.number] = element
+                    }}
+                    type="button"
+                    className={`${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`}
+                    onClick={() => jumpToWizardStep(step.number)}
+                    disabled={!isReached}
+                    aria-current={isCurrent ? 'step' : undefined}
+                    aria-label={`${step.number}. ${step.title}${isCompleted ? ', completed' : isCurrent ? ', current step' : ''}`}
+                    title={step.title}
+                  >
+                    <span aria-hidden="true">{step.number}</span>
+                    {isCurrent && (
+                      <strong className="pu-wizard-active-step-title">{step.shortTitle}</strong>
+                    )}
+                  </button>
+                )
+              })}
             </div>
+
+            <div className="pu-wizard-step-summary">
+              <small>
+                {wizardStep < WIZARD_STEP_COUNT
+                  ? `Next: ${WIZARD_STEPS[wizardStep].title}`
+                  : 'Final review and submission'}
+              </small>
+            </div>
+
+            {wizardError && <div className="pu-wizard-error">{wizardError}</div>}
           </div>
 
+          {wizardStep === 1 && (
           <div className="pu-update-section pu-section-quick">
             <div className="pu-section-heading">
               <span>01</span>
               <div>
                 <strong>Capture and Update Date</strong>
-                <small>Start with date, GPS, and photos using large outdoor-ready buttons.</small>
+                <small>Set the inspection date, GPS, and implementation mode.</small>
               </div>
             </div>
 
@@ -1899,17 +3242,6 @@ export default function ProjectUpdates() {
                 <span>Capture location</span>
               </button>
 
-              <label className="pu-action-btn pu-action-photo">
-                Add Photos
-                <span>{photoInputs.length}/{MAX_PHOTOS_PER_UPDATE} selected</span>
-                <input
-                  type="file"
-                  accept="image/*,.heic,.heif"
-                  multiple
-                  onChange={handlePhotoSelect}
-                  disabled={saving || photoInputs.length >= MAX_PHOTOS_PER_UPDATE}
-                />
-              </label>
             </div>
 
             <div className="pu-gps-inline-wrap">
@@ -1931,20 +3263,36 @@ export default function ProjectUpdates() {
                 </div>
               )}
             </div>
-          </div>
 
+            <label className="pu-field pu-full-field pu-mode-of-implementation-field">
+              <span>Mode of Implementation</span>
+              <select
+                value={modeOfImplementation}
+                onChange={(event) => setModeOfImplementation(event.target.value)}
+                disabled={saving}
+              >
+                <option value="BY CONTRACT">BY CONTRACT</option>
+                <option value="BY ADMINISTRATION">BY ADMINISTRATION</option>
+                <option value="OTHER">OTHER</option>
+              </select>
+              <small>Defaults to BY CONTRACT. Change only when the approved implementation mode is different.</small>
+            </label>
+          </div>
+          )}
+
+          {wizardStep === 2 && (
           <div className="pu-update-section pu-section-progress">
             <div className="pu-section-heading">
               <span>02</span>
               <div>
                 <strong>Progress and Financial</strong>
-                <small>Encode progress values clearly for field updating.</small>
+                <small>Enter accomplishment and financial data.</small>
               </div>
             </div>
 
             <div className="pu-progress-grid">
               <label className="pu-field pu-field-important pu-progress-field">
-                <span>Physical Accom. (%)</span>
+                <span>Physical Accomplishment (%)</span>
                 <input
                   type="number"
                   min="0"
@@ -1960,7 +3308,7 @@ export default function ProjectUpdates() {
               </label>
 
               <label className="pu-field pu-progress-field">
-                <span>Target (%)</span>
+                <span>Target Accomplishment (%)</span>
                 <input
                   type="number"
                   min="0"
@@ -1975,15 +3323,30 @@ export default function ProjectUpdates() {
                 />
               </label>
 
+              <label className="pu-field pu-progress-full">
+                <span>Contract Amount (₱)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={contractAmount}
+                  onChange={(event) => setContractAmount(event.target.value)}
+                  placeholder="0.00"
+                  disabled={saving}
+                />
+                <small>Defaults to Project Cost but remains editable for the awarded contract amount.</small>
+              </label>
+
               <label className="pu-field pu-disbursement-field pu-progress-full">
-                <span>Disbursement</span>
+                <span>Disbursement (₱)</span>
                 <div className="pu-disbursement-control">
                   <input
                     type="text"
                     value={disbursementAmount}
                     onChange={(event) => setDisbursementAmount(event.target.value)}
                     onKeyDown={handleDisbursementKeyDown}
-                    placeholder="Example: 500000 + 250000"
+                    placeholder=""
                     inputMode="decimal"
                     disabled={saving}
                   />
@@ -1992,7 +3355,7 @@ export default function ProjectUpdates() {
                     type="button"
                     className="pu-disbursement-equals-btn"
                     onClick={() => applyDisbursementComputation()}
-                    disabled={saving || projectCost <= 0}
+                    disabled={saving || effectiveContractAmount <= 0}
                     aria-label="Compute disbursement and financial accomplishment"
                     title="Compute"
                   >
@@ -2003,7 +3366,7 @@ export default function ProjectUpdates() {
               </label>
 
               <label className="pu-field pu-field-important pu-progress-field">
-                <span>Financial Accom. (%)</span>
+                <span>Financial Accomplishment (%)</span>
                 <input
                   type="number"
                   min="0"
@@ -2035,13 +3398,15 @@ export default function ProjectUpdates() {
               </div>
             </div>
           </div>
+          )}
 
+          {wizardStep === 3 && (
           <div className="pu-update-section pu-section-status">
             <div className="pu-section-heading">
               <span>03</span>
               <div>
                 <strong>Project Status</strong>
-                <small>All project statuses are available here because this is the main update page.</small>
+                <small>Select the current implementation status.</small>
               </div>
             </div>
 
@@ -2108,13 +3473,15 @@ export default function ProjectUpdates() {
               </label>
             )}
           </div>
+          )}
 
+          {wizardStep === 4 && (
           <div className="pu-update-section pu-section-contract">
             <div className="pu-section-heading">
               <span>04</span>
               <div>
                 <strong>Contract Modification</strong>
-                <small>Use this only for VO, SO, EOT, Combination, or expired contract correction.</small>
+                <small>Record approved contract changes only.</small>
               </div>
             </div>
 
@@ -2238,202 +3605,539 @@ export default function ProjectUpdates() {
               )}
             </div>
           </div>
+          )}
 
-          <div className="pu-update-section pu-section-notes">
-            <div className="pu-section-heading">
-              <span>05</span>
-              <div>
-                <strong>Notes and Photo Documentation</strong>
-                <small>Encode findings, recommendations, final remarks, and review selected photos.</small>
-              </div>
-            </div>
-
-            <div className="pu-textarea-grid">
-              <label className="pu-field">
-                <span>Issues / Findings</span>
-              <textarea
-                value={issues}
-                onChange={(event) => setIssues(event.target.value)}
-                placeholder="Encode observed issues, defects, delay causes, or field findings."
-              />
-            </label>
-
-            <label className="pu-field">
-              <span>Recommendations</span>
-              <textarea
-                value={recommendations}
-                onChange={(event) => setRecommendations(event.target.value)}
-                placeholder="Encode corrective actions, engineering recommendations, or instructions to the LGU/contractor."
-              />
-            </label>
-
-            <label className="pu-field pu-full-field">
-              <span>Remarks</span>
-              <textarea
-                value={remarks}
-                onChange={(event) => setRemarks(event.target.value)}
-                placeholder="Encode additional notes, agreements, or inspection observations."
-              />
-            </label>
-          </div>
-
-          <div className="pu-photo-section">
-            <div className="pu-photo-header">
-              <div>
-                <p className="pu-eyebrow">Photo Documentation</p>
-                <h3>Upload Update Photos</h3>
-                <p>
-                  JPG, PNG, WebP, and HEIC files can be uploaded. HEIC preview
-                  may not display in Chrome, but the file can still be saved.
-                </p>
+          {wizardStep === 5 && (
+            <div className="pu-update-section pu-section-notes pu-wizard-section pu-photo-findings-step">
+              <div className="pu-section-heading">
+                <span>05</span>
+                <div>
+                  <strong>Photo Findings and Recommendations</strong>
+                  <small>Capture evidence and encode the linked finding.</small>
+                </div>
               </div>
 
-            </div>
+              <label className="pu-no-findings-toggle">
+                <input
+                  type="checkbox"
+                  checked={noFindingsObserved}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setNoFindingsObserved(checked)
+                    if (checked) {
+                      setPhotoInputs((photos) => {
+                        photos.filter((photo) => photo.photoKind === 'finding').forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
+                        return photos.filter((photo) => photo.photoKind !== 'finding')
+                      })
+                      setAideFindings([createBlankAideFinding()])
+                    }
+                  }}
+                />
+                <span>No findings observed during this inspection</span>
+              </label>
 
-            {photoInputs.length === 0 ? (
-              <div className="pu-photo-empty">
-                No photos selected yet. Use the Add Photos button in Section 01 when documentation is required.
-              </div>
-            ) : (
-              <div className="pu-photo-grid">
-                {photoInputs.map((photo, index) => {
-                  const unsupported = isUnsupportedPreview(photo.file.name)
-
-                  return (
-                    <div className="pu-photo-card" key={photo.id}>
-                      {unsupported ? (
-                        <div className="pu-photo-placeholder">
-                          <strong>HEIC Preview Not Supported</strong>
-                          <span>{photo.file.name}</span>
-                        </div>
-                      ) : (
-                        <div
-                          className="pu-photo-preview"
-                          style={{
-                            backgroundImage: `url(${photo.previewUrl})`,
-                          }}
-                        />
-                      )}
-
-                      <div className="pu-photo-meta">
-                        <strong>Photo {index + 1}</strong>
-                        <span>{photo.file.name}</span>
-                        <small>
-                          {photo.compressed
-                            ? `Optimized: ${formatFileSize(photo.originalSize || 0)} → ${formatFileSize(photo.compressedSize || photo.file.size)}`
-                            : `Size: ${formatFileSize(photo.file.size)}`}
-                        </small>
-                      </div>
-
+              {!noFindingsObserved && (
+                <>
+                  <div className="pu-photo-finding-intro">
+                    <div>
+                      <h3>Capture a Finding</h3>
+                      <p>Take a photo, then encode the finding, recommendation, timeline, and remarks.</p>
+                    </div>
+                    <label className="pu-camera-capture-btn">
+                      <IconCamera />
+                      <span>Capture New Finding</span>
                       <input
-                        type="text"
-                        value={photo.caption}
-                        onChange={(event) =>
-                          updatePhotoCaption(photo.id, event.target.value)
-                        }
-                        placeholder="Optional caption"
+                        type="file"
+                        accept="image/*,.heic,.heif"
+                        capture="environment"
+                        onChange={(event) => void handleFindingPhotoSelect(event)}
+                        disabled={saving || photoProcessing}
                       />
+                    </label>
+                  </div>
 
+                  <div className="pu-aide-row-list pu-photo-finding-list">
+                    {aideFindings.map((row, index) => {
+                      const linkedPhotos = photoInputs.filter((photo) => (row.photo_refs || []).includes(photo.id))
+                      return (
+                        <article className="pu-aide-edit-row pu-photo-finding-card" key={row.id}>
+                          <div className="pu-aide-row-title">
+                            <div>
+                              <strong>Finding {index + 1}</strong>
+                              <small>{linkedPhotos.length} supporting photo{linkedPhotos.length === 1 ? '' : 's'}</small>
+                            </div>
+                            <button
+                              type="button"
+                              className="danger"
+                              onClick={() => {
+                                const linkedIds = new Set(linkedPhotos.map((photo) => photo.id))
+                                setPhotoInputs((photos) => {
+                                  photos.filter((photo) => linkedIds.has(photo.id)).forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
+                                  return photos.filter((photo) => !linkedIds.has(photo.id))
+                                })
+                                setAideFindings((rows) => {
+                                  const next = rows.filter((item) => item.id !== row.id)
+                                  return next.length ? next : [createBlankAideFinding()]
+                                })
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+
+                          <div className="pu-finding-photo-strip">
+                            {linkedPhotos.map((photo, photoIndex) => {
+                              const coordinates = getPhotoCoordinatePair(photo.latitude, photo.longitude)
+                              return (
+                                <div className="pu-finding-photo-item" key={photo.id}>
+                                  <div className="pu-finding-photo-preview" style={{ backgroundImage: `url(${photo.previewUrl})` }} />
+                                  <div>
+                                    <strong>Photo {photoIndex + 1}</strong>
+                                    <span>
+                                      {coordinates
+                                        ? `${coordinates.latitude.toFixed(7)}, ${coordinates.longitude.toFixed(7)}`
+                                        : 'GPS not available'}
+                                    </span>
+                                  </div>
+                                  <div className="pu-finding-photo-actions">
+                                    {!coordinates ? (
+                                      <button
+                                        type="button"
+                                        className="pu-photo-gps-btn"
+                                        onClick={() => void retryPhotoGps(photo.id)}
+                                        disabled={photoProcessing || saving}
+                                      >
+                                        Retry GPS
+                                      </button>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      className="pu-photo-remove-btn"
+                                      onClick={() => removePhoto(photo.id)}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+
+                            <label className="pu-add-supporting-photo-btn">
+                              <IconCamera />
+                              <span>{linkedPhotos.length ? 'Add Supporting Photo' : 'Capture Supporting Photo'}</span>
+                              <input
+                                type="file"
+                                accept="image/*,.heic,.heif"
+                                capture="environment"
+                                onChange={(event) => void handleFindingPhotoSelect(event, row.id)}
+                                disabled={saving || photoProcessing}
+                              />
+                            </label>
+                          </div>
+
+                          <label className="pu-field pu-full-field">
+                            <span>Finding</span>
+                            <textarea
+                              ref={(element) => {
+                                findingInputRefs.current[row.id] = element
+                              }}
+                              value={row.finding}
+                              onChange={(event) =>
+                                setAideFindings((rows) =>
+                                  rows.map((item) => item.id === row.id ? { ...item, finding: event.target.value } : item),
+                                )
+                              }
+                              placeholder="Observed issue, defect, delay cause, or field finding"
+                            />
+                          </label>
+
+                          <label className="pu-field pu-full-field">
+                            <span>Recommendation</span>
+                            <textarea
+                              value={row.recommendation}
+                              onChange={(event) =>
+                                setAideFindings((rows) =>
+                                  rows.map((item) => item.id === row.id ? { ...item, recommendation: event.target.value } : item),
+                                )
+                              }
+                              placeholder="Required corrective action or recommendation"
+                            />
+                          </label>
+
+                          <div className="pu-aide-two-column">
+                            <label className="pu-field">
+                              <span>Timeline Date</span>
+                              <input
+                                type="date"
+                                value={row.timeline}
+                                onChange={(event) =>
+                                  setAideFindings((rows) =>
+                                    rows.map((item) => item.id === row.id ? { ...item, timeline: event.target.value } : item),
+                                  )
+                                }
+                              />
+                            </label>
+
+                            <label className="pu-field">
+                              <span>Remarks</span>
+                              <input
+                                type="text"
+                                value={row.remarks}
+                                onChange={(event) =>
+                                  setAideFindings((rows) =>
+                                    rows.map((item) => item.id === row.id ? { ...item, remarks: event.target.value } : item),
+                                  )
+                                }
+                                placeholder="Optional current action or status"
+                              />
+                            </label>
+                          </div>
+
+                          <div className="pu-coordinate-note">
+                            GPS coordinates from linked photos will be added automatically to the Aide Memoire Remarks column.
+                          </div>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {wizardStep === 6 && (
+            <div className="pu-update-section pu-section-notes pu-wizard-section">
+              <div className="pu-section-heading">
+                <span>06</span>
+                <div>
+                  <strong>General Observations</strong>
+                  <small>Summarize the site condition and inspection context.</small>
+                </div>
+              </div>
+
+              <label className="pu-field pu-full-field pu-general-observations-field">
+                <span>General Observations</span>
+                <textarea
+                  value={generalObservations}
+                  onChange={(event) => setGeneralObservations(event.target.value)}
+                  placeholder="Enter No additional observations when none apply."
+                  rows={7}
+                />
+              </label>
+            </div>
+          )}
+
+          {wizardStep === 7 && (
+            <div className="pu-update-section pu-section-notes pu-wizard-section">
+              <div className="pu-section-heading">
+                <span>07</span>
+                <div>
+                  <strong>Attendance</strong>
+                  <small>Record the inspection attendees.</small>
+                </div>
+              </div>
+
+              <div className="pu-aide-section-heading">
+                <div>
+                  <h3>Inspection Attendance</h3>
+                  <p>Name and designation/agency are required for every attendee.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addAttendeeRow}
+                >
+                  + Add Attendee
+                </button>
+              </div>
+
+              <div className="pu-aide-row-list">
+                {aideAttendance.map((row, index) => (
+                  <article className="pu-aide-edit-row compact" key={row.id}>
+                    <div className="pu-aide-row-title">
+                      <strong>Attendee {index + 1}</strong>
                       <button
                         type="button"
-                        className="pu-remove-photo-btn"
-                        onClick={() => removePhoto(photo.id)}
-                        disabled={saving}
+                        className="danger"
+                        onClick={() =>
+                          setAideAttendance((rows) => {
+                            const next = rows.filter((item) => item.id !== row.id)
+                            return next.length ? next : [createBlankAideAttendee()]
+                          })
+                        }
                       >
-                        Remove Photo
+                        Remove
                       </button>
                     </div>
-                  )
-                })}
+                    <div className="pu-aide-two-column">
+                      <label className="pu-field">
+                        <span>Name</span>
+                        <input
+                          ref={(element) => {
+                            attendeeInputRefs.current[row.id] = element
+                          }}
+                          type="text"
+                          value={row.name}
+                          onChange={(event) =>
+                            setAideAttendance((rows) =>
+                              rows.map((item) => item.id === row.id ? { ...item, name: event.target.value } : item),
+                            )
+                          }
+                        />
+                      </label>
+                      <label className="pu-field">
+                        <span>Designation / Agency</span>
+                        <input
+                          type="text"
+                          value={row.designation_agency}
+                          onChange={(event) =>
+                            setAideAttendance((rows) =>
+                              rows.map((item) => item.id === row.id ? { ...item, designation_agency: event.target.value } : item),
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+                  </article>
+                ))}
               </div>
+            </div>
+          )}
+
+          {wizardStep === 8 && (
+            <div className="pu-update-section pu-section-notes pu-wizard-section pu-review-step">
+              <div className="pu-section-heading">
+                <span>08</span>
+                <div>
+                  <strong>Additional Photos and Final Review</strong>
+                  <small>Add optional general photos, then review the update.</small>
+                </div>
+              </div>
+
+              <label className="pu-action-btn pu-action-photo pu-wizard-photo-button">
+                Add Optional Photos
+                <span>{photoInputs.filter((photo) => photo.photoKind !== 'finding').length} selected</span>
+                <input
+                  type="file"
+                  accept="image/*,.heic,.heif"
+                  multiple
+                  onChange={handlePhotoSelect}
+                  disabled={saving}
+                />
+              </label>
+
+              {photoInputs.filter((photo) => photo.photoKind !== 'finding').length === 0 ? (
+                <div className="pu-photo-empty">No additional photos selected. This step is optional.</div>
+              ) : (
+                <div className="pu-photo-grid">
+                  {photoInputs.filter((photo) => photo.photoKind !== 'finding').map((photo, index) => {
+                    const unsupported = isUnsupportedPreview(photo.file.name)
+                    return (
+                      <div className="pu-photo-card" key={photo.id}>
+                        {unsupported ? (
+                          <div className="pu-photo-placeholder">
+                            <strong>Preview Not Supported</strong>
+                            <span>{photo.file.name}</span>
+                          </div>
+                        ) : (
+                          <div className="pu-photo-preview" style={{ backgroundImage: `url(${photo.previewUrl})` }} />
+                        )}
+                        <div className="pu-photo-meta">
+                          <strong>Photo {index + 1}</strong>
+                          <span>{photo.file.name}</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={photo.caption}
+                          onChange={(event) => updatePhotoCaption(photo.id, event.target.value)}
+                          placeholder="Photo caption"
+                        />
+                        <button
+                          type="button"
+                          className="pu-remove-photo-btn"
+                          onClick={() => removePhoto(photo.id)}
+                          disabled={saving}
+                        >
+                          Remove Photo
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div className="pu-wizard-review-grid">
+                <div><span>Inspection Date</span><strong>{formatLongDate(inspectionDate)}</strong></div>
+                <div><span>Status</span><strong>{projectStatus}</strong></div>
+                <div><span>Physical</span><strong>{formatPercent(physicalAccomplishment)}</strong></div>
+                <div><span>Target</span><strong>{formatPercent(targetPhysicalAccomplishment)}</strong></div>
+                <div><span>Financial</span><strong>{formatPercent(financialAccomplishment)}</strong></div>
+                <div><span>Risk</span><strong>{autoRiskLevel}</strong></div>
+                <div><span>Findings</span><strong>{noFindingsObserved ? 'None observed' : aideFindings.filter(hasAideFindingContent).length}</strong></div>
+                <div><span>Attendees</span><strong>{aideAttendance.filter(hasAideAttendeeContent).length}</strong></div>
+                <div><span>Finding Photos</span><strong>{photoInputs.filter((photo) => photo.photoKind === 'finding').length}</strong></div>
+                <div><span>Additional Photos</span><strong>{photoInputs.filter((photo) => photo.photoKind !== 'finding').length}</strong></div>
+              </div>
+            </div>
+          )}
+
+
+          <div className="pu-submit-bar pu-wizard-navigation">
+            {wizardStep > 1 ? (
+              <button
+                type="button"
+                className="pu-secondary-btn pu-wizard-back-btn"
+                onClick={goToPreviousWizardStep}
+                disabled={saving || draftSaving || photoProcessing}
+              >
+                Back
+              </button>
+            ) : (
+              <Link className="pu-secondary-btn pu-wizard-back-btn" to={`/projects/${id}`}>
+                Return to Project
+              </Link>
             )}
-          </div>
-          </div>
 
-          <div className="pu-submit-bar pu-single-save-bar">
-            <button
-              type="submit"
-              className={`pu-main-save-btn ${online ?'online' :'offline'}`}
-              disabled={saving}
-            >
-              {saving ?'Saving Update...' : online ?'Save Update' :'Save Offline'}
-              <span>{online ?'Online detected · submit now' :'No internet · save to this device'}</span>
-            </button>
-
-            <Link className="pu-secondary-btn pu-cancel-link" to={`/projects/${id}`}>
-              Cancel
-            </Link>
+            {wizardStep < WIZARD_STEP_COUNT ? (
+              <button
+                type="button"
+                className="pu-primary-btn pu-wizard-next-btn"
+                onClick={() => void goToNextWizardStep()}
+                disabled={saving || draftSaving || photoProcessing}
+              >
+                {photoProcessing ? 'Compressing Photos…' : draftSaving ? 'Saving…' : 'Next'}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className={`pu-main-save-btn ${online ? 'online' : 'offline'}`}
+                disabled={saving || draftSaving || photoProcessing}
+              >
+                <span className="pu-main-save-label">
+                  {photoProcessing ? (
+                    'Compressing Photos…'
+                  ) : saving ? (
+                    <>Saving Update<SavingDots /></>
+                  ) : online ? (
+                    'Submit Update'
+                  ) : (
+                    'Submit Offline'
+                  )}
+                </span>
+                <span className="pu-main-save-subtitle">
+                  {online ? 'Online detected · submit now' : 'No internet · save to this device'}
+                </span>
+              </button>
+            )}
           </div>
         </form>
 
         <aside className="pu-side-panel">
-          <div className="pu-side-card">
-            <div className="pu-card-header compact">
-              <div>
-                <p className="pu-eyebrow">Update History</p>
-                <h3>Latest Records</h3>
-              </div>
-              <span className="pu-count-pill">
-                {recentUpdates.length} shown
+          <div className={`pu-side-card pu-history-card ${historyExpanded ? 'is-expanded' : ''}`}>
+            <button
+              type="button"
+              className="pu-history-toggle"
+              onClick={() => setHistoryExpanded((current) => !current)}
+              aria-expanded={historyExpanded}
+              aria-controls="pu-latest-record-panel"
+            >
+              <span className="pu-history-toggle-copy">
+                <strong>Latest Record</strong>
+                <small>
+                  {recentUpdates.length === 0
+                    ? 'No recent update available'
+                    : `${formatLongDate(recentUpdates[0]?.inspection_date)} · Physical ${formatPercent(
+                        recentUpdates[0]?.physical_accomplishment,
+                      )} · Financial ${formatPercent(recentUpdates[0]?.financial_accomplishment)}`}
+                </small>
               </span>
-            </div>
+              <span className="pu-history-toggle-icon" aria-hidden="true">
+                {historyExpanded ? '−' : '+'}
+              </span>
+            </button>
 
-            {recentUpdates.length === 0 ? (
-              <div className="pu-empty-mini">
-                No recent update records found for this project.
-              </div>
-            ) : (
-              <div className="pu-recent-list">
-                {recentUpdates.slice(0, RECENT_UPDATE_LIMIT).map((update, index) => (
-                  <div className="pu-recent-item" key={update.id || index}>
-                    <div>
-                      <strong>{formatLongDate(update.inspection_date)}</strong>
-                      {update.sync_status ==='pending' && (
-                        <span className="pu-pending-pill">Pending Sync</span>
-                      )}
-                    </div>
+            {historyExpanded && (
+              <div id="pu-latest-record-panel" className="pu-history-panel">
+                {recentUpdates.length > 0 && (
+                  <div className="pu-history-pager" aria-label="Browse update history">
+                    <button
+                      type="button"
+                      onClick={() => setRecentUpdateIndex((current) => Math.max(0, current - 1))}
+                      disabled={recentUpdateIndex === 0}
+                      aria-label="Show newer update"
+                    >
+                      ‹
+                    </button>
+                    <span>{recentUpdateIndex + 1} of {recentUpdates.length}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRecentUpdateIndex((current) =>
+                          Math.min(recentUpdates.length - 1, current + 1),
+                        )
+                      }
+                      disabled={recentUpdateIndex >= recentUpdates.length - 1}
+                      aria-label="Show older update"
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
 
-                    <p>
-                      {getDaysSinceDate(getUpdateDateValue(update)).label}
-                    </p>
-
-                    <p>
-                      Physical: {formatPercent(update.physical_accomplishment)}
-                    </p>
-                    <p>
-                      Target: {formatPercent(getTargetPhysicalInfo(update, update.inspection_date).targetPhysical)}
-                    </p>
+                {recentUpdates.length === 0 ? (
+                  <div className="pu-empty-mini">
+                    No recent update records found for this project.
+                  </div>
+                ) : (
+                  <div className="pu-recent-list">
                     {(() => {
+                      const update = recentUpdates[recentUpdateIndex]
+                      if (!update) return null
+
                       const updateVariance = getTargetPhysicalInfo(update, update.inspection_date)
 
                       return (
-                        <p>
-                          Variance:{''}
-                          <strong className={updateVariance.className}>
-                            {updateVariance.label}
-                          </strong>
-                        </p>
+                        <div className="pu-recent-item" key={update.id || recentUpdateIndex}>
+                          <div className="pu-recent-item-heading">
+                            <strong>{formatLongDate(update.inspection_date)}</strong>
+                            {update.sync_status === 'pending' && (
+                              <span className="pu-pending-pill">Pending Sync</span>
+                            )}
+                          </div>
+
+                          <p className="pu-recent-age">{getDaysSinceDate(getUpdateDateValue(update)).label}</p>
+                          <div className="pu-recent-metrics">
+                            <span>Physical <strong>{formatPercent(update.physical_accomplishment)}</strong></span>
+                            <span>Target <strong>{formatPercent(updateVariance.targetPhysical)}</strong></span>
+                            <span>
+                              Variance{' '}
+                              <strong className={updateVariance.className}>
+                                {updateVariance.label}
+                              </strong>
+                            </span>
+                            <span>Financial <strong>{formatPercent(update.financial_accomplishment)}</strong></span>
+                          </div>
+                          <p className="pu-recent-gps">
+                            GPS:{' '}
+                            {hasCoordinateValue(update.inspection_latitude) &&
+                            hasCoordinateValue(update.inspection_longitude)
+                              ? `${formatCoordinate(update.inspection_latitude)}, ${formatCoordinate(
+                                  update.inspection_longitude,
+                                )}`
+                              : 'No GPS recorded'}
+                          </p>
+
+                          <span
+                            className={`pu-badge ${getRiskClass(
+                              autoRiskLevel === 'None' ? 'None' : update.risk_level,
+                            )}`}
+                          >
+                            {autoRiskLevel === 'None' ? 'None' : update.risk_level || 'No Risk'}
+                          </span>
+                        </div>
                       )
                     })()}
-                    <p>
-                      Financial:{''}
-                      {formatPercent(update.financial_accomplishment)}
-                    </p>
-                    <p>
-                      GPS:{''}
-                      {hasCoordinateValue(update.inspection_latitude) &&
-                      hasCoordinateValue(update.inspection_longitude)
-                        ? `${formatCoordinate(
-                            update.inspection_latitude
-                          )}, ${formatCoordinate(update.inspection_longitude)}`
-                        :'No GPS recorded'}
-                    </p>
-
-                    <span className={`pu-badge ${getRiskClass(autoRiskLevel === 'None' ? 'None' : update.risk_level)}`}>
-                      {autoRiskLevel === 'None' ? 'None' : update.risk_level ||'No Risk'}
-                    </span>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
@@ -2460,7 +4164,7 @@ export default function ProjectUpdates() {
               className="pu-primary-btn"
               onClick={() => setNoticeDialog(null)}
             >
-              OK, Review
+              {noticeDialog.tone === 'info' ? 'OK' : 'OK, Review'}
             </button>
           </div>
         </div>
@@ -2479,7 +4183,7 @@ export default function ProjectUpdates() {
               <span>Target <strong>{formatPercent(targetPhysicalAccomplishment)}</strong></span>
               <span>Financial <strong>{formatPercent(financialAccomplishment)}</strong></span>
               <span>Risk <strong>{autoRiskLevel}</strong></span>
-              <span>Photos <strong>{photoInputs.length}/{MAX_PHOTOS_PER_UPDATE}</strong></span>
+              <span>Photos <strong>{photoInputs.length}</strong></span>
             </div>
 
             <div className="pu-modal-actions">
@@ -2497,12 +4201,19 @@ export default function ProjectUpdates() {
                 onClick={confirmSaveUpdate}
                 disabled={saving}
               >
-                {saving ?'Saving...' : online ?'Yes, Save Update' :'Yes, Save Offline'}
+                {saving ? (
+                  <span className="pu-inline-saving">Saving<SavingDots /></span>
+                ) : online ? (
+                  'Yes, Save Update'
+                ) : (
+                  'Yes, Save Offline'
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
+
 
       {saveSuccessDialog && (
         <div className="pu-modal-overlay pu-success-overlay" role="status" aria-live="polite">
@@ -2510,13 +4221,23 @@ export default function ProjectUpdates() {
             <div className="pu-success-icon">✓</div>
             <h3>{saveSuccessDialog.title}</h3>
             <p>{saveSuccessDialog.message}</p>
-            <button
-              type="button"
-              className="pu-primary-btn"
-              onClick={closeSuccessDialog}
-            >
-              {saveSuccessDialog.mode ==='online' ?'OK, View Project' :'OK'}
-            </button>
+            <div className="pu-modal-actions">
+              <button
+                type="button"
+                className="pu-secondary-btn"
+                onClick={closeSuccessDialog}
+              >
+                View Project
+              </button>
+              <button
+                type="button"
+                className="pu-primary-btn"
+                onClick={prepareAideMemoire}
+                disabled={!saveSuccessDialog.updateRef}
+              >
+                Generate Aide Memoire
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2526,21 +4247,46 @@ export default function ProjectUpdates() {
         : null}
       {/* PMS10_MODAL_PORTAL_END */}
 
-      {portalReady
-        ? createPortal(
-            <button
-            type="button"
-            className="pu-back-fab"
-            onClick={() => navigate(`/projects/${id}`)}
-            aria-label="Back to project details"
-            title="Back to Project Details"
-            >
-            <IconBack />
-            </button>
-            ,
-            document.body,
-          )
-        : null}
+      {id && aideGenerationRequest && (
+        <AideMemoireGenerationDialog
+          open
+          projectId={id}
+          updateRef={aideGenerationRequest.updateRef}
+          source={aideGenerationRequest.source}
+          onClose={() => setAideGenerationRequest(null)}
+          onGenerated={refreshLatestProjectOutputs}
+        />
+      )}
+
+      <ActionMenu
+        ariaLabel="Project Update actions"
+        launcherLabel="Project Update actions"
+        items={[
+          {
+            id: 'save-draft',
+            label: draftSaving ? 'Saving Draft…' : 'Save Draft',
+            icon: <IconDraft />,
+            tone: 'document',
+            disabled: saving || draftSaving || photoProcessing,
+            onSelect: () => void saveUpdateDraftFromFab(),
+          },
+          {
+            id: 'latest-pdf',
+            label: 'Latest PDF',
+            icon: <IconPdf />,
+            tone: 'primary',
+            hidden: !latestPdfRecord,
+            onSelect: viewLatestProjectPdf,
+          },
+          {
+            id: 'back',
+            label: 'Back to Project',
+            icon: <IconBack />,
+            tone: 'neutral',
+            onSelect: () => navigate(`/projects/${id}`),
+          },
+        ]}
+      />
     </div>
   )
 }

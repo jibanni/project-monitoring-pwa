@@ -429,6 +429,7 @@ export default function Layout({ children }: LayoutProps) {
       className={[
         'app-header',
         isScrolled ? 'app-header-scrolled' : '',
+        isProjectUpdatePath(location.pathname) ? 'app-header-project-update' : '',
       ]
         .filter(Boolean)
         .join(' ')}

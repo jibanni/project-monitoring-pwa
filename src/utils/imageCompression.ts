@@ -1,166 +1,181 @@
-export type ImageCompressionResult = {
+export type InspectionImageCompressionResult = {
   file: File
   originalSize: number
   compressedSize: number
   compressed: boolean
+  width: number
+  height: number
 }
 
-export type ImageCompressionOptions = {
+type CompressionOptions = {
   maxDimension?: number
-  quality?: number
-  maxOutputSize?: number
-  outputType?: 'image/jpeg' | 'image/webp'
+  targetMaxBytes?: number
+  initialQuality?: number
+  minimumQuality?: number
 }
 
-const DEFAULT_MAX_DIMENSION = 1280
-const DEFAULT_QUALITY = 0.72
-const DEFAULT_MAX_OUTPUT_SIZE = 700 * 1024
-const DEFAULT_OUTPUT_TYPE = 'image/jpeg'
-
-function getOutputFileName(originalName: string, outputType: string) {
-  const cleanName = originalName.trim() || 'project-photo'
-  const withoutExtension = cleanName.replace(/\.[^/.]+$/, '') || 'project-photo'
-  const extension = outputType === 'image/webp' ? 'webp' : 'jpg'
-
-  return `${withoutExtension}-optimized.${extension}`
+function replaceExtensionWithJpeg(fileName: string) {
+  const base = fileName.replace(/\.[^/.]+$/, '').trim() || 'inspection-photo'
+  return `${base}.jpg`
 }
 
-function canvasToBlob(
-  canvas: HTMLCanvasElement,
-  outputType: string,
-  quality: number
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
+function canvasToBlob(canvas: HTMLCanvasElement, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error('Unable to optimize image.'))
+          reject(new Error('The browser could not compress this photo.'))
           return
         }
-
         resolve(blob)
       },
-      outputType,
-      quality
+      'image/jpeg',
+      quality,
     )
   })
 }
 
-function loadImage(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file)
-    const image = new Image()
-
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl)
-      resolve(image)
+async function decodeImage(file: File) {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+      return {
+        width: bitmap.width,
+        height: bitmap.height,
+        draw: (context: CanvasRenderingContext2D, width: number, height: number) => {
+          context.drawImage(bitmap, 0, 0, width, height)
+        },
+        close: () => bitmap.close(),
+      }
+    } catch {
+      // Safari and older Android browsers can reject the optional orientation flag.
+      try {
+        const bitmap = await createImageBitmap(file)
+        return {
+          width: bitmap.width,
+          height: bitmap.height,
+          draw: (context: CanvasRenderingContext2D, width: number, height: number) => {
+            context.drawImage(bitmap, 0, 0, width, height)
+          },
+          close: () => bitmap.close(),
+        }
+      } catch {
+        // Continue to the HTMLImageElement fallback.
+      }
     }
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl)
-      reject(new Error('Image format is not supported for browser compression.'))
-    }
-
-    image.src = objectUrl
-  })
-}
-
-export function formatFileSize(size: number) {
-  if (!Number.isFinite(size) || size <= 0) return '0 KB'
-
-  if (size < 1024 * 1024) {
-    return `${Math.max(1, Math.round(size / 1024))} KB`
   }
 
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`
-}
-
-export async function compressImageFile(
-  file: File,
-  options: ImageCompressionOptions = {}
-): Promise<ImageCompressionResult> {
-  const maxDimension = options.maxDimension ?? DEFAULT_MAX_DIMENSION
-  const startingQuality = options.quality ?? DEFAULT_QUALITY
-  const maxOutputSize = options.maxOutputSize ?? DEFAULT_MAX_OUTPUT_SIZE
-  const outputType = options.outputType ?? DEFAULT_OUTPUT_TYPE
-  const originalSize = file.size
-
+  const sourceUrl = URL.createObjectURL(file)
   try {
-    const image = await loadImage(file)
-    const sourceWidth = image.naturalWidth || image.width
-    const sourceHeight = image.naturalHeight || image.height
-
-    if (!sourceWidth || !sourceHeight) {
-      return {
-        file,
-        originalSize,
-        compressedSize: file.size,
-        compressed: false,
-      }
-    }
-
-    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight))
-    const targetWidth = Math.max(1, Math.round(sourceWidth * scale))
-    const targetHeight = Math.max(1, Math.round(sourceHeight * scale))
-
-    const canvas = document.createElement('canvas')
-    canvas.width = targetWidth
-    canvas.height = targetHeight
-
-    const context = canvas.getContext('2d')
-
-    if (!context) {
-      return {
-        file,
-        originalSize,
-        compressedSize: file.size,
-        compressed: false,
-      }
-    }
-
-    // JPEG has no transparency, so use white background for PNG/WebP sources.
-    context.fillStyle = '#ffffff'
-    context.fillRect(0, 0, targetWidth, targetHeight)
-    context.drawImage(image, 0, 0, targetWidth, targetHeight)
-
-    let quality = Math.min(0.92, Math.max(0.45, startingQuality))
-    let blob = await canvasToBlob(canvas, outputType, quality)
-
-    // If output is still large, step quality down gradually.
-    while (blob.size > maxOutputSize && quality > 0.46) {
-      quality = Math.max(0.46, quality - 0.08)
-      blob = await canvasToBlob(canvas, outputType, quality)
-    }
-
-    // Keep original if compression makes it larger.
-    if (blob.size >= file.size) {
-      return {
-        file,
-        originalSize,
-        compressedSize: file.size,
-        compressed: false,
-      }
-    }
-
-    const optimizedFile = new File([blob], getOutputFileName(file.name, outputType), {
-      type: outputType,
-      lastModified: Date.now(),
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image()
+      element.onload = () => resolve(element)
+      element.onerror = () => reject(new Error('The selected image format is not supported by this browser.'))
+      element.src = sourceUrl
     })
 
     return {
-      file: optimizedFile,
-      originalSize,
-      compressedSize: optimizedFile.size,
-      compressed: true,
+      width: image.naturalWidth || image.width,
+      height: image.naturalHeight || image.height,
+      draw: (context: CanvasRenderingContext2D, width: number, height: number) => {
+        context.drawImage(image, 0, 0, width, height)
+      },
+      close: () => undefined,
     }
-  } catch {
-    // Some formats like HEIC may not be decodable by the browser.
-    // Keep the original rather than blocking the field update.
+  } finally {
+    URL.revokeObjectURL(sourceUrl)
+  }
+}
+
+function getScaledSize(width: number, height: number, maxDimension: number) {
+  const longestSide = Math.max(width, height)
+  if (longestSide <= maxDimension) return { width, height }
+
+  const scale = maxDimension / longestSide
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  }
+}
+
+/**
+ * Compresses a field-inspection photo before it is stored offline, uploaded to
+ * Google Drive, or embedded in an Aide Memoire. The target is normally below
+ * 700 KB while preserving the original aspect ratio.
+ */
+export async function compressInspectionImage(
+  file: File,
+  options: CompressionOptions = {},
+): Promise<InspectionImageCompressionResult> {
+  const maxDimension = options.maxDimension ?? 1920
+  const targetMaxBytes = options.targetMaxBytes ?? 700 * 1024
+  const initialQuality = options.initialQuality ?? 0.84
+  const minimumQuality = options.minimumQuality ?? 0.48
+
+  if (!file.type.startsWith('image/')) {
+    throw new Error(`${file.name} is not an image file.`)
+  }
+
+  const decoded = await decodeImage(file)
+  try {
+    let scaled = getScaledSize(decoded.width, decoded.height, maxDimension)
+    let quality = initialQuality
+    let bestBlob: Blob | null = null
+
+    for (let resizePass = 0; resizePass < 3; resizePass += 1) {
+      const canvas = document.createElement('canvas')
+      canvas.width = scaled.width
+      canvas.height = scaled.height
+
+      const context = canvas.getContext('2d', { alpha: false })
+      if (!context) throw new Error('Image compression is unavailable on this device.')
+
+      context.fillStyle = '#ffffff'
+      context.fillRect(0, 0, scaled.width, scaled.height)
+      decoded.draw(context, scaled.width, scaled.height)
+
+      quality = resizePass === 0 ? initialQuality : Math.min(initialQuality, quality + 0.08)
+
+      while (quality >= minimumQuality) {
+        const candidate = await canvasToBlob(canvas, quality)
+        if (!bestBlob || candidate.size < bestBlob.size) bestBlob = candidate
+        if (candidate.size <= targetMaxBytes) break
+        quality -= 0.08
+      }
+
+      if (bestBlob && bestBlob.size <= targetMaxBytes) break
+
+      scaled = {
+        width: Math.max(1, Math.round(scaled.width * 0.84)),
+        height: Math.max(1, Math.round(scaled.height * 0.84)),
+      }
+    }
+
+    if (!bestBlob) throw new Error('The selected photo could not be compressed.')
+
+    const compressedFile = new File([bestBlob], replaceExtensionWithJpeg(file.name), {
+      type: 'image/jpeg',
+      lastModified: file.lastModified || Date.now(),
+    })
+
+    const useOriginal =
+      file.size <= targetMaxBytes &&
+      file.type === 'image/jpeg' &&
+      decoded.width <= maxDimension &&
+      decoded.height <= maxDimension &&
+      file.size <= compressedFile.size
+
+    const outputFile = useOriginal ? file : compressedFile
+
     return {
-      file,
-      originalSize,
-      compressedSize: file.size,
-      compressed: false,
+      file: outputFile,
+      originalSize: file.size,
+      compressedSize: outputFile.size,
+      compressed: outputFile !== file,
+      width: scaled.width,
+      height: scaled.height,
     }
+  } finally {
+    decoded.close()
   }
 }
