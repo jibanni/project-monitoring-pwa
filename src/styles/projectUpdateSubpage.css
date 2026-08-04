@@ -1296,3 +1296,91 @@
   0%, 70%, 100% { opacity: 0.3; transform: translateY(0) scale(0.82); }
   35% { opacity: 1; transform: translateY(-0.1rem) scale(1); }
 }
+
+
+/* Phase 5.3 — explicit camera/gallery photo source controls. */
+.pu-update-subpage-system .pu-photo-source-actions,
+.pu-update-subpage-system .pu-supporting-photo-source-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.75rem !important;
+  width: 100% !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro > .pu-photo-source-actions {
+  width: min(100%, 24rem) !important;
+}
+
+.pu-update-subpage-system .pu-photo-source-btn,
+.pu-update-subpage-system .pu-gallery-select-btn {
+  position: relative !important;
+  overflow: hidden !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.625rem !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 3.5rem !important;
+  margin: 0 !important;
+  padding: 0.75rem 1rem !important;
+  border: 0 !important;
+  border-radius: 0.875rem !important;
+  font-size: 0.94rem !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  text-align: center !important;
+  cursor: pointer !important;
+}
+
+.pu-update-subpage-system .pu-gallery-select-btn {
+  background: linear-gradient(135deg, #0f8f73, #08705d) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(15, 143, 115, 0.18) !important;
+}
+
+.pu-update-subpage-system .pu-photo-source-btn svg,
+.pu-update-subpage-system .pu-gallery-select-btn svg {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  flex: 0 0 1.25rem !important;
+}
+
+.pu-update-subpage-system .pu-photo-source-btn input,
+.pu-update-subpage-system .pu-gallery-select-btn input {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0 !important;
+  cursor: pointer !important;
+}
+
+.pu-update-subpage-system .pu-photo-source-btn:has(input:disabled),
+.pu-update-subpage-system .pu-gallery-select-btn:has(input:disabled) {
+  opacity: 0.58 !important;
+  cursor: not-allowed !important;
+}
+
+.pu-update-subpage-system .pu-optional-photo-picker {
+  display: grid !important;
+  gap: 0.65rem !important;
+}
+
+.pu-update-subpage-system .pu-photo-selection-count {
+  color: #64748b !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+}
+
+@media (max-width: 560px) {
+  .pu-update-subpage-system .pu-photo-source-actions,
+  .pu-update-subpage-system .pu-supporting-photo-source-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pu-update-subpage-system .pu-photo-finding-intro > .pu-photo-source-actions {
+    width: 100% !important;
+  }
+}

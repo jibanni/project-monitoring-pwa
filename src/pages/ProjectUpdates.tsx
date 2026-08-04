@@ -777,6 +777,16 @@ function IconCamera() {
   )
 }
 
+function IconGallery() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <circle cx="9" cy="10" r="1.5" />
+      <path d="m5.5 17 4.2-4.1 3.1 2.8 2.2-2.1 3.5 3.4" />
+    </svg>
+  )
+}
+
 function IconPdf() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2273,14 +2283,21 @@ export default function ProjectUpdates() {
     }
   }
 
-  async function handlePhotoSelect(event: ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoSelect(
+    event: ChangeEvent<HTMLInputElement>,
+    captureGps = false,
+  ) {
     const files = Array.from(event.target.files || [])
     event.target.value = ''
     if (files.length === 0) return
-    await processSelectedPhotos(files, { photoKind: 'additional', captureGps: false })
+    await processSelectedPhotos(files, { photoKind: 'additional', captureGps })
   }
 
-  async function handleFindingPhotoSelect(event: ChangeEvent<HTMLInputElement>, findingId?: string) {
+  async function handleFindingPhotoSelect(
+    event: ChangeEvent<HTMLInputElement>,
+    findingId?: string,
+    captureGps = true,
+  ) {
     const files = Array.from(event.target.files || [])
     event.target.value = ''
     if (files.length === 0) return
@@ -2296,7 +2313,7 @@ export default function ProjectUpdates() {
     const mapped = await processSelectedPhotos(files, {
       findingId: targetId,
       photoKind: 'finding',
-      captureGps: true,
+      captureGps,
     })
 
     if (mapped.length > 0) {
@@ -3770,17 +3787,31 @@ export default function ProjectUpdates() {
                       <h3>Capture a Finding</h3>
                       <p>Take a photo, then encode the finding, recommendation, timeline, and remarks.</p>
                     </div>
-                    <label className="pu-camera-capture-btn">
-                      <IconCamera />
-                      <span>Capture New Finding</span>
-                      <input
-                        type="file"
-                        accept="image/*,.heic,.heif"
-                        capture="environment"
-                        onChange={(event) => void handleFindingPhotoSelect(event)}
-                        disabled={saving || photoProcessing}
-                      />
-                    </label>
+                    <div className="pu-photo-source-actions">
+                      <label className="pu-camera-capture-btn pu-photo-source-btn">
+                        <IconCamera />
+                        <span>Use Camera</span>
+                        <input
+                          type="file"
+                          accept="image/*,.heic,.heif"
+                          capture="environment"
+                          onChange={(event) => void handleFindingPhotoSelect(event, undefined, true)}
+                          disabled={saving || photoProcessing}
+                        />
+                      </label>
+
+                      <label className="pu-gallery-select-btn pu-photo-source-btn">
+                        <IconGallery />
+                        <span>Choose from Gallery</span>
+                        <input
+                          type="file"
+                          accept="image/*,.heic,.heif"
+                          multiple
+                          onChange={(event) => void handleFindingPhotoSelect(event, undefined, false)}
+                          disabled={saving || photoProcessing}
+                        />
+                      </label>
+                    </div>
                   </div>
 
                   <div className="pu-aide-row-list pu-photo-finding-list">
@@ -3849,17 +3880,31 @@ export default function ProjectUpdates() {
                               )
                             })}
 
-                            <label className="pu-add-supporting-photo-btn">
-                              <IconCamera />
-                              <span>{linkedPhotos.length ? 'Add Supporting Photo' : 'Capture Supporting Photo'}</span>
-                              <input
-                                type="file"
-                                accept="image/*,.heic,.heif"
-                                capture="environment"
-                                onChange={(event) => void handleFindingPhotoSelect(event, row.id)}
-                                disabled={saving || photoProcessing}
-                              />
-                            </label>
+                            <div className="pu-supporting-photo-source-actions">
+                              <label className="pu-add-supporting-photo-btn pu-photo-source-btn">
+                                <IconCamera />
+                                <span>Use Camera</span>
+                                <input
+                                  type="file"
+                                  accept="image/*,.heic,.heif"
+                                  capture="environment"
+                                  onChange={(event) => void handleFindingPhotoSelect(event, row.id, true)}
+                                  disabled={saving || photoProcessing}
+                                />
+                              </label>
+
+                              <label className="pu-gallery-select-btn pu-photo-source-btn">
+                                <IconGallery />
+                                <span>Choose from Gallery</span>
+                                <input
+                                  type="file"
+                                  accept="image/*,.heic,.heif"
+                                  multiple
+                                  onChange={(event) => void handleFindingPhotoSelect(event, row.id, false)}
+                                  disabled={saving || photoProcessing}
+                                />
+                              </label>
+                            </div>
                           </div>
 
                           <label className="pu-field pu-full-field">
@@ -4040,17 +4085,37 @@ export default function ProjectUpdates() {
                 </div>
               </div>
 
-              <label className="pu-action-btn pu-action-photo pu-wizard-photo-button">
-                Add Optional Photos
-                <span>{photoInputs.filter((photo) => photo.photoKind !== 'finding').length} selected</span>
-                <input
-                  type="file"
-                  accept="image/*,.heic,.heif"
-                  multiple
-                  onChange={handlePhotoSelect}
-                  disabled={saving}
-                />
-              </label>
+              <div className="pu-optional-photo-picker">
+                <div className="pu-photo-source-actions pu-optional-photo-source-actions">
+                  <label className="pu-camera-capture-btn pu-photo-source-btn">
+                    <IconCamera />
+                    <span>Use Camera</span>
+                    <input
+                      type="file"
+                      accept="image/*,.heic,.heif"
+                      capture="environment"
+                      onChange={(event) => void handlePhotoSelect(event, false)}
+                      disabled={saving || photoProcessing}
+                    />
+                  </label>
+
+                  <label className="pu-gallery-select-btn pu-photo-source-btn">
+                    <IconGallery />
+                    <span>Choose from Gallery</span>
+                    <input
+                      type="file"
+                      accept="image/*,.heic,.heif"
+                      multiple
+                      onChange={(event) => void handlePhotoSelect(event, false)}
+                      disabled={saving || photoProcessing}
+                    />
+                  </label>
+                </div>
+
+                <span className="pu-photo-selection-count">
+                  {photoInputs.filter((photo) => photo.photoKind !== 'finding').length} optional photo(s) selected
+                </span>
+              </div>
 
               {photoInputs.filter((photo) => photo.photoKind !== 'finding').length === 0 ? (
                 <div className="pu-photo-empty">No additional photos selected. This step is optional.</div>

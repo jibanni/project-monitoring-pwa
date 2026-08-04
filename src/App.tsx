@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react'
 import type { ComponentProps, ReactNode } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 
 import { AuthProvider } from './context/AuthContext'
+import { routeLoaders } from './lib/routePreload'
 
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -13,31 +14,30 @@ import Register from './pages/Register'
 import PendingApproval from './pages/PendingApproval'
 import Unauthorized from './pages/Unauthorized'
 
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const Projects = lazy(() => import('./pages/Projects'))
-const ProjectDetails = lazy(() => import('./pages/ProjectDetails'))
-const ProjectUpdates = lazy(() => import('./pages/ProjectUpdates'))
-const AideMemoirePdfViewer = lazy(() => import('./pages/AideMemoirePdfViewer'))
-const CreateProject = lazy(() => import('./pages/CreateProject'))
-const EditProject = lazy(() => import('./pages/EditProject'))
-const ProjectMap = lazy(() => import('./pages/ProjectMap'))
-const OfflineSync = lazy(() => import('./pages/OfflineSync'))
-const Reports = lazy(() => import('./pages/Reports'))
-const UserManagement = lazy(() => import('./pages/UserManagement'))
-const UserAccess = lazy(() => import('./pages/UserAccess'))
-const SubayImport = lazy(() => import('./pages/SubayImport'))
+const Dashboard = lazy(routeLoaders.dashboard)
+const Projects = lazy(routeLoaders.projects)
+const ProjectDetails = lazy(routeLoaders.projectDetails)
+const ProjectUpdates = lazy(routeLoaders.projectUpdates)
+const AideMemoirePdfViewer = lazy(routeLoaders.aideMemoirePdfViewer)
+const CreateProject = lazy(routeLoaders.createProject)
+const EditProject = lazy(routeLoaders.editProject)
+const ProjectMap = lazy(routeLoaders.projectMap)
+const OfflineSync = lazy(routeLoaders.offlineSync)
+const Reports = lazy(routeLoaders.reports)
+const UserManagement = lazy(routeLoaders.userManagement)
+const UserAccess = lazy(routeLoaders.userAccess)
+const SubayImport = lazy(routeLoaders.subayImport)
 
 type ProtectedRouteProps = ComponentProps<typeof ProtectedRoute>
 
-type ProtectedLayoutProps = {
+type RoleProtectedPageProps = {
   children: ReactNode
-  allowedRoles?: ProtectedRouteProps['allowedRoles']
-  requireApproval?: ProtectedRouteProps['requireApproval']
+  allowedRoles: ProtectedRouteProps['allowedRoles']
 }
 
 function PageLoader() {
   return (
-    <div className="app-page-loader">
+    <div className="app-page-loader" role="status" aria-live="polite">
       <div className="app-page-loader-spinner" />
       <p>Loading page...</p>
     </div>
@@ -48,18 +48,25 @@ function PublicPage({ children }: { children: ReactNode }) {
   return <div className="public-page-transition">{children}</div>
 }
 
-function ProtectedLayout({
-  children,
-  allowedRoles,
-  requireApproval,
-}: ProtectedLayoutProps) {
+/**
+ * This shell is mounted once for every authenticated route. The previous route
+ * structure recreated Layout on each navbar click, repeating header effects,
+ * measurements, listeners, and protected-route work.
+ */
+function ProtectedAppShell() {
   return (
-    <ProtectedRoute allowedRoles={allowedRoles} requireApproval={requireApproval}>
+    <ProtectedRoute>
       <Layout>
-        <Suspense fallback={<PageLoader />}>{children}</Suspense>
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </Layout>
     </ProtectedRoute>
   )
+}
+
+function RoleProtectedPage({ children, allowedRoles }: RoleProtectedPageProps) {
+  return <ProtectedRoute allowedRoles={allowedRoles}>{children}</ProtectedRoute>
 }
 
 function App() {
@@ -111,133 +118,87 @@ function App() {
             }
           />
 
-          <Route
-            path="/"
-            element={
-              <ProtectedLayout>
-                <Dashboard />
-              </ProtectedLayout>
-            }
-          />
+          <Route element={<ProtectedAppShell />}>
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="projects" element={<Projects />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="map" element={<ProjectMap />} />
 
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedLayout>
-                <Dashboard />
-              </ProtectedLayout>
-            }
-          />
+            <Route
+              path="offline-sync"
+              element={
+                <RoleProtectedPage
+                  allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'PEO', 'Engineer']}
+                >
+                  <OfflineSync />
+                </RoleProtectedPage>
+              }
+            />
 
-          <Route
-            path="/projects"
-            element={
-              <ProtectedLayout>
-                <Projects />
-              </ProtectedLayout>
-            }
-          />
+            <Route
+              path="projects/import-subaybayan"
+              element={
+                <RoleProtectedPage allowedRoles={['Admin']}>
+                  <SubayImport />
+                </RoleProtectedPage>
+              }
+            />
 
-          <Route
-            path="/reports"
-            element={
-              <ProtectedLayout>
-                <Reports />
-              </ProtectedLayout>
-            }
-          />
+            <Route
+              path="projects/create"
+              element={
+                <RoleProtectedPage allowedRoles={['Admin', 'RO Engineer']}>
+                  <CreateProject />
+                </RoleProtectedPage>
+              }
+            />
 
-          <Route
-            path="/map"
-            element={
-              <ProtectedLayout>
-                <ProjectMap />
-              </ProtectedLayout>
-            }
-          />
+            <Route path="projects/:id" element={<ProjectDetails />} />
 
-          <Route
-            path="/offline-sync"
-            element={
-              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'PEO', 'Engineer']}>
-                <OfflineSync />
-              </ProtectedLayout>
-            }
-          />
+            <Route
+              path="projects/:id/edit"
+              element={
+                <RoleProtectedPage allowedRoles={['Admin', 'RO Engineer']}>
+                  <EditProject />
+                </RoleProtectedPage>
+              }
+            />
 
+            <Route
+              path="projects/:id/updates"
+              element={
+                <RoleProtectedPage
+                  allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'PEO', 'Engineer']}
+                >
+                  <ProjectUpdates />
+                </RoleProtectedPage>
+              }
+            />
 
-          <Route
-            path="/projects/import-subaybayan"
-            element={
-              <ProtectedLayout allowedRoles={['Admin']}>
-                <SubayImport />
-              </ProtectedLayout>
-            }
-          />
+            <Route
+              path="projects/:id/aide-memoire/pdf"
+              element={<AideMemoirePdfViewer />}
+            />
 
-          <Route
-            path="/projects/create"
-            element={
-              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer']}>
-                <CreateProject />
-              </ProtectedLayout>
-            }
-          />
+            <Route
+              path="users"
+              element={
+                <RoleProtectedPage allowedRoles={['Admin']}>
+                  <UserManagement />
+                </RoleProtectedPage>
+              }
+            />
 
-          <Route
-            path="/projects/:id"
-            element={
-              <ProtectedLayout>
-                <ProjectDetails />
-              </ProtectedLayout>
-            }
-          />
-
-          <Route
-            path="/projects/:id/edit"
-            element={
-              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer']}>
-                <EditProject />
-              </ProtectedLayout>
-            }
-          />
-
-          <Route
-            path="/projects/:id/updates"
-            element={
-              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'PEO', 'Engineer']}>
-                <ProjectUpdates />
-              </ProtectedLayout>
-            }
-          />
-
-          <Route
-            path="/projects/:id/aide-memoire/pdf"
-            element={
-              <ProtectedLayout>
-                <AideMemoirePdfViewer />
-              </ProtectedLayout>
-            }
-          />
-
-
-          <Route
-            path="/users"
-            element={
-              <ProtectedLayout allowedRoles={['Admin']}>
-                <UserManagement />
-              </ProtectedLayout>
-            }
-          />
-
-          <Route
-            path="/users/:userId/access"
-            element={
-              <ProtectedLayout allowedRoles={['Admin']}>
-                <UserAccess />
-              </ProtectedLayout>
-            }
-          />
+            <Route
+              path="users/:userId/access"
+              element={
+                <RoleProtectedPage allowedRoles={['Admin']}>
+                  <UserAccess />
+                </RoleProtectedPage>
+              }
+            />
+          </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

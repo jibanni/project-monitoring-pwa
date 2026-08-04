@@ -986,3 +986,12 @@
   color: #047857;
 }
 /* PMS10 COMPLETED PROJECTS NO RISK V2 — REPORTS END */
+
+
+/* Phase 5.3 — reports render first while optional assignment metadata loads. */
+.reports-background-status {
+  margin-top: 0.65rem;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+}

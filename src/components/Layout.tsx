@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { preloadRoute, scheduleRoutePreloads } from '../lib/routePreload'
 import '../styles/layout.css'
 
 type LayoutProps = {
@@ -321,6 +322,14 @@ export default function Layout({ children }: LayoutProps) {
     })
   }, [isAdmin, isEngineer])
 
+  useEffect(() => {
+    const lightweightPaths = visibleNavItems
+      .filter((item) => item.key === 'projects' || item.key === 'reports')
+      .map((item) => item.to)
+
+    return scheduleRoutePreloads(lightweightPaths)
+  }, [visibleNavItems])
+
   const displayName =
     profile?.full_name ||
     profile?.name ||
@@ -390,6 +399,8 @@ export default function Layout({ children }: LayoutProps) {
     }
 
     setPendingMobilePath(item.to)
+    void preloadRoute(item.to)
+
     navigate(item.to)
   }
 
@@ -437,7 +448,14 @@ export default function Layout({ children }: LayoutProps) {
       style={shellStyle}
     >
       <div className="app-header-inner">
-        <NavLink to="/dashboard" end className="app-brand" aria-label="Go to dashboard">
+        <NavLink
+          to="/dashboard"
+          end
+          className="app-brand"
+          aria-label="Go to dashboard"
+          onPointerEnter={() => void preloadRoute('/dashboard')}
+          onFocus={() => void preloadRoute('/dashboard')}
+        >
           <span className="app-brand-logo-wrap">
             <img src="/dilg-logo.png" alt="DILG Logo" className="app-brand-logo" />
           </span>
@@ -464,6 +482,9 @@ export default function Layout({ children }: LayoutProps) {
                   .filter(Boolean)
                   .join(' ')}
                 aria-current={active ? 'page' : undefined}
+                onPointerEnter={() => void preloadRoute(item.to)}
+                onFocus={() => void preloadRoute(item.to)}
+                onClick={() => setPendingMobilePath(item.to)}
               >
                 <span className="app-nav-icon">
                   <AppIcon type={item.icon} />
@@ -533,10 +554,13 @@ export default function Layout({ children }: LayoutProps) {
                 aria-current={active ? 'page' : undefined}
                 aria-label={item.label}
                 onPointerDown={(event) => {
+                  void preloadRoute(item.to)
+
                   if (event.pointerType === 'touch' || event.pointerType === 'pen') {
                     lastMobilePointerNavRef.current = Date.now()
                   }
                 }}
+                onFocus={() => void preloadRoute(item.to)}
                 onClick={() => {
                   navigateMobile(item)
                 }}
