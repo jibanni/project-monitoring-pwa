@@ -182,3 +182,44 @@ body .user-management-page.is-user-scrolled > .user-management-hero h1 {
     --pms10-main-hero-pad-x: 0.9rem;
   }
 }
+
+/* =========================================================
+   PMS10 PHASE 5.15 — FULL-BLEED MAIN HERO ALIGNMENT
+   Match the Project Details hero width and header divider.
+   ========================================================= */
+
+/* Use the same clean white divider and shadow treatment on every app route. */
+body > .app-header,
+body > .app-header.app-header-scrolled {
+  border-bottom: 2px solid rgba(255, 255, 255, 0.92) !important;
+  box-shadow: none !important;
+}
+
+/* Pull the six main heroes out of .app-main padding and span the viewport. */
+body .dashboard-page:not(.is-dashboard-scrolled) > .dashboard-hero,
+body .projects-page:not(.is-registry-scrolled) > .projects-hero,
+body .projects-page:not(.is-registry-scrolled) > .projects-registry-hero,
+body .pm-map-page:not(.is-map-scrolled) > .pm-map-hero,
+body .reports-page:not(.is-reports-scrolled) > .reports-hero,
+body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero,
+body .user-management-page:not(.is-user-scrolled) > .user-management-hero {
+  box-sizing: border-box !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-top: -10px !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  border-top: 0 !important;
+}
+
+@media (max-width: 720px) {
+  body .dashboard-page:not(.is-dashboard-scrolled) > .dashboard-hero,
+  body .projects-page:not(.is-registry-scrolled) > .projects-hero,
+  body .projects-page:not(.is-registry-scrolled) > .projects-registry-hero,
+  body .pm-map-page:not(.is-map-scrolled) > .pm-map-hero,
+  body .reports-page:not(.is-reports-scrolled) > .reports-hero,
+  body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero,
+  body .user-management-page:not(.is-user-scrolled) > .user-management-hero {
+    margin-top: -8px !important;
+  }
+}

@@ -3468,3 +3468,104 @@ body > .pd-action-trigger:active {
     font-size: 0.74rem;
   }
 }
+
+/* PMS10 PHASE 5.15 OVERRIDE START */
+/* =========================================================
+   PMS10 PHASE 5.15 — COMPACT PROJECT DETAILS SUMMARY
+   Smaller, cleaner 4-card desktop / 2-card mobile layout.
+   ========================================================= */
+
+body .pd-page .pd-summary-grid {
+  width: min(calc(100% - 24px), 1180px) !important;
+  max-width: 1180px !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0.55rem !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.68rem !important;
+}
+
+body .pd-page .pd-summary-card {
+  min-width: 0 !important;
+  min-height: 82px !important;
+  padding: 0.62rem 0.68rem !important;
+  gap: 0.28rem !important;
+  justify-content: center !important;
+  border: 1px solid #dbe3ef !important;
+  border-radius: 15px !important;
+  background: #ffffff !important;
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.055) !important;
+}
+
+body .pd-page .pd-summary-card::before {
+  left: 0.62rem !important;
+  right: 0.62rem !important;
+  height: 3px !important;
+}
+
+body .pd-page .pd-summary-card span {
+  font-size: 0.58rem !important;
+  font-weight: 900 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0.085em !important;
+}
+
+body .pd-page .pd-summary-card strong {
+  font-size: clamp(1.08rem, 2.1vw, 1.34rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.035em !important;
+}
+
+body .pd-page .pd-summary-card .pd-cost-value,
+body .pd-page .pd-summary-card .pd-date-value {
+  font-size: clamp(0.76rem, 1.35vw, 0.92rem) !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.018em !important;
+}
+
+body .pd-page .pd-summary-card .pd-progress-track {
+  height: 5px !important;
+  margin-top: 0.08rem !important;
+  border-radius: 999px !important;
+}
+
+@media (max-width: 1180px) {
+  body .pd-page .pd-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body .pd-page .pd-summary-grid {
+    width: calc(100% - 20px) !important;
+    gap: 0.46rem !important;
+    margin-bottom: 0.58rem !important;
+  }
+
+  body .pd-page .pd-summary-card {
+    min-height: 76px !important;
+    padding: 0.56rem 0.6rem !important;
+    border-radius: 14px !important;
+  }
+
+  body .pd-page .pd-summary-card span {
+    font-size: 0.55rem !important;
+  }
+
+  body .pd-page .pd-summary-card strong {
+    font-size: clamp(1rem, 4.7vw, 1.2rem) !important;
+  }
+
+  body .pd-page .pd-summary-card .pd-cost-value,
+  body .pd-page .pd-summary-card .pd-date-value {
+    font-size: clamp(0.72rem, 3.2vw, 0.84rem) !important;
+  }
+}
+
+@media (max-width: 380px) {
+  body .pd-page .pd-summary-card {
+    min-height: 72px !important;
+    padding: 0.5rem 0.54rem !important;
+  }
+}
+/* PMS10 PHASE 5.15 OVERRIDE END */
