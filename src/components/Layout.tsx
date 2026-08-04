@@ -223,7 +223,7 @@ export default function Layout({ children }: LayoutProps) {
   const [headerHeight, setHeaderHeight] = useState(74)
   const [pendingMobilePath, setPendingMobilePath] = useState('')
   const [headerPortalReady, setHeaderPortalReady] = useState(false)
-  const [mobileKeyboardOffset, setMobileKeyboardOffset] = useState(0)
+  const [mobileKeyboardOpen, setMobileKeyboardOpen] = useState(false)
 
   useEffect(() => {
     setHeaderPortalReady(true)
@@ -240,55 +240,48 @@ export default function Layout({ children }: LayoutProps) {
       return element.matches('input, textarea, select, [role="textbox"]')
     }
 
-    const updateKeyboardOffset = () => {
-      const viewportBottom = visualViewport.height + visualViewport.offsetTop
-      const activeElement = document.activeElement
-      const editing = isEditableElement(activeElement)
+    mobileViewportBaselineRef.current = Math.max(
+      mobileViewportBaselineRef.current,
+      visualViewport.height,
+      window.innerHeight,
+    )
+
+    const updateKeyboardState = () => {
+      const editing = isEditableElement(document.activeElement)
 
       if (!editing) {
         mobileViewportBaselineRef.current = Math.max(
           mobileViewportBaselineRef.current,
-          viewportBottom,
+          visualViewport.height,
           window.innerHeight,
         )
-        setMobileKeyboardOffset(0)
+        setMobileKeyboardOpen(false)
         return
       }
 
-      const baseline = Math.max(
-        mobileViewportBaselineRef.current,
-        window.innerHeight,
+      const heightLoss = Math.max(
+        0,
+        mobileViewportBaselineRef.current - visualViewport.height,
       )
-      const hiddenBelowViewport = Math.max(0, baseline - viewportBottom)
-      const nextOffset = hiddenBelowViewport >= 120
-        ? Math.ceil(hiddenBelowViewport)
-        : 0
 
-      setMobileKeyboardOffset((current) => current === nextOffset ? current : nextOffset)
+      setMobileKeyboardOpen(heightLoss >= 120)
     }
-
-    mobileViewportBaselineRef.current = Math.max(
-      visualViewport.height + visualViewport.offsetTop,
-      window.innerHeight,
-    )
 
     const handleFocusOut = () => {
-      window.setTimeout(updateKeyboardOffset, 80)
+      window.setTimeout(updateKeyboardState, 100)
     }
 
-    updateKeyboardOffset()
-    visualViewport.addEventListener('resize', updateKeyboardOffset)
-    visualViewport.addEventListener('scroll', updateKeyboardOffset)
-    window.addEventListener('focusin', updateKeyboardOffset)
+    updateKeyboardState()
+    visualViewport.addEventListener('resize', updateKeyboardState)
+    window.addEventListener('focusin', updateKeyboardState)
     window.addEventListener('focusout', handleFocusOut)
-    window.addEventListener('orientationchange', updateKeyboardOffset)
+    window.addEventListener('orientationchange', updateKeyboardState)
 
     return () => {
-      visualViewport.removeEventListener('resize', updateKeyboardOffset)
-      visualViewport.removeEventListener('scroll', updateKeyboardOffset)
-      window.removeEventListener('focusin', updateKeyboardOffset)
+      visualViewport.removeEventListener('resize', updateKeyboardState)
+      window.removeEventListener('focusin', updateKeyboardState)
       window.removeEventListener('focusout', handleFocusOut)
-      window.removeEventListener('orientationchange', updateKeyboardOffset)
+      window.removeEventListener('orientationchange', updateKeyboardState)
     }
   }, [])
 
@@ -612,13 +605,12 @@ export default function Layout({ children }: LayoutProps) {
 
   const appMobileNav = (
     <nav
-      className="app-mobile-nav"
+      className={`app-mobile-nav ${mobileKeyboardOpen ? 'is-keyboard-open' : ''}`.trim()}
       aria-label="Mobile navigation"
       style={
         {
           '--pms10-mobile-nav-count': String(visibleNavItems.length),
           '--pms10-mobile-nav-active-index': String(activeMobileIndex),
-          '--pms10-keyboard-offset': `${mobileKeyboardOffset}px`,
         } as CSSProperties
       }
     >

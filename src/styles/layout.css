@@ -3508,17 +3508,23 @@ body > .app-header.app-header-project-details.app-header-scrolled {
 }
 /* PMS10 PHASE 5.7.1 — PREVIOUS NAV + GLASS BUBBLE END */
 
-/* PMS10 PHASE 5.9 — KEYBOARD-STABLE MOBILE NAV START
-   iOS positions fixed elements against the visual viewport, causing the nav to
-   rise above the keyboard. Translate it by the obscured viewport height so it
-   stays at the physical screen bottom, behind the keyboard, then returns when
-   the keyboard closes. */
+/* PMS10 PHASE 5.11 — KEYBOARD-STABLE MOBILE NAV START
+   Keep the navbar at the physical bottom. iOS otherwise lifts fixed elements
+   into the visual viewport when the keyboard opens. The nav is temporarily
+   hidden behind the keyboard and restored when editing ends. */
 @media (max-width: 900px) {
   body > .app-mobile-nav {
-    transform: translate3d(0, var(--pms10-keyboard-offset, 0px), 0) !important;
+    transform: none !important;
     translate: none !important;
-    will-change: transform !important;
     transition: none !important;
+    will-change: auto !important;
+  }
+
+  body > .app-mobile-nav.is-keyboard-open {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: translate3d(0, calc(100% + 32px), 0) !important;
   }
 }
-/* PMS10 PHASE 5.9 — KEYBOARD-STABLE MOBILE NAV END */
+/* PMS10 PHASE 5.11 — KEYBOARD-STABLE MOBILE NAV END */

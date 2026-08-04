@@ -314,3 +314,18 @@
   }
 }
 /* PMS10 PHASE 5.10 — KEYBOARD-STABLE ACTION FAB END */
+
+
+/* PMS10 PHASE 5.11 — KEYBOARD-VISIBLE ACTION FAB START */
+@media (max-width: 900px) {
+  .pms-action-menu {
+    z-index: 2147483646 !important;
+  }
+
+  .pms-action-menu.is-keyboard-open {
+    right: max(12px, env(safe-area-inset-right)) !important;
+    bottom: max(10px, env(safe-area-inset-bottom)) !important;
+    transform: none !important;
+  }
+}
+/* PMS10 PHASE 5.11 — KEYBOARD-VISIBLE ACTION FAB END */

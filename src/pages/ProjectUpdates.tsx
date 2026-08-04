@@ -799,15 +799,6 @@ function IconDraft() {
   )
 }
 
-function IconCamera() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 7h3l1.5-2h7L17 7h3v12H4V7Z" />
-      <circle cx="12" cy="13" r="3.5" />
-    </svg>
-  )
-}
-
 function IconGallery() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3825,28 +3816,16 @@ export default function ProjectUpdates() {
                   <div className="pu-photo-finding-intro pu-photo-finding-toolbar">
                     <div>
                       <h3>Photo Evidence</h3>
-                      <p>Capture a new photo or upload existing photos. Every selection is appended to the list below.</p>
+                      <p>Tap once, then choose Photo Library, Take Photo, or Choose Files. Every selection is appended to the list below.</p>
                     </div>
 
                     <div className="pu-photo-source-actions pu-single-finding-photo-actions">
-                      <label className="pu-camera-capture-btn pu-photo-source-btn">
-                        <IconCamera />
-                        <span>Capture Photo</span>
+                      <label className="pu-gallery-select-btn pu-photo-source-btn pu-unified-photo-source-btn">
+                        <IconGallery />
+                        <span>Capture / Upload Photo</span>
                         <input
                           type="file"
                           accept="image/*,.heic,.heif"
-                          capture="environment"
-                          onChange={(event) => void handleFindingPhotoSelect(event, undefined, true)}
-                          disabled={saving || photoProcessing}
-                        />
-                      </label>
-
-                      <label className="pu-gallery-select-btn pu-photo-source-btn">
-                        <IconGallery />
-                        <span>Upload from Gallery</span>
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
                           multiple
                           onChange={(event) => void handleFindingPhotoSelect(event, undefined, false)}
                           disabled={saving || photoProcessing}
@@ -3857,7 +3836,7 @@ export default function ProjectUpdates() {
 
                   {aideFindings.filter(hasAideFindingContent).length === 0 ? (
                     <div className="pu-photo-empty pu-finding-photo-empty">
-                      No finding photos added yet. Use Capture Photo or Upload from Gallery above.
+                      No finding photos added yet. Use Capture / Upload Photo above.
                     </div>
                   ) : (
                     <div className="pu-aide-row-list pu-photo-finding-list">
@@ -3911,7 +3890,7 @@ export default function ProjectUpdates() {
                                           onClick={() => void retryPhotoGps(photo.id)}
                                           disabled={photoProcessing || saving}
                                         >
-                                          Retry GPS
+                                          Add GPS
                                         </button>
                                       ) : null}
                                       <button
@@ -4108,24 +4087,12 @@ export default function ProjectUpdates() {
 
               <div className="pu-optional-photo-picker">
                 <div className="pu-photo-source-actions pu-optional-photo-source-actions">
-                  <label className="pu-camera-capture-btn pu-photo-source-btn">
-                    <IconCamera />
-                    <span>Capture Photo</span>
+                  <label className="pu-gallery-select-btn pu-photo-source-btn pu-unified-photo-source-btn">
+                    <IconGallery />
+                    <span>Capture / Upload Additional Photo</span>
                     <input
                       type="file"
                       accept="image/*,.heic,.heif"
-                      capture="environment"
-                      onChange={(event) => void handlePhotoSelect(event, false)}
-                      disabled={saving || photoProcessing}
-                    />
-                  </label>
-
-                  <label className="pu-gallery-select-btn pu-photo-source-btn">
-                    <IconGallery />
-                    <span>Upload from Gallery</span>
-                    <input
-                      type="file"
-                      accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
                       multiple
                       onChange={(event) => void handlePhotoSelect(event, false)}
                       disabled={saving || photoProcessing}
