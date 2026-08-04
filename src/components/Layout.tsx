@@ -202,7 +202,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const headerRef = useRef<HTMLElement | null>(null)
-  const lastMobilePointerNavRef = useRef(0)
+  const lastMobilePointerNavRef = useRef<{ path: string; at: number } | null>(null)
 
   const user = auth?.user
   const profile = auth?.profile
@@ -558,15 +558,24 @@ export default function Layout({ children }: LayoutProps) {
                   .join(' ')}
                 aria-current={active ? 'page' : undefined}
                 aria-label={item.label}
-                onPointerDown={(event) => {
-                  void preloadRoute(item.to)
+                onPointerUp={(event) => {
+                  if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
 
-                  if (event.pointerType === 'touch' || event.pointerType === 'pen') {
-                    lastMobilePointerNavRef.current = Date.now()
+                  event.preventDefault()
+                  lastMobilePointerNavRef.current = {
+                    path: item.to,
+                    at: Date.now(),
                   }
+                  navigateMobile(item)
                 }}
-                onFocus={() => void preloadRoute(item.to)}
                 onClick={() => {
+                  const lastPointerNavigation = lastMobilePointerNavRef.current
+                  const wasHandledByPointer =
+                    lastPointerNavigation?.path === item.to &&
+                    Date.now() - lastPointerNavigation.at < 800
+
+                  if (wasHandledByPointer) return
+
                   navigateMobile(item)
                 }}
               >

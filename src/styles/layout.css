@@ -3223,3 +3223,46 @@ body > .app-header.app-header-project-details.app-header-scrolled {
   padding-top: 0 !important;
 }
 
+/* PMS10 PHASE 5.5 — ANDROID FIRST-TAP NAV FIX START
+   Prevent overlapping grid hit areas and keep page FAB/overlay layers below the navbar. */
+@media (max-width: 900px) {
+  .app-mobile-nav {
+    z-index: 2147483600 !important;
+    pointer-events: auto !important;
+    isolation: isolate !important;
+  }
+
+  .app-mobile-nav-scroll {
+    display: grid !important;
+    grid-template-columns: repeat(
+      var(--pms10-mobile-nav-count, 6),
+      minmax(0, 1fr)
+    ) !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+  }
+
+  .app-mobile-nav-item,
+  .app-mobile-nav a,
+  .app-mobile-nav button {
+    position: relative !important;
+    z-index: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    justify-self: stretch !important;
+    flex: none !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+  }
+
+  .app-mobile-nav-item > *,
+  .app-mobile-nav a > *,
+  .app-mobile-nav button > * {
+    pointer-events: none !important;
+  }
+}
+/* PMS10 PHASE 5.5 — ANDROID FIRST-TAP NAV FIX END */
+
