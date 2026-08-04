@@ -404,8 +404,6 @@ export default function Layout({ children }: LayoutProps) {
     }
 
     setPendingMobilePath(item.to)
-    void preloadRoute(item.to)
-
     navigate(item.to)
   }
 
@@ -438,6 +436,11 @@ export default function Layout({ children }: LayoutProps) {
       navigate('/login', { replace: true })
     }
   }
+
+  const activeMobileIndex = Math.max(
+    0,
+    visibleNavItems.findIndex((item) => isItemActive(item)),
+  )
 
   const appHeader = (
     <header
@@ -528,6 +531,65 @@ export default function Layout({ children }: LayoutProps) {
     </header>
   )
 
+  const appMobileNav = (
+    <nav
+      className="app-mobile-nav"
+      aria-label="Mobile navigation"
+      style={
+        {
+          '--pms10-mobile-nav-count': String(visibleNavItems.length),
+          '--pms10-mobile-nav-active-index': String(activeMobileIndex),
+        } as CSSProperties
+      }
+    >
+      <div className="app-mobile-nav-scroll">
+        <span className="app-mobile-nav-bubble" aria-hidden="true" />
+
+        {visibleNavItems.map((item) => {
+          const active = isItemActive(item)
+
+          return (
+            <button
+              key={item.key}
+              type="button"
+              className={['app-mobile-nav-item', active ? 'active' : '']
+                .filter(Boolean)
+                .join(' ')}
+              aria-current={active ? 'page' : undefined}
+              aria-label={item.label}
+              onPointerDown={(event) => {
+                if (!event.isPrimary) return
+                if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
+
+                event.preventDefault()
+                lastMobilePointerNavRef.current = {
+                  path: item.to,
+                  at: Date.now(),
+                }
+                navigateMobile(item)
+              }}
+              onClick={() => {
+                const lastPointerNavigation = lastMobilePointerNavRef.current
+                const wasHandledByPointer =
+                  lastPointerNavigation?.path === item.to &&
+                  Date.now() - lastPointerNavigation.at < 800
+
+                if (wasHandledByPointer) return
+
+                navigateMobile(item)
+              }}
+            >
+              <span className="app-mobile-nav-icon">
+                <AppIcon type={item.icon} />
+              </span>
+              <span className="app-mobile-nav-label">{item.mobileLabel}</span>
+            </button>
+          )
+        })}
+      </div>
+    </nav>
+  )
+
   return (
     <>
       {headerPortalReady ? createPortal(appHeader, document.body) : appHeader}
@@ -536,58 +598,7 @@ export default function Layout({ children }: LayoutProps) {
         <main className="app-main">{children || <Outlet />}</main>
       </div>
 
-      <nav
-        className="app-mobile-nav"
-        aria-label="Mobile navigation"
-        style={
-          {
-            '--pms10-mobile-nav-count': String(visibleNavItems.length),
-          } as CSSProperties
-        }
-      >
-        <div className="app-mobile-nav-scroll">
-          {visibleNavItems.map((item) => {
-            const active = isItemActive(item)
-
-            return (
-              <button
-                key={item.key}
-                type="button"
-                className={['app-mobile-nav-item', active ? 'active' : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                aria-current={active ? 'page' : undefined}
-                aria-label={item.label}
-                onPointerUp={(event) => {
-                  if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
-
-                  event.preventDefault()
-                  lastMobilePointerNavRef.current = {
-                    path: item.to,
-                    at: Date.now(),
-                  }
-                  navigateMobile(item)
-                }}
-                onClick={() => {
-                  const lastPointerNavigation = lastMobilePointerNavRef.current
-                  const wasHandledByPointer =
-                    lastPointerNavigation?.path === item.to &&
-                    Date.now() - lastPointerNavigation.at < 800
-
-                  if (wasHandledByPointer) return
-
-                  navigateMobile(item)
-                }}
-              >
-                <span className="app-mobile-nav-icon">
-                  <AppIcon type={item.icon} />
-                </span>
-                <span className="app-mobile-nav-label">{item.mobileLabel}</span>
-              </button>
-            )
-          })}
-        </div>
-      </nav>
+      {headerPortalReady ? createPortal(appMobileNav, document.body) : appMobileNav}
     </>
   )
 }
