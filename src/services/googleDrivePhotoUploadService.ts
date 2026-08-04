@@ -41,6 +41,32 @@ type UploadProjectPhotoToDriveParams = {
   uploadedBy?: string
 }
 
+async function getFunctionErrorMessage(error: any) {
+  const fallback = error?.message || 'Unable to upload photo to Google Drive.'
+  const response = error?.context
+
+  if (!response || typeof response.clone !== 'function') {
+    return fallback
+  }
+
+  try {
+    const payload = await response.clone().json()
+    const message = payload?.error || payload?.message || payload?.details
+    if (message) return String(message)
+  } catch {
+    // The Edge Function may return plain text instead of JSON.
+  }
+
+  try {
+    const text = await response.clone().text()
+    if (text?.trim()) return text.trim()
+  } catch {
+    // Keep the Supabase fallback message when the response body is unavailable.
+  }
+
+  return fallback
+}
+
 export function getDrivePhotoUrl(file: GoogleDriveUploadedFile) {
   if (file.previewUrl) return file.previewUrl
   if (file.directViewLink) return file.directViewLink
@@ -88,7 +114,7 @@ export async function uploadProjectPhotoToDrive({
   )
 
   if (error) {
-    throw new Error(error.message || 'Unable to upload photo to Google Drive.')
+    throw new Error(await getFunctionErrorMessage(error))
   }
 
   if (!data?.ok || !data.file) {

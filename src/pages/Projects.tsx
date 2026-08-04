@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { offlineDb } from '../lib/offlineDb'
 import { useAuth } from '../context/AuthContext'
+import ActionMenu, { type ActionMenuItem } from '../components/ActionMenu'
 import { getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
 import '../styles/projects.css'
@@ -107,6 +108,7 @@ function formatLongDate(value: string | null | undefined) {
     year: 'numeric',
   })
 }
+
 
 function formatFundingYear(value: unknown) {
   const rawValue = textValue(value)
@@ -240,6 +242,7 @@ function UpdateIcon() {
   )
 }
 
+
 function toOfflineProject(project: ProjectRow) {
   return {
     ...project,
@@ -311,6 +314,35 @@ export default function Projects() {
 
   useEffect(() => {
     loadProjects()
+  }, [])
+
+  useEffect(() => {
+    const cleanupKey = 'pms10:aide-wizard:legacy-drafts-cleared:v1'
+
+    async function removeLegacyDrafts() {
+      try {
+        if (window.localStorage.getItem(cleanupKey) === 'done') return
+
+        const legacyDrafts = await offlineDb.aide_memoires
+          .where('status')
+          .equals('draft')
+          .toArray()
+
+        const legacyDraftIds = legacyDrafts
+          .filter((draft) => !String(draft.update_ref || '').startsWith('working-'))
+          .map((draft) => draft.id)
+
+        if (legacyDraftIds.length > 0) {
+          await offlineDb.aide_memoires.bulkDelete(legacyDraftIds)
+        }
+
+        window.localStorage.setItem(cleanupKey, 'done')
+      } catch (error) {
+        console.error('Unable to clear legacy Aide Memoire drafts.', error)
+      }
+    }
+
+    void removeLegacyDrafts()
   }, [])
 
   useEffect(() => {
@@ -566,6 +598,38 @@ export default function Projects() {
 
   const canCreateProject = isAdmin || isROEngineer
 
+  const registryActionItems: ActionMenuItem[] = [
+    {
+      id: 'refresh-projects',
+      label: 'Refresh Projects',
+      icon: <RefreshIcon />,
+      onSelect: loadProjects,
+      tone: 'primary',
+    },
+    ...(isAdmin
+      ? [
+          {
+            id: 'import-projects',
+            label: 'Import Projects',
+            icon: <ImportIcon />,
+            onSelect: () => navigate('/projects/import-subaybayan'),
+            tone: 'document' as const,
+          },
+        ]
+      : []),
+    ...(canCreateProject
+      ? [
+          {
+            id: 'add-project',
+            label: 'Add Project',
+            icon: <AddIcon />,
+            onSelect: () => navigate('/projects/create'),
+            tone: 'accent' as const,
+          },
+        ]
+      : []),
+  ]
+
   if (loading) {
     return (
       <div className="projects-page">
@@ -611,42 +675,13 @@ export default function Projects() {
 
       <div className="projects-hero-spacer" aria-hidden="true" />
 
-      <div className="projects-floating-actions" aria-label="Project Registry actions">
-        <button
-          type="button"
-          className="projects-floating-btn refresh"
-          onClick={loadProjects}
-          aria-label="Refresh projects"
-          title="Refresh projects"
-        >
-          <RefreshIcon />
-        </button>
+      <ActionMenu
+        items={registryActionItems}
+        ariaLabel="Project Registry actions"
+        launcherLabel="Open Project Registry actions"
+        className="projects-action-menu"
+      />
 
-
-        {isAdmin && (
-          <button
-            type="button"
-            className="projects-floating-btn import"
-            onClick={() => navigate('/projects/import-subaybayan')}
-            aria-label="Import SubayBAYAN or SGLGIF masterlist"
-            title="Import SubayBAYAN or SGLGIF masterlist"
-          >
-            <ImportIcon />
-          </button>
-        )}
-
-        {canCreateProject && (
-          <button
-            type="button"
-            className="projects-floating-btn add"
-            onClick={() => navigate('/projects/create')}
-            aria-label="Add project"
-            title="Add project"
-          >
-            <AddIcon />
-          </button>
-        )}
-      </div>
 
       <section className="projects-summary-grid" aria-label="Project summary">
         <div className="projects-summary-card">
@@ -879,6 +914,7 @@ export default function Projects() {
                     <p className="project-row-location">
                       {location || 'No location encoded'}
                     </p>
+
                   </div>
 
                   <div className="project-row-status-stack">

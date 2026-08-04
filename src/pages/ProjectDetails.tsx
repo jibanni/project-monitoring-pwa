@@ -5,7 +5,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { offlineDb } from '../lib/offlineDb'
+import { aideMemoireDocumentToBlob, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, type OfflineAideMemoire, type OfflineAideMemoireDocument } from '../lib/offlineDb'
 import { getComputedRiskLevel, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
@@ -13,6 +13,8 @@ import { normalizeProgramName } from '../utils/program'
 import '../styles/projectDetails.css'
 import '../styles/pageHero.css'
 import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveImageUrl'
+import ActionMenu from '../components/ActionMenu'
+import AideMemoireGenerationDialog from '../components/AideMemoireGenerationDialog'
 
 function toNumber(value: unknown): number {
   if (value === null || value === undefined || value === '') return 0
@@ -66,6 +68,24 @@ function formatDate(value: unknown) {
     year: 'numeric',
     month: 'short',
     day: '2-digit',
+  })
+}
+
+function formatDateTime(value: unknown) {
+  const rawValue = String(value ?? '').trim()
+
+  if (!rawValue) return '-'
+
+  const date = new Date(rawValue)
+
+  if (Number.isNaN(date.getTime())) return rawValue
+
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit',
   })
 }
 
@@ -137,6 +157,17 @@ function IconUpdate() {
   )
 }
 
+function IconContinue() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4.5 8.25V4.5h3.75" />
+      <path d="M5.1 6.15A8.25 8.25 0 1 1 4 13" />
+      <path d="M12 8v4.5l3 1.75" />
+    </svg>
+  )
+}
+
+
 function IconMap() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -185,6 +216,7 @@ export default function ProjectDetails() {
 
   const [project, setProject] = useState<any>(null)
   const [updates, setUpdates] = useState<any[]>([])
+  const [aideMemoireDrafts, setAideMemoireDrafts] = useState<OfflineAideMemoire[]>([])
   const [photos, setPhotos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [dataSource, setDataSource] = useState('online')
@@ -193,10 +225,13 @@ export default function ProjectDetails() {
   const [isHeroCompact, setIsHeroCompact] = useState(false)
   const [accessDenied, setAccessDenied] = useState(false)
   const [copiedSubayCode, setCopiedSubayCode] = useState(false)
+  const [latestGeneratedAidePdf, setLatestGeneratedAidePdf] = useState<OfflineAideMemoireDocument | null>(null)
+  const [aideGenerationRequest, setAideGenerationRequest] = useState<{ updateRef: string; source: 'online' | 'offline' } | null>(null)
 
   useEffect(() => {
     setPortalReady(true)
   }, [])
+
 
   useEffect(() => {
     let ticking = false
@@ -238,6 +273,80 @@ export default function ProjectDetails() {
     auth?.poEngineerLguAssignments?.length,
     auth?.roEngineerProvinceAssignments?.length,
   ])
+
+  useEffect(() => {
+    void loadAideMemoireDrafts()
+
+    function refreshDrafts() {
+      void loadAideMemoireDrafts()
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') refreshDrafts()
+    }
+
+    window.addEventListener('focus', refreshDrafts)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', refreshDrafts)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, auth?.user?.id, auth?.profile?.id])
+
+  async function loadAideMemoireDrafts() {
+    if (!id) {
+      setAideMemoireDrafts([])
+      setLatestGeneratedAidePdf(null)
+      return
+    }
+
+    try {
+      const currentUserId = String(auth?.user?.id || auth?.profile?.id || '').trim()
+      const drafts = await offlineDb.aide_memoires.where('project_id').equals(id).toArray()
+
+      setAideMemoireDrafts(
+        drafts
+          .filter((draft) =>
+            !draft.created_by || !currentUserId || draft.created_by === currentUserId,
+          )
+          .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || ''))),
+      )
+
+      let latestPdf = await getLatestAideMemoireDocument(id, 'pdf')
+      if (!latestPdf) {
+        const legacyRecord = drafts
+          .filter((draft) => Boolean(draft.latest_pdf_blob))
+          .sort((first, second) =>
+            String(second.latest_pdf_generated_at || second.updated_at || '').localeCompare(
+              String(first.latest_pdf_generated_at || first.updated_at || ''),
+            ),
+          )[0]
+
+        if (legacyRecord?.latest_pdf_blob) {
+          try {
+            latestPdf = await saveAideMemoireDocument({
+              aideMemoireId: legacyRecord.id,
+              projectId: id,
+              updateRef: legacyRecord.update_ref,
+              format: 'pdf',
+              fileName: legacyRecord.latest_pdf_file_name || 'Aide_Memoire.pdf',
+              blob: legacyRecord.latest_pdf_blob,
+              generatedAt: legacyRecord.latest_pdf_generated_at || legacyRecord.updated_at,
+            })
+          } catch (migrationError) {
+            console.warn('Unable to migrate the legacy Aide Memoire PDF.', migrationError)
+          }
+        }
+      }
+      setLatestGeneratedAidePdf(latestPdf)
+    } catch (error) {
+      console.error('Unable to load Aide Memoire drafts for this project.', error)
+      setAideMemoireDrafts([])
+      setLatestGeneratedAidePdf(null)
+    }
+  }
 
   async function loadOfflineData() {
     if (!id) return
@@ -371,6 +480,28 @@ export default function ProjectDetails() {
       setLoading(false)
     }
   }
+
+  const aideDraftByUpdate = useMemo(() => {
+    const draftMap = new Map<string, OfflineAideMemoire>()
+
+    aideMemoireDrafts.forEach((draft) => {
+      draftMap.set(`${draft.update_source}:${draft.update_ref}`, draft)
+    })
+
+    return draftMap
+  }, [aideMemoireDrafts])
+
+  const latestWorkingUpdateDraft = useMemo(
+    () =>
+      aideMemoireDrafts.find(
+        (draft) =>
+          draft.status === 'draft' &&
+          draft.update_source === 'offline' &&
+          String(draft.update_ref || '').startsWith('working-'),
+      ) || null,
+    [aideMemoireDrafts],
+  )
+
 
   const latestUpdate = updates.length > 0 ? updates[0] : null
   const displayedPhotos = photos.slice(0, 5)
@@ -612,6 +743,23 @@ export default function ProjectDetails() {
   function goToAddUpdate() {
     if (!id) return
     navigate(`/projects/${id}/updates`)
+  }
+
+  function openLatestGeneratedAidePdf() {
+    if (!latestGeneratedAidePdf) return
+
+    const pdfBlob = aideMemoireDocumentToBlob(latestGeneratedAidePdf)
+    const url = URL.createObjectURL(pdfBlob)
+    const opened = window.open(url, '_blank', 'noopener,noreferrer')
+
+    if (!opened) {
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = latestGeneratedAidePdf.file_name || 'Aide_Memoire.pdf'
+      anchor.click()
+    }
+
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
   function goToMap() {
@@ -1051,7 +1199,17 @@ export default function ProjectDetails() {
               <div className="pd-empty-inline">No update history available.</div>
             ) : (
               <div className="pd-history-list">
-                {updates.map((update) => (
+                {updates.map((update) => {
+                  const updateReference = String(
+                    update.local_id || update.online_update_id || update.id || '',
+                  )
+                  const updateSource =
+                    update.is_offline || update.local_id ? 'offline' : 'online'
+                  const aideDraft = aideDraftByUpdate.get(
+                    `${updateSource}:${updateReference}`,
+                  )
+
+                  return (
                   <article key={update.id} className="pd-history-card">
                     <div className="pd-history-top">
                       <div>
@@ -1101,8 +1259,34 @@ export default function ProjectDetails() {
                         <p>{getDisplayValue(update.remarks, 'No remarks encoded.')}</p>
                       </div>
                     </div>
+
+                    {canUpdateCurrentProject && updateReference && (
+                      <div className={`pd-history-actions ${aideDraft ? 'has-aide-draft' : ''}`}>
+                        {aideDraft && (
+                          <div className="pd-aide-draft-status">
+                            <span>Aide Memoire</span>
+                            <strong>{aideDraft.status === 'final' ? 'Ready' : 'Draft Saved'}</strong>
+                            <small>{aideDraft.status === 'final' ? 'Generated from submitted update' : `Last saved ${formatDateTime(aideDraft.updated_at)}`}</small>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          className="pd-aide-btn"
+                          onClick={() => {
+                            setAideGenerationRequest({
+                              updateRef: updateReference,
+                              source: updateSource === 'offline' ? 'offline' : 'online',
+                            })
+                          }}
+                        >
+                          {aideDraft ? 'Generate / Open Aide Memoire' : 'Generate Aide Memoire'}
+                        </button>
+                      </div>
+                    )}
                   </article>
-                ))}
+                  )
+                })}
               </div>
             )}
           </section>
@@ -1119,78 +1303,84 @@ export default function ProjectDetails() {
           )
         : null}
 
-      {portalReady
-        ? createPortal(
-            <div className="pd-fab-stack" aria-label="Project quick actions">
-              <button
-                type="button"
-                className="pd-fab pd-fab-back"
-                onClick={goBackToProjects}
-                aria-label="Back to projects"
-                title="Back to Projects"
-              >
-                <IconBack />
-              </button>
+      {id && aideGenerationRequest && (
+        <AideMemoireGenerationDialog
+          open
+          projectId={id}
+          updateRef={aideGenerationRequest.updateRef}
+          source={aideGenerationRequest.source}
+          onClose={() => setAideGenerationRequest(null)}
+          onGenerated={loadAideMemoireDrafts}
+        />
+      )}
 
-              <button
-                type="button"
-                className="pd-fab pd-fab-pdf"
-                onClick={generatePdfReport}
-                aria-label="Generate PDF report"
-                title="Generate PDF"
-              >
-                <IconPdf />
-              </button>
-
-              {canUpdateCurrentProject && (
-                <button
-                  type="button"
-                  className="pd-fab pd-fab-update"
-                  onClick={goToAddUpdate}
-                  aria-label="Add project update"
-                  title="Add Update"
-                >
-                  <IconUpdate />
-                </button>
-              )}
-
-              <button
-                type="button"
-                className="pd-fab pd-fab-map"
-                onClick={goToMap}
-                aria-label="View GIS map"
-                title="GIS Map"
-              >
-                <IconMap />
-              </button>
-
-              {canEditCurrentProject && dataSource === 'online' && (
-                <button
-                  type="button"
-                  className="pd-fab pd-fab-edit"
-                  onClick={goToEditProject}
-                  aria-label="Edit project"
-                  title="Edit Project"
-                >
-                  <IconEdit />
-                </button>
-              )}
-
-              {isAdmin && dataSource === 'online' && (
-                <button
-                  type="button"
-                  className="pd-fab pd-fab-delete"
-                  onClick={handleDelete}
-                  aria-label="Delete project"
-                  title="Delete Project"
-                >
-                  <IconDelete />
-                </button>
-              )}
-            </div>,
-            document.body,
-          )
-        : null}
+      <ActionMenu
+        ariaLabel="Project actions"
+        launcherLabel="Project actions"
+        items={[
+          {
+            id: 'new-update',
+            label: 'New Update',
+            icon: <IconUpdate />,
+            tone: 'accent',
+            hidden: !canUpdateCurrentProject,
+            onSelect: goToAddUpdate,
+          },
+          {
+            id: 'continue-update',
+            label: 'Continue Update',
+            icon: <IconContinue />,
+            tone: 'primary',
+            hidden: !canUpdateCurrentProject || !latestWorkingUpdateDraft,
+            onSelect: goToAddUpdate,
+          },
+          {
+            id: 'latest-aide',
+            label: 'Latest Aide Memoire',
+            icon: <IconPdf />,
+            tone: 'document',
+            hidden: !latestGeneratedAidePdf,
+            onSelect: openLatestGeneratedAidePdf,
+          },
+          {
+            id: 'map',
+            label: 'GIS Map',
+            icon: <IconMap />,
+            tone: 'primary',
+            onSelect: goToMap,
+          },
+          {
+            id: 'edit',
+            label: 'Edit Project',
+            icon: <IconEdit />,
+            tone: 'primary',
+            hidden: !canEditCurrentProject || dataSource !== 'online',
+            onSelect: goToEditProject,
+          },
+          {
+            id: 'project-report',
+            label: 'Project Report PDF',
+            icon: <IconPdf />,
+            tone: 'document',
+            onSelect: generatePdfReport,
+          },
+          {
+            id: 'delete',
+            label: 'Delete Project',
+            icon: <IconDelete />,
+            tone: 'danger',
+            hidden: !isAdmin || dataSource !== 'online',
+            onSelect: () => void handleDelete(),
+          },
+          {
+            id: 'back',
+            label: 'Back to Projects',
+            icon: <IconBack />,
+            tone: 'neutral',
+            onSelect: goBackToProjects,
+          },
+        ]}
+      />
     </div>
   )
 }

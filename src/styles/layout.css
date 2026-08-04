@@ -3187,3 +3187,21 @@ main {
 
 
 
+
+/* =========================================================
+   PROJECT UPDATE — UNIFIED MAIN HEADER + HERO
+   The route-specific header stays fixed, while the project hero
+   begins immediately below it using the same PMS10 gradient.
+   ========================================================= */
+body > .app-header.app-header-project-update,
+body > .app-header.app-header-project-update.app-header-scrolled {
+  background: var(--app-header-gradient) !important;
+  background-image: var(--app-header-gradient) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.92) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.app-shell.app-project-updates-route .app-main {
+  padding-top: 0 !important;
+}

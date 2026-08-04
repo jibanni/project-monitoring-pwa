@@ -158,7 +158,7 @@ function App() {
           <Route
             path="/offline-sync"
             element={
-              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'Engineer']}>
+              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'PEO', 'Engineer']}>
                 <OfflineSync />
               </ProtectedLayout>
             }
@@ -204,11 +204,12 @@ function App() {
           <Route
             path="/projects/:id/updates"
             element={
-              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'Engineer']}>
+              <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'PEO', 'Engineer']}>
                 <ProjectUpdates />
               </ProtectedLayout>
             }
           />
+
 
           <Route
             path="/users"

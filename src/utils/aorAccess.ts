@@ -290,6 +290,10 @@ export function canUpdateProject(
     return canAccessPoLgu(project, currentAuth)
   }
 
+  if (currentAuth.isPEO || role === 'PEO') {
+    return projectMatchesProvince(project, profile.province)
+  }
+
   return false
 }
 

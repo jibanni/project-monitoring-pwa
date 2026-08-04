@@ -1,0 +1,1238 @@
+/*
+ * PMS10 Project Update subpage design system
+ * Scope: guided Steps 1–8 and Latest Record only.
+ * The global header, combined project hero, bottom navigation, and action menu
+ * intentionally remain outside this stylesheet.
+ */
+
+.pu-update-subpage-system {
+  --pu-step-font-micro: 0.75rem;      /* 12px */
+  --pu-step-font-caption: 0.875rem;   /* 14px */
+  --pu-step-font-body: 1rem;          /* 16px */
+  --pu-step-font-action: 1.0625rem;   /* 17px */
+  --pu-step-font-title: 1.3125rem;    /* 21px */
+  --pu-step-font-value: 1.75rem;      /* 28px */
+
+  --pu-step-weight-regular: 500;
+  --pu-step-weight-strong: 700;
+  --pu-step-weight-title: 800;
+
+  --pu-step-space-1: 0.25rem;  /* 4px */
+  --pu-step-space-2: 0.5rem;   /* 8px */
+  --pu-step-space-3: 0.75rem;  /* 12px */
+  --pu-step-space-4: 1rem;     /* 16px */
+  --pu-step-space-6: 1.5rem;   /* 24px */
+
+  --pu-step-radius-control: 1rem;
+  --pu-step-radius-card: 1.375rem;
+  --pu-step-control-height: 3.5rem;   /* 56px */
+  --pu-step-action-height: 3.625rem;  /* 58px */
+  --pu-step-large-value-height: 4rem; /* 64px */
+
+  gap: var(--pu-step-space-4) !important;
+}
+
+/* ---------- Main step form and card rhythm ---------- */
+.pu-update-subpage-system .pu-wizard-form-card {
+  gap: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.pu-update-subpage-system .pu-wizard-shell,
+.pu-update-subpage-system .pu-update-section,
+.pu-update-subpage-system .pu-side-card {
+  border-radius: var(--pu-step-radius-card) !important;
+}
+
+.pu-update-subpage-system .pu-wizard-shell {
+  margin: 0 !important;
+  padding: var(--pu-step-space-4) !important;
+  min-height: 0 !important;
+}
+
+.pu-update-subpage-system .pu-update-section {
+  margin: var(--pu-step-space-4) 0 0 !important;
+  padding: var(--pu-step-space-4) !important;
+  min-height: 0 !important;
+}
+
+.pu-update-subpage-system .pu-update-section > * + * {
+  margin-top: var(--pu-step-space-4);
+}
+
+.pu-update-subpage-system .pu-update-section > .pu-section-heading + * {
+  margin-top: 0 !important;
+}
+
+/* ---------- Compact runtime/status row ---------- */
+.pu-update-subpage-system .pu-wizard-title-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: var(--pu-step-space-2) !important;
+  margin: 0 0 var(--pu-step-space-3) !important;
+}
+
+.pu-update-subpage-system .pu-wizard-count,
+.pu-update-subpage-system .pu-wizard-save-state {
+  min-height: 2.125rem !important;
+  height: 2.125rem !important;
+  border-radius: 999px !important;
+  padding: 0 0.75rem !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.pu-update-subpage-system .pu-wizard-count {
+  display: inline-flex !important;
+  align-items: center !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+.pu-update-subpage-system .pu-wizard-save-state {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.35rem !important;
+  max-width: min(60%, 15rem) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pu-update-subpage-system .pu-wizard-save-state strong,
+.pu-update-subpage-system .pu-wizard-save-state span {
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font: inherit !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-wizard-save-state strong {
+  font-weight: var(--pu-step-weight-title) !important;
+}
+
+/* ---------- Eight-step expanding rail ---------- */
+.pu-update-subpage-system .pu-wizard-progress {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+  width: 100% !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  scroll-behavior: auto !important;
+}
+
+.pu-update-subpage-system .pu-wizard-progress > button {
+  flex: 0 0 1.875rem !important;
+  width: 1.875rem !important;
+  min-width: 1.875rem !important;
+  max-width: 1.875rem !important;
+  height: 1.875rem !important;
+  min-height: 1.875rem !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  gap: 0 !important;
+  box-shadow: none !important;
+}
+
+.pu-update-subpage-system .pu-wizard-progress > button > span {
+  width: 1.875rem !important;
+  height: 1.875rem !important;
+  min-width: 1.875rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-wizard-progress > button.current {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 5.5rem !important;
+  max-width: 11.5rem !important;
+  height: 2.625rem !important;
+  min-height: 2.625rem !important;
+  padding: 0.25rem 0.625rem 0.25rem 0.25rem !important;
+  border-radius: 999px !important;
+  gap: 0.4rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-progress > button.current > span {
+  flex: 0 0 2.125rem !important;
+  width: 2.125rem !important;
+  height: 2.125rem !important;
+  min-width: 2.125rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-active-step-title {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-wizard-step-summary {
+  margin: var(--pu-step-space-3) 0 0 !important;
+  padding: 0 !important;
+}
+
+.pu-update-subpage-system .pu-wizard-step-summary h3 {
+  margin: 0 !important;
+  font-size: var(--pu-step-font-title) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1.15 !important;
+}
+
+.pu-update-subpage-system .pu-wizard-step-summary small {
+  display: block !important;
+  margin: var(--pu-step-space-1) 0 0 !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.3 !important;
+}
+
+.pu-update-subpage-system .pu-wizard-error {
+  margin-top: var(--pu-step-space-3) !important;
+  padding: var(--pu-step-space-3) !important;
+  font-size: var(--pu-step-font-caption) !important;
+  line-height: 1.35 !important;
+  border-radius: 0.875rem !important;
+}
+
+/* ---------- Compact, consistent section banners ---------- */
+.pu-update-subpage-system .pu-section-heading {
+  display: grid !important;
+  grid-template-columns: 2.5rem minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: var(--pu-step-space-3) !important;
+  min-height: 4.25rem !important;
+  margin: 0 0 var(--pu-step-space-4) !important;
+  padding: 0.75rem 0.875rem !important;
+  border-radius: 1rem !important;
+}
+
+.pu-update-subpage-system .pu-section-heading > span {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  min-width: 2.5rem !important;
+  min-height: 2.5rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0.75rem !important;
+  font-size: var(--pu-step-font-action) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-section-heading > div {
+  min-width: 0 !important;
+}
+
+.pu-update-subpage-system .pu-section-heading strong {
+  display: block !important;
+  margin: 0 !important;
+  font-size: var(--pu-step-font-title) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1.12 !important;
+}
+
+.pu-update-subpage-system .pu-section-heading small {
+  display: block !important;
+  margin: 0.2rem 0 0 !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.25 !important;
+}
+
+/* ---------- Shared grids and field spacing ---------- */
+.pu-update-subpage-system .pu-form-grid,
+.pu-update-subpage-system .pu-progress-grid,
+.pu-update-subpage-system .pu-quick-grid,
+.pu-update-subpage-system .pu-two-choice-grid,
+.pu-update-subpage-system .pu-status-button-grid,
+.pu-update-subpage-system .pu-modification-grid,
+.pu-update-subpage-system .pu-reason-chip-grid,
+.pu-update-subpage-system .pu-wizard-review-grid {
+  gap: var(--pu-step-space-4) var(--pu-step-space-3) !important;
+}
+
+.pu-update-subpage-system .pu-field {
+  gap: var(--pu-step-space-2) !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+}
+
+/* Field labels are text, not decorative pills. */
+.pu-update-subpage-system .pu-field > span:first-child,
+.pu-update-subpage-system .pu-field > label:first-child {
+  display: block !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  font-size: var(--pu-step-font-body) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.pu-update-subpage-system .pu-field > small,
+.pu-update-subpage-system .pu-field small,
+.pu-update-subpage-system .pu-helper-text {
+  margin: 0 !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.35 !important;
+}
+
+/* ---------- Inputs, selects, dates, textareas ---------- */
+.pu-update-subpage-system .pu-field input:not([type='checkbox']):not([type='radio']):not(.pu-native-date-input),
+.pu-update-subpage-system .pu-field select,
+.pu-update-subpage-system .pu-disbursement-control input {
+  width: 100% !important;
+  min-height: var(--pu-step-control-height) !important;
+  height: var(--pu-step-control-height) !important;
+  padding: 0 1rem !important;
+  border-radius: var(--pu-step-radius-control) !important;
+  font-size: var(--pu-step-font-action) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-progress-field input,
+.pu-update-subpage-system .pu-progress-full > input,
+.pu-update-subpage-system .pu-field-important input {
+  min-height: var(--pu-step-large-value-height) !important;
+  height: var(--pu-step-large-value-height) !important;
+  font-size: var(--pu-step-font-value) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  text-align: center !important;
+}
+
+.pu-update-subpage-system .pu-field textarea {
+  min-height: 6.5rem !important;
+  padding: 0.875rem 1rem !important;
+  border-radius: var(--pu-step-radius-control) !important;
+  font-size: var(--pu-step-font-body) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.4 !important;
+}
+
+.pu-update-subpage-system .pu-long-date-field {
+  min-height: 4.5rem !important;
+  padding: 0.75rem !important;
+  border-radius: var(--pu-step-radius-control) !important;
+  gap: var(--pu-step-space-3) !important;
+}
+
+.pu-update-subpage-system .pu-long-date-field > div > strong {
+  font-size: var(--pu-step-font-title) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1.15 !important;
+}
+
+.pu-update-subpage-system .pu-long-date-field > div > small {
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.25 !important;
+}
+
+.pu-update-subpage-system .pu-date-change-btn {
+  min-height: 3rem !important;
+  height: 3rem !important;
+  padding: 0 1rem !important;
+  border-radius: 0.875rem !important;
+  font-size: var(--pu-step-font-action) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+}
+
+.pu-update-subpage-system .pu-disbursement-control {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 3.5rem !important;
+  align-items: stretch !important;
+  gap: var(--pu-step-space-3) !important;
+}
+
+.pu-update-subpage-system .pu-disbursement-equals-btn {
+  width: 3.5rem !important;
+  min-width: 3.5rem !important;
+  height: var(--pu-step-control-height) !important;
+  min-height: var(--pu-step-control-height) !important;
+  border-radius: var(--pu-step-radius-control) !important;
+  font-size: var(--pu-step-font-title) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+}
+
+/* ---------- Buttons and option cards ---------- */
+.pu-update-subpage-system .pu-action-btn,
+.pu-update-subpage-system .pu-action-gps,
+.pu-update-subpage-system .pu-wizard-photo-button {
+  width: 100% !important;
+  min-height: 4rem !important;
+  height: auto !important;
+  padding: 0.65rem 1rem !important;
+  border-radius: 1rem !important;
+  font-size: var(--pu-step-font-action) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-action-btn small,
+.pu-update-subpage-system .pu-action-gps small {
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-choice-card,
+.pu-update-subpage-system .pu-status-choice,
+.pu-update-subpage-system .pu-modification-choice {
+  min-height: 4.75rem !important;
+  height: auto !important;
+  padding: 0.75rem !important;
+  border-radius: 1rem !important;
+  text-align: left !important;
+}
+
+.pu-update-subpage-system .pu-choice-card strong,
+.pu-update-subpage-system .pu-status-choice strong,
+.pu-update-subpage-system .pu-modification-choice strong {
+  font-size: var(--pu-step-font-body) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-choice-card small,
+.pu-update-subpage-system .pu-status-choice small,
+.pu-update-subpage-system .pu-modification-choice small {
+  margin-top: 0.2rem !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.25 !important;
+}
+
+.pu-update-subpage-system .pu-reason-chip,
+.pu-update-subpage-system .pu-pending-pill,
+.pu-update-subpage-system .pu-badge {
+  min-height: 2.125rem !important;
+  height: auto !important;
+  padding: 0.35rem 0.75rem !important;
+  border-radius: 999px !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1.15 !important;
+}
+
+.pu-update-subpage-system .pu-readonly-risk {
+  min-height: var(--pu-step-large-value-height) !important;
+  height: var(--pu-step-large-value-height) !important;
+  padding: 0.5rem !important;
+  border-radius: var(--pu-step-radius-control) !important;
+}
+
+.pu-update-subpage-system .pu-variance-preview {
+  margin-top: var(--pu-step-space-4) !important;
+  padding: 0.75rem 1rem !important;
+  min-height: 4rem !important;
+  border-radius: var(--pu-step-radius-control) !important;
+}
+
+.pu-update-subpage-system .pu-variance-preview span {
+  font-size: var(--pu-step-font-micro) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  letter-spacing: 0.1em !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-variance-preview strong {
+  font-size: var(--pu-step-font-title) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1.1 !important;
+}
+
+/* ---------- Navigation buttons ---------- */
+.pu-update-subpage-system .pu-wizard-navigation {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: var(--pu-step-space-3) !important;
+  margin: var(--pu-step-space-4) 0 0 !important;
+  padding: 0 !important;
+}
+
+.pu-update-subpage-system .pu-wizard-navigation .pu-secondary-btn,
+.pu-update-subpage-system .pu-wizard-navigation .pu-primary-btn,
+.pu-update-subpage-system .pu-wizard-navigation .pu-main-save-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: var(--pu-step-action-height) !important;
+  height: var(--pu-step-action-height) !important;
+  padding: 0 1rem !important;
+  border-radius: 1.125rem !important;
+  font-size: var(--pu-step-font-action) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-wizard-navigation .pu-main-save-btn {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.2rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-navigation .pu-main-save-label {
+  font-size: var(--pu-step-font-action) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.pu-update-subpage-system .pu-wizard-navigation .pu-main-save-subtitle {
+  font-size: var(--pu-step-font-micro) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* ---------- Review/summary cards ---------- */
+.pu-update-subpage-system .pu-wizard-review-grid > div {
+  min-height: 4rem !important;
+  padding: 0.75rem !important;
+  border-radius: 0.875rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-review-grid span {
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-wizard-review-grid strong {
+  font-size: var(--pu-step-font-body) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1.25 !important;
+}
+
+/* ---------- Collapsible Latest Record ---------- */
+.pu-update-subpage-system .pu-side-panel {
+  margin: 0 !important;
+  min-width: 0 !important;
+}
+
+.pu-update-subpage-system .pu-history-card {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.pu-update-subpage-system .pu-history-toggle {
+  width: 100% !important;
+  min-height: 4rem !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 2.25rem !important;
+  align-items: center !important;
+  gap: var(--pu-step-space-3) !important;
+  padding: 0.75rem 1rem !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  text-align: left !important;
+  cursor: pointer !important;
+}
+
+.pu-update-subpage-system .pu-history-toggle-copy {
+  min-width: 0 !important;
+}
+
+.pu-update-subpage-system .pu-history-toggle-copy strong {
+  display: block !important;
+  margin: 0 !important;
+  font-size: var(--pu-step-font-title) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1.1 !important;
+}
+
+.pu-update-subpage-system .pu-history-toggle-copy small {
+  display: block !important;
+  margin-top: var(--pu-step-space-1) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.25 !important;
+}
+
+.pu-update-subpage-system .pu-history-toggle-icon {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 999px !important;
+  font-size: var(--pu-step-font-title) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-history-panel {
+  padding: 0 var(--pu-step-space-4) var(--pu-step-space-4) !important;
+  border-top: 1px solid rgba(92, 119, 157, 0.18) !important;
+}
+
+.pu-update-subpage-system .pu-history-pager {
+  display: grid !important;
+  grid-template-columns: 2.5rem auto 2.5rem !important;
+  align-items: center !important;
+  justify-content: start !important;
+  gap: var(--pu-step-space-2) !important;
+  margin: var(--pu-step-space-3) 0 !important;
+}
+
+.pu-update-subpage-system .pu-history-pager button {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  min-width: 2.5rem !important;
+  min-height: 2.5rem !important;
+  border-radius: 0.75rem !important;
+  font-size: var(--pu-step-font-title) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+}
+
+.pu-update-subpage-system .pu-history-pager span {
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+}
+
+.pu-update-subpage-system .pu-recent-item {
+  padding: var(--pu-step-space-4) !important;
+  border-radius: var(--pu-step-radius-control) !important;
+}
+
+.pu-update-subpage-system .pu-recent-item-heading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: var(--pu-step-space-2) !important;
+}
+
+.pu-update-subpage-system .pu-recent-item-heading > strong {
+  font-size: var(--pu-step-font-action) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-recent-age,
+.pu-update-subpage-system .pu-recent-gps {
+  margin: var(--pu-step-space-2) 0 0 !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.3 !important;
+}
+
+.pu-update-subpage-system .pu-recent-metrics {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: var(--pu-step-space-2) var(--pu-step-space-3) !important;
+  margin-top: var(--pu-step-space-3) !important;
+}
+
+.pu-update-subpage-system .pu-recent-metrics span {
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.25 !important;
+}
+
+.pu-update-subpage-system .pu-recent-metrics strong {
+  font-weight: var(--pu-step-weight-strong) !important;
+}
+
+.pu-update-subpage-system .pu-recent-item > .pu-badge {
+  margin-top: var(--pu-step-space-3) !important;
+}
+
+/* ---------- Narrow phones ---------- */
+@media (max-width: 420px) {
+  .pu-update-subpage-system .pu-wizard-shell,
+  .pu-update-subpage-system .pu-update-section {
+    padding: 0.875rem !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-progress {
+    gap: 0.1875rem !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-progress > button {
+    flex-basis: 1.75rem !important;
+    width: 1.75rem !important;
+    min-width: 1.75rem !important;
+    max-width: 1.75rem !important;
+    height: 1.75rem !important;
+    min-height: 1.75rem !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-progress > button > span {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    min-width: 1.75rem !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-progress > button.current {
+    min-width: 5rem !important;
+    max-width: 9rem !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-save-state {
+    max-width: 58% !important;
+    padding-inline: 0.625rem !important;
+    font-size: var(--pu-step-font-caption) !important;
+  }
+
+  .pu-update-subpage-system .pu-section-heading {
+    grid-template-columns: 2.25rem minmax(0, 1fr) !important;
+    padding: 0.7rem 0.75rem !important;
+  }
+
+  .pu-update-subpage-system .pu-section-heading > span {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    min-width: 2.25rem !important;
+    min-height: 2.25rem !important;
+  }
+
+  .pu-update-subpage-system .pu-section-heading strong {
+    font-size: var(--pu-step-font-action) !important;
+  }
+
+  .pu-update-subpage-system .pu-section-heading small {
+    font-size: var(--pu-step-font-micro) !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-navigation {
+    gap: 0.625rem !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-navigation .pu-secondary-btn,
+  .pu-update-subpage-system .pu-wizard-navigation .pu-primary-btn,
+  .pu-update-subpage-system .pu-wizard-navigation .pu-main-save-btn {
+    padding-inline: 0.75rem !important;
+    font-size: var(--pu-step-font-body) !important;
+  }
+}
+
+/* ---------- Very narrow phones: keep all eight steps visible ---------- */
+@media (max-width: 360px) {
+  .pu-update-subpage-system .pu-wizard-progress > button {
+    flex-basis: 1.625rem !important;
+    width: 1.625rem !important;
+    min-width: 1.625rem !important;
+    max-width: 1.625rem !important;
+    height: 1.625rem !important;
+    min-height: 1.625rem !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-progress > button > span {
+    width: 1.625rem !important;
+    height: 1.625rem !important;
+    min-width: 1.625rem !important;
+    font-size: var(--pu-step-font-micro) !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-progress > button.current {
+    min-width: 4.75rem !important;
+    padding-right: 0.45rem !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-active-step-title {
+    font-size: var(--pu-step-font-caption) !important;
+  }
+}
+
+/* ---------- Findings, attendance, and photo workflow consistency ---------- */
+.pu-update-subpage-system .pu-no-findings-toggle {
+  min-height: 3.5rem !important;
+  margin: 0 !important;
+  padding: 0.75rem 1rem !important;
+  gap: 0.75rem !important;
+  border-radius: 1rem !important;
+  font-size: var(--pu-step-font-body) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1.25 !important;
+}
+
+.pu-update-subpage-system .pu-no-findings-toggle input {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  min-width: 1.25rem !important;
+  margin: 0 !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro,
+.pu-update-subpage-system .pu-aide-section-heading {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: var(--pu-step-space-3) !important;
+  margin: var(--pu-step-space-4) 0 0 !important;
+  padding: 0 !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro h3,
+.pu-update-subpage-system .pu-aide-section-heading h3 {
+  margin: 0 !important;
+  font-size: var(--pu-step-font-title) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1.15 !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro p,
+.pu-update-subpage-system .pu-aide-section-heading p {
+  margin: var(--pu-step-space-1) 0 0 !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.3 !important;
+}
+
+.pu-update-subpage-system .pu-camera-capture-btn,
+.pu-update-subpage-system .pu-aide-section-heading > button,
+.pu-update-subpage-system .pu-add-supporting-photo-btn,
+.pu-update-subpage-system .pu-photo-gps-btn,
+.pu-update-subpage-system .pu-photo-remove-btn,
+.pu-update-subpage-system .pu-remove-photo-btn {
+  min-height: 3rem !important;
+  height: auto !important;
+  padding: 0.65rem 0.9rem !important;
+  border-radius: 0.875rem !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+  line-height: 1.15 !important;
+}
+
+.pu-update-subpage-system .pu-camera-capture-btn {
+  min-width: 10.5rem !important;
+}
+
+.pu-update-subpage-system .pu-aide-row-list,
+.pu-update-subpage-system .pu-photo-finding-list {
+  display: grid !important;
+  gap: var(--pu-step-space-4) !important;
+  margin-top: var(--pu-step-space-4) !important;
+}
+
+.pu-update-subpage-system .pu-aide-edit-row,
+.pu-update-subpage-system .pu-photo-finding-card,
+.pu-update-subpage-system .pu-photo-card {
+  margin: 0 !important;
+  padding: var(--pu-step-space-4) !important;
+  border-radius: var(--pu-step-radius-control) !important;
+  gap: var(--pu-step-space-4) !important;
+}
+
+.pu-update-subpage-system .pu-aide-row-title {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: var(--pu-step-space-3) !important;
+  margin: 0 !important;
+}
+
+.pu-update-subpage-system .pu-aide-row-title strong {
+  font-size: var(--pu-step-font-body) !important;
+  font-weight: var(--pu-step-weight-title) !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-aide-row-title small {
+  display: block !important;
+  margin-top: 0.15rem !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-aide-row-title > button.danger {
+  min-height: 2.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 0.75rem !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-strip {
+  display: grid !important;
+  gap: var(--pu-step-space-3) !important;
+  margin: 0 !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-item {
+  display: grid !important;
+  grid-template-columns: 4rem minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: var(--pu-step-space-3) !important;
+  min-height: 5rem !important;
+  padding: 0.5rem !important;
+  border-radius: 0.875rem !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-preview {
+  width: 4rem !important;
+  height: 4rem !important;
+  min-height: 4rem !important;
+  border-radius: 0.75rem !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-item strong {
+  font-size: var(--pu-step-font-body) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-item span {
+  display: block !important;
+  margin-top: 0.15rem !important;
+  font-size: var(--pu-step-font-micro) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.25 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--pu-step-space-2) !important;
+}
+
+.pu-update-subpage-system .pu-aide-two-column {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: var(--pu-step-space-4) var(--pu-step-space-3) !important;
+}
+
+.pu-update-subpage-system .pu-coordinate-note,
+.pu-update-subpage-system .pu-photo-empty,
+.pu-update-subpage-system .pu-empty-mini {
+  margin: 0 !important;
+  padding: 0.75rem 1rem !important;
+  border-radius: 0.875rem !important;
+  font-size: var(--pu-step-font-caption) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.35 !important;
+}
+
+.pu-update-subpage-system .pu-photo-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: var(--pu-step-space-3) !important;
+  margin-top: var(--pu-step-space-4) !important;
+}
+
+.pu-update-subpage-system .pu-photo-preview,
+.pu-update-subpage-system .pu-photo-placeholder {
+  min-height: 10rem !important;
+  border-radius: 0.875rem !important;
+}
+
+.pu-update-subpage-system .pu-photo-meta {
+  margin: 0 !important;
+}
+
+.pu-update-subpage-system .pu-photo-meta strong {
+  font-size: var(--pu-step-font-body) !important;
+  font-weight: var(--pu-step-weight-strong) !important;
+}
+
+.pu-update-subpage-system .pu-photo-meta span {
+  font-size: var(--pu-step-font-micro) !important;
+  font-weight: var(--pu-step-weight-regular) !important;
+  line-height: 1.25 !important;
+}
+
+@media (max-width: 560px) {
+  .pu-update-subpage-system .pu-photo-finding-intro,
+  .pu-update-subpage-system .pu-aide-section-heading {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pu-update-subpage-system .pu-camera-capture-btn,
+  .pu-update-subpage-system .pu-aide-section-heading > button {
+    width: 100% !important;
+  }
+
+  .pu-update-subpage-system .pu-finding-photo-item {
+    grid-template-columns: 3.5rem minmax(0, 1fr) !important;
+  }
+
+  .pu-update-subpage-system .pu-finding-photo-preview {
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+    min-height: 3.5rem !important;
+  }
+
+  .pu-update-subpage-system .pu-finding-photo-actions {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .pu-update-subpage-system .pu-aide-two-column,
+  .pu-update-subpage-system .pu-photo-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ========================================================================== 
+   Phase 4.9 — alignment, control rhythm, finding intro, and saving dots
+   ========================================================================== */
+
+/* Keep paired progress-field controls level even when one label wraps. */
+.pu-update-subpage-system .pu-progress-grid > .pu-progress-field > span:first-child {
+  display: flex !important;
+  align-items: flex-end !important;
+  min-height: 2.5rem !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-progress-grid > .pu-progress-field {
+  align-self: stretch !important;
+}
+
+.pu-update-subpage-system .pu-progress-grid > .pu-progress-field > input,
+.pu-update-subpage-system .pu-progress-grid > .pu-progress-field > .pu-readonly-risk {
+  margin-top: 0 !important;
+}
+
+.pu-update-subpage-system .pu-readonly-risk {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.pu-update-subpage-system .pu-readonly-risk .pu-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 4.5rem !important;
+  min-height: 2.125rem !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+/* Equal-height status/modification choices with aligned title and description. */
+.pu-update-subpage-system .pu-status-button-grid,
+.pu-update-subpage-system .pu-two-choice-grid,
+.pu-update-subpage-system .pu-modification-grid {
+  align-items: stretch !important;
+  grid-auto-rows: 1fr !important;
+}
+
+.pu-update-subpage-system .pu-status-button-grid > .pu-status-choice,
+.pu-update-subpage-system .pu-two-choice-grid > .pu-choice-card,
+.pu-update-subpage-system .pu-modification-grid > .pu-modification-choice {
+  display: grid !important;
+  grid-template-rows: auto minmax(2.35rem, auto) !important;
+  align-content: center !important;
+  align-items: start !important;
+  gap: 0.25rem !important;
+  min-height: 6.25rem !important;
+  padding: 0.875rem 1rem !important;
+}
+
+.pu-update-subpage-system .pu-status-button-grid > .pu-status-choice strong,
+.pu-update-subpage-system .pu-two-choice-grid > .pu-choice-card strong,
+.pu-update-subpage-system .pu-modification-grid > .pu-modification-choice strong {
+  align-self: end !important;
+  margin: 0 !important;
+  line-height: 1.15 !important;
+}
+
+.pu-update-subpage-system .pu-status-button-grid > .pu-status-choice small,
+.pu-update-subpage-system .pu-two-choice-grid > .pu-choice-card small,
+.pu-update-subpage-system .pu-modification-grid > .pu-modification-choice small {
+  align-self: start !important;
+  display: block !important;
+  min-height: 2.35rem !important;
+  margin: 0 !important;
+  line-height: 1.25 !important;
+}
+
+/* Prevent long field/question labels from colliding with the next control. */
+.pu-update-subpage-system .pu-field > span:first-child,
+.pu-update-subpage-system .pu-field > label:first-child {
+  overflow-wrap: anywhere !important;
+}
+
+/* Rebuild the finding introduction as a contained panel; no heading overlap. */
+.pu-update-subpage-system .pu-photo-finding-intro {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  gap: 0.75rem !important;
+  margin: 1rem 0 0 !important;
+  padding: 1rem !important;
+  overflow: hidden !important;
+  border: 1px solid #d7e3f0 !important;
+  border-radius: 1rem !important;
+  background: #f8fbff !important;
+  box-shadow: none !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro > div {
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro h3 {
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 1.125rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro p {
+  margin: 0.3rem 0 0 !important;
+  padding: 0 !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro .pu-camera-capture-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 3.5rem !important;
+  margin: 0 !important;
+  padding: 0 1rem !important;
+  gap: 0.625rem !important;
+  border-radius: 0.875rem !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro .pu-camera-capture-btn svg {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  flex: 0 0 1.25rem !important;
+}
+
+/* Submit/loading dots: force a single horizontal row. */
+.pu-update-subpage-system .pu-main-save-label,
+.pu-inline-saving {
+  display: inline-flex !important;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+}
+
+.pu-update-subpage-system .pu-main-save-btn .pu-saving-dots,
+.pu-inline-saving .pu-saving-dots {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: auto !important;
+  min-width: 1.65rem !important;
+  height: 0.55rem !important;
+  min-height: 0.55rem !important;
+  margin: 0 0 0 0.4rem !important;
+  padding: 0 !important;
+  gap: 0.22rem !important;
+  line-height: 0 !important;
+  vertical-align: middle !important;
+  overflow: visible !important;
+}
+
+.pu-update-subpage-system .pu-main-save-btn .pu-saving-dots > b,
+.pu-inline-saving .pu-saving-dots > b {
+  position: static !important;
+  display: block !important;
+  flex: 0 0 0.34rem !important;
+  width: 0.34rem !important;
+  min-width: 0.34rem !important;
+  max-width: 0.34rem !important;
+  height: 0.34rem !important;
+  min-height: 0.34rem !important;
+  max-height: 0.34rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: currentColor !important;
+  box-shadow: none !important;
+  transform: none;
+  animation: pu-horizontal-saving-dot 0.9s ease-in-out infinite !important;
+}
+
+.pu-update-subpage-system .pu-main-save-btn .pu-saving-dots > b:nth-child(2),
+.pu-inline-saving .pu-saving-dots > b:nth-child(2) {
+  animation-delay: 0.14s !important;
+}
+
+.pu-update-subpage-system .pu-main-save-btn .pu-saving-dots > b:nth-child(3),
+.pu-inline-saving .pu-saving-dots > b:nth-child(3) {
+  animation-delay: 0.28s !important;
+}
+
+.pu-update-subpage-system .pu-main-save-btn .pu-saving-dots::before,
+.pu-update-subpage-system .pu-main-save-btn .pu-saving-dots::after,
+.pu-inline-saving .pu-saving-dots::before,
+.pu-inline-saving .pu-saving-dots::after {
+  content: none !important;
+  display: none !important;
+}
+
+@keyframes pu-horizontal-saving-dot {
+  0%, 70%, 100% { opacity: 0.32; transform: translateY(0) scale(0.8); }
+  35% { opacity: 1; transform: translateY(-0.12rem) scale(1); }
+}
+
+@media (max-width: 420px) {
+  .pu-update-subpage-system .pu-status-button-grid > .pu-status-choice,
+  .pu-update-subpage-system .pu-two-choice-grid > .pu-choice-card,
+  .pu-update-subpage-system .pu-modification-grid > .pu-modification-choice {
+    min-height: 6.5rem !important;
+    padding: 0.75rem 0.875rem !important;
+  }
+
+  .pu-update-subpage-system .pu-status-button-grid > .pu-status-choice small,
+  .pu-update-subpage-system .pu-two-choice-grid > .pu-choice-card small,
+  .pu-update-subpage-system .pu-modification-grid > .pu-modification-choice small {
+    font-size: 0.8125rem !important;
+  }
+}

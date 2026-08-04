@@ -23,6 +23,11 @@ type HydratedOfflinePhoto = OfflineProjectPhoto & {
   display_project_name?: string
 }
 
+type RemovalDialogState = {
+  record: HydratedOfflineUpdate
+  preview: offlineSyncService.PendingUpdateRemovalPreview | null
+}
+
 function textValue(value: unknown) {
   if (value === null || value === undefined) return ''
   return String(value).trim()
@@ -107,7 +112,8 @@ function isPendingRecord(record: {
     status === 'pending' ||
     status === 'failed' ||
     status === 'syncing' ||
-    status === 'uploading_photos'
+    status === 'uploading_photos' ||
+    status === 'orphaned'
   )
 }
 
@@ -128,6 +134,7 @@ function getStatusLabel(record: { synced?: boolean; sync_status?: string; error?
     if (status === 'syncing') return 'Syncing'
     if (status === 'uploading_photos') return 'Uploading Photos'
     if (status === 'failed') return 'Failed'
+    if (status === 'orphaned') return 'Orphaned'
     if (status === 'synced') return 'Synced'
 
     return status
@@ -143,6 +150,7 @@ function getStatusLabel(record: { synced?: boolean; sync_status?: string; error?
 function getStatusClass(record: { synced?: boolean; sync_status?: string; error?: string }) {
   const status = getStatusLabel(record).toLowerCase()
 
+  if (status.includes('orphan')) return 'orphaned'
   if (status.includes('sync') || status.includes('success')) return 'synced'
   if (status.includes('fail') || status.includes('error')) return 'failed'
   if (status.includes('upload')) return 'uploading'
@@ -163,6 +171,19 @@ function getUpdateTitle(record: HydratedOfflineUpdate) {
     textValue(record.display_project_name) ||
     textValue(record.project_name) ||
     `Project ${textValue(record.project_id) || 'Update'}`
+  )
+}
+
+function isOrphanedUpdate(record: OfflineProjectUpdate) {
+  const status = textValue(record.sync_status).toLowerCase()
+  const error = textValue(record.error).toLowerCase()
+
+  return (
+    status === 'orphaned' ||
+    error.includes('project_updates_project_id_fkey') ||
+    error.includes('key is not present in table \"projects\"') ||
+    error.includes('original project no longer exists') ||
+    error.includes('original project was deleted')
   )
 }
 
@@ -275,6 +296,9 @@ export default function OfflineSync() {
   const [errorMessage, setErrorMessage] = useState('')
   const [isOfflineScrolled, setIsOfflineScrolled] = useState(false)
   const [blockedPendingCount, setBlockedPendingCount] = useState(0)
+  const [removalDialog, setRemovalDialog] = useState<RemovalDialogState | null>(null)
+  const [loadingRemovalPreview, setLoadingRemovalPreview] = useState(false)
+  const [removingUpdate, setRemovingUpdate] = useState(false)
 
   const [offlineUpdates, setOfflineUpdates] = useState<HydratedOfflineUpdate[]>([])
   const [offlinePhotos, setOfflinePhotos] = useState<HydratedOfflinePhoto[]>([])
@@ -446,6 +470,58 @@ export default function OfflineSync() {
     }
   }
 
+  async function openRemovalDialog(record: HydratedOfflineUpdate) {
+    try {
+      setLoadingRemovalPreview(true)
+      setErrorMessage('')
+      setRemovalDialog({ record, preview: null })
+
+      const preview = await offlineSyncService.getPendingUpdateRemovalPreview(record)
+      setRemovalDialog({ record, preview })
+    } catch (error: any) {
+      console.error(error)
+      setRemovalDialog(null)
+      setErrorMessage(
+        error?.message || 'Unable to inspect the local files linked to this pending update.',
+      )
+    } finally {
+      setLoadingRemovalPreview(false)
+    }
+  }
+
+  function closeRemovalDialog() {
+    if (removingUpdate) return
+    setRemovalDialog(null)
+  }
+
+  async function confirmRemovePendingUpdate() {
+    if (!removalDialog?.record) return
+
+    try {
+      setRemovingUpdate(true)
+      setErrorMessage('')
+      setLastSyncMessage('')
+
+      const result = await offlineSyncService.removePendingOfflineUpdate(
+        removalDialog.record,
+      )
+
+      setRemovalDialog(null)
+      await refreshOfflineData()
+      setLastSyncMessage(
+        result?.message ||
+          'The selected pending update and its linked local files were removed from this device.',
+      )
+    } catch (error: any) {
+      console.error(error)
+      setErrorMessage(
+        error?.message || 'Unable to remove the selected pending update from this device.',
+      )
+    } finally {
+      setRemovingUpdate(false)
+    }
+  }
+
   const pendingUpdatesCount = offlineUpdates.length
   const pendingPhotosCount = offlinePhotos.length
 
@@ -517,7 +593,7 @@ export default function OfflineSync() {
                   {offlineUpdates.map((record, index) => (
                     <article
                       key={textValue(record.id) || textValue(record.local_id) || `update-${index}`}
-                      className="offline-sync-record-card"
+                      className={`offline-sync-record-card ${isOrphanedUpdate(record) ? 'orphaned' : ''}`}
                     >
                       <div className="offline-sync-record-top">
                         <div>
@@ -560,6 +636,28 @@ export default function OfflineSync() {
                           {textValue(record.error)}
                         </div>
                       )}
+
+                      {isOrphanedUpdate(record) && (
+                        <div className="offline-sync-orphaned-note">
+                          <strong>Orphaned Update</strong>
+                          <span>
+                            The original project no longer exists in PMS10. This update cannot be synchronized.
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="offline-sync-record-actions">
+                        <button
+                          type="button"
+                          className="offline-sync-remove-button"
+                          onClick={() => openRemovalDialog(record)}
+                          disabled={syncing || removingUpdate}
+                        >
+                          {isOrphanedUpdate(record)
+                            ? 'Remove Pending Update'
+                            : 'Remove from Device'}
+                        </button>
+                      </div>
                     </article>
                   ))}
                 </div>
@@ -680,6 +778,107 @@ export default function OfflineSync() {
             </div>
           )}
         </>
+      )}
+
+      {removalDialog && (
+        <div
+          className="offline-sync-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeRemovalDialog()
+          }}
+        >
+          <section
+            className="offline-sync-remove-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="offline-remove-title"
+          >
+            <div className="offline-sync-remove-icon" aria-hidden="true">
+              !
+            </div>
+
+            <p className="offline-sync-remove-eyebrow">Local Queue Cleanup</p>
+            <h2 id="offline-remove-title">Remove Pending Update?</h2>
+            <p className="offline-sync-remove-copy">
+              This removes only the selected offline record and its linked local files from this device. It will not delete an active cloud project or any other pending update.
+            </p>
+
+            <div className="offline-sync-remove-summary">
+              <div>
+                <span>Project</span>
+                <strong>{getUpdateTitle(removalDialog.record)}</strong>
+              </div>
+              <div>
+                <span>Inspection Date</span>
+                <strong>{formatLongDate(getUpdateDate(removalDialog.record))}</strong>
+              </div>
+              <div>
+                <span>Queued Photos</span>
+                <strong>
+                  {loadingRemovalPreview
+                    ? 'Checking…'
+                    : removalDialog.preview?.linkedPhotoCount || 0}
+                </strong>
+              </div>
+              <div>
+                <span>Local Aide Memoire</span>
+                <strong>
+                  {loadingRemovalPreview
+                    ? 'Checking…'
+                    : removalDialog.preview?.aideMemoireRecordCount
+                      ? `${removalDialog.preview.aideMemoireRecordCount} record(s)`
+                      : 'None'}
+                </strong>
+              </div>
+              <div>
+                <span>Generated PDF</span>
+                <strong>
+                  {loadingRemovalPreview
+                    ? 'Checking…'
+                    : removalDialog.preview?.hasLocalPdf
+                      ? 'Will be removed'
+                      : 'None'}
+                </strong>
+              </div>
+              <div>
+                <span>Generated DOCX</span>
+                <strong>
+                  {loadingRemovalPreview
+                    ? 'Checking…'
+                    : removalDialog.preview?.hasLocalDocx
+                      ? 'Will be removed'
+                      : 'None'}
+                </strong>
+              </div>
+            </div>
+
+            {isOrphanedUpdate(removalDialog.record) && (
+              <div className="offline-sync-remove-warning">
+                The original project was deleted, so this update can never be synchronized.
+              </div>
+            )}
+
+            <div className="offline-sync-remove-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={closeRemovalDialog}
+                disabled={removingUpdate}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="danger"
+                onClick={confirmRemovePendingUpdate}
+                disabled={removingUpdate || loadingRemovalPreview}
+              >
+                {removingUpdate ? 'Removing…' : 'Remove from Device'}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   )
