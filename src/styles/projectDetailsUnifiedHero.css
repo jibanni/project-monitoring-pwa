@@ -1,0 +1,287 @@
+/* =========================================================
+   PMS10 PROJECT DETAILS — UNIFIED COMPACT HERO
+   Matches the Project Update hero while retaining Details data.
+   ========================================================= */
+
+.pd-page:not(.is-pd-scrolled) > .pd-hero.pd-unified-hero,
+.app-project-details-route:not(.app-scrolled) .pd-page > .pd-hero.pd-unified-hero {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  z-index: 850 !important;
+
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+
+  margin: 0 0 0.72rem !important;
+  padding:
+    0.78rem
+    max(1rem, calc((100vw - 1180px) / 2 + 1rem))
+    0.82rem !important;
+
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  color: #ffffff !important;
+  background:
+    linear-gradient(135deg, #123f73 0%, #18599d 56%, #2368b5 100%) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+.pd-page:not(.is-pd-scrolled) > .pd-hero.pd-unified-hero::before,
+.pd-page:not(.is-pd-scrolled) > .pd-hero.pd-unified-hero::after,
+.app-project-details-route:not(.app-scrolled) .pd-page > .pd-hero.pd-unified-hero::before,
+.app-project-details-route:not(.app-scrolled) .pd-page > .pd-hero.pd-unified-hero::after {
+  content: none !important;
+  display: none !important;
+}
+
+.pd-unified-hero-content {
+  display: block;
+  width: 100%;
+  max-width: 1180px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.pd-unified-hero-eyebrow {
+  all: unset;
+  display: block;
+  margin: 0 0 0.16rem;
+  color: #facc15;
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.pd-unified-hero-title {
+  display: -webkit-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 800;
+  line-height: 1.03;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.pd-unified-hero-title.pd-unified-title-short {
+  font-size: clamp(1.78rem, 6.6vw, 2.2rem);
+}
+
+.pd-unified-hero-title.pd-unified-title-medium {
+  font-size: clamp(1.5rem, 5.7vw, 1.9rem);
+}
+
+.pd-unified-hero-title.pd-unified-title-long {
+  font-size: clamp(1.28rem, 4.8vw, 1.62rem);
+  letter-spacing: -0.025em;
+}
+
+.pd-unified-hero-title.pd-unified-title-extra-long {
+  font-size: clamp(1.08rem, 4.05vw, 1.38rem);
+  line-height: 1.06;
+  letter-spacing: -0.018em;
+}
+
+.pd-unified-hero-location {
+  all: unset;
+  display: block;
+  width: 100%;
+  margin-top: 0.42rem;
+  color: rgba(239, 246, 255, 0.88);
+  font-family: inherit;
+  font-size: clamp(0.73rem, 2.85vw, 0.84rem);
+  font-weight: 700;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.pd-unified-hero-monitoring {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.32rem;
+  width: 100%;
+  min-width: 0;
+  margin: 0.32rem 0 0;
+  padding: 0;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: clamp(0.68rem, 2.45vw, 0.78rem);
+  font-weight: 800;
+  line-height: 1.12;
+  white-space: nowrap;
+}
+
+.pd-unified-hero-monitoring > .pd-unified-hero-monitoring__value,
+.pd-unified-hero-monitoring > .pd-unified-hero-monitoring__separator {
+  all: unset;
+  box-sizing: border-box;
+  display: inline;
+  position: static;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font: inherit;
+  letter-spacing: normal;
+  white-space: nowrap;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.pd-unified-hero-monitoring > .pd-unified-hero-monitoring__value::before,
+.pd-unified-hero-monitoring > .pd-unified-hero-monitoring__value::after,
+.pd-unified-hero-monitoring > .pd-unified-hero-monitoring__separator::before,
+.pd-unified-hero-monitoring > .pd-unified-hero-monitoring__separator::after {
+  content: none !important;
+  display: none !important;
+}
+
+.pd-unified-hero-monitoring > .pd-unified-hero-monitoring__separator {
+  color: rgba(191, 219, 254, 0.72);
+  font-size: 0.66em;
+  font-weight: 900;
+}
+
+.pd-unified-hero-monitoring__variance[data-tone='positive'],
+.pd-unified-hero-monitoring__risk[data-tone='none'] {
+  color: #86efac !important;
+}
+
+.pd-unified-hero-monitoring__variance[data-tone='negative'],
+.pd-unified-hero-monitoring__risk[data-tone='high'] {
+  color: #fecaca !important;
+}
+
+.pd-unified-hero-monitoring__variance[data-tone='neutral'] {
+  color: #dbeafe !important;
+}
+
+.pd-unified-hero-monitoring__risk[data-tone='moderate'] {
+  color: #fdba74 !important;
+}
+
+.pd-unified-hero-monitoring__risk[data-tone='low'] {
+  color: #fde047 !important;
+}
+
+.pd-page.is-pd-scrolled > .pd-hero.pd-unified-hero,
+.app-project-details-route.app-scrolled .pd-page > .pd-hero.pd-unified-hero {
+  display: none !important;
+}
+
+.pd-subay-info-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.pd-subay-info-value strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pd-subay-info-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  color: #0759b5;
+  background: #eff6ff;
+  cursor: pointer;
+}
+
+.pd-subay-info-copy svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pd-subay-info-value small {
+  color: #15803d;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+@media (max-width: 430px) {
+  .pd-page:not(.is-pd-scrolled) > .pd-hero.pd-unified-hero,
+  .app-project-details-route:not(.app-scrolled) .pd-page > .pd-hero.pd-unified-hero {
+    margin-bottom: 0.62rem !important;
+    padding: 0.7rem 1rem 0.74rem !important;
+  }
+
+  .pd-unified-hero-title.pd-unified-title-short {
+    font-size: clamp(1.6rem, 7vw, 1.9rem);
+  }
+
+  .pd-unified-hero-title.pd-unified-title-medium {
+    font-size: clamp(1.38rem, 6vw, 1.7rem);
+  }
+
+  .pd-unified-hero-title.pd-unified-title-long {
+    font-size: clamp(1.17rem, 5.1vw, 1.45rem);
+  }
+
+  .pd-unified-hero-title.pd-unified-title-extra-long {
+    font-size: clamp(1rem, 4.35vw, 1.22rem);
+  }
+
+  .pd-unified-hero-location {
+    margin-top: 0.36rem;
+  }
+
+  .pd-unified-hero-monitoring {
+    gap: 0.28rem;
+    margin-top: 0.3rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .pd-unified-hero-monitoring {
+    gap: 0.26rem;
+    font-size: 0.64rem;
+  }
+}
