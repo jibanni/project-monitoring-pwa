@@ -1,7 +1,9 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
-import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import { normalizeProgramName } from '../utils/program'
@@ -17,9 +19,10 @@ import {
   getTargetPhysicalInfo,
 } from '../utils/projectVariance'
 import '../styles/reports.css'
+import '../styles/unifiedFilters.css'
 import '../styles/pageHero.css'
 
-type ProjectRow = SharedProjectRow & {
+type ProjectRow = {
   id: string
   project_name: string | null
   description: string | null
@@ -63,73 +66,22 @@ type ProfileLookupRow = {
   is_active?: boolean | null
 }
 
+type ProjectUpdateLookupRow = {
+  id?: string | number | null
+  project_id: string | null
+  engineer_id: string | null
+  inspection_date: string | null
+  created_at: string | null
+}
+
+type LatestUpdateInfo = {
+  engineer_id: string | null
+  inspection_date: string | null
+  created_at: string | null
+}
+
 type ProfileLookupMap = Record<string, ProfileLookupRow>
-
-type ReportsMemoryCache = {
-  assignments: PoEngineerAssignmentRow[]
-  profiles: ProfileLookupMap
-  loadedAt: number
-}
-
-const REPORTS_CACHE_TTL_MS = 5 * 60 * 1000
-const reportsMemoryCache: ReportsMemoryCache = {
-  assignments: [],
-  profiles: {},
-  loadedAt: 0,
-}
-
-function hasFreshReportsReferenceCache() {
-  return (
-    reportsMemoryCache.loadedAt > 0 &&
-    Date.now() - reportsMemoryCache.loadedAt < REPORTS_CACHE_TTL_MS
-  )
-}
-
-let reportsReferenceRequest: Promise<{
-  assignments: PoEngineerAssignmentRow[]
-  profiles: ProfileLookupMap
-}> | null = null
-
-function requestReportReferenceData() {
-  if (reportsReferenceRequest) return reportsReferenceRequest
-
-  reportsReferenceRequest = (async () => {
-    const assignmentsResult = await supabase
-      .from('po_engineer_lgu_assignments')
-      .select('id, user_id, province, municipality, is_active')
-      .eq('is_active', true)
-
-    if (assignmentsResult.error) throw assignmentsResult.error
-
-    const assignments = (assignmentsResult.data || []) as PoEngineerAssignmentRow[]
-    const profileIds = uniqueTextValues(assignments.map((assignment) => assignment.user_id))
-
-    if (profileIds.length === 0) {
-      return { assignments, profiles: {} }
-    }
-
-    const profilesResult = await supabase
-      .from('profiles')
-      .select('id, full_name, email, role, approved, is_active')
-      .in('id', profileIds)
-
-    if (profilesResult.error) throw profilesResult.error
-
-    const profiles = ((profilesResult.data || []) as ProfileLookupRow[]).reduce<ProfileLookupMap>(
-      (map, profile) => {
-        map[profile.id] = profile
-        return map
-      },
-      {},
-    )
-
-    return { assignments, profiles }
-  })().finally(() => {
-    reportsReferenceRequest = null
-  })
-
-  return reportsReferenceRequest
-}
+type LatestUpdateMap = Record<string, LatestUpdateInfo>
 
 function textValue(value: unknown) {
   if (value === null || value === undefined) return ''
@@ -569,8 +521,21 @@ function getAssignedAorLabel(project: ProjectRow) {
   return `${province} / ${lgu}`
 }
 
-function getLatestUpdateDate(project: ProjectRow) {
-  return project.last_inspection_date || null
+function getLatestUpdateForProject(project: ProjectRow, latestUpdateMap: LatestUpdateMap) {
+  return latestUpdateMap[project.id] || null
+}
+
+function getLatestUpdateDate(project: ProjectRow, latestUpdateMap: LatestUpdateMap) {
+  const latestUpdate = getLatestUpdateForProject(project, latestUpdateMap)
+
+  return latestUpdate?.inspection_date || latestUpdate?.created_at || project.last_inspection_date || null
+}
+
+function getComparableUpdateTime(update: ProjectUpdateLookupRow) {
+  const rawDate = update.inspection_date || update.created_at || ''
+  const parsed = new Date(rawDate.length <= 10 ? `${rawDate}T00:00:00` : rawDate)
+
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime()
 }
 
 function SearchIcon() {
@@ -618,23 +583,12 @@ function ExcelIcon() {
 export default function Reports() {
   const auth = useAuth()
 
-  const {
-    projects,
-    loading,
-    errorMessage,
-    refreshProjects,
-  } = useSharedProjects<ProjectRow>()
-  const cachedReferenceAtMount = hasFreshReportsReferenceCache()
-  const [poEngineerAssignments, setPoEngineerAssignments] = useState<PoEngineerAssignmentRow[]>(() =>
-    cachedReferenceAtMount ? reportsMemoryCache.assignments : [],
-  )
-  const [profileMap, setProfileMap] = useState<ProfileLookupMap>(() =>
-    cachedReferenceAtMount ? reportsMemoryCache.profiles : {},
-  )
-  const [referenceLoading, setReferenceLoading] = useState(!cachedReferenceAtMount)
-  const deferredProjects = useDeferredValue<ProjectRow[]>(projects, [])
-  const reportDataPreparing = projects.length > 0 && deferredProjects !== projects
-  const [exporting, setExporting] = useState<'pdf' | 'excel' | ''>('')
+  const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [poEngineerAssignments, setPoEngineerAssignments] = useState<PoEngineerAssignmentRow[]>([])
+  const [profileMap, setProfileMap] = useState<ProfileLookupMap>({})
+  const [latestUpdateMap, setLatestUpdateMap] = useState<LatestUpdateMap>({})
+  const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const [isReportsScrolled, setIsReportsScrolled] = useState(false)
@@ -650,11 +604,8 @@ export default function Reports() {
     setPortalReady(true)
   }, [])
 
-
   useEffect(() => {
-    if (!cachedReferenceAtMount) {
-      void loadReportReferenceData()
-    }
+    loadProjects()
   }, [])
 
   useEffect(() => {
@@ -679,21 +630,125 @@ export default function Reports() {
     }
   }, [])
 
-  async function loadReportReferenceData() {
+  async function loadProjects() {
     try {
-      setReferenceLoading(true)
+      setLoading(true)
+      setErrorMessage('')
 
-      const { assignments, profiles } = await requestReportReferenceData()
-      setPoEngineerAssignments(assignments)
-      setProfileMap(profiles)
-      reportsMemoryCache.assignments = assignments
-      reportsMemoryCache.profiles = profiles
-      reportsMemoryCache.loadedAt = Date.now()
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('updated_at', { ascending: false })
+
+      if (error) throw error
+
+      const loadedProjects = (data || []) as ProjectRow[]
+      setProjects(loadedProjects)
+
+      await loadReportReferenceData()
     } catch (error) {
-      console.error('Report reference data load error:', error)
+      console.error(error)
+      setErrorMessage('Unable to load report data. Please check your connection and try again.')
     } finally {
-      setReferenceLoading(false)
+      setLoading(false)
     }
+  }
+
+  async function loadReportReferenceData() {
+    const [assignmentsResult, updatesResult] = await Promise.all([
+      supabase
+        .from('po_engineer_lgu_assignments')
+        .select('id, user_id, province, municipality, is_active')
+        .eq('is_active', true),
+      supabase
+        .from('project_updates')
+        .select('id, project_id, engineer_id, inspection_date, created_at')
+        .order('inspection_date', { ascending: false })
+        .order('created_at', { ascending: false }),
+    ])
+
+    const loadedAssignments = assignmentsResult.error
+      ? []
+      : ((assignmentsResult.data || []) as PoEngineerAssignmentRow[])
+    const loadedUpdates = updatesResult.error
+      ? []
+      : ((updatesResult.data || []) as ProjectUpdateLookupRow[])
+
+    if (assignmentsResult.error) {
+      console.error('Report PO Engineer assignment load error:', assignmentsResult.error.message)
+    }
+
+    if (updatesResult.error) {
+      console.error('Report latest update load error:', updatesResult.error.message)
+    }
+
+    setPoEngineerAssignments(loadedAssignments)
+
+    const latestMap: LatestUpdateMap = {}
+
+    loadedUpdates.forEach((update) => {
+      if (!update.project_id) return
+
+      const currentLatest = latestMap[update.project_id]
+
+      if (!currentLatest) {
+        latestMap[update.project_id] = {
+          engineer_id: update.engineer_id,
+          inspection_date: update.inspection_date,
+          created_at: update.created_at,
+        }
+        return
+      }
+
+      const nextTime = getComparableUpdateTime(update)
+      const currentTime = getComparableUpdateTime({
+        project_id: update.project_id,
+        engineer_id: currentLatest.engineer_id,
+        inspection_date: currentLatest.inspection_date,
+        created_at: currentLatest.created_at,
+      })
+
+      if (nextTime > currentTime) {
+        latestMap[update.project_id] = {
+          engineer_id: update.engineer_id,
+          inspection_date: update.inspection_date,
+          created_at: update.created_at,
+        }
+      }
+    })
+
+    setLatestUpdateMap(latestMap)
+
+    const profileIds = uniqueTextValues([
+      ...loadedAssignments.map((assignment) => assignment.user_id),
+      ...loadedUpdates.map((update) => update.engineer_id),
+    ])
+
+    if (profileIds.length === 0) {
+      setProfileMap({})
+      return
+    }
+
+    const profilesResult = await supabase
+      .from('profiles')
+      .select('id, full_name, email, role, approved, is_active')
+      .in('id', profileIds)
+
+    if (profilesResult.error) {
+      console.error('Report user profile lookup error:', profilesResult.error.message)
+      setProfileMap({})
+      return
+    }
+
+    const nextProfileMap = ((profilesResult.data || []) as ProfileLookupRow[]).reduce<ProfileLookupMap>(
+      (map, profile) => {
+        map[profile.id] = profile
+        return map
+      },
+      {},
+    )
+
+    setProfileMap(nextProfileMap)
   }
 
   function clearFilters() {
@@ -706,62 +761,40 @@ export default function Reports() {
   }
 
   const aorProjects = useMemo(() => {
-    return getStrictReportAorProjects(deferredProjects, auth)
-  }, [deferredProjects, auth])
-
-  const activeFilterCount = [
-    searchTerm,
-    provinceFilter,
-    municipalityFilter,
-    programFilter,
-    statusFilter,
-    riskFilter,
-  ].filter(Boolean).length
-
-  const hasActiveSearch = activeFilterCount > 0
-  const shouldBuildFilterOptions = showFilters || hasActiveSearch
+    return getStrictReportAorProjects(projects, auth)
+  }, [projects, auth])
 
   const provinces = useMemo(() => {
-    if (!shouldBuildFilterOptions) return []
     return getReportProvinceOptions(aorProjects, auth)
-  }, [aorProjects, auth, shouldBuildFilterOptions])
+  }, [aorProjects, auth])
 
   const municipalities = useMemo(() => {
-    if (!shouldBuildFilterOptions) return []
     return getReportMunicipalityOptions(aorProjects, auth, provinceFilter)
-  }, [aorProjects, auth, provinceFilter, shouldBuildFilterOptions])
+  }, [aorProjects, auth, provinceFilter])
 
   const programs = useMemo(() => {
-    if (!shouldBuildFilterOptions) return []
-
     return Array.from(
       new Set(
         aorProjects
-          .map((project) => normalizeProgramName(project.funding_source || project.project_type))
+          .map((project) => normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)))
           .filter(Boolean),
       ),
     ).sort()
-  }, [aorProjects, shouldBuildFilterOptions])
+  }, [aorProjects])
 
   const statuses = useMemo(() => {
-    if (!shouldBuildFilterOptions) return []
-
     return Array.from(
       new Set(aorProjects.map((project) => textValue(project.status)).filter(Boolean)),
     ).sort()
-  }, [aorProjects, shouldBuildFilterOptions])
+  }, [aorProjects])
 
   const risks = useMemo(() => {
-    if (!shouldBuildFilterOptions) return []
-
     return Array.from(
       new Set(aorProjects.map((project) => getReportRisk(project)).filter(Boolean)),
     ).sort()
-  }, [aorProjects, shouldBuildFilterOptions])
+  }, [aorProjects])
 
   useEffect(() => {
-    if (!shouldBuildFilterOptions) return
-
     if (provinceFilter && !provinces.includes(provinceFilter)) {
       setProvinceFilter('')
       setMunicipalityFilter('')
@@ -784,7 +817,6 @@ export default function Reports() {
       setRiskFilter('')
     }
   }, [
-    shouldBuildFilterOptions,
     provinceFilter,
     provinces,
     municipalityFilter,
@@ -798,15 +830,13 @@ export default function Reports() {
   ])
 
   const filteredProjects = useMemo(() => {
-    if (!hasActiveSearch) return []
-
     return aorProjects.filter((project) => {
       const assignedPoEngineers = getAssignedPoEngineersForProject(
         project,
         poEngineerAssignments,
         profileMap,
       )
-      const latestUpdateDate = getLatestUpdateDate(project)
+      const latestUpdateDate = getLatestUpdateDate(project, latestUpdateMap)
 
       const searchableText = [
         project.project_name,
@@ -844,7 +874,7 @@ export default function Reports() {
         : true
 
       const programMatches = programFilter
-        ? normalizeProgramName(project.funding_source || project.project_type) === programFilter
+        ? normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)) === programFilter
         : true
 
       const statusMatches = statusFilter
@@ -865,10 +895,10 @@ export default function Reports() {
       )
     })
   }, [
-    hasActiveSearch,
     aorProjects,
     poEngineerAssignments,
     profileMap,
+    latestUpdateMap,
     searchTerm,
     provinceFilter,
     municipalityFilter,
@@ -877,211 +907,192 @@ export default function Reports() {
     riskFilter,
   ])
 
+  const activeFilterCount = [
+    searchTerm,
+    provinceFilter,
+    municipalityFilter,
+    programFilter,
+    statusFilter,
+    riskFilter,
+  ].filter(Boolean).length
+
+  const hasActiveSearch = activeFilterCount > 0
   const reportProjects = hasActiveSearch ? filteredProjects : aorProjects
 
-  async function generatePdfReport() {
-    if (exporting) return
+  function generatePdfReport() {
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4',
+    })
 
-    setExporting('pdf')
+    const generatedDate = formatLongDate(new Date().toISOString())
+    const title = 'DILG-PDMU Project Monitoring Report'
 
-    try {
-      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
-        import('jspdf'),
-        import('jspdf-autotable'),
-      ])
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(15)
+    doc.text(title, 14, 16)
 
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4',
-      })
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.text('Department of the Interior and Local Government Region X', 14, 22)
+    doc.text('Project Development and Management Unit', 14, 27)
+    doc.text(`Generated: ${generatedDate}`, 14, 32)
+    let headerY = 37
+    doc.text('Scope: Records are filtered according to the logged-in user AOR.', 14, headerY)
 
-      const generatedDate = formatLongDate(new Date().toISOString())
-      const title = 'DILG-PDMU Project Monitoring Report'
+    const assignedPoSummary = compactReportHeaderText(
+      getReportAssignedPoSummary(reportProjects, poEngineerAssignments, profileMap),
+    )
+    const assignedAorSummary = compactReportHeaderText(getReportAorSummary(reportProjects))
 
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(15)
-      doc.text(title, 14, 16)
+    headerY += 5
+    doc.text(`Assigned PO Engineer/s: ${assignedPoSummary}`, 14, headerY)
+    headerY += 5
+    doc.text(`Assigned AOR: ${assignedAorSummary}`, 14, headerY)
 
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text('Department of the Interior and Local Government Region X', 14, 22)
-      doc.text('Project Development and Management Unit', 14, 27)
-      doc.text(`Generated: ${generatedDate}`, 14, 32)
-      let headerY = 37
-      doc.text('Scope: Records are filtered according to the logged-in user AOR.', 14, headerY)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    headerY += 7
+    doc.text(`Projects Included: ${reportProjects.length}`, 14, headerY)
 
-      const assignedPoSummary = compactReportHeaderText(
-        getReportAssignedPoSummary(reportProjects, poEngineerAssignments, profileMap),
-      )
-      const assignedAorSummary = compactReportHeaderText(getReportAorSummary(reportProjects))
-
-      headerY += 5
-      doc.text(`Assigned PO Engineer/s: ${assignedPoSummary}`, 14, headerY)
-      headerY += 5
-      doc.text(`Assigned AOR: ${assignedAorSummary}`, 14, headerY)
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10)
-      headerY += 7
-      doc.text(`Projects Included: ${reportProjects.length}`, 14, headerY)
-
-      autoTable(doc, {
-        startY: headerY + 7,
-        margin: { left: 10, right: 10 },
-        tableWidth: 'auto',
-        head: [
-          [
-            'Project',
-            'Province',
-            'LGU',
-            'Funding',
-            'Cost',
-            'Status',
-            'Risk',
-            'Actual',
-            'Target',
-            'Variance',
-            'Financial',
-            'Latest Update',
-          ],
+    autoTable(doc, {
+      startY: headerY + 7,
+      margin: { left: 10, right: 10 },
+      tableWidth: 'auto',
+      head: [
+        [
+          'Project',
+          'Province',
+          'LGU',
+          'Funding',
+          'Cost',
+          'Status',
+          'Risk',
+          'Actual',
+          'Target',
+          'Variance',
+          'Financial',
+          'Latest Update',
         ],
-        body: reportProjects.map((project) => {
-          const varianceInfo = getProjectVariance(project)
-
-          return [
-            textValue(project.project_name) || 'Untitled Project',
-            textValue(project.province) || '-',
-            textValue(project.municipality) || '-',
-            normalizeProgramName(project.funding_source || project.project_type) || '-',
-            formatCurrency(project.budget),
-            textValue(project.status) || '-',
-            getReportRisk(project),
-            formatPercent(varianceInfo.actualPhysical),
-            formatPercent(varianceInfo.targetPhysical),
-            formatSignedVariance(varianceInfo.variance),
-            formatPercent(project.financial_accomplishment),
-            formatLongDate(getLatestUpdateDate(project)),
-          ]
-        }),
-        styles: {
-          fontSize: 5.8,
-          cellPadding: 1.1,
-          overflow: 'linebreak',
-        },
-        headStyles: {
-          fillColor: [11, 55, 105],
-          textColor: 255,
-          fontStyle: 'bold',
-        },
-        alternateRowStyles: {
-          fillColor: [245, 247, 250],
-        },
-        columnStyles: {
-          0: { cellWidth: 44 },
-          1: { cellWidth: 20 },
-          2: { cellWidth: 20 },
-          3: { cellWidth: 30 },
-          4: { cellWidth: 22 },
-          5: { cellWidth: 20 },
-          6: { cellWidth: 15 },
-          7: { cellWidth: 14 },
-          8: { cellWidth: 14 },
-          9: { cellWidth: 16 },
-          10: { cellWidth: 17 },
-          11: { cellWidth: 24 },
-        },
-        didDrawPage: () => {
-          const pageCount = doc.getNumberOfPages()
-          const pageSize = doc.internal.pageSize
-          const pageWidth = pageSize.getWidth()
-          const pageHeight = pageSize.getHeight()
-
-          doc.setFontSize(8)
-          doc.setTextColor(100)
-          doc.text(
-            `Page ${doc.getCurrentPageInfo().pageNumber} of ${pageCount}`,
-            pageWidth - 34,
-            pageHeight - 8,
-          )
-        },
-      })
-
-      doc.save(`${cleanFilename(title)}.pdf`)
-    } catch (error) {
-      console.error('Unable to generate PDF report.', error)
-      window.alert('Unable to generate the PDF report. Please try again.')
-    } finally {
-      setExporting('')
-    }
-  }
-
-  async function exportExcelReport() {
-    if (exporting) return
-
-    setExporting('excel')
-
-    try {
-      const XLSX = await import('xlsx')
-
-      const rows = reportProjects.map((project) => {
+      ],
+      body: reportProjects.map((project) => {
         const varianceInfo = getProjectVariance(project)
 
-        return {
-          Project: textValue(project.project_name) || 'Untitled Project',
-          Description: textValue(project.description),
-          Province: textValue(project.province),
-          Municipality: textValue(project.municipality),
-          Barangay: textValue(project.barangay),
-          'Assigned Province / AOR': getAssignedAorLabel(project),
-          'Latest Update Date': formatLongDate(getLatestUpdateDate(project)),
-          'Funding Source': textValue(project.funding_source),
-          'Project Type': textValue(project.project_type),
-          'Implementing Office': textValue(project.implementing_office),
-          Contractor: textValue(project.contractor),
-          'Project Cost': toNumber(project.budget),
-          Status: textValue(project.status),
-          'Risk Level': getReportRisk(project),
-          'Actual Physical': Number(varianceInfo.actualPhysical.toFixed(2)),
-          'Target Physical': Number(varianceInfo.targetPhysical.toFixed(2)),
-          Variance: Number(varianceInfo.variance.toFixed(2)),
-          'Financial Accomplishment': toNumber(project.financial_accomplishment),
-          'Start Date': formatLongDate(project.start_date),
-          'Target Completion Date': formatLongDate(project.target_completion_date),
-          'Last Inspection Date': formatLongDate(project.last_inspection_date),
-          Latitude: textValue(project.latitude),
-          Longitude: textValue(project.longitude),
-        }
-      })
+        return [
+          textValue(project.project_name) || 'Untitled Project',
+          textValue(project.province) || '-',
+          textValue(project.municipality) || '-',
+          normalizeProgramName(project.funding_source || project.project_type) || '-',
+          formatCurrency(project.budget),
+          textValue(project.status) || '-',
+          getReportRisk(project),
+          formatPercent(varianceInfo.actualPhysical),
+          formatPercent(varianceInfo.targetPhysical),
+          formatSignedVariance(varianceInfo.variance),
+          formatPercent(project.financial_accomplishment),
+          formatLongDate(getLatestUpdateDate(project, latestUpdateMap)),
+        ]
+      }),
+      styles: {
+        fontSize: 5.8,
+        cellPadding: 1.1,
+        overflow: 'linebreak',
+      },
+      headStyles: {
+        fillColor: [11, 55, 105],
+        textColor: 255,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250],
+      },
+      columnStyles: {
+        0: { cellWidth: 44 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 20 },
+        6: { cellWidth: 15 },
+        7: { cellWidth: 14 },
+        8: { cellWidth: 14 },
+        9: { cellWidth: 16 },
+        10: { cellWidth: 17 },
+        11: { cellWidth: 24 },
+      },
+      didDrawPage: () => {
+        const pageCount = doc.getNumberOfPages()
+        const pageSize = doc.internal.pageSize
+        const pageWidth = pageSize.getWidth()
+        const pageHeight = pageSize.getHeight()
 
-      const summaryRows = [
-        ['DILG-PDMU Project Monitoring Report'],
-        ['Generated', formatLongDate(new Date().toISOString())],
-        ['Scope', 'Records are filtered according to the logged-in user AOR.'],
-        [
-          'Assigned PO Engineer/s',
-          getReportAssignedPoSummary(reportProjects, poEngineerAssignments, profileMap),
-        ],
-        ['Assigned AOR', getReportAorSummary(reportProjects)],
-        ['Projects Included', reportProjects.length],
-        ['Active Filters', activeFilterCount],
-        [],
-      ]
+        doc.setFontSize(8)
+        doc.setTextColor(100)
+        doc.text(
+          `Page ${doc.getCurrentPageInfo().pageNumber} of ${pageCount}`,
+          pageWidth - 34,
+          pageHeight - 8,
+        )
+      },
+    })
 
-      const workbook = XLSX.utils.book_new()
-      const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows)
-      const dataSheet = XLSX.utils.json_to_sheet(rows)
+    doc.save(`${cleanFilename(title)}.pdf`)
+  }
 
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary')
-      XLSX.utils.book_append_sheet(workbook, dataSheet, 'Projects')
+  function exportExcelReport() {
+    const rows = reportProjects.map((project) => {
+      const varianceInfo = getProjectVariance(project)
 
-      XLSX.writeFile(workbook, 'dilg-pdmu-project-monitoring-report.xlsx')
-    } catch (error) {
-      console.error('Unable to export Excel report.', error)
-      window.alert('Unable to export the Excel report. Please try again.')
-    } finally {
-      setExporting('')
-    }
+      return {
+        Project: textValue(project.project_name) || 'Untitled Project',
+        Description: textValue(project.description),
+        Province: textValue(project.province),
+        Municipality: textValue(project.municipality),
+        Barangay: textValue(project.barangay),
+        'Assigned Province / AOR': getAssignedAorLabel(project),
+        'Latest Update Date': formatLongDate(getLatestUpdateDate(project, latestUpdateMap)),
+        'Funding Source': textValue(project.funding_source),
+        'Project Type': textValue(project.project_type),
+        'Implementing Office': textValue(project.implementing_office),
+        Contractor: textValue(project.contractor),
+        'Project Cost': toNumber(project.budget),
+        Status: textValue(project.status),
+        'Risk Level': getReportRisk(project),
+        'Actual Physical': Number(varianceInfo.actualPhysical.toFixed(2)),
+        'Target Physical': Number(varianceInfo.targetPhysical.toFixed(2)),
+        Variance: Number(varianceInfo.variance.toFixed(2)),
+        'Financial Accomplishment': toNumber(project.financial_accomplishment),
+        'Start Date': formatLongDate(project.start_date),
+        'Target Completion Date': formatLongDate(project.target_completion_date),
+        'Last Inspection Date': formatLongDate(project.last_inspection_date),
+        Latitude: textValue(project.latitude),
+        Longitude: textValue(project.longitude),
+      }
+    })
+
+    const summaryRows = [
+      ['DILG-PDMU Project Monitoring Report'],
+      ['Generated', formatLongDate(new Date().toISOString())],
+      ['Scope', 'Records are filtered according to the logged-in user AOR.'],
+      [
+        'Assigned PO Engineer/s',
+        getReportAssignedPoSummary(reportProjects, poEngineerAssignments, profileMap),
+      ],
+      ['Assigned AOR', getReportAorSummary(reportProjects)],
+      ['Projects Included', reportProjects.length],
+      ['Active Filters', activeFilterCount],
+      [],
+    ]
+
+    const workbook = XLSX.utils.book_new()
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows)
+    const dataSheet = XLSX.utils.json_to_sheet(rows)
+
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary')
+    XLSX.utils.book_append_sheet(workbook, dataSheet, 'Projects')
+
+    XLSX.writeFile(workbook, 'dilg-pdmu-project-monitoring-report.xlsx')
   }
 
   const reportsFabStack = (
@@ -1089,10 +1100,10 @@ export default function Reports() {
       <button
         type="button"
         className="reports-fab reports-fab-excel"
-        onClick={() => void exportExcelReport()}
-        disabled={loading || reportDataPreparing || referenceLoading || exporting !== '' || aorProjects.length === 0}
-        aria-label={exporting === 'excel' ? 'Preparing Excel export' : 'Export Excel'}
-        title={exporting === 'excel' ? 'Preparing Excel export…' : 'Export Excel'}
+        onClick={exportExcelReport}
+        disabled={loading || aorProjects.length === 0}
+        aria-label="Export Excel"
+        title="Export Excel"
       >
         <ExcelIcon />
       </button>
@@ -1100,17 +1111,17 @@ export default function Reports() {
       <button
         type="button"
         className="reports-fab reports-fab-pdf"
-        onClick={() => void generatePdfReport()}
-        disabled={loading || reportDataPreparing || referenceLoading || exporting !== '' || aorProjects.length === 0}
-        aria-label={exporting === 'pdf' ? 'Preparing PDF report' : 'Generate PDF'}
-        title={exporting === 'pdf' ? 'Preparing PDF report…' : 'Generate PDF'}
+        onClick={generatePdfReport}
+        disabled={loading || aorProjects.length === 0}
+        aria-label="Generate PDF"
+        title="Generate PDF"
       >
         <PdfIcon />
       </button>
     </div>
   )
 
-  if (loading && projects.length === 0) {
+  if (loading) {
     return (
       <div className="reports-page">
         <div className="reports-loading-card">
@@ -1128,7 +1139,7 @@ export default function Reports() {
         <div className="reports-error-card">
           <h2>Reports Error</h2>
           <p>{errorMessage}</p>
-          <button type="button" onClick={() => void refreshProjects()}>
+          <button type="button" onClick={loadProjects}>
             Reload Reports
           </button>
         </div>
@@ -1150,9 +1161,53 @@ export default function Reports() {
           </div>
         </section>
 
-        <section className="reports-filter-card">
-          <div className="reports-search-row">
-            <label className="reports-search-field" htmlFor="reports-search">
+        <section
+          className={`reports-filter-card pm-unified-filter-panel ${
+            showFilters ? 'is-open' : ''
+          } ${hasActiveSearch ? 'has-active-filters' : ''}`}
+          aria-label="Report filters"
+        >
+          <div className="pm-unified-filter-bar">
+            <div className="pm-unified-filter-summary">
+              <span className="pm-unified-filter-icon" aria-hidden="true">
+                <FilterIcon />
+              </span>
+
+              <div className="pm-unified-filter-text">
+                <p>Report filters</p>
+                <strong>
+                  {[
+                    searchTerm.trim() ? `Search: ${searchTerm.trim()}` : '',
+                    programFilter,
+                    provinceFilter,
+                    municipalityFilter,
+                    statusFilter,
+                    riskFilter,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'All AOR records'}
+                </strong>
+              </div>
+            </div>
+
+            <div className="pm-unified-filter-actions">
+              <span>
+                {hasActiveSearch ? filteredProjects.length : aorProjects.length} / {aorProjects.length}
+              </span>
+
+              <button
+                type="button"
+                className="pm-unified-filter-toggle"
+                onClick={() => setShowFilters((current) => !current)}
+                aria-expanded={showFilters}
+              >
+                {showFilters ? 'Hide' : 'Filter'}
+              </button>
+            </div>
+          </div>
+
+          <div className="pm-unified-filter-body" hidden={!showFilters}>
+            <label className="pm-unified-search-field" htmlFor="reports-search">
               <SearchIcon />
               <input
                 id="reports-search"
@@ -1163,21 +1218,7 @@ export default function Reports() {
               />
             </label>
 
-            <button
-              type="button"
-              className={`reports-filter-button ${showFilters ? 'is-active' : ''}`}
-              onClick={() => setShowFilters((current) => !current)}
-              aria-expanded={showFilters}
-              aria-label="Show report filters"
-              title="Show report filters"
-            >
-              <FilterIcon />
-              <span>Filter</span>
-            </button>
-          </div>
-
-          {showFilters && (
-            <div className="reports-filter-grid">
+            <div className="reports-filter-grid pm-unified-filter-grid">
               <label>
                 <span>Province/HUC</span>
                 <select
@@ -1219,19 +1260,19 @@ export default function Reports() {
                 >
                   <option value="" label="All Programs" style={{ textTransform: 'none' }}>All Programs</option>
                   {programs.map((program) => {
-                  const programLabel = normalizeProgramName(program) || String(program)
+                    const programLabel = normalizeProgramName(program) || String(program)
 
-                  return (
-                    <option
-                      key={programLabel}
-                      value={programLabel}
-                      label={programLabel}
-                      style={{ textTransform: 'none' }}
-                    >
-                      {programLabel}
-                    </option>
-                  )
-                })}
+                    return (
+                      <option
+                        key={programLabel}
+                        value={programLabel}
+                        label={programLabel}
+                        style={{ textTransform: 'none' }}
+                      >
+                        {programLabel}
+                      </option>
+                    )
+                  })}
                 </select>
               </label>
 
@@ -1268,42 +1309,27 @@ export default function Reports() {
               {hasActiveSearch && (
                 <button
                   type="button"
-                  className="reports-clear-btn"
+                  className="reports-clear-btn pm-unified-clear"
                   onClick={clearFilters}
                 >
                   Clear Filters
                 </button>
               )}
             </div>
-          )}
 
-          <div className="reports-info-line">
-            {reportDataPreparing ? (
-              <span>Opening Reports… preparing cached monitoring data.</span>
-            ) : hasActiveSearch ? (
-              <>
-                <span>
-                  {filteredProjects.length} project/s matched from {aorProjects.length} available AOR record/s.
-                </span>
-
-                <span>
-                  {activeFilterCount} active filter/s
-                </span>
-              </>
-            ) : (
-              <span>
-                Search or use the filter button to display report records. Available AOR records: {aorProjects.length}.
-              </span>
-            )}
-          </div>
-
-          {(reportDataPreparing || referenceLoading) && (
-            <div className="reports-background-status" role="status">
-              {reportDataPreparing
-                ? 'Preparing report data in the background…'
-                : 'Loading engineer assignments in the background…'}
+            <div className="reports-info-line pm-unified-filter-info">
+              {hasActiveSearch ? (
+                <>
+                  <span>
+                    {filteredProjects.length} project/s matched from {aorProjects.length} available AOR record/s.
+                  </span>
+                  <span>{activeFilterCount} active filter/s</span>
+                </>
+              ) : (
+                <span>Available AOR records: {aorProjects.length}.</span>
+              )}
             </div>
-          )}
+          </div>
         </section>
 
         {hasActiveSearch && (
@@ -1353,7 +1379,7 @@ export default function Reports() {
                       {filteredProjects.map((project) => {
                         const varianceInfo = getProjectVariance(project)
                         const latestUpdateDate = formatLongDate(
-                          getLatestUpdateDate(project),
+                          getLatestUpdateDate(project, latestUpdateMap),
                         )
 
                         return (
@@ -1406,7 +1432,7 @@ export default function Reports() {
                   {filteredProjects.map((project) => {
                     const varianceInfo = getProjectVariance(project)
                     const latestUpdateDate = formatLongDate(
-                      getLatestUpdateDate(project),
+                      getLatestUpdateDate(project, latestUpdateMap),
                     )
 
                     return (

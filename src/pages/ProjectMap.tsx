@@ -11,7 +11,6 @@ import {
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
-import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
@@ -24,6 +23,7 @@ import {
   getCanonicalProjectProvinceOrHuc,
 } from '../data/region10Directory'
 import '../styles/projectMap.css'
+import '../styles/unifiedFilters.css'
 import '../styles/pageHero.css'
 
 const MINDANAO_BOUNDS = {
@@ -41,7 +41,7 @@ const REGION_10_BOUNDS: [[number, number], [number, number]] = [
   [9.75, 125.85],
 ]
 
-type ProjectRecord = SharedProjectRow & {
+type ProjectRecord = {
   id: string
   project_name: string | null
   description: string | null
@@ -603,12 +603,6 @@ export default function ProjectMap() {
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const {
-    projects: sharedProjects,
-    loading: sharedProjectsLoading,
-    errorMessage: sharedProjectsError,
-    refreshProjects,
-  } = useSharedProjects<ProjectRecord>()
 
   const [projects, setProjects] = useState<MapProject[]>([])
   const [loading, setLoading] = useState(true)
@@ -667,26 +661,20 @@ export default function ProjectMap() {
   }, [])
 
   async function loadProjects() {
-    if (sharedProjects.length === 0) {
-      setProjects([])
-      setLoading(sharedProjectsLoading)
-      setErrorMessage(sharedProjectsError)
-      return
-    }
-
-    const baseProjects = sharedProjects.map((project) => buildMapProject(project, []))
-    setProjects(filterProjectsByAor(baseProjects, auth))
-    setLoading(false)
-    setErrorMessage('')
-
-    if (!navigator.onLine) return
-
     try {
+      setLoading(true)
+      setErrorMessage('')
+
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .order('updated_at', { ascending: false })
+
+      if (projectError) throw projectError
+
       const { data: updateData, error: updateError } = await supabase
         .from('project_updates')
-        .select(
-          'project_id, inspection_date, inspection_latitude, inspection_longitude, created_at',
-        )
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (updateError) throw updateError
@@ -701,14 +689,19 @@ export default function ProjectMap() {
         updateMap.set(update.project_id, currentUpdates)
       }
 
-      const mappedProjects = sharedProjects.map((project) =>
+      const mappedProjects = ((projectData || []) as unknown as ProjectRecord[]).map((project) =>
         buildMapProject(project, updateMap.get(project.id) || []),
       )
+      const aorFilteredProjects = filterProjectsByAor(mappedProjects, auth)
 
-      setProjects(filterProjectsByAor(mappedProjects, auth))
-    } catch (error) {
-      console.error('Unable to refresh inspection GPS records.', error)
-      // Keep the already rendered project coordinates visible.
+      setProjects(aorFilteredProjects)
+    } catch (error: any) {
+      console.error(error)
+      setErrorMessage(
+        error?.message || 'Unable to load GIS map records. Please try again.',
+      )
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -716,9 +709,6 @@ export default function ProjectMap() {
     loadProjects()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    sharedProjects,
-    sharedProjectsLoading,
-    sharedProjectsError,
     auth.profile?.id,
     auth.profile?.role,
     auth.profile?.approved,
@@ -887,6 +877,16 @@ export default function ProjectMap() {
     statusFilter !== 'All' ||
     riskFilter !== 'All')
 
+  const activeMapFilterCount = [
+    searchTerm.trim(),
+    provinceFilter !== 'All' ? provinceFilter : '',
+    municipalityFilter !== 'All' ? municipalityFilter : '',
+    fundingYearFilter !== 'All' ? fundingYearFilter : '',
+    programFilter !== 'All' ? programFilter : '',
+    statusFilter !== 'All' ? statusFilter : '',
+    riskFilter !== 'All' ? riskFilter : '',
+  ].filter(Boolean).length
+
   const mapFabs = (
     <div className="pm-map-floating-actions" aria-label="GIS map actions">
       {selectedProjectMode && (
@@ -934,10 +934,7 @@ export default function ProjectMap() {
       <button
         type="button"
         className="pm-map-fab pm-map-fab-refresh"
-        onClick={() => {
-          void refreshProjects()
-          void loadProjects()
-        }}
+        onClick={loadProjects}
         disabled={loading}
         aria-label="Refresh GIS map"
         title="Refresh"
@@ -991,129 +988,163 @@ export default function ProjectMap() {
             </button>
           </section>
         ) : (
-          <section className="pm-map-filter-card">
-          <div className="pm-map-search-row">
-            <label className="pm-map-search-field">
-              <SearchIcon />
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search project, LGU, FY, program..."
-              />
-            </label>
+          <section
+            className={`pm-map-filter-card pm-unified-filter-panel ${
+              showFilters ? 'is-open' : ''
+            } ${hasActiveFilters ? 'has-active-filters' : ''}`}
+            aria-label="GIS Map filters"
+          >
+            <div className="pm-unified-filter-bar">
+              <div className="pm-unified-filter-summary">
+                <span className="pm-unified-filter-icon" aria-hidden="true">
+                  <FilterIcon />
+                </span>
 
-            <button
-              type="button"
-              className={`pm-map-filter-button ${showFilters ? 'is-active' : ''}`}
-              onClick={() => setShowFilters((current) => !current)}
-              aria-label="Show filters"
-              title="Show filters"
-            >
-              <FilterIcon />
-            </button>
-          </div>
+                <div className="pm-unified-filter-text">
+                  <p>Map filters</p>
+                  <strong>
+                    {[
+                      searchTerm.trim() ? `Search: ${searchTerm.trim()}` : '',
+                      programFilter !== 'All' ? programFilter : '',
+                      fundingYearFilter !== 'All' ? fundingYearFilter : '',
+                      provinceFilter !== 'All' ? provinceFilter : '',
+                      municipalityFilter !== 'All' ? municipalityFilter : '',
+                      statusFilter !== 'All' ? statusFilter : '',
+                      riskFilter !== 'All' ? riskFilter : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || 'All mapped projects'}
+                  </strong>
+                </div>
+              </div>
 
-          {showFilters && (
-            <div className="pm-map-filter-grid">
-              <label>
-                <span>Province/HUC</span>
-                <select
-                  value={provinceFilter}
-                  onChange={(event) => {
-                    setProvinceFilter(event.target.value)
-                    setMunicipalityFilter('All')
-                  }}
-                >
-                  {filterOptions.provinces.map((province) => (
-                    <option key={province} value={province}>
-                      {province === 'All' ? 'All Provinces/HUCs' : province}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="pm-unified-filter-actions">
+                <span>
+                  {displayedProjects.length} / {filteredProjects.length}
+                </span>
 
-              <label>
-                <span>Municipality / LGU</span>
-                <select
-                  value={municipalityFilter}
-                  onChange={(event) => setMunicipalityFilter(event.target.value)}
-                >
-                  {filterOptions.municipalities.map((municipality) => (
-                    <option key={municipality} value={municipality}>
-                      {municipality === 'All' ? 'All LGUs' : municipality}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Funding Year</span>
-                <select
-                  value={fundingYearFilter}
-                  onChange={(event) => setFundingYearFilter(event.target.value)}
-                >
-                  {filterOptions.fundingYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Program</span>
-                <select
-                  value={programFilter}
-                  onChange={(event) => setProgramFilter(event.target.value)}
-                >
-                  {filterOptions.programs.map((program) => (
-                    <option key={program === 'All' ? 'All Programs' : String(program).toUpperCase()} value={program === 'All' ? 'All Programs' : String(program).toUpperCase()}>
-                      {program === 'All' ? 'All Programs' : String(program).toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Status</span>
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                >
-                  {filterOptions.statuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Risk</span>
-                <select
-                  value={riskFilter}
-                  onChange={(event) => setRiskFilter(event.target.value)}
-                >
-                  {filterOptions.risks.map((risk) => (
-                    <option key={risk} value={risk}>
-                      {risk}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {hasActiveFilters && (
                 <button
                   type="button"
-                  className="pm-map-clear-button"
-                  onClick={clearFilters}
+                  className="pm-unified-filter-toggle"
+                  onClick={() => setShowFilters((current) => !current)}
+                  aria-expanded={showFilters}
                 >
-                  Clear Filters
+                  {showFilters ? 'Hide' : 'Filter'}
                 </button>
-              )}
+              </div>
             </div>
-          )}
+
+            <div className="pm-unified-filter-body" hidden={!showFilters}>
+              <label className="pm-unified-search-field">
+                <SearchIcon />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search project, LGU, FY, program..."
+                  aria-label="Search mapped projects"
+                />
+              </label>
+
+              <div className="pm-map-filter-grid pm-unified-filter-grid">
+                <label>
+                  <span>Province/HUC</span>
+                  <select
+                    value={provinceFilter}
+                    onChange={(event) => {
+                      setProvinceFilter(event.target.value)
+                      setMunicipalityFilter('All')
+                    }}
+                  >
+                    {filterOptions.provinces.map((province) => (
+                      <option key={province} value={province}>
+                        {province === 'All' ? 'All Provinces/HUCs' : province}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Municipality / LGU</span>
+                  <select
+                    value={municipalityFilter}
+                    onChange={(event) => setMunicipalityFilter(event.target.value)}
+                  >
+                    {filterOptions.municipalities.map((municipality) => (
+                      <option key={municipality} value={municipality}>
+                        {municipality === 'All' ? 'All LGUs' : municipality}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Funding Year</span>
+                  <select
+                    value={fundingYearFilter}
+                    onChange={(event) => setFundingYearFilter(event.target.value)}
+                  >
+                    {filterOptions.fundingYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Program</span>
+                  <select
+                    value={programFilter}
+                    onChange={(event) => setProgramFilter(event.target.value)}
+                  >
+                    {filterOptions.programs.map((program) => (
+                      <option key={program === 'All' ? 'All Programs' : String(program).toUpperCase()} value={program === 'All' ? 'All Programs' : String(program).toUpperCase()}>
+                        {program === 'All' ? 'All Programs' : String(program).toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                  >
+                    {filterOptions.statuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span>Risk</span>
+                  <select
+                    value={riskFilter}
+                    onChange={(event) => setRiskFilter(event.target.value)}
+                  >
+                    {filterOptions.risks.map((risk) => (
+                      <option key={risk} value={risk}>
+                        {risk}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {activeMapFilterCount > 0 && (
+                  <button
+                    type="button"
+                    className="pm-map-clear-button pm-unified-clear"
+                    onClick={clearFilters}
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
           </section>
         )}
 

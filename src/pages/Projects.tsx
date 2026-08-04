@@ -3,13 +3,14 @@ import {
   useMemo,
   useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
+import { supabase } from '../lib/supabase'
 import { offlineDb } from '../lib/offlineDb'
 import { useAuth } from '../context/AuthContext'
 import ActionMenu, { type ActionMenuItem } from '../components/ActionMenu'
 import { getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
 import '../styles/projects.css'
+import '../styles/unifiedFilters.css'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
 import { normalizeProgramName } from '../utils/program'
 import {
@@ -17,7 +18,7 @@ import {
   getCanonicalProjectProvinceOrHuc,
 } from '../data/region10Directory'
 
-type ProjectRow = SharedProjectRow & {
+type ProjectRow = {
   id: string
   project_name: string | null
   description: string | null
@@ -243,6 +244,54 @@ function UpdateIcon() {
 }
 
 
+function toOfflineProject(project: ProjectRow) {
+  return {
+    ...project,
+    id: project.id,
+    project_name: textValue(project.project_name) || 'Untitled Project',
+    status: getRegistryStatus(project),
+    municipality: textValue(project.municipality),
+    province: textValue(project.province),
+    barangay: textValue(project.barangay),
+    physical_accomplishment: toNumber(project.physical_accomplishment),
+    target_physical_accomplishment: project.target_physical_accomplishment ?? null,
+    target_physical_as_of: project.target_physical_as_of || '',
+    target_physical_source: project.target_physical_source || 'auto',
+    financial_accomplishment: toNumber(project.financial_accomplishment),
+    risk_level: getRegistryRisk(project),
+    project_type: textValue(project.project_type),
+    funding_source: textValue(project.funding_source),
+    funding_year: project.funding_year || '',
+    implementing_office: textValue(project.implementing_office),
+    contractor: textValue(project.contractor),
+    budget: project.budget || 0,
+    start_date: project.start_date || '',
+    target_completion_date: project.target_completion_date || '',
+    latitude: project.latitude || '',
+    longitude: project.longitude || '',
+    last_inspection_date: project.last_inspection_date || '',
+    updated_at: project.updated_at || '',
+    cached_at: new Date().toISOString(),
+  }
+}
+
+async function cacheProjectsForOffline(projects: ProjectRow[]) {
+  if (projects.length === 0) return
+
+  await offlineDb.projects.bulkPut(projects.map((project) => toOfflineProject(project)) as any[])
+}
+
+async function loadCachedProjects() {
+  const cachedProjects = (await offlineDb.projects.toArray()) as unknown as ProjectRow[]
+
+  return cachedProjects.sort((a, b) => {
+    const dateA = new Date(a.updated_at || '').getTime()
+    const dateB = new Date(b.updated_at || '').getTime()
+
+    return (Number.isFinite(dateB) ? dateB : 0) - (Number.isFinite(dateA) ? dateA : 0)
+  })
+}
+
 export default function Projects() {
   const navigate = useNavigate()
   const auth = useAuth() as any
@@ -250,12 +299,9 @@ export default function Projects() {
   const role = getCanonicalRole(auth?.profile?.role)
   const isROEngineer = Boolean(auth?.isROEngineer) || role === 'RO Engineer'
 
-  const {
-    projects,
-    loading,
-    errorMessage,
-    refreshProjects,
-  } = useSharedProjects<ProjectRow>()
+  const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('')
@@ -266,6 +312,10 @@ export default function Projects() {
   const [riskFilter, setRiskFilter] = useState('')
   const [isRegistryScrolled, setIsRegistryScrolled] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
+
+  useEffect(() => {
+    loadProjects()
+  }, [])
 
   useEffect(() => {
     const cleanupKey = 'pms10:aide-wizard:legacy-drafts-cleared:v1'
@@ -319,6 +369,51 @@ export default function Projects() {
       window.removeEventListener('scroll', handleScroll)
     }
   }, [])
+
+  async function loadProjects() {
+    try {
+      setLoading(true)
+      setErrorMessage('')
+
+      if (!navigator.onLine) {
+        const cachedProjects = await loadCachedProjects()
+        setProjects(cachedProjects)
+
+        if (cachedProjects.length === 0) {
+          setErrorMessage(
+            'No cached projects found on this device. Please open the Project Registry while online first.',
+          )
+        }
+
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('updated_at', { ascending: false })
+
+      if (error) throw error
+
+      const onlineProjects = (data || []) as ProjectRow[]
+      setProjects(onlineProjects)
+      await cacheProjectsForOffline(onlineProjects)
+    } catch (error) {
+      console.error(error)
+
+      const cachedProjects = await loadCachedProjects()
+
+      if (cachedProjects.length > 0) {
+        setProjects(cachedProjects)
+        setErrorMessage('')
+        return
+      }
+
+      setErrorMessage('Unable to load projects. Please check your connection.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   function clearFilters() {
     setSearchTerm('')
@@ -509,7 +604,7 @@ export default function Projects() {
       id: 'refresh-projects',
       label: 'Refresh Projects',
       icon: <RefreshIcon />,
-      onSelect: () => void refreshProjects(),
+      onSelect: loadProjects,
       tone: 'primary',
     },
     ...(isAdmin
@@ -554,7 +649,7 @@ export default function Projects() {
         <div className="projects-error-card">
           <h2>Projects Error</h2>
           <p>{errorMessage}</p>
-          <button type="button" onClick={() => void refreshProjects()}>
+          <button type="button" onClick={loadProjects}>
             Reload Projects
           </button>
         </div>
@@ -626,48 +721,65 @@ export default function Projects() {
         </div>
       </section>
 
-      <section className="projects-filter-card" aria-label="Search and filters">
-        <div className="projects-search-shell">
-          <span className="projects-search-icon" aria-hidden="true">
-            <SearchIcon />
-          </span>
+      <section
+        className={`projects-filter-card pm-unified-filter-panel ${
+          filtersOpen ? 'is-open' : ''
+        } ${activeFilterCount > 0 ? 'has-active-filters' : ''}`}
+        aria-label="Project Registry filters"
+      >
+        <div className="pm-unified-filter-bar">
+          <div className="pm-unified-filter-summary">
+            <span className="pm-unified-filter-icon" aria-hidden="true">
+              <FilterIcon />
+            </span>
 
-          <input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search project, LGU, program, status..."
-            aria-label="Search projects"
-          />
-
-          <button
-            type="button"
-            className={`projects-filter-toggle ${filtersOpen ? 'active' : ''}`}
-            onClick={() => setFiltersOpen((open) => !open)}
-            aria-label="Open project filters"
-            aria-expanded={filtersOpen}
-          >
-            <FilterIcon />
-            {activeFilterCount > 0 && (
-              <span className="projects-filter-badge">{activeFilterCount}</span>
-            )}
-          </button>
-        </div>
-
-        <div className="projects-filter-panel" hidden={!filtersOpen}>
-          <div className="projects-filter-panel-header">
-            <div>
-              <p className="projects-section-eyebrow">Advanced Filters</p>
-              <h2>Refine records</h2>
+            <div className="pm-unified-filter-text">
+              <p>Project filters</p>
+              <strong>
+                {[
+                  searchTerm.trim() ? `Search: ${searchTerm.trim()}` : '',
+                  programFilter,
+                  fundingYearFilter,
+                  provinceFilter,
+                  municipalityFilter,
+                  statusFilter,
+                  riskFilter,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'All projects'}
+              </strong>
             </div>
-
-            {activeFilterCount > 0 && (
-              <button type="button" className="projects-clear-btn" onClick={clearFilters}>
-                Clear
-              </button>
-            )}
           </div>
 
-          <div className="projects-filter-grid">
+          <div className="pm-unified-filter-actions">
+            <span>
+              {filteredProjects.length} / {allowedProjects.length}
+            </span>
+
+            <button
+              type="button"
+              className="pm-unified-filter-toggle"
+              onClick={() => setFiltersOpen((open) => !open)}
+              aria-expanded={filtersOpen}
+            >
+              {filtersOpen ? 'Hide' : 'Filter'}
+            </button>
+          </div>
+        </div>
+
+        <div className="pm-unified-filter-body" hidden={!filtersOpen}>
+          <label className="pm-unified-search-field">
+            <SearchIcon />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search project, LGU, program, status..."
+              aria-label="Search projects"
+            />
+          </label>
+
+          <div className="projects-filter-grid pm-unified-filter-grid">
             <label>
               Province/HUC
               <select
@@ -769,6 +881,12 @@ export default function Projects() {
                 ))}
               </select>
             </label>
+
+            {activeFilterCount > 0 && (
+              <button type="button" className="projects-clear-btn pm-unified-clear" onClick={clearFilters}>
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
       </section>

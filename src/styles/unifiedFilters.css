@@ -1,0 +1,256 @@
+/* =========================================================
+   PMS10 PHASE 5.17 — UNIFIED FILTER BAR
+   Dashboard-style compact filter bar for Project Registry,
+   GIS Map, and Reports.
+   ========================================================= */
+
+.pm-unified-filter-panel {
+  padding: 10px !important;
+  border: 1px solid rgba(23, 75, 135, 0.1) !important;
+  border-radius: 22px !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  box-shadow: 0 14px 30px rgba(15, 48, 87, 0.075) !important;
+}
+
+.pm-unified-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+}
+
+.pm-unified-filter-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pm-unified-filter-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #eff6ff;
+  color: #0f4c81;
+}
+
+.pm-unified-filter-icon svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+  margin: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pm-unified-filter-text {
+  min-width: 0;
+}
+
+.pm-unified-filter-text p {
+  margin: 0 0 3px !important;
+  color: #64748b !important;
+  font-size: 0.62rem !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.pm-unified-filter-text strong {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 950;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-unified-filter-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pm-unified-filter-actions > span {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 10px;
+  background: #eff6ff;
+  color: #0f4c81;
+  font-size: 0.72rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.pm-unified-filter-toggle {
+  min-height: 38px;
+  border: 0;
+  border-radius: 14px;
+  padding: 0 14px;
+  background: #0f4c81;
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 950;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(15, 76, 129, 0.16);
+}
+
+.pm-unified-filter-panel.has-active-filters .pm-unified-filter-toggle {
+  background: #ff6b2c;
+  box-shadow: 0 10px 20px rgba(255, 107, 44, 0.16);
+}
+
+.pm-unified-filter-body[hidden] {
+  display: none !important;
+}
+
+.pm-unified-filter-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.pm-unified-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.pm-unified-search-field svg {
+  position: absolute;
+  left: 14px;
+  z-index: 2;
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: #64748b;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.pm-unified-search-field input {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(23, 75, 135, 0.15);
+  border-radius: 14px;
+  outline: none;
+  padding: 0 14px 0 43px;
+  background: #f8fbff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.pm-unified-search-field input::placeholder {
+  color: #94a3b8;
+  font-weight: 750;
+}
+
+.pm-unified-search-field input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.pm-unified-filter-grid {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
+
+.pm-unified-clear {
+  align-self: end;
+  min-height: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+}
+
+.pm-unified-filter-info {
+  margin-top: 0 !important;
+  padding: 0 2px !important;
+}
+
+@media (max-width: 700px) {
+  .pm-unified-filter-panel {
+    padding: 9px !important;
+    border-radius: 20px !important;
+  }
+
+  .pm-unified-filter-bar {
+    gap: 8px;
+    min-height: 42px;
+  }
+
+  .pm-unified-filter-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 12px;
+  }
+
+  .pm-unified-filter-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .pm-unified-filter-text p {
+    font-size: 0.54rem !important;
+  }
+
+  .pm-unified-filter-text strong {
+    font-size: 0.78rem;
+  }
+
+  .pm-unified-filter-actions > span {
+    display: none;
+  }
+
+  .pm-unified-filter-toggle {
+    min-height: 36px;
+    border-radius: 16px;
+    padding: 0 12px;
+    font-size: 0.76rem;
+  }
+
+  .pm-unified-filter-body {
+    gap: 9px;
+    margin-top: 9px;
+    padding-top: 9px;
+  }
+
+  .pm-unified-search-field input {
+    height: 42px;
+    min-height: 42px;
+    border-radius: 13px;
+    font-size: 0.82rem;
+  }
+
+  .projects-filter-grid.pm-unified-filter-grid,
+  .pm-map-filter-grid.pm-unified-filter-grid,
+  .reports-filter-grid.pm-unified-filter-grid {
+    grid-template-columns: 1fr !important;
+    gap: 9px !important;
+  }
+}
