@@ -41,8 +41,63 @@ export default function ActionMenu({
   className = '',
 }: ActionMenuProps) {
   const [open, setOpen] = useState(false)
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const viewportHeightBaselineRef = useRef(0)
   const visibleItems = items.filter((item) => !item.hidden)
+
+  useEffect(() => {
+    const visualViewport = window.visualViewport
+    if (!visualViewport) return
+
+    const isEditableElement = (element: Element | null) => {
+      if (!(element instanceof HTMLElement)) return false
+      if (element.isContentEditable) return true
+      return element.matches('input, textarea, select, [role="textbox"]')
+    }
+
+    viewportHeightBaselineRef.current = Math.max(
+      viewportHeightBaselineRef.current,
+      visualViewport.height,
+    )
+
+    const updateKeyboardState = () => {
+      const editing = isEditableElement(document.activeElement)
+
+      if (!editing) {
+        viewportHeightBaselineRef.current = Math.max(
+          viewportHeightBaselineRef.current,
+          visualViewport.height,
+        )
+        setKeyboardOpen(false)
+        return
+      }
+
+      const heightLoss = Math.max(
+        0,
+        viewportHeightBaselineRef.current - visualViewport.height,
+      )
+
+      setKeyboardOpen(heightLoss >= 120)
+    }
+
+    const handleFocusOut = () => {
+      window.setTimeout(updateKeyboardState, 100)
+    }
+
+    updateKeyboardState()
+    visualViewport.addEventListener('resize', updateKeyboardState)
+    window.addEventListener('focusin', updateKeyboardState)
+    window.addEventListener('focusout', handleFocusOut)
+    window.addEventListener('orientationchange', updateKeyboardState)
+
+    return () => {
+      visualViewport.removeEventListener('resize', updateKeyboardState)
+      window.removeEventListener('focusin', updateKeyboardState)
+      window.removeEventListener('focusout', handleFocusOut)
+      window.removeEventListener('orientationchange', updateKeyboardState)
+    }
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -82,7 +137,7 @@ export default function ActionMenu({
 
       <div
         ref={rootRef}
-        className={`pms-action-menu ${open ? 'is-open' : 'is-closed'} ${className}`.trim()}
+        className={`pms-action-menu ${open ? 'is-open' : 'is-closed'} ${keyboardOpen ? 'is-keyboard-open' : ''} ${className}`.trim()}
       >
       {open && (
         <div className="pms-action-menu-panel" role="menu" aria-label={ariaLabel}>

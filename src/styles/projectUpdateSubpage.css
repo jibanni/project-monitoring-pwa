@@ -1384,3 +1384,94 @@
     width: 100% !important;
   }
 }
+
+/* PMS10 PHASE 5.9 — SINGLE PHOTO SOURCE PAIR START */
+.pu-update-subpage-system .pu-add-finding-row-btn {
+  min-height: 2.8rem !important;
+  margin: 0 !important;
+  padding: 0.65rem 0.9rem !important;
+  border: 0 !important;
+  border-radius: 0.8rem !important;
+  background: #e8f1fb !important;
+  color: #0f5ca8 !important;
+  font: inherit !important;
+  font-size: 0.86rem !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+}
+
+.pu-update-subpage-system .pu-add-finding-row-btn:disabled {
+  opacity: 0.55 !important;
+  cursor: default !important;
+}
+
+@media (max-width: 560px) {
+  .pu-update-subpage-system .pu-photo-source-actions,
+  .pu-update-subpage-system .pu-supporting-photo-source-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.55rem !important;
+  }
+
+  .pu-update-subpage-system .pu-photo-source-btn,
+  .pu-update-subpage-system .pu-gallery-select-btn {
+    min-height: 3.2rem !important;
+    padding: 0.65rem 0.45rem !important;
+    gap: 0.4rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  .pu-update-subpage-system .pu-photo-source-btn svg,
+  .pu-update-subpage-system .pu-gallery-select-btn svg {
+    width: 1.05rem !important;
+    height: 1.05rem !important;
+    flex-basis: 1.05rem !important;
+  }
+}
+/* PMS10 PHASE 5.9 — SINGLE PHOTO SOURCE PAIR END */
+
+
+/* PMS10 PHASE 5.10 — SINGLE TOP PHOTO PAIR START */
+.pu-update-subpage-system .pu-photo-finding-toolbar {
+  grid-template-columns: 1fr !important;
+  align-items: stretch !important;
+  gap: 0.85rem !important;
+}
+
+.pu-update-subpage-system .pu-single-finding-photo-actions {
+  position: sticky !important;
+  top: calc(var(--app-header-live-h, 74px) + 0.5rem) !important;
+  z-index: 6 !important;
+  width: 100% !important;
+  padding: 0.55rem !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border-radius: 1rem !important;
+  background: rgba(248, 251, 255, 0.96) !important;
+  box-shadow: 0 10px 24px rgba(15, 54, 96, 0.10) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-empty {
+  margin-top: 1rem !important;
+  text-align: center !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-list {
+  margin-top: 1rem !important;
+}
+
+/* The card-level source controls were removed. Keep them hidden if an old
+   cached DOM tree briefly survives a service-worker update. */
+.pu-update-subpage-system .pu-supporting-photo-source-actions,
+.pu-update-subpage-system .pu-add-finding-row-btn {
+  display: none !important;
+}
+
+@media (max-width: 560px) {
+  .pu-update-subpage-system .pu-single-finding-photo-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.55rem !important;
+  }
+}
+/* PMS10 PHASE 5.10 — SINGLE TOP PHOTO PAIR END */

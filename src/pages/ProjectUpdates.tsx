@@ -3,7 +3,7 @@ import { createPortal } from'react-dom'
 import type { ChangeEvent, FormEvent, KeyboardEvent } from'react'
 import { Link, useLocation, useNavigate, useParams } from'react-router-dom'
 import { supabase } from'../lib/supabase'
-import { aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
+import { aideMemoireDocumentToBlob, aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
 import { useAuth } from'../context/AuthContext'
 import {
   formatProgressInput,
@@ -81,6 +81,37 @@ type ProjectRecord = {
 
 type ProjectUpdateRouteState = {
   project?: ProjectRecord | null
+}
+
+
+function isIosLikeDevice() {
+  if (typeof navigator === 'undefined') return false
+
+  const userAgent = navigator.userAgent || ''
+  const platform = navigator.platform || ''
+
+  return /iPad|iPhone|iPod/i.test(userAgent) ||
+    (platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+function openPdfOutsideCurrentApp(documentRecord: OfflineAideMemoireDocument) {
+  const objectUrl = URL.createObjectURL(aideMemoireDocumentToBlob(documentRecord))
+  const link = document.createElement('a')
+
+  link.href = objectUrl
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  link.setAttribute('aria-hidden', 'true')
+  link.style.position = 'fixed'
+  link.style.left = '-9999px'
+
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+
+  // Keep the object URL alive long enough for iOS Quick Look/Safari to finish
+  // claiming the file. Revoking immediately can leave a blank or frozen view.
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 5 * 60 * 1000)
 }
 
 type ProjectUpdateRecord = {
@@ -1849,6 +1880,21 @@ export default function ProjectUpdates() {
   function viewLatestProjectPdf() {
     if (!id || !latestPdfRecord) return
 
+    const activeElement = document.activeElement
+    if (activeElement instanceof HTMLElement) activeElement.blur()
+
+    // iOS PWA/WebKit can freeze when a Blob PDF is embedded in an iframe.
+    // Open the local PDF in the native Safari/Quick Look viewer instead and
+    // leave the Project Update page alive in the app.
+    if (isIosLikeDevice()) {
+      try {
+        openPdfOutsideCurrentApp(latestPdfRecord)
+        return
+      } catch (openError) {
+        console.error('Unable to open the latest PDF in the native viewer.', openError)
+      }
+    }
+
     const params = new URLSearchParams({
       documentId: latestPdfRecord.id,
       from: 'update',
@@ -2317,13 +2363,7 @@ export default function ProjectUpdates() {
     })
 
     if (mapped.length > 0) {
-      window.requestAnimationFrame(() => {
-        window.setTimeout(() => {
-          const input = findingInputRefs.current[targetId as string]
-          input?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          input?.focus({ preventScroll: true })
-        }, 0)
-      })
+      setMessage((current) => current || `${mapped.length} finding photo(s) added to the list.`)
     }
   }
 
@@ -3782,15 +3822,16 @@ export default function ProjectUpdates() {
 
               {!noFindingsObserved && (
                 <>
-                  <div className="pu-photo-finding-intro">
+                  <div className="pu-photo-finding-intro pu-photo-finding-toolbar">
                     <div>
-                      <h3>Capture a Finding</h3>
-                      <p>Take a photo, then encode the finding, recommendation, timeline, and remarks.</p>
+                      <h3>Photo Evidence</h3>
+                      <p>Capture a new photo or upload existing photos. Every selection is appended to the list below.</p>
                     </div>
-                    <div className="pu-photo-source-actions">
+
+                    <div className="pu-photo-source-actions pu-single-finding-photo-actions">
                       <label className="pu-camera-capture-btn pu-photo-source-btn">
                         <IconCamera />
-                        <span>Use Camera</span>
+                        <span>Capture Photo</span>
                         <input
                           type="file"
                           accept="image/*,.heic,.heif"
@@ -3802,10 +3843,10 @@ export default function ProjectUpdates() {
 
                       <label className="pu-gallery-select-btn pu-photo-source-btn">
                         <IconGallery />
-                        <span>Choose from Gallery</span>
+                        <span>Upload from Gallery</span>
                         <input
                           type="file"
-                          accept="image/*,.heic,.heif"
+                          accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
                           multiple
                           onChange={(event) => void handleFindingPhotoSelect(event, undefined, false)}
                           disabled={saving || photoProcessing}
@@ -3814,164 +3855,144 @@ export default function ProjectUpdates() {
                     </div>
                   </div>
 
-                  <div className="pu-aide-row-list pu-photo-finding-list">
-                    {aideFindings.map((row, index) => {
-                      const linkedPhotos = photoInputs.filter((photo) => (row.photo_refs || []).includes(photo.id))
-                      return (
-                        <article className="pu-aide-edit-row pu-photo-finding-card" key={row.id}>
-                          <div className="pu-aide-row-title">
-                            <div>
-                              <strong>Finding {index + 1}</strong>
-                              <small>{linkedPhotos.length} supporting photo{linkedPhotos.length === 1 ? '' : 's'}</small>
+                  {aideFindings.filter(hasAideFindingContent).length === 0 ? (
+                    <div className="pu-photo-empty pu-finding-photo-empty">
+                      No finding photos added yet. Use Capture Photo or Upload from Gallery above.
+                    </div>
+                  ) : (
+                    <div className="pu-aide-row-list pu-photo-finding-list">
+                      {aideFindings.filter(hasAideFindingContent).map((row, index) => {
+                        const linkedPhotos = photoInputs.filter((photo) => (row.photo_refs || []).includes(photo.id))
+                        return (
+                          <article className="pu-aide-edit-row pu-photo-finding-card" key={row.id}>
+                            <div className="pu-aide-row-title">
+                              <div>
+                                <strong>Finding {index + 1}</strong>
+                                <small>{linkedPhotos.length} photo{linkedPhotos.length === 1 ? '' : 's'} in this finding</small>
+                              </div>
+                              <button
+                                type="button"
+                                className="danger"
+                                onClick={() => {
+                                  const linkedIds = new Set(linkedPhotos.map((photo) => photo.id))
+                                  setPhotoInputs((photos) => {
+                                    photos.filter((photo) => linkedIds.has(photo.id)).forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
+                                    return photos.filter((photo) => !linkedIds.has(photo.id))
+                                  })
+                                  setAideFindings((rows) => {
+                                    const next = rows.filter((item) => item.id !== row.id)
+                                    return next.length ? next : [createBlankAideFinding()]
+                                  })
+                                }}
+                              >
+                                Remove
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              className="danger"
-                              onClick={() => {
-                                const linkedIds = new Set(linkedPhotos.map((photo) => photo.id))
-                                setPhotoInputs((photos) => {
-                                  photos.filter((photo) => linkedIds.has(photo.id)).forEach((photo) => URL.revokeObjectURL(photo.previewUrl))
-                                  return photos.filter((photo) => !linkedIds.has(photo.id))
-                                })
-                                setAideFindings((rows) => {
-                                  const next = rows.filter((item) => item.id !== row.id)
-                                  return next.length ? next : [createBlankAideFinding()]
-                                })
-                              }}
-                            >
-                              Remove
-                            </button>
-                          </div>
 
-                          <div className="pu-finding-photo-strip">
-                            {linkedPhotos.map((photo, photoIndex) => {
-                              const coordinates = getPhotoCoordinatePair(photo.latitude, photo.longitude)
-                              return (
-                                <div className="pu-finding-photo-item" key={photo.id}>
-                                  <div className="pu-finding-photo-preview" style={{ backgroundImage: `url(${photo.previewUrl})` }} />
-                                  <div>
-                                    <strong>Photo {photoIndex + 1}</strong>
-                                    <span>
-                                      {coordinates
-                                        ? `${coordinates.latitude.toFixed(7)}, ${coordinates.longitude.toFixed(7)}`
-                                        : 'GPS not available'}
-                                    </span>
-                                  </div>
-                                  <div className="pu-finding-photo-actions">
-                                    {!coordinates ? (
+                            <div className="pu-finding-photo-strip">
+                              {linkedPhotos.map((photo, photoIndex) => {
+                                const coordinates = getPhotoCoordinatePair(photo.latitude, photo.longitude)
+                                return (
+                                  <div className="pu-finding-photo-item" key={photo.id}>
+                                    <div className="pu-finding-photo-preview" style={{ backgroundImage: `url(${photo.previewUrl})` }} />
+                                    <div>
+                                      <strong>Photo {photoIndex + 1}</strong>
+                                      <span>
+                                        {coordinates
+                                          ? `${coordinates.latitude.toFixed(7)}, ${coordinates.longitude.toFixed(7)}`
+                                          : 'GPS not available'}
+                                      </span>
+                                    </div>
+                                    <div className="pu-finding-photo-actions">
+                                      {!coordinates ? (
+                                        <button
+                                          type="button"
+                                          className="pu-photo-gps-btn"
+                                          onClick={() => void retryPhotoGps(photo.id)}
+                                          disabled={photoProcessing || saving}
+                                        >
+                                          Retry GPS
+                                        </button>
+                                      ) : null}
                                       <button
                                         type="button"
-                                        className="pu-photo-gps-btn"
-                                        onClick={() => void retryPhotoGps(photo.id)}
-                                        disabled={photoProcessing || saving}
+                                        className="pu-photo-remove-btn"
+                                        onClick={() => removePhoto(photo.id)}
                                       >
-                                        Retry GPS
+                                        Remove
                                       </button>
-                                    ) : null}
-                                    <button
-                                      type="button"
-                                      className="pu-photo-remove-btn"
-                                      onClick={() => removePhoto(photo.id)}
-                                    >
-                                      Remove
-                                    </button>
+                                    </div>
                                   </div>
-                                </div>
-                              )
-                            })}
+                                )
+                              })}
+                            </div>
 
-                            <div className="pu-supporting-photo-source-actions">
-                              <label className="pu-add-supporting-photo-btn pu-photo-source-btn">
-                                <IconCamera />
-                                <span>Use Camera</span>
+                            <label className="pu-field pu-full-field">
+                              <span>Finding</span>
+                              <textarea
+                                ref={(element) => {
+                                  findingInputRefs.current[row.id] = element
+                                }}
+                                value={row.finding}
+                                onChange={(event) =>
+                                  setAideFindings((rows) =>
+                                    rows.map((item) => item.id === row.id ? { ...item, finding: event.target.value } : item),
+                                  )
+                                }
+                                placeholder="Observed issue, defect, delay cause, or field finding"
+                              />
+                            </label>
+
+                            <label className="pu-field pu-full-field">
+                              <span>Recommendation</span>
+                              <textarea
+                                value={row.recommendation}
+                                onChange={(event) =>
+                                  setAideFindings((rows) =>
+                                    rows.map((item) => item.id === row.id ? { ...item, recommendation: event.target.value } : item),
+                                  )
+                                }
+                                placeholder="Required corrective action or recommendation"
+                              />
+                            </label>
+
+                            <div className="pu-aide-two-column">
+                              <label className="pu-field">
+                                <span>Timeline Date</span>
                                 <input
-                                  type="file"
-                                  accept="image/*,.heic,.heif"
-                                  capture="environment"
-                                  onChange={(event) => void handleFindingPhotoSelect(event, row.id, true)}
-                                  disabled={saving || photoProcessing}
+                                  type="date"
+                                  value={row.timeline}
+                                  onChange={(event) =>
+                                    setAideFindings((rows) =>
+                                      rows.map((item) => item.id === row.id ? { ...item, timeline: event.target.value } : item),
+                                    )
+                                  }
                                 />
                               </label>
 
-                              <label className="pu-gallery-select-btn pu-photo-source-btn">
-                                <IconGallery />
-                                <span>Choose from Gallery</span>
+                              <label className="pu-field">
+                                <span>Remarks</span>
                                 <input
-                                  type="file"
-                                  accept="image/*,.heic,.heif"
-                                  multiple
-                                  onChange={(event) => void handleFindingPhotoSelect(event, row.id, false)}
-                                  disabled={saving || photoProcessing}
+                                  type="text"
+                                  value={row.remarks}
+                                  onChange={(event) =>
+                                    setAideFindings((rows) =>
+                                      rows.map((item) => item.id === row.id ? { ...item, remarks: event.target.value } : item),
+                                    )
+                                  }
+                                  placeholder="Optional current action or status"
                                 />
                               </label>
                             </div>
-                          </div>
 
-                          <label className="pu-field pu-full-field">
-                            <span>Finding</span>
-                            <textarea
-                              ref={(element) => {
-                                findingInputRefs.current[row.id] = element
-                              }}
-                              value={row.finding}
-                              onChange={(event) =>
-                                setAideFindings((rows) =>
-                                  rows.map((item) => item.id === row.id ? { ...item, finding: event.target.value } : item),
-                                )
-                              }
-                              placeholder="Observed issue, defect, delay cause, or field finding"
-                            />
-                          </label>
-
-                          <label className="pu-field pu-full-field">
-                            <span>Recommendation</span>
-                            <textarea
-                              value={row.recommendation}
-                              onChange={(event) =>
-                                setAideFindings((rows) =>
-                                  rows.map((item) => item.id === row.id ? { ...item, recommendation: event.target.value } : item),
-                                )
-                              }
-                              placeholder="Required corrective action or recommendation"
-                            />
-                          </label>
-
-                          <div className="pu-aide-two-column">
-                            <label className="pu-field">
-                              <span>Timeline Date</span>
-                              <input
-                                type="date"
-                                value={row.timeline}
-                                onChange={(event) =>
-                                  setAideFindings((rows) =>
-                                    rows.map((item) => item.id === row.id ? { ...item, timeline: event.target.value } : item),
-                                  )
-                                }
-                              />
-                            </label>
-
-                            <label className="pu-field">
-                              <span>Remarks</span>
-                              <input
-                                type="text"
-                                value={row.remarks}
-                                onChange={(event) =>
-                                  setAideFindings((rows) =>
-                                    rows.map((item) => item.id === row.id ? { ...item, remarks: event.target.value } : item),
-                                  )
-                                }
-                                placeholder="Optional current action or status"
-                              />
-                            </label>
-                          </div>
-
-                          <div className="pu-coordinate-note">
-                            GPS coordinates from linked photos will be added automatically to the Aide Memoire Remarks column.
-                          </div>
-                        </article>
-                      )
-                    })}
-                  </div>
+                            <div className="pu-coordinate-note">
+                              GPS coordinates from linked photos will be added automatically to the Aide Memoire Remarks column.
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -4089,7 +4110,7 @@ export default function ProjectUpdates() {
                 <div className="pu-photo-source-actions pu-optional-photo-source-actions">
                   <label className="pu-camera-capture-btn pu-photo-source-btn">
                     <IconCamera />
-                    <span>Use Camera</span>
+                    <span>Capture Photo</span>
                     <input
                       type="file"
                       accept="image/*,.heic,.heif"
@@ -4101,10 +4122,10 @@ export default function ProjectUpdates() {
 
                   <label className="pu-gallery-select-btn pu-photo-source-btn">
                     <IconGallery />
-                    <span>Choose from Gallery</span>
+                    <span>Upload from Gallery</span>
                     <input
                       type="file"
-                      accept="image/*,.heic,.heif"
+                      accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
                       multiple
                       onChange={(event) => void handlePhotoSelect(event, false)}
                       disabled={saving || photoProcessing}

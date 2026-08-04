@@ -291,3 +291,26 @@
     transition: none !important;
   }
 }
+
+
+/* PMS10 PHASE 5.10 — KEYBOARD-STABLE ACTION FAB START
+   Fixed elements already follow the iOS visual viewport. While the keyboard is
+   visible, remove the normal navbar clearance so the orange launcher sits just
+   above the keyboard. Keyboard state is based on viewport height only, so
+   visualViewport scrolling cannot make the FAB wander. */
+@media (max-width: 900px) {
+  .pms-action-menu {
+    transition: bottom 180ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+
+  .pms-action-menu.is-keyboard-open {
+    bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (max-width: 900px) {
+  .pms-action-menu {
+    transition: none !important;
+  }
+}
+/* PMS10 PHASE 5.10 — KEYBOARD-STABLE ACTION FAB END */
