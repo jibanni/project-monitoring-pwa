@@ -17,6 +17,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Projects = lazy(() => import('./pages/Projects'))
 const ProjectDetails = lazy(() => import('./pages/ProjectDetails'))
 const ProjectUpdates = lazy(() => import('./pages/ProjectUpdates'))
+const AideMemoirePdfViewer = lazy(() => import('./pages/AideMemoirePdfViewer'))
 const CreateProject = lazy(() => import('./pages/CreateProject'))
 const EditProject = lazy(() => import('./pages/EditProject'))
 const ProjectMap = lazy(() => import('./pages/ProjectMap'))
@@ -206,6 +207,15 @@ function App() {
             element={
               <ProtectedLayout allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'PEO', 'Engineer']}>
                 <ProjectUpdates />
+              </ProtectedLayout>
+            }
+          />
+
+          <Route
+            path="/projects/:id/aide-memoire/pdf"
+            element={
+              <ProtectedLayout>
+                <AideMemoirePdfViewer />
               </ProtectedLayout>
             }
           />

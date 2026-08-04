@@ -1236,3 +1236,63 @@
     font-size: 0.8125rem !important;
   }
 }
+
+/* PMS10 iOS stability: a dedicated three-column loading indicator.
+   The unique class names isolate it from older generic dot rules. */
+.pu-update-subpage-system .pu-main-save-label {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+}
+
+.pu-update-subpage-system .pms10-save-dots {
+  display: inline-grid !important;
+  grid-template-columns: repeat(3, 0.34rem) !important;
+  grid-template-rows: 0.4rem !important;
+  grid-auto-flow: column !important;
+  align-items: center !important;
+  justify-items: center !important;
+  column-gap: 0.18rem !important;
+  width: 1.38rem !important;
+  min-width: 1.38rem !important;
+  height: 0.4rem !important;
+  min-height: 0.4rem !important;
+  margin: 0 0 0 0.42rem !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  vertical-align: middle !important;
+  line-height: 0 !important;
+}
+
+.pu-update-subpage-system .pms10-save-dot {
+  all: unset !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  position: static !important;
+  width: 0.32rem !important;
+  min-width: 0.32rem !important;
+  max-width: 0.32rem !important;
+  height: 0.32rem !important;
+  min-height: 0.32rem !important;
+  max-height: 0.32rem !important;
+  border-radius: 999px !important;
+  background: currentColor !important;
+  opacity: 0.35;
+  animation: pms10-save-dot-pulse 0.9s ease-in-out infinite !important;
+}
+
+.pu-update-subpage-system .pms10-save-dot:nth-child(2) {
+  animation-delay: 0.14s !important;
+}
+
+.pu-update-subpage-system .pms10-save-dot:nth-child(3) {
+  animation-delay: 0.28s !important;
+}
+
+@keyframes pms10-save-dot-pulse {
+  0%, 70%, 100% { opacity: 0.3; transform: translateY(0) scale(0.82); }
+  35% { opacity: 1; transform: translateY(-0.1rem) scale(1); }
+}

@@ -5,7 +5,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { aideMemoireDocumentToBlob, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, type OfflineAideMemoire, type OfflineAideMemoireDocument } from '../lib/offlineDb'
+import { getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, type OfflineAideMemoire, type OfflineAideMemoireDocument } from '../lib/offlineDb'
 import { getComputedRiskLevel, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
@@ -746,20 +746,15 @@ export default function ProjectDetails() {
   }
 
   function openLatestGeneratedAidePdf() {
-    if (!latestGeneratedAidePdf) return
+    if (!id || !latestGeneratedAidePdf) return
 
-    const pdfBlob = aideMemoireDocumentToBlob(latestGeneratedAidePdf)
-    const url = URL.createObjectURL(pdfBlob)
-    const opened = window.open(url, '_blank', 'noopener,noreferrer')
+    const params = new URLSearchParams({
+      documentId: latestGeneratedAidePdf.id,
+      from: 'details',
+      returnTo: `/projects/${id}`,
+    })
 
-    if (!opened) {
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = latestGeneratedAidePdf.file_name || 'Aide_Memoire.pdf'
-      anchor.click()
-    }
-
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    navigate(`/projects/${id}/aide-memoire/pdf?${params.toString()}`)
   }
 
   function goToMap() {
@@ -1309,6 +1304,7 @@ export default function ProjectDetails() {
           projectId={id}
           updateRef={aideGenerationRequest.updateRef}
           source={aideGenerationRequest.source}
+          returnTo={`/projects/${id}`}
           onClose={() => setAideGenerationRequest(null)}
           onGenerated={loadAideMemoireDrafts}
         />
