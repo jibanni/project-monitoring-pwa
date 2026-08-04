@@ -430,6 +430,7 @@ export default function Layout({ children }: LayoutProps) {
         'app-header',
         isScrolled ? 'app-header-scrolled' : '',
         isProjectUpdatePath(location.pathname) ? 'app-header-project-update' : '',
+        isProjectDetailsPath(location.pathname) ? 'app-header-project-details' : '',
       ]
         .filter(Boolean)
         .join(' ')}

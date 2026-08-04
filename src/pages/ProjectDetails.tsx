@@ -11,6 +11,7 @@ import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
 import { normalizeProgramName } from '../utils/program'
 import '../styles/projectDetails.css'
+import '../styles/projectDetailsUnifiedHero.css'
 import '../styles/pageHero.css'
 import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveImageUrl'
 import ActionMenu from '../components/ActionMenu'
@@ -118,6 +119,31 @@ function normalizeClassName(value: unknown) {
     .replace(/(^-|-$)/g, '')
 
   return normalized || 'unknown'
+}
+
+
+function toLocationTitleCase(value?: string | null) {
+  const normalized = String(value ?? '').trim().replace(/\s+/g, ' ')
+
+  if (!normalized) return ''
+
+  return normalized
+    .toLocaleLowerCase('en-PH')
+    .replace(/(^|[\s,./()\-–—])([a-z])/g, (_match, separator: string, letter: string) => {
+      return `${separator}${letter.toLocaleUpperCase('en-PH')}`
+    })
+    .replace(/\bLgu\b/g, 'LGU')
+    .replace(/\bHuc\b/g, 'HUC')
+    .replace(/\bCdo\b/g, 'CDO')
+}
+
+function getDetailsHeroTitleSizeClass(value?: string | null) {
+  const length = String(value ?? '').trim().length
+
+  if (length <= 24) return 'pd-unified-title-short'
+  if (length <= 42) return 'pd-unified-title-medium'
+  if (length <= 68) return 'pd-unified-title-long'
+  return 'pd-unified-title-extra-long'
 }
 
 function sanitizeFileName(value: string) {
@@ -519,10 +545,32 @@ export default function ProjectDetails() {
   )
 
   const displayStatus = getProjectDisplayStatus(project)
-  const statusClass = normalizeClassName(displayStatus)
   const varianceInfo = getTargetPhysicalInfo(project)
   const computedRiskLevel = getComputedRiskLevel(project)
-  const riskClass = normalizeClassName(computedRiskLevel)
+  const normalizedHeroRisk = String(computedRiskLevel ?? '').trim().toLowerCase()
+  const heroRiskLabel =
+    !normalizedHeroRisk || normalizedHeroRisk === 'none' || normalizedHeroRisk === 'no risk'
+      ? 'No Risk'
+      : computedRiskLevel
+  const heroRiskTone = normalizedHeroRisk.includes('high')
+    ? 'high'
+    : normalizedHeroRisk.includes('moderate') || normalizedHeroRisk.includes('medium')
+      ? 'moderate'
+      : normalizedHeroRisk.includes('low')
+        ? 'low'
+        : 'none'
+  const heroVarianceTone = varianceInfo.className === 'behind'
+    ? 'negative'
+    : varianceInfo.className === 'ahead'
+      ? 'positive'
+      : 'neutral'
+  const heroLocation = [
+    toLocationTitleCase(project?.barangay),
+    toLocationTitleCase(project?.municipality),
+    toLocationTitleCase(project?.province),
+  ]
+    .filter(Boolean)
+    .join(', ') || 'Location Not Available'
   const canUpdateCurrentProject = project ? canUpdateProject(project, auth) : false
   const canEditCurrentProject = project ? canEditProjectRecord(project, auth) : false
 
@@ -823,58 +871,48 @@ export default function ProjectDetails() {
 
   return (
     <div className={`pd-page ${isHeroCompact ? 'is-pd-scrolled' : ''}`}>
+      <header className="pd-hero pd-unified-hero">
+        <div className="pd-unified-hero-content">
+          <p className="pd-unified-hero-eyebrow">Project Details</p>
+          <h1
+            className={`pd-unified-hero-title ${getDetailsHeroTitleSizeClass(project?.project_name)}`}
+            title={getDisplayValue(project.project_name, 'Untitled Project')}
+          >
+            {getDisplayValue(project.project_name, 'Untitled Project')}
+          </h1>
+
+          <p className="pd-unified-hero-location" aria-label="Project location">
+            {heroLocation}
+          </p>
+
+          <p className="pd-unified-hero-monitoring" aria-label="Project status, variance, and risk">
+            <span className="pd-unified-hero-monitoring__value pd-unified-hero-monitoring__status">
+              {displayStatus}
+            </span>
+            <span className="pd-unified-hero-monitoring__separator" aria-hidden="true">•</span>
+            <span
+              className="pd-unified-hero-monitoring__value pd-unified-hero-monitoring__variance"
+              data-tone={heroVarianceTone}
+            >
+              {varianceInfo.compactLabel}
+            </span>
+            <span className="pd-unified-hero-monitoring__separator" aria-hidden="true">•</span>
+            <span
+              className="pd-unified-hero-monitoring__value pd-unified-hero-monitoring__risk"
+              data-tone={heroRiskTone}
+            >
+              {heroRiskLabel}
+            </span>
+          </p>
+        </div>
+      </header>
+
       {dataSource === 'offline' && (
         <div className="pd-offline-banner">
           <strong>Offline Mode:</strong> You are viewing cached project details. Online
           photo gallery is unavailable while offline.
         </div>
       )}
-
-      <header className="pd-hero">
-        <div className="pd-hero-main">
-          <div className="pd-title-block">
-            <p className="pd-eyebrow">DETAILS</p>
-            <h1>{getDisplayValue(project.project_name, 'Untitled Project')}</h1>
-
-            <div className="pd-hero-meta">
-              <span>{getDisplayValue(project.province)}</span>
-              <span>{getDisplayValue(project.municipality)}</span>
-              <span>{getDisplayValue(project.barangay)}</span>
-            </div>
-
-            {subayCode && (
-              <div className="pd-subay-code-row">
-                <span className="pd-subay-code-pill">
-                  <span>Subay Code:</span>
-                  <strong>{subayCode}</strong>
-                </span>
-                <button
-                  type="button"
-                  className="pd-subay-copy-btn"
-                  onClick={handleCopySubayCode}
-                  aria-label="Copy SubayBAYAN project code"
-                  title="Copy Subay Code"
-                >
-                  <IconCopy />
-                </button>
-                {copiedSubayCode && <span className="pd-subay-copy-note">Copied</span>}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="pd-status-panel">
-          <span className={`pd-status-badge pd-status-${statusClass}`}>
-            {displayStatus}
-          </span>
-          <span className={`pd-variance-badge ${varianceInfo.className}`}>
-            {varianceInfo.compactLabel}
-          </span>
-          <span className={`pd-risk-badge pd-risk-${riskClass}`}>
-            {computedRiskLevel}
-          </span>
-        </div>
-      </header>
 
       <section className="pd-summary-grid">
         <article className="pd-summary-card">
@@ -918,6 +956,25 @@ export default function ProjectDetails() {
             </div>
 
             <div className="pd-info-grid">
+              {subayCode && (
+                <div className="pd-info-item pd-subay-info-item">
+                  <span>SubayBAYAN Project Code</span>
+                  <div className="pd-subay-info-value">
+                    <strong>{subayCode}</strong>
+                    <button
+                      type="button"
+                      className="pd-subay-info-copy"
+                      onClick={handleCopySubayCode}
+                      aria-label="Copy SubayBAYAN project code"
+                      title="Copy SubayBAYAN project code"
+                    >
+                      <IconCopy />
+                    </button>
+                    {copiedSubayCode && <small>Copied</small>}
+                  </div>
+                </div>
+              )}
+
               <div className="pd-info-item">
                 <span>Project Type</span>
                 <strong>{getDisplayValue(project.project_type)}</strong>

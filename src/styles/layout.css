@@ -3205,3 +3205,21 @@ body > .app-header.app-header-project-update.app-header-scrolled {
 .app-shell.app-project-updates-route .app-main {
   padding-top: 0 !important;
 }
+
+/* =========================================================
+   PROJECT DETAILS — UNIFIED MAIN HEADER + HERO
+   Matches the Project Update route header treatment.
+   ========================================================= */
+body > .app-header.app-header-project-details,
+body > .app-header.app-header-project-details.app-header-scrolled {
+  background: var(--app-header-gradient) !important;
+  background-image: var(--app-header-gradient) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.92) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.app-shell.app-project-details-route .app-main {
+  padding-top: 0 !important;
+}
+
