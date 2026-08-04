@@ -328,11 +328,25 @@ export default function Layout({ children }: LayoutProps) {
   }, [])
 
   useEffect(() => {
-    const lightweightPaths = visibleNavItems
-      .filter((item) => item.key === 'projects' || item.key === 'reports')
+    // Reports is the heaviest navbar route. Warm its module shortly after the
+    // authenticated shell paints instead of waiting for Android WebView's
+    // requestIdleCallback, which can be delayed for several seconds.
+    const reportsWarmTimer = window.setTimeout(() => {
+      void preloadRoute('/reports')
+    }, 120)
+
+    const remainingLightweightPaths = visibleNavItems
+      .filter((item) => item.key === 'projects')
       .map((item) => item.to)
 
-    return scheduleRoutePreloads(lightweightPaths)
+    const cancelRemainingPreloads = scheduleRoutePreloads(
+      remainingLightweightPaths,
+    )
+
+    return () => {
+      window.clearTimeout(reportsWarmTimer)
+      cancelRemainingPreloads()
+    }
   }, [visibleNavItems])
 
   const displayName =

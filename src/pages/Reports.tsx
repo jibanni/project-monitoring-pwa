@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { startTransition, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
@@ -632,6 +632,8 @@ export default function Reports() {
     cachedReferenceAtMount ? reportsMemoryCache.profiles : {},
   )
   const [referenceLoading, setReferenceLoading] = useState(!cachedReferenceAtMount)
+  const [renderSourceProjects, setRenderSourceProjects] = useState<ProjectRow[]>([])
+  const [reportUiReady, setReportUiReady] = useState(false)
   const [exporting, setExporting] = useState<'pdf' | 'excel' | ''>('')
   const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
@@ -647,6 +649,41 @@ export default function Reports() {
   useEffect(() => {
     setPortalReady(true)
   }, [])
+
+  useEffect(() => {
+    // Let the route shell and navbar paint before Android performs the heavier
+    // AOR/filter/report calculations. Subsequent background refreshes keep the
+    // current report visible and update it as a low-priority transition.
+    if (renderSourceProjects.length > 0) {
+      startTransition(() => {
+        setRenderSourceProjects(projects)
+      })
+      return
+    }
+
+    if (projects.length === 0) {
+      setRenderSourceProjects([])
+      setReportUiReady(!loading)
+      return
+    }
+
+    setReportUiReady(false)
+
+    let secondFrame = 0
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        startTransition(() => {
+          setRenderSourceProjects(projects)
+          setReportUiReady(true)
+        })
+      })
+    })
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame)
+      if (secondFrame) window.cancelAnimationFrame(secondFrame)
+    }
+  }, [projects, loading, renderSourceProjects.length])
 
   useEffect(() => {
     if (!cachedReferenceAtMount) {
@@ -703,8 +740,8 @@ export default function Reports() {
   }
 
   const aorProjects = useMemo(() => {
-    return getStrictReportAorProjects(projects, auth)
-  }, [projects, auth])
+    return getStrictReportAorProjects(renderSourceProjects, auth)
+  }, [renderSourceProjects, auth])
 
   const provinces = useMemo(() => {
     return getReportProvinceOptions(aorProjects, auth)
@@ -1091,7 +1128,10 @@ export default function Reports() {
     </div>
   )
 
-  if (loading) {
+  const isInitialReportHydration =
+    projects.length > 0 && renderSourceProjects.length === 0 && !reportUiReady
+
+  if (loading || isInitialReportHydration) {
     return (
       <div className="reports-page">
         <div className="reports-loading-card">
