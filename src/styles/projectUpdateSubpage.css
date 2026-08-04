@@ -6,12 +6,12 @@
  */
 
 .pu-update-subpage-system {
-  --pu-step-font-micro: 0.75rem;      /* 12px */
-  --pu-step-font-caption: 0.875rem;   /* 14px */
-  --pu-step-font-body: 1rem;          /* 16px */
-  --pu-step-font-action: 1.0625rem;   /* 17px */
-  --pu-step-font-title: 1.3125rem;    /* 21px */
-  --pu-step-font-value: 1.75rem;      /* 28px */
+  --pu-step-font-micro: 0.6875rem;   /* 11px */
+  --pu-step-font-caption: 0.8125rem; /* 13px */
+  --pu-step-font-body: 0.9375rem;    /* 15px */
+  --pu-step-font-action: 1rem;       /* 16px */
+  --pu-step-font-title: 1.125rem;    /* 18px */
+  --pu-step-font-value: 1.4375rem;   /* 23px */
 
   --pu-step-weight-regular: 500;
   --pu-step-weight-strong: 700;
@@ -25,9 +25,9 @@
 
   --pu-step-radius-control: 1rem;
   --pu-step-radius-card: 1.375rem;
-  --pu-step-control-height: 3.5rem;   /* 56px */
-  --pu-step-action-height: 3.625rem;  /* 58px */
-  --pu-step-large-value-height: 4rem; /* 64px */
+  --pu-step-control-height: 3rem;    /* 48px */
+  --pu-step-action-height: 3.25rem;  /* 52px */
+  --pu-step-large-value-height: 3.5rem; /* 56px */
 
   gap: var(--pu-step-space-4) !important;
 }
@@ -1553,3 +1553,362 @@
   }
 }
 /* PMS10 PHASE 5.11 — UNIFIED PHOTO BUTTON + COMPACT FINDING FIELDS END */
+
+
+/* PMS10 PHASE 5.12 — COMPACT 8-STEP SCALE + CLEAN STATUS + HORIZONTAL SAVING DOTS START */
+
+/* The wizard now exposes only user actions and validation messages. Internal
+   draft/network/compression status elements remain hidden even during a stale
+   service-worker transition. */
+.pu-update-subpage-system .pu-wizard-title-row {
+  justify-content: flex-start !important;
+  margin-bottom: 0.65rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-save-state,
+.pu-page > .pu-alert-success {
+  display: none !important;
+}
+
+.pu-update-subpage-system .pu-wizard-count {
+  min-height: 1.875rem !important;
+  height: 1.875rem !important;
+  padding-inline: 0.65rem !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.065em !important;
+}
+
+/* Compact eight-step rail. The active step remains readable without competing
+   with the project hero title. */
+.pu-update-subpage-system .pu-wizard-progress {
+  gap: 0.2rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-progress > button {
+  flex-basis: 1.65rem !important;
+  width: 1.65rem !important;
+  min-width: 1.65rem !important;
+  max-width: 1.65rem !important;
+  height: 1.65rem !important;
+  min-height: 1.65rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-progress > button > span {
+  width: 1.65rem !important;
+  height: 1.65rem !important;
+  min-width: 1.65rem !important;
+  font-size: 0.75rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-progress > button.current {
+  min-width: 4.75rem !important;
+  max-width: 9.5rem !important;
+  height: 2.2rem !important;
+  min-height: 2.2rem !important;
+  padding: 0.2rem 0.52rem 0.2rem 0.2rem !important;
+  gap: 0.32rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-progress > button.current > span {
+  flex-basis: 1.8rem !important;
+  width: 1.8rem !important;
+  height: 1.8rem !important;
+  min-width: 1.8rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-active-step-title {
+  font-size: 0.78rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-step-summary {
+  margin-top: 0.65rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-step-summary small {
+  font-size: 0.78rem !important;
+}
+
+/* Proportionate section banners used by Steps 1–8. */
+.pu-update-subpage-system .pu-section-heading {
+  grid-template-columns: 2.15rem minmax(0, 1fr) !important;
+  gap: 0.65rem !important;
+  min-height: 3.55rem !important;
+  margin-bottom: 0.85rem !important;
+  padding: 0.58rem 0.7rem !important;
+  border-radius: 0.9rem !important;
+}
+
+.pu-update-subpage-system .pu-section-heading > span {
+  width: 2.15rem !important;
+  height: 2.15rem !important;
+  min-width: 2.15rem !important;
+  min-height: 2.15rem !important;
+  border-radius: 0.68rem !important;
+  font-size: 0.92rem !important;
+}
+
+.pu-update-subpage-system .pu-section-heading strong {
+  font-size: 1.125rem !important;
+  line-height: 1.12 !important;
+}
+
+.pu-update-subpage-system .pu-section-heading small {
+  margin-top: 0.12rem !important;
+  font-size: 0.78rem !important;
+  line-height: 1.2 !important;
+}
+
+/* Reduce card whitespace and field dimensions throughout every step. */
+.pu-update-subpage-system .pu-wizard-shell,
+.pu-update-subpage-system .pu-update-section,
+.pu-update-subpage-system .pu-side-card {
+  border-radius: 1.1rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-shell,
+.pu-update-subpage-system .pu-update-section {
+  padding: 0.85rem !important;
+}
+
+.pu-update-subpage-system .pu-update-section {
+  margin-top: 0.85rem !important;
+}
+
+.pu-update-subpage-system .pu-update-section > * + * {
+  margin-top: 0.85rem !important;
+}
+
+.pu-update-subpage-system .pu-field {
+  gap: 0.38rem !important;
+}
+
+.pu-update-subpage-system .pu-field > span:first-child,
+.pu-update-subpage-system .pu-field > label:first-child {
+  font-size: 0.92rem !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-field > small,
+.pu-update-subpage-system .pu-field small,
+.pu-update-subpage-system .pu-helper-text {
+  font-size: 0.78rem !important;
+  line-height: 1.3 !important;
+}
+
+.pu-update-subpage-system .pu-field input:not([type='checkbox']):not([type='radio']):not(.pu-native-date-input),
+.pu-update-subpage-system .pu-field select,
+.pu-update-subpage-system .pu-disbursement-control input {
+  min-height: 3rem !important;
+  height: 3rem !important;
+  padding-inline: 0.82rem !important;
+  border-radius: 0.8rem !important;
+  font-size: 0.95rem !important;
+}
+
+.pu-update-subpage-system .pu-progress-field input,
+.pu-update-subpage-system .pu-progress-full > input,
+.pu-update-subpage-system .pu-field-important input,
+.pu-update-subpage-system .pu-readonly-risk {
+  min-height: 3.45rem !important;
+  height: 3.45rem !important;
+  font-size: 1.35rem !important;
+}
+
+.pu-update-subpage-system .pu-field textarea {
+  min-height: 4.75rem !important;
+  padding: 0.68rem 0.82rem !important;
+  border-radius: 0.8rem !important;
+  font-size: 0.92rem !important;
+  line-height: 1.34 !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-card .pu-field textarea {
+  min-height: 3.75rem !important;
+  height: 3.75rem !important;
+}
+
+.pu-update-subpage-system .pu-long-date-field {
+  min-height: 3.75rem !important;
+  padding: 0.62rem !important;
+  gap: 0.62rem !important;
+  border-radius: 0.82rem !important;
+}
+
+.pu-update-subpage-system .pu-long-date-field > div > strong {
+  font-size: 1.12rem !important;
+}
+
+.pu-update-subpage-system .pu-long-date-field > div > small {
+  font-size: 0.76rem !important;
+}
+
+.pu-update-subpage-system .pu-date-change-btn {
+  min-height: 2.7rem !important;
+  height: 2.7rem !important;
+  padding-inline: 0.8rem !important;
+  border-radius: 0.75rem !important;
+  font-size: 0.92rem !important;
+}
+
+.pu-update-subpage-system .pu-action-btn,
+.pu-update-subpage-system .pu-action-gps,
+.pu-update-subpage-system .pu-wizard-photo-button {
+  min-height: 3.35rem !important;
+  padding: 0.55rem 0.82rem !important;
+  border-radius: 0.85rem !important;
+  font-size: 0.95rem !important;
+}
+
+.pu-update-subpage-system .pu-action-btn small,
+.pu-update-subpage-system .pu-action-gps small {
+  font-size: 0.76rem !important;
+}
+
+.pu-update-subpage-system .pu-status-button-grid > .pu-status-choice,
+.pu-update-subpage-system .pu-two-choice-grid > .pu-choice-card,
+.pu-update-subpage-system .pu-modification-grid > .pu-modification-choice {
+  grid-template-rows: auto minmax(1.8rem, auto) !important;
+  min-height: 5.15rem !important;
+  padding: 0.7rem 0.78rem !important;
+  border-radius: 0.85rem !important;
+}
+
+.pu-update-subpage-system .pu-choice-card strong,
+.pu-update-subpage-system .pu-status-choice strong,
+.pu-update-subpage-system .pu-modification-choice strong {
+  font-size: 0.95rem !important;
+}
+
+.pu-update-subpage-system .pu-choice-card small,
+.pu-update-subpage-system .pu-status-choice small,
+.pu-update-subpage-system .pu-modification-choice small {
+  min-height: 1.8rem !important;
+  font-size: 0.78rem !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-no-findings-toggle {
+  min-height: 3rem !important;
+  padding: 0.65rem 0.78rem !important;
+  font-size: 0.9rem !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro {
+  margin-top: 0.85rem !important;
+  padding: 0.82rem !important;
+  gap: 0.65rem !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro h3,
+.pu-update-subpage-system .pu-aide-section-heading h3 {
+  font-size: 1.05rem !important;
+}
+
+.pu-update-subpage-system .pu-photo-finding-intro p,
+.pu-update-subpage-system .pu-aide-section-heading p {
+  font-size: 0.78rem !important;
+}
+
+.pu-update-subpage-system .pu-unified-photo-source-btn {
+  min-height: 2.85rem !important;
+  font-size: 0.88rem !important;
+}
+
+.pu-update-subpage-system .pu-aide-edit-row,
+.pu-update-subpage-system .pu-photo-finding-card,
+.pu-update-subpage-system .pu-photo-card {
+  padding: 0.8rem !important;
+  gap: 0.72rem !important;
+  border-radius: 0.85rem !important;
+}
+
+.pu-update-subpage-system .pu-aide-row-title strong {
+  font-size: 0.92rem !important;
+}
+
+.pu-update-subpage-system .pu-aide-row-title small {
+  font-size: 0.76rem !important;
+}
+
+.pu-update-subpage-system .pu-wizard-navigation .pu-secondary-btn,
+.pu-update-subpage-system .pu-wizard-navigation .pu-primary-btn,
+.pu-update-subpage-system .pu-wizard-navigation .pu-main-save-btn {
+  min-height: 3.25rem !important;
+  height: 3.25rem !important;
+  border-radius: 0.85rem !important;
+  font-size: 0.95rem !important;
+}
+
+.pu-update-subpage-system .pu-main-save-label {
+  font-size: 0.95rem !important;
+}
+
+.pu-update-subpage-system .pu-main-save-subtitle {
+  font-size: 0.68rem !important;
+}
+
+/* Force the save indicator to remain one horizontal row. <i> nodes isolate
+   the dots from broad button span styling in older cached CSS. */
+.pms10-save-dots {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.18rem !important;
+  width: auto !important;
+  min-width: 1.32rem !important;
+  height: 0.4rem !important;
+  min-height: 0.4rem !important;
+  margin: 0 0 0 0.4rem !important;
+  padding: 0 !important;
+  line-height: 0 !important;
+  writing-mode: horizontal-tb !important;
+  vertical-align: middle !important;
+}
+
+.pms10-save-dot {
+  all: unset !important;
+  box-sizing: border-box !important;
+  display: inline-block !important;
+  flex: 0 0 0.32rem !important;
+  width: 0.32rem !important;
+  min-width: 0.32rem !important;
+  max-width: 0.32rem !important;
+  height: 0.32rem !important;
+  min-height: 0.32rem !important;
+  max-height: 0.32rem !important;
+  border-radius: 999px !important;
+  background: currentColor !important;
+  opacity: 0.35;
+  animation: pms10-save-dot-horizontal 0.9s ease-in-out infinite !important;
+}
+
+.pms10-save-dot:nth-child(2) { animation-delay: 0.14s !important; }
+.pms10-save-dot:nth-child(3) { animation-delay: 0.28s !important; }
+
+@keyframes pms10-save-dot-horizontal {
+  0%, 70%, 100% { opacity: 0.3; transform: translateY(0) scale(0.82); }
+  35% { opacity: 1; transform: translateY(-0.1rem) scale(1); }
+}
+
+@media (max-width: 420px) {
+  .pu-update-subpage-system .pu-wizard-shell,
+  .pu-update-subpage-system .pu-update-section {
+    padding: 0.75rem !important;
+  }
+
+  .pu-update-subpage-system .pu-wizard-progress > button.current {
+    min-width: 4.4rem !important;
+    max-width: 8rem !important;
+  }
+
+  .pu-update-subpage-system .pu-section-heading strong {
+    font-size: 1.02rem !important;
+  }
+
+  .pu-update-subpage-system .pu-section-heading small {
+    font-size: 0.74rem !important;
+  }
+}
+/* PMS10 PHASE 5.12 — COMPACT 8-STEP SCALE + CLEAN STATUS + HORIZONTAL SAVING DOTS END */

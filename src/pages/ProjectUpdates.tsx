@@ -822,9 +822,9 @@ function IconPdf() {
 function SavingDots() {
   return (
     <span className="pms10-save-dots" aria-hidden="true">
-      <span className="pms10-save-dot" />
-      <span className="pms10-save-dot" />
-      <span className="pms10-save-dot" />
+      <i className="pms10-save-dot" />
+      <i className="pms10-save-dot" />
+      <i className="pms10-save-dot" />
     </span>
   )
 }
@@ -884,7 +884,7 @@ export default function ProjectUpdates() {
   const [online, setOnline] = useState(
     typeof navigator !=='undefined' ? navigator.onLine : true
   )
-  const [message, setMessage] = useState('')
+  const [, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
   const [inspectionDate, setInspectionDate] = useState(todayInputValue())
@@ -2320,6 +2320,35 @@ export default function ProjectUpdates() {
     }
   }
 
+  function focusFindingAfterPhoto(findingId: string) {
+    let attempts = 0
+
+    const focusFinding = () => {
+      attempts += 1
+      const input = findingInputRefs.current[findingId]
+
+      if (!input) {
+        if (attempts < 10) window.setTimeout(focusFinding, 80)
+        return
+      }
+
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+      window.setTimeout(() => {
+        try {
+          input.focus({ preventScroll: true })
+        } catch {
+          input.focus()
+        }
+
+        const cursorPosition = input.value.length
+        input.setSelectionRange(cursorPosition, cursorPosition)
+      }, 280)
+    }
+
+    window.requestAnimationFrame(focusFinding)
+  }
+
   async function handlePhotoSelect(
     event: ChangeEvent<HTMLInputElement>,
     captureGps = false,
@@ -2353,8 +2382,8 @@ export default function ProjectUpdates() {
       captureGps,
     })
 
-    if (mapped.length > 0) {
-      setMessage((current) => current || `${mapped.length} finding photo(s) added to the list.`)
+    if (mapped.length > 0 && targetId) {
+      focusFindingAfterPhoto(targetId)
     }
   }
 
@@ -3302,8 +3331,6 @@ export default function ProjectUpdates() {
         </div>
       )}
 
-      {message && <div className="pu-alert pu-alert-success">{message}</div>}
-
       {errorMessage && (
         <div className="pu-alert pu-alert-danger">{errorMessage}</div>
       )}
@@ -3313,22 +3340,6 @@ export default function ProjectUpdates() {
           <div className="pu-wizard-shell" ref={wizardTopRef}>
             <div className="pu-wizard-title-row">
               <span className="pu-wizard-count">Step {wizardStep} of {WIZARD_STEP_COUNT}</span>
-              <span
-                className={`pu-wizard-save-state ${draftSaving ? 'is-saving' : !online ? 'is-offline' : workingAideDraft ? 'is-saved' : ''}`}
-                aria-live="polite"
-              >
-                <strong>{online ? 'Online' : 'Offline'}</strong>
-                <span aria-hidden="true">•</span>
-                <span>
-                  {draftSaving
-                    ? 'Saving draft…'
-                    : !online
-                      ? 'Saved on device'
-                      : workingAideDraft
-                        ? 'Draft saved'
-                        : 'Working update'}
-                </span>
-              </span>
             </div>
 
             <div className="pu-wizard-progress" ref={wizardProgressRef} aria-label="Project Update steps">
