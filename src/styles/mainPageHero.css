@@ -1,0 +1,184 @@
+/* =========================================================
+   PMS10 PHASE 5.14 — UNIFORM MAIN-PAGE HERO BANNERS
+   Applies only to Dashboard, Projects, GIS Map, Reports,
+   Offline Sync, and User Management.
+   ========================================================= */
+
+:root {
+  --pms10-main-hero-bg: linear-gradient(135deg, #123f73 0%, #18599d 56%, #2368b5 100%);
+  --pms10-main-hero-eyebrow: #facc15;
+  --pms10-main-hero-title-size: clamp(1.72rem, 6vw, 2.05rem);
+  --pms10-main-hero-pad-y: 0.82rem;
+  --pms10-main-hero-pad-x: max(1rem, calc((100vw - 1180px) / 2 + 1rem));
+}
+
+/* Full, uncollapsed main-page heroes. */
+body .dashboard-page:not(.is-dashboard-scrolled) > .dashboard-hero,
+body .projects-page:not(.is-registry-scrolled) > .projects-hero,
+body .projects-page:not(.is-registry-scrolled) > .projects-registry-hero,
+body .pm-map-page:not(.is-map-scrolled) > .pm-map-hero,
+body .reports-page:not(.is-reports-scrolled) > .reports-hero,
+body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero,
+body .user-management-page:not(.is-user-scrolled) > .user-management-hero {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 0 !important;
+
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+
+  margin-top: 0 !important;
+  margin-bottom: 0.72rem !important;
+  padding: var(--pms10-main-hero-pad-y) var(--pms10-main-hero-pad-x) !important;
+
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  color: #ffffff !important;
+  background: var(--pms10-main-hero-bg) !important;
+  box-shadow: none !important;
+  isolation: isolate !important;
+  transform: none !important;
+}
+
+/* Remove decorative circles and inherited artwork. */
+body .dashboard-page:not(.is-dashboard-scrolled) > .dashboard-hero::before,
+body .dashboard-page:not(.is-dashboard-scrolled) > .dashboard-hero::after,
+body .projects-page:not(.is-registry-scrolled) > .projects-hero::before,
+body .projects-page:not(.is-registry-scrolled) > .projects-hero::after,
+body .projects-page:not(.is-registry-scrolled) > .projects-registry-hero::before,
+body .projects-page:not(.is-registry-scrolled) > .projects-registry-hero::after,
+body .pm-map-page:not(.is-map-scrolled) > .pm-map-hero::before,
+body .pm-map-page:not(.is-map-scrolled) > .pm-map-hero::after,
+body .reports-page:not(.is-reports-scrolled) > .reports-hero::before,
+body .reports-page:not(.is-reports-scrolled) > .reports-hero::after,
+body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero::before,
+body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero::after,
+body .user-management-page:not(.is-user-scrolled) > .user-management-hero::before,
+body .user-management-page:not(.is-user-scrolled) > .user-management-hero::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Keep every main hero copy block aligned identically. */
+body .dashboard-page:not(.is-dashboard-scrolled) > .dashboard-hero > div,
+body .projects-page:not(.is-registry-scrolled) > .projects-hero .projects-hero-copy,
+body .projects-page:not(.is-registry-scrolled) > .projects-registry-hero .projects-hero-copy,
+body .pm-map-page:not(.is-map-scrolled) > .pm-map-hero > div,
+body .reports-page:not(.is-reports-scrolled) > .reports-hero > div,
+body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero > div:first-child,
+body .user-management-page:not(.is-user-scrolled) > .user-management-hero > div {
+  position: relative !important;
+  z-index: 1 !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 1180px !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+}
+
+/* Yellow Project Details-style eyebrow. */
+body .dashboard-page:not(.is-dashboard-scrolled) .dashboard-eyebrow,
+body .projects-page:not(.is-registry-scrolled) .projects-eyebrow,
+body .pm-map-page:not(.is-map-scrolled) .pm-map-eyebrow,
+body .reports-page:not(.is-reports-scrolled) .reports-eyebrow,
+body .offline-sync-page:not(.is-offline-scrolled) .offline-sync-eyebrow,
+body .user-management-page:not(.is-user-scrolled) .user-management-eyebrow {
+  all: unset !important;
+  display: block !important;
+  margin: 0 0 0.18rem !important;
+  color: var(--pms10-main-hero-eyebrow) !important;
+  font-family: inherit !important;
+  font-size: 0.65rem !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
+}
+
+/* One proportional title size for all six main pages. */
+body .dashboard-page:not(.is-dashboard-scrolled) > .dashboard-hero h1,
+body .projects-page:not(.is-registry-scrolled) > .projects-hero h1,
+body .projects-page:not(.is-registry-scrolled) > .projects-registry-hero h1,
+body .pm-map-page:not(.is-map-scrolled) > .pm-map-hero h1,
+body .reports-page:not(.is-reports-scrolled) > .reports-hero h1,
+body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero h1,
+body .user-management-page:not(.is-user-scrolled) > .user-management-hero h1 {
+  display: -webkit-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  color: #ffffff !important;
+  font-family: inherit !important;
+  font-size: var(--pms10-main-hero-title-size) !important;
+  font-weight: 800 !important;
+  line-height: 1.03 !important;
+  letter-spacing: -0.035em !important;
+  overflow-wrap: anywhere !important;
+  text-wrap: balance !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+}
+
+/* Captions are intentionally removed to save vertical space. */
+body .dashboard-page:not(.is-dashboard-scrolled) > .dashboard-hero p:not(.dashboard-eyebrow),
+body .projects-page:not(.is-registry-scrolled) > .projects-hero p:not(.projects-eyebrow),
+body .projects-page:not(.is-registry-scrolled) > .projects-registry-hero p:not(.projects-eyebrow),
+body .pm-map-page:not(.is-map-scrolled) > .pm-map-hero p:not(.pm-map-eyebrow),
+body .reports-page:not(.is-reports-scrolled) > .reports-hero p:not(.reports-eyebrow),
+body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero p:not(.offline-sync-eyebrow),
+body .user-management-page:not(.is-user-scrolled) > .user-management-hero p:not(.user-management-eyebrow) {
+  display: none !important;
+}
+
+/* Keep Offline Sync the same height as the other main heroes. */
+body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero .offline-sync-connection {
+  display: none !important;
+}
+
+/* Remove obsolete spacer left by the former tall Project Registry hero. */
+body .projects-page:not(.is-registry-scrolled) > .projects-hero-spacer {
+  display: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Preserve compact sticky behavior, but make the compact titles uniform too. */
+body .dashboard-page.is-dashboard-scrolled > .dashboard-hero h1,
+body .projects-page.is-registry-scrolled > .projects-hero h1,
+body .projects-page.is-registry-scrolled > .projects-registry-hero h1,
+body .pm-map-page.is-map-scrolled > .pm-map-hero h1,
+body .reports-page.is-reports-scrolled > .reports-hero h1,
+body .offline-sync-page.is-offline-scrolled > .offline-sync-hero h1,
+body .user-management-page.is-user-scrolled > .user-management-hero h1 {
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.015em !important;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --pms10-main-hero-title-size: clamp(1.62rem, 7.2vw, 1.92rem);
+    --pms10-main-hero-pad-y: 0.76rem;
+    --pms10-main-hero-pad-x: 1rem;
+  }
+}
+
+@media (max-width: 390px) {
+  :root {
+    --pms10-main-hero-title-size: clamp(1.48rem, 7vw, 1.72rem);
+    --pms10-main-hero-pad-y: 0.7rem;
+    --pms10-main-hero-pad-x: 0.9rem;
+  }
+}
