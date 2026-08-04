@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
@@ -632,8 +632,8 @@ export default function Reports() {
     cachedReferenceAtMount ? reportsMemoryCache.profiles : {},
   )
   const [referenceLoading, setReferenceLoading] = useState(!cachedReferenceAtMount)
-  const [renderSourceProjects, setRenderSourceProjects] = useState<ProjectRow[]>([])
-  const [reportUiReady, setReportUiReady] = useState(false)
+  const deferredProjects = useDeferredValue<ProjectRow[]>(projects, [])
+  const reportDataPreparing = projects.length > 0 && deferredProjects !== projects
   const [exporting, setExporting] = useState<'pdf' | 'excel' | ''>('')
   const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
@@ -650,40 +650,6 @@ export default function Reports() {
     setPortalReady(true)
   }, [])
 
-  useEffect(() => {
-    // Let the route shell and navbar paint before Android performs the heavier
-    // AOR/filter/report calculations. Subsequent background refreshes keep the
-    // current report visible and update it as a low-priority transition.
-    if (renderSourceProjects.length > 0) {
-      startTransition(() => {
-        setRenderSourceProjects(projects)
-      })
-      return
-    }
-
-    if (projects.length === 0) {
-      setRenderSourceProjects([])
-      setReportUiReady(!loading)
-      return
-    }
-
-    setReportUiReady(false)
-
-    let secondFrame = 0
-    const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => {
-        startTransition(() => {
-          setRenderSourceProjects(projects)
-          setReportUiReady(true)
-        })
-      })
-    })
-
-    return () => {
-      window.cancelAnimationFrame(firstFrame)
-      if (secondFrame) window.cancelAnimationFrame(secondFrame)
-    }
-  }, [projects, loading, renderSourceProjects.length])
 
   useEffect(() => {
     if (!cachedReferenceAtMount) {
@@ -740,40 +706,62 @@ export default function Reports() {
   }
 
   const aorProjects = useMemo(() => {
-    return getStrictReportAorProjects(renderSourceProjects, auth)
-  }, [renderSourceProjects, auth])
+    return getStrictReportAorProjects(deferredProjects, auth)
+  }, [deferredProjects, auth])
+
+  const activeFilterCount = [
+    searchTerm,
+    provinceFilter,
+    municipalityFilter,
+    programFilter,
+    statusFilter,
+    riskFilter,
+  ].filter(Boolean).length
+
+  const hasActiveSearch = activeFilterCount > 0
+  const shouldBuildFilterOptions = showFilters || hasActiveSearch
 
   const provinces = useMemo(() => {
+    if (!shouldBuildFilterOptions) return []
     return getReportProvinceOptions(aorProjects, auth)
-  }, [aorProjects, auth])
+  }, [aorProjects, auth, shouldBuildFilterOptions])
 
   const municipalities = useMemo(() => {
+    if (!shouldBuildFilterOptions) return []
     return getReportMunicipalityOptions(aorProjects, auth, provinceFilter)
-  }, [aorProjects, auth, provinceFilter])
+  }, [aorProjects, auth, provinceFilter, shouldBuildFilterOptions])
 
   const programs = useMemo(() => {
+    if (!shouldBuildFilterOptions) return []
+
     return Array.from(
       new Set(
         aorProjects
-          .map((project) => normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)))
+          .map((project) => normalizeProgramName(project.funding_source || project.project_type))
           .filter(Boolean),
       ),
     ).sort()
-  }, [aorProjects])
+  }, [aorProjects, shouldBuildFilterOptions])
 
   const statuses = useMemo(() => {
+    if (!shouldBuildFilterOptions) return []
+
     return Array.from(
       new Set(aorProjects.map((project) => textValue(project.status)).filter(Boolean)),
     ).sort()
-  }, [aorProjects])
+  }, [aorProjects, shouldBuildFilterOptions])
 
   const risks = useMemo(() => {
+    if (!shouldBuildFilterOptions) return []
+
     return Array.from(
       new Set(aorProjects.map((project) => getReportRisk(project)).filter(Boolean)),
     ).sort()
-  }, [aorProjects])
+  }, [aorProjects, shouldBuildFilterOptions])
 
   useEffect(() => {
+    if (!shouldBuildFilterOptions) return
+
     if (provinceFilter && !provinces.includes(provinceFilter)) {
       setProvinceFilter('')
       setMunicipalityFilter('')
@@ -796,6 +784,7 @@ export default function Reports() {
       setRiskFilter('')
     }
   }, [
+    shouldBuildFilterOptions,
     provinceFilter,
     provinces,
     municipalityFilter,
@@ -809,6 +798,8 @@ export default function Reports() {
   ])
 
   const filteredProjects = useMemo(() => {
+    if (!hasActiveSearch) return []
+
     return aorProjects.filter((project) => {
       const assignedPoEngineers = getAssignedPoEngineersForProject(
         project,
@@ -853,7 +844,7 @@ export default function Reports() {
         : true
 
       const programMatches = programFilter
-        ? normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)) === programFilter
+        ? normalizeProgramName(project.funding_source || project.project_type) === programFilter
         : true
 
       const statusMatches = statusFilter
@@ -874,6 +865,7 @@ export default function Reports() {
       )
     })
   }, [
+    hasActiveSearch,
     aorProjects,
     poEngineerAssignments,
     profileMap,
@@ -885,16 +877,6 @@ export default function Reports() {
     riskFilter,
   ])
 
-  const activeFilterCount = [
-    searchTerm,
-    provinceFilter,
-    municipalityFilter,
-    programFilter,
-    statusFilter,
-    riskFilter,
-  ].filter(Boolean).length
-
-  const hasActiveSearch = activeFilterCount > 0
   const reportProjects = hasActiveSearch ? filteredProjects : aorProjects
 
   async function generatePdfReport() {
@@ -1108,7 +1090,7 @@ export default function Reports() {
         type="button"
         className="reports-fab reports-fab-excel"
         onClick={() => void exportExcelReport()}
-        disabled={loading || referenceLoading || exporting !== '' || aorProjects.length === 0}
+        disabled={loading || reportDataPreparing || referenceLoading || exporting !== '' || aorProjects.length === 0}
         aria-label={exporting === 'excel' ? 'Preparing Excel export' : 'Export Excel'}
         title={exporting === 'excel' ? 'Preparing Excel export…' : 'Export Excel'}
       >
@@ -1119,7 +1101,7 @@ export default function Reports() {
         type="button"
         className="reports-fab reports-fab-pdf"
         onClick={() => void generatePdfReport()}
-        disabled={loading || referenceLoading || exporting !== '' || aorProjects.length === 0}
+        disabled={loading || reportDataPreparing || referenceLoading || exporting !== '' || aorProjects.length === 0}
         aria-label={exporting === 'pdf' ? 'Preparing PDF report' : 'Generate PDF'}
         title={exporting === 'pdf' ? 'Preparing PDF report…' : 'Generate PDF'}
       >
@@ -1128,10 +1110,7 @@ export default function Reports() {
     </div>
   )
 
-  const isInitialReportHydration =
-    projects.length > 0 && renderSourceProjects.length === 0 && !reportUiReady
-
-  if (loading || isInitialReportHydration) {
+  if (loading && projects.length === 0) {
     return (
       <div className="reports-page">
         <div className="reports-loading-card">
@@ -1299,7 +1278,9 @@ export default function Reports() {
           )}
 
           <div className="reports-info-line">
-            {hasActiveSearch ? (
+            {reportDataPreparing ? (
+              <span>Opening Reports… preparing cached monitoring data.</span>
+            ) : hasActiveSearch ? (
               <>
                 <span>
                   {filteredProjects.length} project/s matched from {aorProjects.length} available AOR record/s.
@@ -1316,9 +1297,11 @@ export default function Reports() {
             )}
           </div>
 
-          {referenceLoading && (
+          {(reportDataPreparing || referenceLoading) && (
             <div className="reports-background-status" role="status">
-              Loading engineer assignments in the background…
+              {reportDataPreparing
+                ? 'Preparing report data in the background…'
+                : 'Loading engineer assignments in the background…'}
             </div>
           )}
         </section>
