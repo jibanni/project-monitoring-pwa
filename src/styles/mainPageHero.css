@@ -223,3 +223,31 @@ body .user-management-page:not(.is-user-scrolled) > .user-management-hero {
     margin-top: -8px !important;
   }
 }
+
+/* PMS10 PHASE 5.16 OVERRIDE START */
+/* =========================================================
+   PMS10 PHASE 5.16 — CONSISTENT MAIN HERO HEADER SPACING
+   Full-size main heroes use the same normal-flow positioning
+   as Project Registry. Compact scrolled heroes remain fixed.
+   ========================================================= */
+
+/*
+ * Dashboard, Map, Reports, Offline Sync, and User Management
+ * originally retained position: sticky with a header + 8/10px
+ * top offset. That offset created the inconsistent white gap.
+ * Use the Project Registry's relative full-hero behavior on all
+ * six main pages. Scrolled compact selectors are unaffected.
+ */
+body .dashboard-page:not(.is-dashboard-scrolled) > .dashboard-hero,
+body .projects-page:not(.is-registry-scrolled) > .projects-hero,
+body .projects-page:not(.is-registry-scrolled) > .projects-registry-hero,
+body .pm-map-page:not(.is-map-scrolled) > .pm-map-hero,
+body .reports-page:not(.is-reports-scrolled) > .reports-hero,
+body .offline-sync-page:not(.is-offline-scrolled) > .offline-sync-hero,
+body .user-management-page:not(.is-user-scrolled) > .user-management-hero {
+  position: relative !important;
+  top: auto !important;
+  inset-block-start: auto !important;
+  transform: none !important;
+}
+/* PMS10 PHASE 5.16 OVERRIDE END */
