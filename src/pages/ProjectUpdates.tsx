@@ -3886,7 +3886,11 @@ export default function ProjectUpdates() {
                                   <div className="pu-finding-photo-item" key={photo.id}>
                                     <div className="pu-finding-photo-preview" style={{ backgroundImage: `url(${photo.previewUrl})` }} />
                                     <div>
-                                      <strong>Photo {photoIndex + 1}</strong>
+                                      <strong>
+                                        {linkedPhotos.length > 1
+                                          ? `Photo ${index + 1}.${photoIndex + 1}`
+                                          : `Photo ${index + 1}`}
+                                      </strong>
                                       <span>
                                         {coordinates
                                           ? `${coordinates.latitude.toFixed(7)}, ${coordinates.longitude.toFixed(7)}`

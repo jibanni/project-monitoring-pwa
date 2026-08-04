@@ -1912,3 +1912,128 @@
   }
 }
 /* PMS10 PHASE 5.12 — COMPACT 8-STEP SCALE + CLEAN STATUS + HORIZONTAL SAVING DOTS END */
+
+/* PMS10 PHASE 5.13 — MATCH PHOTO/FINDING NUMBER + COMPACT STEP 1 START */
+
+/* Step 1 should read as one compact group instead of three oversized blocks. */
+.pu-update-subpage-system .pu-section-quick {
+  padding: 0.78rem !important;
+}
+
+.pu-update-subpage-system .pu-section-quick > * + * {
+  margin-top: 0.62rem !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-quick-grid {
+  row-gap: 0.62rem !important;
+  column-gap: 0.62rem !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-long-date-field {
+  min-height: 3.4rem !important;
+  padding: 0.52rem !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-date-change-btn {
+  min-height: 2.45rem !important;
+  height: 2.45rem !important;
+  font-size: 0.86rem !important;
+}
+
+/* Keep Update GPS prominent, but proportionate to the date and mode controls. */
+.pu-update-subpage-system .pu-section-quick .pu-action-gps {
+  min-height: 2.85rem !important;
+  height: 2.85rem !important;
+  padding: 0.42rem 0.72rem !important;
+  border-radius: 0.78rem !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.42rem !important;
+  font-size: 0.88rem !important;
+  line-height: 1 !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-action-gps > span {
+  display: inline !important;
+  margin: 0 !important;
+  font-size: 0.72rem !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  opacity: 0.9 !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-gps-inline-wrap {
+  margin-top: 0.58rem !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-gps-message-inline,
+.pu-update-subpage-system .pu-section-quick .pu-gps-inline-result {
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0.55rem 0.68rem !important;
+  border-radius: 0.76rem !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-gps-inline-result strong {
+  font-size: 0.74rem !important;
+  line-height: 1.1 !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-gps-inline-result em {
+  margin-top: 0.12rem !important;
+  font-size: 0.74rem !important;
+  line-height: 1.2 !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-mode-of-implementation-field {
+  margin-top: 0.62rem !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-mode-of-implementation-field select {
+  min-height: 2.8rem !important;
+  height: 2.8rem !important;
+}
+
+.pu-update-subpage-system .pu-section-quick .pu-mode-of-implementation-field > small {
+  margin-top: 0.1rem !important;
+  font-size: 0.72rem !important;
+  line-height: 1.22 !important;
+}
+
+/* Tighten each finding/photo evidence card without reducing touch targets. */
+.pu-update-subpage-system .pu-photo-finding-card {
+  gap: 0.58rem !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-strip {
+  gap: 0.55rem !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-item {
+  padding: 0.58rem !important;
+  gap: 0.55rem !important;
+}
+
+.pu-update-subpage-system .pu-finding-photo-actions {
+  gap: 0.42rem !important;
+}
+
+@media (max-width: 420px) {
+  .pu-update-subpage-system .pu-section-quick {
+    padding: 0.7rem !important;
+  }
+
+  .pu-update-subpage-system .pu-section-quick > * + * {
+    margin-top: 0.55rem !important;
+  }
+
+  .pu-update-subpage-system .pu-section-quick .pu-action-gps {
+    min-height: 2.72rem !important;
+    height: 2.72rem !important;
+    font-size: 0.84rem !important;
+  }
+}
+
+/* PMS10 PHASE 5.13 — MATCH PHOTO/FINDING NUMBER + COMPACT STEP 1 END */
