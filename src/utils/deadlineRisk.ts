@@ -121,10 +121,16 @@ export function isProjectCompleted(project: Record<string, any> | null | undefin
 }
 
 export function getEffectiveDeadline(project: Record<string, any>) {
-  const hasApprovedModification = toBoolean(project.has_contract_modification)
-  const revisedContractExpiry = hasApprovedModification
-    ? normalizeDate(project.revised_contract_expiration_date)
-    : null
+  /*
+    PMS10 prevailing-date rule:
+    A valid revised contract expiration date is the official deadline whenever
+    it exists. Do not make the revised date depend on a separate boolean flag,
+    because older imports and previously saved updates may contain the revised
+    date even when has_contract_modification is missing or stale.
+  */
+  const revisedContractExpiry = normalizeDate(
+    project.revised_contract_expiration_date,
+  )
   const contractExpiry = normalizeDate(project.contract_expiration_date)
   const targetCompletion = normalizeDate(project.target_completion_date)
 

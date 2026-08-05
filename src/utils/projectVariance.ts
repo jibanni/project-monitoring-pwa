@@ -174,12 +174,19 @@ export function getContractExpirationInfo(
   referenceDate?: string | null,
 ): ContractExpirationInfo {
   const originalExpirationDate = normalizeDateValue(project?.contract_expiration_date)
-  const hasModification = toBoolean(project?.has_contract_modification)
   const revisedExpirationDate = normalizeDateValue(project?.revised_contract_expiration_date)
   const modificationType = textValue(project?.contract_modification_type)
+  const hasModification =
+    toBoolean(project?.has_contract_modification) ||
+    Boolean(revisedExpirationDate) ||
+    Boolean(modificationType)
 
-  const officialExpirationDate =
-    hasModification && revisedExpirationDate ? revisedExpirationDate : originalExpirationDate
+  /*
+    PMS10 prevailing-date rule:
+    A valid revised expiration date supersedes the original expiration date,
+    even when a legacy/imported record has a missing or stale modification flag.
+  */
+  const officialExpirationDate = revisedExpirationDate || originalExpirationDate
 
   const officialDate = parseDate(officialExpirationDate)
   const reference = parseDate(referenceDate) || todayDateOnly()
@@ -195,7 +202,7 @@ export function getContractExpirationInfo(
     warningMessage: isExpired
       ? 'The contract period of this project has already expired.'
       : '',
-    sourceLabel: hasModification && revisedExpirationDate
+    sourceLabel: revisedExpirationDate
       ? 'Revised contract expiration date'
       : 'Original contract expiration date',
   }
