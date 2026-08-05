@@ -2961,7 +2961,7 @@ export default function ProjectUpdates() {
       photo_retry_only: true,
     } as any)
 
-    const photoRows = failedPhotos.map(({ photo, index, message }) => ({
+    const photoRows = await Promise.all(failedPhotos.map(async ({ photo, index, message }) => ({
       offline_update_id: offlineUpdateId,
       local_update_id: localQueueId,
       project_update_id: updateId,
@@ -2970,8 +2970,7 @@ export default function ProjectUpdates() {
       funding_year: driveFundingYear || null,
       funding_source: driveFundingSource || project?.funding_source || null,
       funding_program: driveFundingSource || null,
-      file_blob: photo.file,
-      file: photo.file,
+      file_data: await photo.file.arrayBuffer(),
       file_name: photo.file.name,
       file_type: photo.file.type,
       file_size: photo.file.size,
@@ -2982,7 +2981,7 @@ export default function ProjectUpdates() {
       sync_status: 'pending',
       is_offline: true,
       error: message,
-    }))
+    })))
 
     await offlineDb.project_photos.bulkAdd(photoRows)
     return photoRows.length
@@ -3101,7 +3100,7 @@ export default function ProjectUpdates() {
 
     const offlineUpdateId = await updateTable.add(offlineUpdateRecord)
 
-    const offlinePhotoRecords = photoInputs.map((photo, index) => ({
+    const offlinePhotoRecords = await Promise.all(photoInputs.map(async (photo, index) => ({
       offline_update_id: offlineUpdateId,
       local_update_id: localUpdateId,
       project_update_id: localUpdateId,
@@ -3110,8 +3109,7 @@ export default function ProjectUpdates() {
       funding_year: driveFundingYear || null,
       funding_source: driveFundingSource || project?.funding_source || null,
       funding_program: driveFundingSource || null,
-      file_blob: photo.file,
-      file: photo.file,
+      file_data: await photo.file.arrayBuffer(),
       file_name: photo.file.name,
       file_type: photo.file.type,
       file_size: photo.file.size,
@@ -3122,7 +3120,7 @@ export default function ProjectUpdates() {
       sync_status:'pending',
       is_offline: true,
       error:'',
-    }))
+    })))
 
     const photoTable = await getOfflineTable(offlinePhotoTables)
 

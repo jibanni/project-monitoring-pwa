@@ -255,6 +255,10 @@ function buildProjectPatch(update: OfflineProjectUpdate) {
 }
 
 function getPhotoBlob(photo: OfflineProjectPhoto) {
+  if (photo.file_data instanceof ArrayBuffer) {
+    return new Blob([photo.file_data], { type: photo.file_type || 'image/jpeg' })
+  }
+
   return photo.file_blob || photo.file || null
 }
 
@@ -345,16 +349,119 @@ class OrphanedOfflineUpdateError extends Error {
   }
 }
 
+function stripLegacyBinaryFieldsFromUpdate(update: OfflineProjectUpdate) {
+  const {
+    offline_photos: _offlinePhotos,
+    photos: _photos,
+    file: _file,
+    file_blob: _fileBlob,
+    ...safeUpdate
+  } = update as OfflineProjectUpdate & Record<string, unknown>
+
+  return safeUpdate as OfflineProjectUpdate
+}
+
+async function normalizePhotoForStorage(photo: OfflineProjectPhoto) {
+  const blob = getPhotoBlob(photo)
+  const fileData =
+    photo.file_data instanceof ArrayBuffer
+      ? photo.file_data
+      : blob
+        ? await blob.arrayBuffer()
+        : undefined
+
+  const { file_blob: _fileBlob, file: _file, ...metadata } = photo
+
+  return {
+    ...metadata,
+    ...(fileData ? { file_data: fileData } : {}),
+  } as OfflineProjectPhoto
+}
+
+let legacyQueueRepairPromise: Promise<void> | null = null
+
+export function repairLegacyOfflineQueue() {
+  if (legacyQueueRepairPromise) return legacyQueueRepairPromise
+
+  legacyQueueRepairPromise = (async () => {
+    const [updates, photos] = await Promise.all([
+      offlineDb.project_updates.toArray(),
+      offlineDb.project_photos.toArray(),
+    ])
+
+    const existingPhotoKeys = new Set(
+      photos.map((photo) =>
+        [
+          textValue(photo.local_update_id || photo.offline_update_id || photo.project_update_id),
+          textValue(photo.file_name),
+          textValue(photo.created_at || photo.uploaded_at),
+        ].join('|'),
+      ),
+    )
+
+    for (const update of updates) {
+      const embeddedPhotos = Array.isArray((update as any).offline_photos)
+        ? ((update as any).offline_photos as OfflineProjectPhoto[])
+        : []
+
+      for (const embeddedPhoto of embeddedPhotos) {
+        const linkedPhoto: OfflineProjectPhoto = {
+          ...embeddedPhoto,
+          id: undefined,
+          offline_update_id: update.id,
+          local_update_id: getUpdateLocalId(update),
+          project_update_id: update.online_update_id || getUpdateLocalId(update),
+          project_id: embeddedPhoto.project_id || update.project_id,
+          project_name: embeddedPhoto.project_name || update.project_name,
+          synced: false,
+          sync_status: embeddedPhoto.sync_status || 'pending',
+          is_offline: true,
+        }
+        const key = [
+          getUpdateLocalId(update),
+          textValue(linkedPhoto.file_name),
+          textValue(linkedPhoto.created_at || linkedPhoto.uploaded_at),
+        ].join('|')
+
+        if (!existingPhotoKeys.has(key)) {
+          const normalized = await normalizePhotoForStorage(linkedPhoto)
+          await offlineDb.project_photos.add(normalized)
+          existingPhotoKeys.add(key)
+        }
+      }
+
+      if (hasKey(update.id)) {
+        await offlineDb.project_updates.put(stripLegacyBinaryFieldsFromUpdate(update))
+      }
+    }
+
+    for (const photo of photos) {
+      if (!hasKey(photo.id)) continue
+      const normalized = await normalizePhotoForStorage(photo)
+      await offlineDb.project_photos.put(normalized)
+    }
+  })().catch((error) => {
+    legacyQueueRepairPromise = null
+    throw error
+  })
+
+  return legacyQueueRepairPromise
+}
+
 async function markUpdateStatus(
   update: OfflineProjectUpdate,
   patch: Partial<OfflineProjectUpdate>,
 ) {
   if (!hasKey(update.id)) return
 
-  await offlineDb.project_updates.update(update.id as number | string, {
+  const current =
+    (await offlineDb.project_updates.get(update.id as number | string)) || update
+
+  await offlineDb.project_updates.put({
+    ...stripLegacyBinaryFieldsFromUpdate(current),
     ...patch,
     updated_at: new Date().toISOString(),
-  } as Partial<OfflineProjectUpdate>)
+  })
 }
 
 async function markPhotoStatus(
@@ -363,12 +470,16 @@ async function markPhotoStatus(
 ) {
   if (!hasKey(photo.id)) return
 
-  await offlineDb.project_photos.update(photo.id as number | string, patch)
+  const current =
+    (await offlineDb.project_photos.get(photo.id as number | string)) || photo
+  const normalized = await normalizePhotoForStorage(current)
+
+  await offlineDb.project_photos.put({ ...normalized, ...patch })
 }
 
 export async function saveOfflineProjectUpdate(update: OfflineProjectUpdate) {
   return offlineDb.project_updates.add({
-    ...update,
+    ...stripLegacyBinaryFieldsFromUpdate(update),
     synced: false,
     sync_status: update.sync_status || 'pending',
     is_offline: true,
@@ -391,7 +502,7 @@ export async function saveOfflineProjectPhotos(
       file_name: file.name,
       file_type: file.type,
       file_size: file.size,
-      file_blob: file,
+      file_data: await file.arrayBuffer(),
       caption: file.name,
       created_at: new Date().toISOString(),
       uploaded_at: new Date().toISOString(),
@@ -403,12 +514,14 @@ export async function saveOfflineProjectPhotos(
 }
 
 export async function getPendingOfflineUpdates() {
+  await repairLegacyOfflineQueue()
   const allUpdates = await offlineDb.project_updates.toArray()
 
   return allUpdates.filter((update) => isPendingRecord(update))
 }
 
 export async function getPendingOfflinePhotos() {
+  await repairLegacyOfflineQueue()
   const allPhotos = await offlineDb.project_photos.toArray()
 
   return allPhotos.filter((photo) => isPendingRecord(photo))
@@ -501,9 +614,13 @@ async function syncPhotosForOfflineUpdate(
         uploadFile = compressed.file
 
         if (hasKey(photo.id) && uploadFile !== file) {
-          await offlineDb.project_photos.update(photo.id as number | string, {
-            file_blob: uploadFile,
-            file: uploadFile,
+          const current =
+            (await offlineDb.project_photos.get(photo.id as number | string)) || photo
+          const normalized = await normalizePhotoForStorage(current)
+
+          await offlineDb.project_photos.put({
+            ...normalized,
+            file_data: await uploadFile.arrayBuffer(),
             file_name: uploadFile.name,
             file_type: uploadFile.type,
             file_size: uploadFile.size,
@@ -745,6 +862,7 @@ export async function removePendingOfflineUpdate(update: OfflineProjectUpdate) {
 }
 
 export async function syncOfflineUpdates(): Promise<SyncResult> {
+  await repairLegacyOfflineQueue()
   const pendingUpdates = await getPendingOfflineUpdates()
 
   if (pendingUpdates.length === 0) {

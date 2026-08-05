@@ -62,7 +62,9 @@ export default function Register() {
       return
     }
 
-    setSuccessMessage('Registration successful. Please wait for admin approval.')
+    setErrorMessage(
+      'The account was created, but email confirmation is still enabled in Supabase. Disable Confirm Email in Authentication → Providers → Email, then register again or confirm this account manually.',
+    )
     setSubmitting(false)
   }
 

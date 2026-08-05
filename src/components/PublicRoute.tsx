@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import StartupSplash from './StartupSplash'
 
 type PublicRouteProps = {
   children: ReactNode
@@ -9,9 +10,7 @@ type PublicRouteProps = {
 export default function PublicRoute({ children }: PublicRouteProps) {
   const { session, profile, loading } = useAuth()
 
-  if (loading) {
-    return <div style={{ padding: '1rem' }}>Loading...</div>
-  }
+  if (loading) return <StartupSplash />
 
   if (session && profile?.approved === true && profile?.is_active !== false) {
     return <Navigate to="/dashboard" replace />

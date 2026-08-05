@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -25,6 +26,12 @@ type RoEngineerProvinceAssignment = {
   user_id: string
   province: string
   is_active: boolean | null
+}
+
+type CachedAssignments = {
+  po: PoEngineerLguAssignment[]
+  ro: RoEngineerProvinceAssignment[]
+  cachedAt: string
 }
 
 type AuthContextValue = {
@@ -75,6 +82,8 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
+const ASSIGNMENT_CACHE_PREFIX = 'pms10:auth-assignments:'
+
 type AuthProviderProps = {
   children: ReactNode
 }
@@ -109,6 +118,35 @@ function hasRole(profile: UserProfile | null, roles: string[]) {
   return roles.some((role) => currentRole === normalizeRole(role))
 }
 
+function getAssignmentCacheKey(userId: string) {
+  return `${ASSIGNMENT_CACHE_PREFIX}${userId}`
+}
+
+function readCachedAssignments(userId: string): CachedAssignments | null {
+  try {
+    const raw = window.localStorage.getItem(getAssignmentCacheKey(userId))
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as Partial<CachedAssignments>
+    return {
+      po: Array.isArray(parsed.po) ? parsed.po : [],
+      ro: Array.isArray(parsed.ro) ? parsed.ro : [],
+      cachedAt: String(parsed.cachedAt || ''),
+    }
+  } catch (error) {
+    console.warn('Unable to read cached AOR assignments.', error)
+    return null
+  }
+}
+
+function writeCachedAssignments(userId: string, assignments: CachedAssignments) {
+  try {
+    window.localStorage.setItem(getAssignmentCacheKey(userId), JSON.stringify(assignments))
+  } catch (error) {
+    console.warn('Unable to cache AOR assignments.', error)
+  }
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
@@ -116,101 +154,179 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [poEngineerLguAssignments, setPoEngineerLguAssignments] = useState<PoEngineerLguAssignment[]>([])
   const [roEngineerProvinceAssignments, setRoEngineerProvinceAssignments] = useState<RoEngineerProvinceAssignment[]>([])
   const [loading, setLoading] = useState(true)
+  const authRunRef = useRef(0)
 
-  async function loadCachedProfile(userId: string) {
-    const cachedProfile = await offlineDb.user_profiles.get(userId)
+  const loadCachedProfile = useCallback(async (userId: string) => {
+    try {
+      const cachedProfile = await offlineDb.user_profiles.get(userId)
 
-    if (!cachedProfile) {
-      setProfile(null)
-      setPoEngineerLguAssignments([])
-      setRoEngineerProvinceAssignments([])
+      if (!cachedProfile) return null
+
+      const { cached_at: _cachedAt, ...profileWithoutCacheDate } = cachedProfile
+      const offlineProfile = {
+        ...(profileWithoutCacheDate as UserProfile),
+        role: getCanonicalRole(profileWithoutCacheDate.role),
+      }
+
+      setProfile(offlineProfile)
+      return offlineProfile
+    } catch (error) {
+      console.warn('Unable to load the cached user profile.', error)
       return null
     }
-
-    const { cached_at, ...profileWithoutCacheDate } = cachedProfile
-
-    const offlineProfile = profileWithoutCacheDate as UserProfile
-    setProfile(offlineProfile)
-    setPoEngineerLguAssignments([])
-    setRoEngineerProvinceAssignments([])
-
-    return offlineProfile
-  }
-
-  const fetchAssignments = useCallback(async (userId: string) => {
-    if (!navigator.onLine) {
-      setPoEngineerLguAssignments([])
-      setRoEngineerProvinceAssignments([])
-      return
-    }
-
-    const [poResult, roResult] = await Promise.all([
-      supabase
-        .from('po_engineer_lgu_assignments')
-        .select('id, user_id, province, municipality, is_active')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .order('province', { ascending: true })
-        .order('municipality', { ascending: true }),
-      supabase
-        .from('ro_engineer_province_assignments')
-        .select('id, user_id, province, is_active')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .order('province', { ascending: true }),
-    ])
-
-    if (poResult.error) {
-      console.error('PO Engineer LGU assignment load error:', poResult.error.message)
-      setPoEngineerLguAssignments([])
-    } else {
-      setPoEngineerLguAssignments((poResult.data || []) as PoEngineerLguAssignment[])
-    }
-
-    if (roResult.error) {
-      console.error('RO Engineer province assignment load error:', roResult.error.message)
-      setRoEngineerProvinceAssignments([])
-    } else {
-      setRoEngineerProvinceAssignments((roResult.data || []) as RoEngineerProvinceAssignment[])
-    }
   }, [])
+
+  const loadCachedAssignments = useCallback((userId: string) => {
+    const cached = readCachedAssignments(userId)
+
+    if (!cached) return false
+
+    setPoEngineerLguAssignments(cached.po)
+    setRoEngineerProvinceAssignments(cached.ro)
+    return true
+  }, [])
+
+  const fetchAssignments = useCallback(
+    async (userId: string) => {
+      if (!navigator.onLine) {
+        loadCachedAssignments(userId)
+        return
+      }
+
+      try {
+        const [poResult, roResult] = await Promise.all([
+          supabase
+            .from('po_engineer_lgu_assignments')
+            .select('id, user_id, province, municipality, is_active')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .order('province', { ascending: true })
+            .order('municipality', { ascending: true }),
+          supabase
+            .from('ro_engineer_province_assignments')
+            .select('id, user_id, province, is_active')
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .order('province', { ascending: true }),
+        ])
+
+        if (poResult.error || roResult.error) {
+          if (poResult.error) {
+            console.error('PO Engineer LGU assignment load error:', poResult.error.message)
+          }
+          if (roResult.error) {
+            console.error('RO Engineer province assignment load error:', roResult.error.message)
+          }
+          loadCachedAssignments(userId)
+          return
+        }
+
+        const po = (poResult.data || []) as PoEngineerLguAssignment[]
+        const ro = (roResult.data || []) as RoEngineerProvinceAssignment[]
+
+        setPoEngineerLguAssignments(po)
+        setRoEngineerProvinceAssignments(ro)
+        writeCachedAssignments(userId, {
+          po,
+          ro,
+          cachedAt: new Date().toISOString(),
+        })
+      } catch (error) {
+        console.error('AOR assignment refresh failed.', error)
+        loadCachedAssignments(userId)
+      }
+    },
+    [loadCachedAssignments],
+  )
 
   const fetchProfile = useCallback(
     async (userId: string) => {
       if (!navigator.onLine) {
-        await loadCachedProfile(userId)
-        return
+        const cached = await loadCachedProfile(userId)
+        loadCachedAssignments(userId)
+        return cached
       }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(
-          'id, full_name, email, role, approved, aor_level, province, huc, city, municipality, is_active',
-        )
-        .eq('id', userId)
-        .single()
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select(
+            'id, full_name, email, role, approved, aor_level, province, huc, city, municipality, is_active',
+          )
+          .eq('id', userId)
+          .single()
 
-      if (error) {
-        console.error('Profile load error:', error.message)
-        await loadCachedProfile(userId)
-        return
+        if (error) {
+          console.error('Profile load error:', error.message)
+          const cached = await loadCachedProfile(userId)
+          loadCachedAssignments(userId)
+          return cached
+        }
+
+        const onlineProfile = {
+          ...(data as UserProfile),
+          role: getCanonicalRole((data as UserProfile).role),
+        }
+
+        setProfile(onlineProfile)
+
+        await offlineDb.user_profiles.put({
+          ...onlineProfile,
+          cached_at: new Date().toISOString(),
+        })
+
+        await fetchAssignments(userId)
+        return onlineProfile
+      } catch (error) {
+        console.error('Profile refresh failed.', error)
+        const cached = await loadCachedProfile(userId)
+        loadCachedAssignments(userId)
+        return cached
       }
-
-      const onlineProfile = {
-        ...(data as UserProfile),
-        role: getCanonicalRole((data as UserProfile).role),
-      }
-
-      setProfile(onlineProfile)
-
-      await offlineDb.user_profiles.put({
-        ...onlineProfile,
-        cached_at: new Date().toISOString(),
-      })
-
-      await fetchAssignments(userId)
     },
-    [fetchAssignments],
+    [fetchAssignments, loadCachedAssignments, loadCachedProfile],
+  )
+
+  const hydrateSession = useCallback(
+    async (currentSession: Session | null) => {
+      const runId = ++authRunRef.current
+
+      setSession(currentSession)
+      setUser(currentSession?.user ?? null)
+      setLoading(true)
+
+      const currentUser = currentSession?.user ?? null
+
+      if (!currentUser?.id) {
+        setProfile(null)
+        setPoEngineerLguAssignments([])
+        setRoEngineerProvinceAssignments([])
+        if (runId === authRunRef.current) setLoading(false)
+        return
+      }
+
+      const cachedProfile = await loadCachedProfile(currentUser.id)
+      loadCachedAssignments(currentUser.id)
+
+      if (runId !== authRunRef.current) return
+
+      if (cachedProfile) {
+        // Cached approval and AOR data are enough to render the app immediately.
+        setLoading(false)
+
+        if (navigator.onLine) {
+          void fetchProfile(currentUser.id)
+        }
+        return
+      }
+
+      await fetchProfile(currentUser.id)
+
+      if (runId === authRunRef.current) {
+        setLoading(false)
+      }
+    },
+    [fetchProfile, loadCachedAssignments, loadCachedProfile],
   )
 
   const refreshProfile = useCallback(async () => {
@@ -218,74 +334,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
       data: { session: currentSession },
     } = await supabase.auth.getSession()
 
-    const currentUser = currentSession?.user ?? null
-
-    setSession(currentSession)
-    setUser(currentUser)
-
-    if (currentUser?.id) {
-      await fetchProfile(currentUser.id)
-    } else {
-      setProfile(null)
-      setPoEngineerLguAssignments([])
-      setRoEngineerProvinceAssignments([])
-    }
-  }, [fetchProfile])
+    await hydrateSession(currentSession)
+  }, [hydrateSession])
 
   useEffect(() => {
     let mounted = true
 
     async function initializeAuth() {
-      setLoading(true)
-
       const {
         data: { session: currentSession },
       } = await supabase.auth.getSession()
 
       if (!mounted) return
-
-      setSession(currentSession)
-      setUser(currentSession?.user ?? null)
-
-      if (currentSession?.user?.id) {
-        await fetchProfile(currentSession.user.id)
-      } else {
-        setProfile(null)
-        setPoEngineerLguAssignments([])
-        setRoEngineerProvinceAssignments([])
-      }
-
-      if (mounted) {
-        setLoading(false)
-      }
+      await hydrateSession(currentSession)
     }
 
-    initializeAuth()
+    void initializeAuth()
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      setSession(currentSession)
-      setUser(currentSession?.user ?? null)
-
-      if (currentSession?.user?.id) {
-        setTimeout(() => {
-          void fetchProfile(currentSession.user.id)
-        }, 0)
-      } else {
-        setProfile(null)
-        setPoEngineerLguAssignments([])
-        setRoEngineerProvinceAssignments([])
-      }
-
-      setLoading(false)
+      // Run outside the Supabase callback stack to avoid auth callback deadlocks.
+      window.setTimeout(() => {
+        if (mounted) void hydrateSession(currentSession)
+      }, 0)
     })
 
     return () => {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [fetchProfile])
+  }, [hydrateSession])
+
+  useEffect(() => {
+    function handleOnline() {
+      if (user?.id) void fetchProfile(user.id)
+    }
+
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [fetchProfile, user?.id])
 
   const signIn = async (email: string, password: string) => {
     const result = await supabase.auth.signInWithPassword({
@@ -293,17 +381,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       password,
     })
 
-    if (result.data.session?.user?.id) {
-      setSession(result.data.session)
-      setUser(result.data.user)
-      await fetchProfile(result.data.session.user.id)
+    if (result.data.session) {
+      await hydrateSession(result.data.session)
     }
 
     return result
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    return await supabase.auth.signUp({
+    const result = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -312,19 +398,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
         },
       },
     })
+
+    if (result.data.session) {
+      await hydrateSession(result.data.session)
+    }
+
+    return result
   }
 
   const signOut = async () => {
-    if (user?.id) {
-      await offlineDb.user_profiles.delete(user.id)
-    }
-
+    authRunRef.current += 1
     await supabase.auth.signOut()
     setSession(null)
     setUser(null)
     setProfile(null)
     setPoEngineerLguAssignments([])
     setRoEngineerProvinceAssignments([])
+    setLoading(false)
   }
 
   const value = useMemo<AuthContextValue>(() => {

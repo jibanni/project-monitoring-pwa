@@ -104,10 +104,11 @@ export type OfflineProjectPhoto = {
   file_type: string
   file_size?: number
 
-  /* Current expected field */
-  file_blob?: Blob
+  /* Safari-safe binary storage used by the current offline queue. */
+  file_data?: ArrayBuffer
 
-  /* Legacy ProjectUpdates.tsx field. Kept so old pending photos can still sync. */
+  /* Legacy fields retained only so existing queues can be repaired in place. */
+  file_blob?: Blob
   file?: Blob | File
 
   caption: string

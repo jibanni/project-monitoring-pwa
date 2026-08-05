@@ -22,7 +22,7 @@ type RefreshOptions = {
   force?: boolean
 }
 
-const PROJECT_CACHE_TTL_MS = 15 * 1000
+const PROJECT_CACHE_TTL_MS = 5 * 60 * 1000
 
 let snapshot: ProjectDataSnapshot = {
   projects: [],
@@ -50,17 +50,12 @@ function sortProjects(projects: SharedProjectRow[]) {
 }
 
 function publish(next: Partial<ProjectDataSnapshot>) {
-  snapshot = {
-    ...snapshot,
-    ...next,
-  }
-
+  snapshot = { ...snapshot, ...next }
   listeners.forEach((listener) => listener())
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener)
-
   return () => {
     listeners.delete(listener)
   }
@@ -82,18 +77,12 @@ async function readDeviceCache() {
 
 async function writeDeviceCache(projects: SharedProjectRow[]) {
   const cachedAt = new Date().toISOString()
-  const rows = projects.map((project) => ({
-    ...project,
-    cached_at: cachedAt,
-  }))
+  const rows = projects.map((project) => ({ ...project, cached_at: cachedAt }))
 
   try {
     await offlineDb.transaction('rw', offlineDb.projects, async () => {
       await offlineDb.projects.clear()
-
-      if (rows.length > 0) {
-        await offlineDb.projects.bulkPut(rows as any[])
-      }
+      if (rows.length > 0) await offlineDb.projects.bulkPut(rows as any[])
     })
   } catch (error) {
     console.error('Unable to update the shared project cache.', error)
@@ -119,7 +108,6 @@ async function requestProjectsFromNetwork() {
         .order('updated_at', { ascending: false })
 
       if (error) throw error
-
       return sortProjects((data || []) as SharedProjectRow[])
     } finally {
       networkRequest = null
@@ -140,24 +128,17 @@ export async function refreshSharedProjects(options: RefreshOptions = {}) {
         loading: false,
         refreshing: false,
         errorMessage:
-          cachedProjects.length > 0
-            ? ''
-            : 'No cached projects are available on this device.',
+          cachedProjects.length > 0 ? '' : 'No cached projects are available on this device.',
         source: cachedProjects.length > 0 ? 'device' : 'empty',
       })
-    } else if (snapshot.loading || snapshot.refreshing) {
-      publish({
-        loading: false,
-        refreshing: false,
-      })
+    } else {
+      publish({ loading: false, refreshing: false })
     }
 
     return snapshot.projects
   }
 
-  if (!force && hasFreshNetworkData()) {
-    return snapshot.projects
-  }
+  if (!force && hasFreshNetworkData()) return snapshot.projects
 
   publish({
     loading: snapshot.projects.length === 0,
@@ -183,18 +164,23 @@ export async function refreshSharedProjects(options: RefreshOptions = {}) {
   } catch (error) {
     console.error('Shared project refresh failed.', error)
 
+    let fallbackProjects = snapshot.projects
+    if (fallbackProjects.length === 0) fallbackProjects = await readDeviceCache()
+
     const errorMessage =
       error instanceof Error && error.message
         ? error.message
         : 'Unable to load projects. Please check your connection.'
 
     publish({
+      projects: fallbackProjects,
       loading: false,
       refreshing: false,
-      errorMessage: snapshot.projects.length > 0 ? '' : errorMessage,
+      errorMessage: fallbackProjects.length > 0 ? '' : errorMessage,
+      source: fallbackProjects.length > 0 ? 'device' : 'empty',
     })
 
-    return snapshot.projects
+    return fallbackProjects
   }
 }
 
@@ -202,35 +188,42 @@ export function initializeSharedProjects() {
   if (initialLoadPromise) return initialLoadPromise
 
   initialLoadPromise = (async () => {
-    if (snapshot.projects.length === 0) {
-      const cachedProjects = await readDeviceCache()
+    const cachedProjects = snapshot.projects.length > 0 ? snapshot.projects : await readDeviceCache()
 
-      if (cachedProjects.length > 0) {
-        publish({
-          projects: cachedProjects,
-          loading: false,
-          errorMessage: '',
-          source: 'device',
-          loadedAt: 0,
-        })
-      }
+    if (cachedProjects.length > 0) {
+      publish({
+        projects: cachedProjects,
+        loading: false,
+        errorMessage: '',
+        source: snapshot.source === 'network' ? 'network' : 'device',
+      })
+
+      // Device data is immediately usable; refresh silently after first paint.
+      if (navigator.onLine) void refreshSharedProjects()
+      return
     }
 
-    await refreshSharedProjects()
-
-    if (snapshot.loading) {
-      publish({ loading: false })
+    if (navigator.onLine) {
+      await refreshSharedProjects()
+    } else {
+      publish({
+        projects: [],
+        loading: false,
+        refreshing: false,
+        errorMessage: 'No cached projects are available on this device.',
+        source: 'empty',
+      })
     }
   })()
 
   return initialLoadPromise
 }
 
-export function useSharedProjects<T extends SharedProjectRow = SharedProjectRow>() {
+export function useSharedProjects<T = SharedProjectRow>() {
   const current = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   useEffect(() => {
-    void initializeSharedProjects().then(() => refreshSharedProjects())
+    void initializeSharedProjects()
   }, [])
 
   const refreshProjects = useCallback(async () => {

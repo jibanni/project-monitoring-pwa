@@ -11,6 +11,7 @@ import {
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
+import { useSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
@@ -604,9 +605,15 @@ export default function ProjectMap() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [projects, setProjects] = useState<MapProject[]>([])
-  const [loading, setLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
+  const {
+    projects: sharedProjects,
+    loading,
+    refreshing,
+    errorMessage: sharedProjectError,
+    refreshProjects,
+  } = useSharedProjects<ProjectRecord>()
+  const [updateMap, setUpdateMap] = useState<Map<string, ProjectUpdateRecord[]>>(new Map())
+  const [gpsErrorMessage, setGpsErrorMessage] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const [isMapScrolled, setIsMapScrolled] = useState(false)
@@ -660,67 +667,79 @@ export default function ProjectMap() {
     }
   }, [])
 
-  async function loadProjects() {
+  async function loadInspectionGps() {
+    const cacheKey = 'pms10:map-update-gps-cache:v1'
+
     try {
-      setLoading(true)
-      setErrorMessage('')
+      const cached = window.localStorage.getItem(cacheKey)
+      if (cached && updateMap.size === 0) {
+        const parsed = JSON.parse(cached) as ProjectUpdateRecord[]
+        const cachedMap = new Map<string, ProjectUpdateRecord[]>()
 
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .order('updated_at', { ascending: false })
-
-      if (projectError) throw projectError
-
-      const { data: updateData, error: updateError } = await supabase
-        .from('project_updates')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (updateError) throw updateError
-
-      const updateMap = new Map<string, ProjectUpdateRecord[]>()
-
-      for (const update of (updateData || []) as unknown as ProjectUpdateRecord[]) {
-        if (!update.project_id) continue
-
-        const currentUpdates = updateMap.get(update.project_id) || []
-        currentUpdates.push(update)
-        updateMap.set(update.project_id, currentUpdates)
+        if (Array.isArray(parsed)) {
+          parsed.forEach((update) => {
+            if (!update.project_id) return
+            const rows = cachedMap.get(update.project_id) || []
+            rows.push(update)
+            cachedMap.set(update.project_id, rows)
+          })
+          setUpdateMap(cachedMap)
+        }
       }
+    } catch (error) {
+      console.warn('Unable to read cached map GPS records.', error)
+    }
 
-      const mappedProjects = ((projectData || []) as unknown as ProjectRecord[]).map((project) =>
-        buildMapProject(project, updateMap.get(project.id) || []),
-      )
-      const aorFilteredProjects = filterProjectsByAor(mappedProjects, auth)
+    if (!navigator.onLine) return
 
-      setProjects(aorFilteredProjects)
+    try {
+      setGpsErrorMessage('')
+      const { data, error } = await supabase
+        .from('project_updates')
+        .select('id, project_id, inspection_date, inspection_latitude, inspection_longitude, created_at')
+        .not('inspection_latitude', 'is', null)
+        .not('inspection_longitude', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(5000)
+
+      if (error) throw error
+
+      const rows = (data || []) as unknown as ProjectUpdateRecord[]
+      const nextMap = new Map<string, ProjectUpdateRecord[]>()
+
+      rows.forEach((update) => {
+        if (!update.project_id) return
+        const current = nextMap.get(update.project_id) || []
+        current.push(update)
+        nextMap.set(update.project_id, current)
+      })
+
+      setUpdateMap(nextMap)
+      window.localStorage.setItem(cacheKey, JSON.stringify(rows))
     } catch (error: any) {
-      console.error(error)
-      setErrorMessage(
-        error?.message || 'Unable to load GIS map records. Please try again.',
-      )
-    } finally {
-      setLoading(false)
+      console.warn('Unable to refresh inspection GPS records.', error)
+      setGpsErrorMessage(updateMap.size > 0 ? '' : (error?.message || 'Inspection GPS refresh failed.'))
     }
   }
 
+  async function loadProjects() {
+    await refreshProjects()
+    void loadInspectionGps()
+  }
+
   useEffect(() => {
-    loadProjects()
+    void loadInspectionGps()
+    // Inspection GPS enriches cached project coordinates in the background.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    auth.profile?.id,
-    auth.profile?.role,
-    auth.profile?.approved,
-    auth.profile?.is_active,
-    auth.profile?.aor_level,
-    auth.profile?.province,
-    auth.profile?.huc,
-    auth.profile?.city,
-    auth.profile?.municipality,
-    auth.poEngineerLguAssignments?.length,
-    auth.roEngineerProvinceAssignments?.length,
-  ])
+  }, [])
+
+  const projects = useMemo(() => {
+    const mappedProjects = sharedProjects.map((project) =>
+      buildMapProject(project, updateMap.get(project.id) || []),
+    )
+
+    return filterProjectsByAor(mappedProjects, auth)
+  }, [auth, sharedProjects, updateMap])
 
   function clearFilters() {
     setSearchTerm('')
@@ -935,7 +954,7 @@ export default function ProjectMap() {
         type="button"
         className="pm-map-fab pm-map-fab-refresh"
         onClick={loadProjects}
-        disabled={loading}
+        disabled={refreshing}
         aria-label="Refresh GIS map"
         title="Refresh"
       >
@@ -959,8 +978,10 @@ export default function ProjectMap() {
           </div>
         </section>
 
-        {errorMessage && (
-          <div className="pm-map-alert pm-map-alert-error">{errorMessage}</div>
+        {(sharedProjectError || gpsErrorMessage) && sharedProjects.length === 0 && (
+          <div className="pm-map-alert pm-map-alert-error">
+            {sharedProjectError || gpsErrorMessage}
+          </div>
         )}
 
         <section className="pm-map-summary-grid">
@@ -1181,10 +1202,7 @@ export default function ProjectMap() {
             </div>
 
             <div className={`pm-map-shell ${isMapFullscreen ? 'is-map-fullscreen' : ''}`}>
-              {loading ? (
-                <div className="pm-map-loading">Loading GIS map records...</div>
-              ) : (
-                <MapContainer
+              <MapContainer
                   center={MINDANAO_CENTER}
                   zoom={DEFAULT_ZOOM}
                   scrollWheelZoom
@@ -1307,7 +1325,6 @@ export default function ProjectMap() {
                     )
                   })}
                 </MapContainer>
-              )}
             </div>
           </div>
 

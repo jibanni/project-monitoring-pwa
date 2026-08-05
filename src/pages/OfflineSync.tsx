@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { offlineDb, type OfflineProjectPhoto, type OfflineProjectUpdate } from '../lib/offlineDb'
 import * as offlineSyncService from '../services/offlineSyncService'
 import { useAuth } from '../context/AuthContext'
@@ -204,7 +204,12 @@ function getPhotoDate(record: OfflineProjectPhoto) {
 }
 
 function getPhotoSize(record: OfflineProjectPhoto) {
-  return record.file_size || (record.file_blob as Blob | undefined)?.size || (record.file as Blob | undefined)?.size
+  return (
+    record.file_size ||
+    record.file_data?.byteLength ||
+    (record.file_blob as Blob | undefined)?.size ||
+    (record.file as Blob | undefined)?.size
+  )
 }
 
 function getLinkedPhotos(update: OfflineProjectUpdate, photos: OfflineProjectPhoto[]) {
@@ -302,6 +307,7 @@ export default function OfflineSync() {
 
   const [offlineUpdates, setOfflineUpdates] = useState<HydratedOfflineUpdate[]>([])
   const [offlinePhotos, setOfflinePhotos] = useState<HydratedOfflinePhoto[]>([])
+  const autoSyncAttemptRef = useRef(false)
 
   const userCanUseOfflineSync = useMemo(() => canUseOfflineSync(auth), [auth])
   const userIsAdmin = useMemo(() => isAdminAuth(auth), [auth])
@@ -314,6 +320,7 @@ export default function OfflineSync() {
     }
 
     function handleOffline() {
+      autoSyncAttemptRef.current = false
       setIsOnline(false)
     }
 
@@ -382,6 +389,7 @@ export default function OfflineSync() {
   async function refreshOfflineData() {
     try {
       setLoading(true)
+      await offlineSyncService.repairLegacyOfflineQueue()
       setErrorMessage('')
 
       const [projectLookup, allUpdates, allPhotos] = await Promise.all([
@@ -432,7 +440,7 @@ export default function OfflineSync() {
     }
   }
 
-  async function syncNow() {
+  async function syncNow(automatic = false) {
     try {
       setSyncing(true)
       setErrorMessage('')
@@ -458,7 +466,12 @@ export default function OfflineSync() {
       const result = await offlineSyncService.syncOfflineUpdates()
 
       await refreshOfflineData()
-      setLastSyncMessage(result?.message || 'Offline records were synced successfully.')
+      setLastSyncMessage(
+        result?.message ||
+          (automatic
+            ? 'Pending offline records synchronized after reconnection.'
+            : 'Offline records were synced successfully.'),
+      )
     } catch (error: any) {
       console.error(error)
       await refreshOfflineData()
@@ -469,6 +482,28 @@ export default function OfflineSync() {
       setSyncing(false)
     }
   }
+
+  useEffect(() => {
+    if (!isOnline || syncing || loading) return
+    if (!userCanUseOfflineSync || !canSyncCurrentQueue) return
+    if (totalPendingCount === 0 || autoSyncAttemptRef.current) return
+
+    autoSyncAttemptRef.current = true
+    const timer = window.setTimeout(() => {
+      void syncNow(true)
+    }, 1200)
+
+    return () => window.clearTimeout(timer)
+    // syncNow is intentionally triggered only once per reconnect cycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    canSyncCurrentQueue,
+    isOnline,
+    loading,
+    syncing,
+    totalPendingCount,
+    userCanUseOfflineSync,
+  ])
 
   async function openRemovalDialog(record: HydratedOfflineUpdate) {
     try {
@@ -752,7 +787,7 @@ export default function OfflineSync() {
               <button
                 type="button"
                 className="primary"
-                onClick={syncNow}
+                onClick={() => void syncNow(false)}
                 disabled={!isOnline || syncing || totalPendingCount === 0 || !canSyncCurrentQueue}
               >
                 {syncing ? 'Syncing...' : 'Sync Now'}

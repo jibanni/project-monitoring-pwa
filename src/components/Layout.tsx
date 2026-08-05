@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { preloadRoute, scheduleRoutePreloads } from '../lib/routePreload'
-import { initializeSharedProjects } from '../lib/projectDataCache'
+import { initializeSharedProjects, refreshSharedProjects } from '../lib/projectDataCache'
 import '../styles/layout.css'
 
 type LayoutProps = {
@@ -383,6 +383,15 @@ export default function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     void initializeSharedProjects()
+  }, [])
+
+  useEffect(() => {
+    function handleOnlineRefresh() {
+      void refreshSharedProjects({ force: true })
+    }
+
+    window.addEventListener('online', handleOnlineRefresh)
+    return () => window.removeEventListener('online', handleOnlineRefresh)
   }, [])
 
   useEffect(() => {

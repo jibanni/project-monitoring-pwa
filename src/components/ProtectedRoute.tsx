@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import StartupSplash from './StartupSplash'
 
 export type ProtectedRouteProps = {
   children: ReactNode
@@ -48,14 +49,7 @@ export default function ProtectedRoute({
   const location = useLocation()
   const { session, user, profile, loading, isApproved } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="protected-route-loading">
-        <h2>Loading...</h2>
-        <p>Please wait while your account access is being verified.</p>
-      </div>
-    )
-  }
+  if (loading) return <StartupSplash />
 
   if (!session || !user) {
     return <Navigate to="/login" replace state={{ from: location }} />

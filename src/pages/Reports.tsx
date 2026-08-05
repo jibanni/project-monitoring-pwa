@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
+import { useSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import { normalizeProgramName } from '../utils/program'
@@ -64,14 +62,6 @@ type ProfileLookupRow = {
   role?: string | null
   approved?: boolean | null
   is_active?: boolean | null
-}
-
-type ProjectUpdateLookupRow = {
-  id?: string | number | null
-  project_id: string | null
-  engineer_id: string | null
-  inspection_date: string | null
-  created_at: string | null
 }
 
 type LatestUpdateInfo = {
@@ -531,13 +521,6 @@ function getLatestUpdateDate(project: ProjectRow, latestUpdateMap: LatestUpdateM
   return latestUpdate?.inspection_date || latestUpdate?.created_at || project.last_inspection_date || null
 }
 
-function getComparableUpdateTime(update: ProjectUpdateLookupRow) {
-  const rawDate = update.inspection_date || update.created_at || ''
-  const parsed = new Date(rawDate.length <= 10 ? `${rawDate}T00:00:00` : rawDate)
-
-  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime()
-}
-
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -583,12 +566,15 @@ function ExcelIcon() {
 export default function Reports() {
   const auth = useAuth()
 
-  const [projects, setProjects] = useState<ProjectRow[]>([])
+  const {
+    projects,
+    refreshing,
+    errorMessage,
+    refreshProjects,
+  } = useSharedProjects<ProjectRow>()
   const [poEngineerAssignments, setPoEngineerAssignments] = useState<PoEngineerAssignmentRow[]>([])
   const [profileMap, setProfileMap] = useState<ProfileLookupMap>({})
-  const [latestUpdateMap, setLatestUpdateMap] = useState<LatestUpdateMap>({})
-  const [loading, setLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
+  const [latestUpdateMap] = useState<LatestUpdateMap>({})
   const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const [isReportsScrolled, setIsReportsScrolled] = useState(false)
@@ -605,7 +591,26 @@ export default function Reports() {
   }, [])
 
   useEffect(() => {
-    loadProjects()
+    const cached = window.localStorage.getItem('pms10:reports-reference-cache:v1')
+
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as {
+          assignments?: PoEngineerAssignmentRow[]
+          profiles?: ProfileLookupMap
+        }
+        setPoEngineerAssignments(Array.isArray(parsed.assignments) ? parsed.assignments : [])
+        setProfileMap(parsed.profiles && typeof parsed.profiles === 'object' ? parsed.profiles : {})
+      } catch (error) {
+        console.warn('Unable to read cached report references.', error)
+      }
+    }
+
+    const timer = window.setTimeout(() => {
+      void loadReportReferenceData()
+    }, 450)
+
+    return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -631,124 +636,59 @@ export default function Reports() {
   }, [])
 
   async function loadProjects() {
-    try {
-      setLoading(true)
-      setErrorMessage('')
-
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('updated_at', { ascending: false })
-
-      if (error) throw error
-
-      const loadedProjects = (data || []) as ProjectRow[]
-      setProjects(loadedProjects)
-
-      await loadReportReferenceData()
-    } catch (error) {
-      console.error(error)
-      setErrorMessage('Unable to load report data. Please check your connection and try again.')
-    } finally {
-      setLoading(false)
-    }
+    await refreshProjects()
+    void loadReportReferenceData()
   }
 
   async function loadReportReferenceData() {
-    const [assignmentsResult, updatesResult] = await Promise.all([
-      supabase
+    if (!navigator.onLine) return
+
+    try {
+      const assignmentsResult = await supabase
         .from('po_engineer_lgu_assignments')
         .select('id, user_id, province, municipality, is_active')
-        .eq('is_active', true),
-      supabase
-        .from('project_updates')
-        .select('id, project_id, engineer_id, inspection_date, created_at')
-        .order('inspection_date', { ascending: false })
-        .order('created_at', { ascending: false }),
-    ])
+        .eq('is_active', true)
 
-    const loadedAssignments = assignmentsResult.error
-      ? []
-      : ((assignmentsResult.data || []) as PoEngineerAssignmentRow[])
-    const loadedUpdates = updatesResult.error
-      ? []
-      : ((updatesResult.data || []) as ProjectUpdateLookupRow[])
+      if (assignmentsResult.error) throw assignmentsResult.error
 
-    if (assignmentsResult.error) {
-      console.error('Report PO Engineer assignment load error:', assignmentsResult.error.message)
-    }
+      const loadedAssignments = (assignmentsResult.data || []) as PoEngineerAssignmentRow[]
+      setPoEngineerAssignments(loadedAssignments)
 
-    if (updatesResult.error) {
-      console.error('Report latest update load error:', updatesResult.error.message)
-    }
+      const profileIds = uniqueTextValues(
+        loadedAssignments.map((assignment) => assignment.user_id),
+      )
 
-    setPoEngineerAssignments(loadedAssignments)
+      let nextProfileMap: ProfileLookupMap = {}
 
-    const latestMap: LatestUpdateMap = {}
+      if (profileIds.length > 0) {
+        const profilesResult = await supabase
+          .from('profiles')
+          .select('id, full_name, email, role, approved, is_active')
+          .in('id', profileIds)
 
-    loadedUpdates.forEach((update) => {
-      if (!update.project_id) return
+        if (profilesResult.error) throw profilesResult.error
 
-      const currentLatest = latestMap[update.project_id]
-
-      if (!currentLatest) {
-        latestMap[update.project_id] = {
-          engineer_id: update.engineer_id,
-          inspection_date: update.inspection_date,
-          created_at: update.created_at,
-        }
-        return
+        nextProfileMap = ((profilesResult.data || []) as ProfileLookupRow[]).reduce<ProfileLookupMap>(
+          (map, profile) => {
+            map[profile.id] = profile
+            return map
+          },
+          {},
+        )
       }
 
-      const nextTime = getComparableUpdateTime(update)
-      const currentTime = getComparableUpdateTime({
-        project_id: update.project_id,
-        engineer_id: currentLatest.engineer_id,
-        inspection_date: currentLatest.inspection_date,
-        created_at: currentLatest.created_at,
-      })
-
-      if (nextTime > currentTime) {
-        latestMap[update.project_id] = {
-          engineer_id: update.engineer_id,
-          inspection_date: update.inspection_date,
-          created_at: update.created_at,
-        }
-      }
-    })
-
-    setLatestUpdateMap(latestMap)
-
-    const profileIds = uniqueTextValues([
-      ...loadedAssignments.map((assignment) => assignment.user_id),
-      ...loadedUpdates.map((update) => update.engineer_id),
-    ])
-
-    if (profileIds.length === 0) {
-      setProfileMap({})
-      return
+      setProfileMap(nextProfileMap)
+      window.localStorage.setItem(
+        'pms10:reports-reference-cache:v1',
+        JSON.stringify({
+          assignments: loadedAssignments,
+          profiles: nextProfileMap,
+          cachedAt: new Date().toISOString(),
+        }),
+      )
+    } catch (error) {
+      console.warn('Report reference refresh failed.', error)
     }
-
-    const profilesResult = await supabase
-      .from('profiles')
-      .select('id, full_name, email, role, approved, is_active')
-      .in('id', profileIds)
-
-    if (profilesResult.error) {
-      console.error('Report user profile lookup error:', profilesResult.error.message)
-      setProfileMap({})
-      return
-    }
-
-    const nextProfileMap = ((profilesResult.data || []) as ProfileLookupRow[]).reduce<ProfileLookupMap>(
-      (map, profile) => {
-        map[profile.id] = profile
-        return map
-      },
-      {},
-    )
-
-    setProfileMap(nextProfileMap)
   }
 
   function clearFilters() {
@@ -919,7 +859,12 @@ export default function Reports() {
   const hasActiveSearch = activeFilterCount > 0
   const reportProjects = hasActiveSearch ? filteredProjects : aorProjects
 
-  function generatePdfReport() {
+  async function generatePdfReport() {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ])
+
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -1040,7 +985,8 @@ export default function Reports() {
     doc.save(`${cleanFilename(title)}.pdf`)
   }
 
-  function exportExcelReport() {
+  async function exportExcelReport() {
+    const XLSX = await import('xlsx')
     const rows = reportProjects.map((project) => {
       const varianceInfo = getProjectVariance(project)
 
@@ -1101,7 +1047,7 @@ export default function Reports() {
         type="button"
         className="reports-fab reports-fab-excel"
         onClick={exportExcelReport}
-        disabled={loading || aorProjects.length === 0}
+        disabled={aorProjects.length === 0}
         aria-label="Export Excel"
         title="Export Excel"
       >
@@ -1112,7 +1058,7 @@ export default function Reports() {
         type="button"
         className="reports-fab reports-fab-pdf"
         onClick={generatePdfReport}
-        disabled={loading || aorProjects.length === 0}
+        disabled={aorProjects.length === 0}
         aria-label="Generate PDF"
         title="Generate PDF"
       >
@@ -1121,31 +1067,6 @@ export default function Reports() {
     </div>
   )
 
-  if (loading) {
-    return (
-      <div className="reports-page">
-        <div className="reports-loading-card">
-          <div className="reports-loader" />
-          <h2>Loading Reports</h2>
-          <p>Preparing project monitoring data...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (errorMessage) {
-    return (
-      <div className="reports-page">
-        <div className="reports-error-card">
-          <h2>Reports Error</h2>
-          <p>{errorMessage}</p>
-          <button type="button" onClick={loadProjects}>
-            Reload Reports
-          </button>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <>
@@ -1160,6 +1081,19 @@ export default function Reports() {
             </p>
           </div>
         </section>
+
+        {errorMessage && projects.length === 0 && (
+          <section className="reports-error-card" role="alert">
+            <h2>Reports unavailable</h2>
+            <p>{errorMessage}</p>
+            <button type="button" onClick={loadProjects}>Retry</button>
+          </section>
+        )}
+
+        {refreshing && projects.length > 0 && (
+          <p className="reports-background-refresh" role="status">Updating report records…</p>
+        )}
+
 
         <section
           className={`reports-filter-card pm-unified-filter-panel ${

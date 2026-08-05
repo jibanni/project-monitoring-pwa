@@ -3,8 +3,8 @@ import {
   useMemo,
   useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 import { offlineDb } from '../lib/offlineDb'
+import { useSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import ActionMenu, { type ActionMenuItem } from '../components/ActionMenu'
 import { getTargetPhysicalInfo } from '../utils/projectVariance'
@@ -244,54 +244,6 @@ function UpdateIcon() {
 }
 
 
-function toOfflineProject(project: ProjectRow) {
-  return {
-    ...project,
-    id: project.id,
-    project_name: textValue(project.project_name) || 'Untitled Project',
-    status: getRegistryStatus(project),
-    municipality: textValue(project.municipality),
-    province: textValue(project.province),
-    barangay: textValue(project.barangay),
-    physical_accomplishment: toNumber(project.physical_accomplishment),
-    target_physical_accomplishment: project.target_physical_accomplishment ?? null,
-    target_physical_as_of: project.target_physical_as_of || '',
-    target_physical_source: project.target_physical_source || 'auto',
-    financial_accomplishment: toNumber(project.financial_accomplishment),
-    risk_level: getRegistryRisk(project),
-    project_type: textValue(project.project_type),
-    funding_source: textValue(project.funding_source),
-    funding_year: project.funding_year || '',
-    implementing_office: textValue(project.implementing_office),
-    contractor: textValue(project.contractor),
-    budget: project.budget || 0,
-    start_date: project.start_date || '',
-    target_completion_date: project.target_completion_date || '',
-    latitude: project.latitude || '',
-    longitude: project.longitude || '',
-    last_inspection_date: project.last_inspection_date || '',
-    updated_at: project.updated_at || '',
-    cached_at: new Date().toISOString(),
-  }
-}
-
-async function cacheProjectsForOffline(projects: ProjectRow[]) {
-  if (projects.length === 0) return
-
-  await offlineDb.projects.bulkPut(projects.map((project) => toOfflineProject(project)) as any[])
-}
-
-async function loadCachedProjects() {
-  const cachedProjects = (await offlineDb.projects.toArray()) as unknown as ProjectRow[]
-
-  return cachedProjects.sort((a, b) => {
-    const dateA = new Date(a.updated_at || '').getTime()
-    const dateB = new Date(b.updated_at || '').getTime()
-
-    return (Number.isFinite(dateB) ? dateB : 0) - (Number.isFinite(dateA) ? dateA : 0)
-  })
-}
-
 export default function Projects() {
   const navigate = useNavigate()
   const auth = useAuth() as any
@@ -299,9 +251,13 @@ export default function Projects() {
   const role = getCanonicalRole(auth?.profile?.role)
   const isROEngineer = Boolean(auth?.isROEngineer) || role === 'RO Engineer'
 
-  const [projects, setProjects] = useState<ProjectRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
+  const {
+    projects,
+    loading,
+    refreshing,
+    errorMessage,
+    refreshProjects,
+  } = useSharedProjects<ProjectRow>()
 
   const [searchTerm, setSearchTerm] = useState('')
   const [provinceFilter, setProvinceFilter] = useState('')
@@ -312,10 +268,6 @@ export default function Projects() {
   const [riskFilter, setRiskFilter] = useState('')
   const [isRegistryScrolled, setIsRegistryScrolled] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
-
-  useEffect(() => {
-    loadProjects()
-  }, [])
 
   useEffect(() => {
     const cleanupKey = 'pms10:aide-wizard:legacy-drafts-cleared:v1'
@@ -371,48 +323,7 @@ export default function Projects() {
   }, [])
 
   async function loadProjects() {
-    try {
-      setLoading(true)
-      setErrorMessage('')
-
-      if (!navigator.onLine) {
-        const cachedProjects = await loadCachedProjects()
-        setProjects(cachedProjects)
-
-        if (cachedProjects.length === 0) {
-          setErrorMessage(
-            'No cached projects found on this device. Please open the Project Registry while online first.',
-          )
-        }
-
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('updated_at', { ascending: false })
-
-      if (error) throw error
-
-      const onlineProjects = (data || []) as ProjectRow[]
-      setProjects(onlineProjects)
-      await cacheProjectsForOffline(onlineProjects)
-    } catch (error) {
-      console.error(error)
-
-      const cachedProjects = await loadCachedProjects()
-
-      if (cachedProjects.length > 0) {
-        setProjects(cachedProjects)
-        setErrorMessage('')
-        return
-      }
-
-      setErrorMessage('Unable to load projects. Please check your connection.')
-    } finally {
-      setLoading(false)
-    }
+    await refreshProjects()
   }
 
   function clearFilters() {
@@ -631,31 +542,6 @@ export default function Projects() {
       : []),
   ]
 
-  if (loading) {
-    return (
-      <div className="projects-page">
-        <div className="projects-loading-card">
-          <div className="projects-loader" />
-          <h2>Loading Projects</h2>
-          <p>Preparing project cards...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (errorMessage) {
-    return (
-      <div className="projects-page">
-        <div className="projects-error-card">
-          <h2>Projects Error</h2>
-          <p>{errorMessage}</p>
-          <button type="button" onClick={loadProjects}>
-            Reload Projects
-          </button>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div
@@ -682,6 +568,18 @@ export default function Projects() {
         launcherLabel="Open Project Registry actions"
         className="projects-action-menu"
       />
+
+      {errorMessage && projects.length === 0 && (
+        <section className="projects-error-card" role="alert">
+          <h2>Projects unavailable</h2>
+          <p>{errorMessage}</p>
+          <button type="button" onClick={loadProjects}>Retry</button>
+        </section>
+      )}
+
+      {refreshing && projects.length > 0 && (
+        <p className="projects-background-refresh" role="status">Updating projects…</p>
+      )}
 
 
       <section className="projects-summary-grid" aria-label="Project summary">
@@ -905,8 +803,12 @@ export default function Projects() {
 
         {filteredProjects.length === 0 ? (
           <div className="projects-empty">
-            <h3>No projects found</h3>
-            <p>Adjust the filters or clear all filters to show available projects.</p>
+            <h3>{loading ? 'Preparing projects…' : 'No projects found'}</h3>
+            <p>
+              {loading
+                ? 'Cached project records will appear here as soon as they are available.'
+                : 'Adjust the filters or clear all filters to show available projects.'}
+            </p>
           </div>
         ) : (
           <div className="projects-compact-list">
