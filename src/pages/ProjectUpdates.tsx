@@ -1113,9 +1113,8 @@ export default function ProjectUpdates() {
   const isSuspendedSelected = useMemo(() => {
     return normalizeText(projectStatus).includes('suspend')
   }, [projectStatus])
-  const contractModificationTypeOptions = useMemo(() => {
-    return isSuspendedSelected ? [SUSPENSION_ORDER_TYPE] : CONTRACT_MODIFICATION_TYPE_OPTIONS
-  }, [isSuspendedSelected])
+  const contractModificationTypeOptions = CONTRACT_MODIFICATION_TYPE_OPTIONS
+  const isSuspensionOrderSelected = contractModificationType === SUSPENSION_ORDER_TYPE
   const isNotYetStartedSelected = useMemo(() => {
     return normalizeText(projectStatus) ==='not yet started'
   }, [projectStatus])
@@ -1195,16 +1194,10 @@ export default function ProjectUpdates() {
   }, [contractModificationType, hasContractModification, projectStatus])
 
   useEffect(() => {
-    if (!isSuspendedSelected) return
-
-    if (!hasContractModification) {
-      setHasContractModification(true)
-    }
-
-    if (contractModificationType !== SUSPENSION_ORDER_TYPE) {
-      setContractModificationType(SUSPENSION_ORDER_TYPE)
-    }
-  }, [contractModificationType, hasContractModification, isSuspendedSelected])
+    if (!isSuspendedSelected || hasContractModification) return
+    setHasContractModification(true)
+    setContractModificationType(SUSPENSION_ORDER_TYPE)
+  }, [hasContractModification, isSuspendedSelected])
 
   const targetVarianceInfo = useMemo(() => {
     return getTargetPhysicalInfo(
@@ -2630,7 +2623,7 @@ export default function ProjectUpdates() {
       if (hasContractModification && hasRevisedProjectCost && !revisedProjectCost.trim()) {
         return 'Please enter the revised project cost.'
       }
-      if (hasContractModification && !revisedContractExpirationDate.trim()) {
+      if (hasContractModification && !isSuspensionOrderSelected && !revisedContractExpirationDate.trim()) {
         return 'Please enter the revised contract expiration date.'
       }
       if (requiresUpdateReason && !isNotYetStartedSelected && !notYetStartedReason.trim()) {
@@ -2984,7 +2977,11 @@ export default function ProjectUpdates() {
         hasContractModification && hasRevisedProjectCost
           ? toNumber(revisedProjectCost)
           : null,
-      revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
+      revised_contract_expiration_date: hasContractModification
+        ? isSuspensionOrderSelected
+          ? project?.revised_contract_expiration_date || null
+          : revisedContractExpirationDate || null
+        : null,
       not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       last_inspection_date: inspectionDate,
       ...latestCoordinatePatch,
@@ -3065,7 +3062,9 @@ export default function ProjectUpdates() {
           ? toNumber(revisedProjectCost)
           : null,
       revised_contract_expiration_date: hasContractModification
-        ? revisedContractExpirationDate
+        ? isSuspensionOrderSelected
+          ? project?.revised_contract_expiration_date || null
+          : revisedContractExpirationDate || null
         : null,
       not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       updated_at: currentTimestamp,
@@ -3208,7 +3207,11 @@ export default function ProjectUpdates() {
         hasContractModification && hasRevisedProjectCost
           ? toNumber(revisedProjectCost)
           : null,
-      revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
+      revised_contract_expiration_date: hasContractModification
+        ? isSuspensionOrderSelected
+          ? project?.revised_contract_expiration_date || null
+          : revisedContractExpirationDate || null
+        : null,
       disbursement_amount: effectiveDisbursementAmount,
       update_type: updateType,
       no_attendees: isOfficeUpdate ? true : noAttendees,
@@ -3274,7 +3277,11 @@ export default function ProjectUpdates() {
         hasContractModification && hasRevisedProjectCost
           ? toNumber(revisedProjectCost)
           : null,
-      revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
+      revised_contract_expiration_date: hasContractModification
+        ? isSuspensionOrderSelected
+          ? project?.revised_contract_expiration_date || null
+          : revisedContractExpirationDate || null
+        : null,
       not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       last_inspection_date: inspectionDate,
       ...latestCoordinatePatch,
@@ -3297,7 +3304,11 @@ export default function ProjectUpdates() {
         hasContractModification && hasRevisedProjectCost
           ? toNumber(revisedProjectCost)
           : null,
-      revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
+      revised_contract_expiration_date: hasContractModification
+        ? isSuspensionOrderSelected
+          ? project?.revised_contract_expiration_date || null
+          : revisedContractExpirationDate || null
+        : null,
       not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       last_inspection_date: inspectionDate,
       ...latestCoordinatePatch,
@@ -3948,7 +3959,11 @@ export default function ProjectUpdates() {
                 <div className="pu-contract-warning pu-full-field">
                   <strong>Contract Warning</strong>
                   <span>{contractInfo.warningMessage}</span>
-                  <span>Risk is automatically classified as High until a valid revised expiration date is encoded.</span>
+                  <span>
+                    {isSuspensionOrderSelected
+                      ? 'The project remains High Risk while the Suspension Order is active. A revised expiration date is not required for this update.'
+                      : 'Risk is automatically classified as High until a valid revised expiration date is encoded.'}
+                  </span>
                 </div>
               )}
 
@@ -4003,30 +4018,32 @@ export default function ProjectUpdates() {
                     </label>
                   )}
 
-                  <div className="pu-field pu-date-field">
-                    <span>Revised Contract Expiration Date *</span>
+                  {!isSuspensionOrderSelected && (
+                    <div className="pu-field pu-date-field">
+                      <span>Revised Contract Expiration Date *</span>
 
-                    <div className="pu-long-date-field pu-revised-date-display">
-                      <div>
-                        <strong>{formatLongDate(revisedContractExpirationDate)}</strong>
-                        <small>Revised contract expiration</small>
+                      <div className="pu-long-date-field pu-revised-date-display">
+                        <div>
+                          <strong>{formatLongDate(revisedContractExpirationDate)}</strong>
+                          <small>Revised contract expiration</small>
+                        </div>
+
+                        <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ?'disabled' :''}`}>
+                          Change Date
+                          <input
+                            ref={revisedContractExpirationDateInputRef}
+                            className="pu-native-date-input"
+                            type="date"
+                            value={revisedContractExpirationDate}
+                            onChange={(event) => setRevisedContractExpirationDate(event.target.value)}
+                            disabled={saving}
+                            required
+                            aria-label="Revised contract expiration date"
+                          />
+                        </label>
                       </div>
-
-                      <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ?'disabled' :''}`}>
-                        Change Date
-                        <input
-                          ref={revisedContractExpirationDateInputRef}
-                          className="pu-native-date-input"
-                          type="date"
-                          value={revisedContractExpirationDate}
-                          onChange={(event) => setRevisedContractExpirationDate(event.target.value)}
-                          disabled={saving}
-                          required
-                          aria-label="Revised contract expiration date"
-                        />
-                      </label>
                     </div>
-                  </div>
+                  )}
                 </>
               )}
 

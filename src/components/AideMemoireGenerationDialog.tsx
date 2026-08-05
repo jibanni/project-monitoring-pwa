@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { createPortal } from 'react-dom'
 import {
   aideMemoireDocumentToBlob,
@@ -35,8 +36,15 @@ function buildRecordId(projectId: string, source: Source, updateRef: string) {
   return `aide-${projectId}-${source}-${updateRef}`
 }
 
-function mapExportData(record: OfflineAideMemoire, photos: Array<AideMemoirePhoto & { blob?: Blob }>): AideMemoireExportData {
+function mapExportData(
+  record: OfflineAideMemoire,
+  photos: Array<AideMemoirePhoto & { blob?: Blob }>,
+  extractedBy: string,
+  extractedAt: string,
+): AideMemoireExportData {
   return {
+    extractedBy,
+    extractedAt,
     provinceHuc: record.province_huc,
     officeName: record.office_name,
     officeAddress: record.office_address,
@@ -110,6 +118,7 @@ export default function AideMemoireGenerationDialog({
   onGenerated,
 }: Props) {
   const navigate = useNavigate()
+  const auth = useAuth()
   const [record, setRecord] = useState<OfflineAideMemoire | null>(null)
   const [photos, setPhotos] = useState<Array<AideMemoirePhoto & { blob?: Blob }>>([])
   const [format, setFormat] = useState<AideMemoireExportFormat>('pdf')
@@ -246,8 +255,16 @@ export default function AideMemoireGenerationDialog({
     setError('')
 
     try {
-      const result = await generateAideMemoireFiles(mapExportData(record, photos), format)
       const generatedAt = new Date().toISOString()
+      const extractedBy =
+        auth?.profile?.full_name ||
+        auth?.profile?.email ||
+        auth?.user?.email ||
+        'PMS10 User'
+      const result = await generateAideMemoireFiles(
+        mapExportData(record, photos, extractedBy, generatedAt),
+        format,
+      )
       const cacheWarnings: string[] = []
 
       if (result.pdfBlob && result.pdfFileName) {

@@ -353,6 +353,7 @@ export function isCriticalModificationType(modificationType?: string | null): bo
   return (
     normalized.includes('variation') ||
     normalized.includes('suspension') ||
+    normalized.includes('extension') ||
     normalized.includes('combination')
   )
 }
@@ -383,6 +384,7 @@ export function getProjectReasonLabel(
     return 'Reason for Suspension Order'
   }
   if (normalizedModification.includes('variation')) return 'Reason for Variation Order'
+  if (normalizedModification.includes('extension')) return 'Reason for Extension of Time'
   if (normalizedModification.includes('combination')) return 'Reason for Contract Modification'
 
   return 'Reason / Justification'

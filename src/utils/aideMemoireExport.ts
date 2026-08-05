@@ -139,6 +139,8 @@ export type AideMemoireExportPhoto = {
 }
 
 export type AideMemoireExportData = {
+  extractedBy?: string
+  extractedAt?: string
   provinceHuc?: string
   officeName?: string
   officeAddress?: string
@@ -197,6 +199,24 @@ function exportOfficeName(data: AideMemoireExportData) {
 function cleanText(value: unknown, fallback = '') {
   const text = String(value ?? '').trim()
   return text || fallback
+}
+
+function formatExtractionDate(value?: string | null) {
+  const parsed = value ? new Date(value) : new Date()
+  const date = Number.isNaN(parsed.getTime()) ? new Date() : parsed
+
+  return date.toLocaleString('en-PH', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
+function extractionSignature(data: AideMemoireExportData) {
+  return `Extracted from PMS10 on ${formatExtractionDate(data.extractedAt)} by: ${cleanText(data.extractedBy, 'PMS10 User')}`
 }
 
 function xmlEscape(value: unknown) {
@@ -869,12 +889,10 @@ async function buildDocxBlob(data: AideMemoireExportData) {
 
     for (let pageStart = 0; pageStart < resolvedDocxPhotos.length; pageStart += photosPerPage) {
       const pageItems = resolvedDocxPhotos.slice(pageStart, pageStart + photosPerPage)
-      const pageNumber = Math.floor(pageStart / photosPerPage) + 1
-      const pageCount = Math.ceil(resolvedDocxPhotos.length / photosPerPage)
-
+  
       body.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
       body.push(paragraphXml(
-        pageCount > 1 ? `PROJECT PHOTOS — PAGE ${pageNumber} OF ${pageCount}` : 'PROJECT PHOTOS',
+        'PROJECT PHOTOS',
         { align: 'center', bold: true, size: 24, spacingAfter: 80 },
       ))
 
@@ -929,9 +947,23 @@ async function buildDocxBlob(data: AideMemoireExportData) {
     }
   }
 
+  const footerSignature = xmlEscape(extractionSignature(data))
+  const footerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  <w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    <w:tbl>
+      <w:tblPr><w:tblW w:w="10500" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="A6A6A6"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>
+      <w:tblGrid><w:gridCol w:w="8500"/><w:gridCol w:w="2000"/></w:tblGrid>
+      <w:tr>
+        <w:tc><w:tcPr><w:tcW w:w="8500" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="left"/><w:spacing w:before="50" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="15"/><w:color w:val="666666"/></w:rPr><w:t>${footerSignature}</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="2000" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="50" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="15"/><w:color w:val="666666"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r><w:r><w:t xml:space="preserve"> of </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:ftr>`
+
   body.push(`<w:sectPr>
+    <w:footerReference w:type="default" r:id="rIdFooter"/>
     <w:pgSz w:w="11906" w:h="16838"/>
-    <w:pgMar w:top="650" w:right="700" w:bottom="650" w:left="700" w:header="360" w:footer="360" w:gutter="0"/>
+    <w:pgMar w:top="650" w:right="700" w:bottom="900" w:left="700" w:header="360" w:footer="360" w:gutter="0"/>
   </w:sectPr>`)
 
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -941,6 +973,7 @@ async function buildDocxBlob(data: AideMemoireExportData) {
   <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
     <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
     <Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+    <Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
     ${relationships.join('')}
   </Relationships>`
 
@@ -952,6 +985,7 @@ async function buildDocxBlob(data: AideMemoireExportData) {
     <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
     <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
     <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
+    <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
     <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
     <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
   </Types>`
@@ -968,7 +1002,8 @@ async function buildDocxBlob(data: AideMemoireExportData) {
   files['word/document.xml'] = encodeText(documentXml)
   files['word/_rels/document.xml.rels'] = encodeText(documentRelationships)
   files['word/styles.xml'] = encodeText(stylesXml)
-  files['word/settings.xml'] = encodeText(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:zoom w:percent="100"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`)
+  files['word/footer1.xml'] = encodeText(footerXml)
+  files['word/settings.xml'] = encodeText(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:zoom w:percent="100"/><w:updateFields w:val="true"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`)
   files['docProps/core.xml'] = encodeText(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Aide Memoire</dc:title><dc:subject>${xmlEscape(data.projectTitle)}</dc:subject><dc:creator>DILG Region X PMS10</dc:creator><cp:lastModifiedBy>DILG Region X PMS10</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`)
   files['docProps/app.xml'] = encodeText(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>PMS10</Application><AppVersion>1.0</AppVersion></Properties>`)
 
@@ -1013,7 +1048,7 @@ function pdfTable(doc: any, title: string, rows: Array<[string, string]>, startY
 }
 
 function ensurePdfSpace(doc: any, y: number, requiredHeight: number) {
-  if (y + requiredHeight <= 282) return y
+  if (y + requiredHeight <= 278) return y
   doc.addPage()
   return 14
 }
@@ -1203,7 +1238,6 @@ async function buildPdfBlob(data: AideMemoireExportData) {
 
   if (resolvedPdfPhotos.length > 0) {
     const photosPerPage = 6
-    const pageCount = Math.ceil(resolvedPdfPhotos.length / photosPerPage)
     const marginX = 12
     const gapX = 5
     const columnWidth = (186 - gapX) / 2
@@ -1212,13 +1246,12 @@ async function buildPdfBlob(data: AideMemoireExportData) {
 
     for (let pageStart = 0; pageStart < resolvedPdfPhotos.length; pageStart += photosPerPage) {
       const pageItems = resolvedPdfPhotos.slice(pageStart, pageStart + photosPerPage)
-      const pageNumber = Math.floor(pageStart / photosPerPage) + 1
 
       doc.addPage()
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(12)
       doc.text(
-        pageCount > 1 ? `PROJECT PHOTOS — PAGE ${pageNumber} OF ${pageCount}` : 'PROJECT PHOTOS',
+        'PROJECT PHOTOS',
         105,
         14,
         { align: 'center' },
@@ -1261,6 +1294,22 @@ async function buildPdfBlob(data: AideMemoireExportData) {
         doc.text(caption, slotX + columnWidth / 2, slotY + rowHeight - 10, { align: 'center' })
       }
     }
+  }
+
+  const totalPages = doc.getNumberOfPages()
+  const footerText = extractionSignature(data)
+
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+    doc.setPage(pageNumber)
+    doc.setDrawColor(166, 166, 166)
+    doc.setLineWidth(0.2)
+    doc.line(12, 284, 198, 284)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.4)
+    doc.setTextColor(90, 90, 90)
+    const signatureLines = doc.splitTextToSize(footerText, 158).slice(0, 2)
+    doc.text(signatureLines, 12, 288)
+    doc.text(`${pageNumber} of ${totalPages}`, 198, 288, { align: 'right' })
   }
 
   return doc.output('blob') as Blob
