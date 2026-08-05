@@ -855,11 +855,16 @@ function IconPdf() {
 
 function SavingDots() {
   return (
-    <span className="pms10-submit-loader" aria-hidden="true">
-      <span />
-      <span />
-      <span />
-    </span>
+    <svg
+      className="pms10-submit-loader"
+      viewBox="0 0 28 8"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="4" cy="4" r="3" />
+      <circle cx="14" cy="4" r="3" />
+      <circle cx="24" cy="4" r="3" />
+    </svg>
   )
 }
 

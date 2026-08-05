@@ -8536,65 +8536,52 @@ body > .pu-update-fab-drawer.is-closed .pu-update-fab-stack {
 }
 /* END PMS10 PHASE 4.7 — smaller hero monitoring text */
 
-/* PMS10 Phase 5.28.4: isolated horizontal submit loader. */
+/* PMS10 Phase 5.28.5: fixed-coordinate SVG submit loader. */
 .pms10-submit-loader {
-  position: static !important;
-  display: inline-flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 4px !important;
-  width: 26px !important;
-  min-width: 26px !important;
+  display: inline-block !important;
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
   height: 8px !important;
   min-height: 8px !important;
+  max-height: 8px !important;
   margin: 0 0 0 6px !important;
   padding: 0 !important;
-  line-height: 0 !important;
+  overflow: visible !important;
+  color: currentColor !important;
   vertical-align: middle !important;
-  flex: 0 0 26px !important;
+  flex: 0 0 28px !important;
 }
 
-.pms10-submit-loader > span {
-  position: static !important;
-  display: block !important;
-  flex: 0 0 5px !important;
-  width: 5px !important;
-  min-width: 5px !important;
-  height: 5px !important;
-  min-height: 5px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 999px !important;
-  background: currentColor !important;
-  opacity: 0.32;
-  transform: translateY(0) scale(0.9);
-  animation: pms10-submit-dot-pulse 0.9s infinite ease-in-out !important;
+.pms10-submit-loader > circle {
+  fill: currentColor !important;
+  opacity: 0.3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pms10-submit-svg-dot 0.9s infinite ease-in-out !important;
 }
 
-.pms10-submit-loader > span:nth-child(2) {
+.pms10-submit-loader > circle:nth-child(2) {
   animation-delay: 0.14s !important;
 }
 
-.pms10-submit-loader > span:nth-child(3) {
+.pms10-submit-loader > circle:nth-child(3) {
   animation-delay: 0.28s !important;
 }
 
-@keyframes pms10-submit-dot-pulse {
+@keyframes pms10-submit-svg-dot {
   0%, 60%, 100% {
     opacity: 0.28;
-    transform: translateY(0) scale(0.9);
+    transform: scale(0.78);
   }
   30% {
     opacity: 1;
-    transform: translateY(-2px) scale(1);
+    transform: scale(1);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pms10-submit-loader > span {
+  .pms10-submit-loader > circle {
     animation: none !important;
     opacity: 0.75;
     transform: none;
