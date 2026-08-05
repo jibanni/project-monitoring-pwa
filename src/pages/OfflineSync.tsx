@@ -3,6 +3,7 @@ import { offlineDb, type OfflineProjectPhoto, type OfflineProjectUpdate } from '
 import * as offlineSyncService from '../services/offlineSyncService'
 import { useAuth } from '../context/AuthContext'
 import { canUpdateProject, type AorProjectLike } from '../utils/aorAccess'
+import AppDiagnosticsPanel from '../components/AppDiagnosticsPanel'
 import '../styles/offlineSync.css'
 import '../styles/pageHero.css'
 
@@ -575,6 +576,8 @@ export default function OfflineSync() {
           <h2>Access Restricted</h2>
           <p>Your current account can view records based on AOR but cannot sync offline field updates.</p>
         </section>
+
+        <AppDiagnosticsPanel canRetrySync={false} />
       </div>
     )
   }
@@ -814,6 +817,17 @@ export default function OfflineSync() {
           )}
         </>
       )}
+
+      <AppDiagnosticsPanel
+        onRetrySync={() => syncNow(false)}
+        retryingSync={syncing}
+        canRetrySync={
+          isOnline &&
+          userCanUseOfflineSync &&
+          canSyncCurrentQueue &&
+          totalPendingCount > 0
+        }
+      />
 
       {removalDialog && (
         <div

@@ -8,6 +8,7 @@ import {
 import { getComputedRiskLevel } from '../utils/projectVariance'
 import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from './googleDrivePhotoUploadService'
 import { compressInspectionImage } from '../utils/imageCompression'
+import { recordSuccessfulSync } from '../lib/appDiagnostics'
 
 type SyncResult = {
   success: boolean
@@ -954,12 +955,20 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
     )
   }
 
+  const successMessage = `${syncedCount} offline update(s) and ${syncedPhotoCount} offline photo(s) synced successfully.`
+
+  recordSuccessfulSync({
+    syncedUpdates: syncedCount,
+    syncedPhotos: syncedPhotoCount,
+    message: successMessage,
+  })
+
   return {
     success: true,
     syncedCount,
     syncedPhotoCount,
     failedCount,
-    message: `${syncedCount} offline update(s) and ${syncedPhotoCount} offline photo(s) synced successfully.`,
+    message: successMessage,
   }
 }
 
