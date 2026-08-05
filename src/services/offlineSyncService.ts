@@ -214,9 +214,6 @@ function buildOnlineUpdatePayload(update: OfflineProjectUpdate) {
     target_physical_accomplishment: toNumber(update.target_physical_accomplishment),
     target_physical_source: textValue(update.target_physical_source) || 'manual',
     financial_accomplishment: toNumber(update.financial_accomplishment),
-    ...(hasKey(update.disbursement_amount)
-      ? { disbursement_amount: nullableNumber(update.disbursement_amount) }
-      : {}),
     risk_level: getAutoRiskForUpdate(update),
     issues: nullableText(update.issues),
     recommendations: nullableText(update.recommendations),
@@ -238,6 +235,9 @@ function buildProjectPatch(update: OfflineProjectUpdate) {
     target_physical_as_of: update.inspection_date,
     target_physical_source: textValue(update.target_physical_source) || 'manual',
     financial_accomplishment: toNumber(update.financial_accomplishment),
+    ...(hasKey(update.disbursement_amount)
+      ? { disbursement_amount: nullableNumber(update.disbursement_amount) }
+      : {}),
     risk_level: getAutoRiskForUpdate(update),
     has_contract_modification:
       update.has_contract_modification === true ||
