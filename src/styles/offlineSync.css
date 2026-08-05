@@ -913,40 +913,40 @@
   }
 }
 
-/* Phase 5.26: fixed compact diagnostics FAB and popover. */
+/* Phase 5.27: polished diagnostics FAB and centered popover. */
 .offline-sync-diagnostics-fab {
   position: fixed;
   right: 16px;
-  bottom: 18px;
+  bottom: calc(var(--pms10-nav-total-h, 72px) + 14px);
   z-index: 2147482200;
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 56px;
+  height: 56px;
   padding: 0;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.46);
   border-radius: 999px;
   background: linear-gradient(135deg, #0f477f 0%, #1d6ec2 100%);
   color: #ffffff;
-  box-shadow: 0 12px 26px rgba(15, 71, 127, 0.3);
+  box-shadow: 0 16px 30px rgba(15, 71, 127, 0.30);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
 }
 
 .offline-sync-diagnostics-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 15px 30px rgba(15, 71, 127, 0.35);
+  box-shadow: 0 18px 34px rgba(15, 71, 127, 0.34);
 }
 
 .offline-sync-diagnostics-fab:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .offline-sync-diagnostics-fab svg {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   fill: currentColor;
 }
 
@@ -955,17 +955,17 @@
   inset: 0;
   z-index: 2147482300;
   display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 16px;
-  background: rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(1.5px);
-  -webkit-backdrop-filter: blur(1.5px);
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(2.5px);
+  -webkit-backdrop-filter: blur(2.5px);
 }
 
 .offline-sync-diagnostics-popover-shell {
-  width: min(340px, calc(100vw - 32px));
-  max-height: min(520px, calc(100vh - 42px));
+  width: min(340px, calc(100vw - 28px));
+  max-height: min(520px, calc(100vh - 40px));
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -975,7 +975,7 @@
 @keyframes offline-diagnostics-pop-in {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(8px) scale(0.985);
   }
   to {
     opacity: 1;
@@ -985,23 +985,27 @@
 
 @media (max-width: 900px) {
   .offline-sync-diagnostics-fab {
-    right: 12px;
-    bottom: calc(var(--pms10-nav-total-h, 72px) + 12px);
+    right: 14px;
+    bottom: calc(var(--pms10-nav-total-h, 72px) + 14px + env(safe-area-inset-bottom));
+    width: 56px;
+    height: 56px;
   }
 
   .offline-sync-diagnostics-popover-layer {
-    padding:
-      12px
-      12px
-      calc(var(--pms10-nav-total-h, 72px) + 12px);
+    padding: 14px;
   }
 
   .offline-sync-diagnostics-popover-shell {
-    width: min(330px, calc(100vw - 24px));
-    max-height: min(480px, calc(100vh - var(--pms10-nav-total-h, 72px) - 36px));
+    width: min(336px, calc(100vw - 24px));
+    max-height: min(500px, calc(100vh - 28px));
   }
 }
 
+@media (max-width: 420px) {
+  .offline-sync-diagnostics-popover-shell {
+    width: calc(100vw - 20px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .offline-sync-diagnostics-popover-shell {
     animation: none;
