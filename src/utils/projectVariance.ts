@@ -385,14 +385,20 @@ export function getProjectReasonLabel(
   const normalizedStatus = textValue(status).toLowerCase()
   const normalizedModification = textValue(modificationType).toLowerCase()
 
+  /*
+    When a contract modification is selected, its reason label must prevail over
+    the current project status. This prevents a previous Suspension Order from
+    leaving the reason field labelled as suspension after the user switches to
+    VO, EOT, or Combination.
+  */
+  if (normalizedModification.includes('variation')) return 'Reason for Variation Order'
+  if (normalizedModification.includes('suspension')) return 'Reason for Suspension Order'
+  if (normalizedModification.includes('extension')) return 'Reason for Time Extension'
+  if (normalizedModification.includes('combination')) return 'Reason for Combined Contract Modifications'
+
   if (normalizedStatus === 'not yet started') return 'Reason for Not Yet Started'
   if (normalizedStatus.includes('terminate')) return 'Reason for Termination'
-  if (normalizedStatus.includes('suspend') || normalizedModification.includes('suspension')) {
-    return 'Reason for Suspension Order'
-  }
-  if (normalizedModification.includes('variation')) return 'Reason for Variation Order'
-  if (normalizedModification.includes('extension')) return 'Reason for Extension of Time'
-  if (normalizedModification.includes('combination')) return 'Reason for Contract Modification'
+  if (normalizedStatus.includes('suspend')) return 'Reason for Suspension Order'
 
   return 'Reason / Justification'
 }

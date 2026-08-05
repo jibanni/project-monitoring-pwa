@@ -561,6 +561,38 @@ function getModificationHelperText(modificationType: string) {
   return'Contract modification'
 }
 
+function getProjectReasonPlaceholder(
+  status?: string | null,
+  modificationType?: string | null,
+) {
+  const normalizedStatus = normalizeText(status)
+  const normalizedModification = normalizeText(modificationType)
+
+  if (normalizedModification.includes('variation')) {
+    return 'State the approved variation and the reason or justification for the change.'
+  }
+  if (normalizedModification.includes('suspension')) {
+    return 'State the reason or justification for the Suspension Order.'
+  }
+  if (normalizedModification.includes('extension')) {
+    return 'State the reason or justification for the requested time extension.'
+  }
+  if (normalizedModification.includes('combination')) {
+    return 'State the reasons and justification for the combined contract modifications.'
+  }
+  if (normalizedStatus.includes('terminate')) {
+    return 'State the reason or justification for project termination.'
+  }
+  if (normalizedStatus.includes('suspend')) {
+    return 'State the reason or justification for the Suspension Order.'
+  }
+  if (normalizedStatus === 'not yet started') {
+    return 'State the reason why project implementation has not yet started.'
+  }
+
+  return 'State the reason or justification.'
+}
+
 function getGpsErrorMessage(error: GeolocationPositionError) {
   if (!window.isSecureContext) {
     return'GPS requires HTTPS or localhost. Please open the app using localhost, HTTPS deployment, or manually encode the coordinates.'
@@ -1120,6 +1152,7 @@ export default function ProjectUpdates() {
   }, [projectStatus])
   const requiresUpdateReason = requiresProjectReason(projectStatus, activeModificationType)
   const projectReasonLabel = getProjectReasonLabel(projectStatus, activeModificationType)
+  const projectReasonPlaceholder = getProjectReasonPlaceholder(projectStatus, activeModificationType)
   const heroDisplayStatus = getStatusFromContractModification(activeModificationType) || projectStatus || project?.status ||'No Status'
 
   useEffect(() => {
@@ -4055,10 +4088,10 @@ export default function ProjectUpdates() {
                     onChange={(event) => setNotYetStartedReason(event.target.value)}
                     required
                     disabled={saving}
-                    placeholder="State the reason or justification for the variation, suspension, termination, or other approved contract change."
+                    placeholder={projectReasonPlaceholder}
                     rows={3}
                   />
-                  <small>This reason is recorded with the contract modification or critical project status.</small>
+                  <small>The reason will be recorded under the selected modification type or critical project status.</small>
                 </label>
               )}
             </div>

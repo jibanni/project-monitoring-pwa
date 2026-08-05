@@ -36,13 +36,6 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function toBoolean(value: unknown) {
-  if (typeof value === 'boolean') return value
-
-  const normalized = textValue(value).toLowerCase()
-  return normalized === 'true' || normalized === 'yes' || normalized === '1'
-}
-
 function normalizeDate(value: unknown) {
   const text = textValue(value)
 
