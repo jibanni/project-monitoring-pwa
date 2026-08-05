@@ -219,6 +219,45 @@ export function initializeSharedProjects() {
   return initialLoadPromise
 }
 
+export async function updateSharedProjectCache(
+  projectId: string,
+  patch: Partial<SharedProjectRow>,
+) {
+  const currentProjects = snapshot.projects.length > 0
+    ? snapshot.projects
+    : await readDeviceCache()
+
+  const existingIndex = currentProjects.findIndex(
+    (project) => String(project.id) === String(projectId),
+  )
+
+  if (existingIndex < 0) return
+
+  const nextProjects = [...currentProjects]
+  nextProjects[existingIndex] = {
+    ...nextProjects[existingIndex],
+    ...patch,
+    id: projectId,
+    cached_at: new Date().toISOString(),
+  }
+
+  const sortedProjects = sortProjects(nextProjects)
+
+  publish({
+    projects: sortedProjects,
+    loading: false,
+    refreshing: false,
+    errorMessage: '',
+    source: snapshot.source === 'empty' ? 'device' : snapshot.source,
+  })
+
+  try {
+    await offlineDb.projects.put(nextProjects[existingIndex] as any)
+  } catch (error) {
+    console.error('Unable to patch the shared project cache.', error)
+  }
+}
+
 export function useSharedProjects<T = SharedProjectRow>() {
   const current = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 

@@ -36,6 +36,13 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+function toBoolean(value: unknown) {
+  if (typeof value === 'boolean') return value
+
+  const normalized = textValue(value).toLowerCase()
+  return normalized === 'true' || normalized === 'yes' || normalized === '1'
+}
+
 function normalizeDate(value: unknown) {
   const text = textValue(value)
 
@@ -82,17 +89,6 @@ function normalizeRisk(value: unknown): RiskLevel {
   return 'None'
 }
 
-function riskScore(risk: RiskLevel) {
-  if (risk === 'High') return 3
-  if (risk === 'Moderate') return 2
-  if (risk === 'Low') return 1
-  return 0
-}
-
-function maxRisk(first: RiskLevel, second: RiskLevel): RiskLevel {
-  return riskScore(first) >= riskScore(second) ? first : second
-}
-
 function getStatus(project: Record<string, any>) {
   return textValue(
     project.status ||
@@ -125,7 +121,10 @@ export function isProjectCompleted(project: Record<string, any> | null | undefin
 }
 
 export function getEffectiveDeadline(project: Record<string, any>) {
-  const revisedContractExpiry = normalizeDate(project.revised_contract_expiration_date)
+  const hasApprovedModification = toBoolean(project.has_contract_modification)
+  const revisedContractExpiry = hasApprovedModification
+    ? normalizeDate(project.revised_contract_expiration_date)
+    : null
   const contractExpiry = normalizeDate(project.contract_expiration_date)
   const targetCompletion = normalizeDate(project.target_completion_date)
 
@@ -275,16 +274,15 @@ export function getComputedRiskLevelWithDeadline(project: Record<string, any> | 
   const baseRisk = normalizeRisk(getComputedRiskLevel(project || {}))
   const deadlineInfo = getDeadlineRiskInfo(project)
 
-  // A project that is on target or ahead must display No Risk. Upcoming
-  // deadlines alone must not turn a positive or zero variance into Moderate.
-  // An already-lapsed contract or a critical project status remains High Risk.
+  // Canonical PMS10 display rule:
+  // critical status or an already-lapsed official expiration remains High Risk.
+  // A future deadline must not override the variance-based risk level. This
+  // keeps Project Registry, Project Details, Dashboard, Map, and Reports aligned.
   if (deadlineInfo.basis === 'Status' || (deadlineInfo.daysRemaining ?? 0) < 0) {
     return 'High'
   }
 
-  if (baseRisk === 'None') return 'None'
-
-  return maxRisk(baseRisk, deadlineInfo.level)
+  return baseRisk
 }
 
 export function getDeadlineRiskBasisLabel(project: Record<string, any> | null | undefined) {

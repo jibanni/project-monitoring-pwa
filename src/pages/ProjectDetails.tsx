@@ -6,7 +6,8 @@ import autoTable from 'jspdf-autotable'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, type OfflineAideMemoire, type OfflineAideMemoireDocument } from '../lib/offlineDb'
-import { getComputedRiskLevel, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getOfficialProjectCost, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getPmsRiskLevel } from '../utils/projectStatus'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
 import { normalizeProgramName } from '../utils/program'
@@ -546,7 +547,7 @@ export default function ProjectDetails() {
 
   const displayStatus = getProjectDisplayStatus(project)
   const varianceInfo = getTargetPhysicalInfo(project)
-  const computedRiskLevel = getComputedRiskLevel(project)
+  const computedRiskLevel = getPmsRiskLevel((project || {}) as Record<string, any>)
   const normalizedHeroRisk = String(computedRiskLevel ?? '').trim().toLowerCase()
   const heroRiskLabel =
     !normalizedHeroRisk || normalizedHeroRisk === 'none' || normalizedHeroRisk === 'no risk'
@@ -604,7 +605,7 @@ export default function ProjectDetails() {
         ['Funding Source', normalizeProgramName(project.funding_source) || '-'],
         ['Implementing Office', project.implementing_office || '-'],
         ['Contractor', project.contractor || '-'],
-        ['Total Project Cost', formatCurrency(project.budget)],
+        ['Total Project Cost', formatCurrency(getOfficialProjectCost(project))],
         ['Province', project.province || '-'],
         ['Municipality', project.municipality || '-'],
         ['Barangay', project.barangay || '-'],
@@ -936,7 +937,7 @@ export default function ProjectDetails() {
 
         <article className="pd-summary-card">
           <span>Project Cost</span>
-          <strong className="pd-cost-value">{formatCurrency(project.budget)}</strong>
+          <strong className="pd-cost-value">{formatCurrency(getOfficialProjectCost(project))}</strong>
         </article>
 
         <article className="pd-summary-card">

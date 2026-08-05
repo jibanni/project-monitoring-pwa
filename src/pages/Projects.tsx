@@ -7,7 +7,7 @@ import { offlineDb } from '../lib/offlineDb'
 import { useSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import ActionMenu, { type ActionMenuItem } from '../components/ActionMenu'
-import { getTargetPhysicalInfo } from '../utils/projectVariance'
+import { getOfficialProjectCost, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
 import '../styles/projects.css'
 import '../styles/unifiedFilters.css'
@@ -43,6 +43,11 @@ type ProjectRow = {
   target_physical_accomplishment?: number | string | null
   target_physical_as_of?: string | null
   target_physical_source?: string | null
+  contract_expiration_date?: string | null
+  has_contract_modification?: boolean | string | null
+  contract_modification_type?: string | null
+  revised_project_cost?: number | string | null
+  revised_contract_expiration_date?: string | null
   updated_at: string | null
   subaybayan_project_code?: string | null
 }
@@ -475,7 +480,7 @@ export default function Projects() {
   ])
 
   const totalCost = useMemo(() => {
-    return filteredProjects.reduce((sum, project) => sum + toNumber(project.budget), 0)
+    return filteredProjects.reduce((sum, project) => sum + getOfficialProjectCost(project), 0)
   }, [filteredProjects])
 
   const underProcurementCount = filteredProjects.filter(
@@ -870,7 +875,7 @@ export default function Projects() {
 
                     <div className="project-row-metric project-row-cost">
                       <span>Cost</span>
-                      <strong>{formatCompactCurrency(project.budget)}</strong>
+                      <strong>{formatCompactCurrency(getOfficialProjectCost(project))}</strong>
                     </div>
 
                     <div className="project-row-metric">

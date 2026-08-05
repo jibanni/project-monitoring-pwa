@@ -3,17 +3,18 @@ import { createPortal } from'react-dom'
 import type { ChangeEvent, FormEvent, KeyboardEvent } from'react'
 import { Link, useLocation, useNavigate, useParams } from'react-router-dom'
 import { supabase } from'../lib/supabase'
+import { updateSharedProjectCache } from'../lib/projectDataCache'
 import { aideMemoireDocumentToBlob, aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
 import { useAuth } from'../context/AuthContext'
 import {
   formatProgressInput,
-  getComputedRiskLevel,
   getContractExpirationInfo,
   getProjectReasonLabel,
   getStatusFromContractModification,
   getTargetPhysicalInfo,
   requiresProjectReason,
 } from'../utils/projectVariance'
+import { getPmsRiskLevel } from'../utils/projectStatus'
 import { canUpdateProject, getCanonicalRole } from'../utils/aorAccess'
 import { getDilgOfficeDirectoryEntry, normalizeDilgOfficeLocation } from'../data/dilgOfficeDirectory'
 import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from'../services/googleDrivePhotoUploadService'
@@ -898,6 +899,7 @@ export default function ProjectUpdates() {
   const [notYetStartedReason, setNotYetStartedReason] = useState('')
   const [hasContractModification, setHasContractModification] = useState(false)
   const [contractModificationType, setContractModificationType] = useState('')
+  const [hasRevisedProjectCost, setHasRevisedProjectCost] = useState(false)
   const [revisedProjectCost, setRevisedProjectCost] = useState('')
   const [revisedContractExpirationDate, setRevisedContractExpirationDate] = useState('')
   const [issues, setIssues] = useState('')
@@ -955,6 +957,7 @@ export default function ProjectUpdates() {
         notYetStartedReason,
         hasContractModification,
         contractModificationType,
+        hasRevisedProjectCost,
         revisedProjectCost,
         revisedContractExpirationDate,
         inspectionLatitude,
@@ -990,6 +993,7 @@ export default function ProjectUpdates() {
       notYetStartedReason,
       hasContractModification,
       contractModificationType,
+      hasRevisedProjectCost,
       revisedProjectCost,
       revisedContractExpirationDate,
       inspectionLatitude,
@@ -1025,6 +1029,7 @@ export default function ProjectUpdates() {
         notYetStartedReason ||
         hasContractModification ||
         contractModificationType ||
+        hasRevisedProjectCost ||
         revisedProjectCost ||
         revisedContractExpirationDate ||
         inspectionLatitude ||
@@ -1050,6 +1055,7 @@ export default function ProjectUpdates() {
     notYetStartedReason,
     hasContractModification,
     contractModificationType,
+    hasRevisedProjectCost,
     revisedProjectCost,
     revisedContractExpirationDate,
     inspectionLatitude,
@@ -1137,6 +1143,7 @@ export default function ProjectUpdates() {
   useEffect(() => {
     if (!hasContractModification) {
       setContractModificationType('')
+      setHasRevisedProjectCost(false)
       setRevisedProjectCost('')
       setRevisedContractExpirationDate('')
       return
@@ -1175,7 +1182,7 @@ export default function ProjectUpdates() {
         contract_expiration_date: project?.contract_expiration_date,
         has_contract_modification: hasContractModification,
         contract_modification_type: activeModificationType,
-        revised_project_cost: revisedProjectCost,
+        revised_project_cost: hasRevisedProjectCost ? revisedProjectCost : null,
         revised_contract_expiration_date: revisedContractExpirationDate,
       },
       inspectionDate,
@@ -1188,6 +1195,7 @@ export default function ProjectUpdates() {
     inspectionDate,
     hasContractModification,
     activeModificationType,
+    hasRevisedProjectCost,
     revisedProjectCost,
     revisedContractExpirationDate,
   ])
@@ -1197,20 +1205,22 @@ export default function ProjectUpdates() {
       contract_expiration_date: project?.contract_expiration_date,
       has_contract_modification: hasContractModification,
       contract_modification_type: activeModificationType,
-      revised_project_cost: revisedProjectCost,
+      revised_project_cost: hasRevisedProjectCost ? revisedProjectCost : null,
       revised_contract_expiration_date: revisedContractExpirationDate,
     })
   }, [
     project?.contract_expiration_date,
     hasContractModification,
     activeModificationType,
+    hasRevisedProjectCost,
     revisedProjectCost,
     revisedContractExpirationDate,
   ])
 
   const autoRiskLevel = useMemo(
-    () => getComputedRiskLevel({
+    () => getPmsRiskLevel({
       ...(project || {}),
+      status: projectStatus,
       physical_accomplishment:
         physicalAccomplishment ===''
           ? project?.physical_accomplishment
@@ -1222,16 +1232,18 @@ export default function ProjectUpdates() {
       contract_expiration_date: project?.contract_expiration_date,
       has_contract_modification: hasContractModification,
       contract_modification_type: activeModificationType,
-      revised_project_cost: revisedProjectCost,
+      revised_project_cost: hasRevisedProjectCost ? revisedProjectCost : null,
       revised_contract_expiration_date: revisedContractExpirationDate,
     }),
     [
       project,
+      projectStatus,
       physicalAccomplishment,
       targetPhysicalAccomplishment,
       inspectionDate,
       hasContractModification,
       activeModificationType,
+      hasRevisedProjectCost,
       revisedProjectCost,
       revisedContractExpirationDate,
     ],
@@ -1480,6 +1492,7 @@ export default function ProjectUpdates() {
     if (!projectRecord) {
       setHasContractModification(false)
       setContractModificationType('')
+      setHasRevisedProjectCost(false)
       setRevisedProjectCost('')
       setRevisedContractExpirationDate('')
       setNotYetStartedReason('')
@@ -1491,14 +1504,15 @@ export default function ProjectUpdates() {
       String(projectRecord.has_contract_modification ||'').toLowerCase() ==='yes' ||
       String(projectRecord.has_contract_modification ||'').toLowerCase() ==='true'
 
+    const hasStoredRevisedCost =
+      projectRecord.revised_project_cost !== null &&
+      projectRecord.revised_project_cost !== undefined &&
+      String(projectRecord.revised_project_cost).trim() !== ''
+
     setHasContractModification(hasModification)
     setContractModificationType(projectRecord.contract_modification_type ||'')
-    setRevisedProjectCost(
-      projectRecord.revised_project_cost !== null &&
-        projectRecord.revised_project_cost !== undefined
-        ? String(projectRecord.revised_project_cost)
-        :'',
-    )
+    setHasRevisedProjectCost(hasStoredRevisedCost)
+    setRevisedProjectCost(hasStoredRevisedCost ? String(projectRecord.revised_project_cost) : '')
     setRevisedContractExpirationDate(
       projectRecord.revised_contract_expiration_date
         ? String(projectRecord.revised_contract_expiration_date).slice(0, 10)
@@ -1602,7 +1616,11 @@ export default function ProjectUpdates() {
     setContractAmount(String(snapshot.contract_amount ?? draft.contract_amount ?? project?.contract_amount ?? project?.budget ?? ''))
     setHasContractModification(Boolean(snapshot.has_contract_modification))
     setContractModificationType(String(snapshot.contract_modification_type || ''))
-    setRevisedProjectCost(String(snapshot.revised_project_cost ?? ''))
+    const restoredRevisedCost = String(snapshot.revised_project_cost ?? '').trim()
+    setHasRevisedProjectCost(
+      snapshot.has_revised_project_cost === true || restoredRevisedCost !== '',
+    )
+    setRevisedProjectCost(restoredRevisedCost)
     setRevisedContractExpirationDate(String(snapshot.revised_contract_expiration_date || draft.revised_expiration_date || '').slice(0, 10))
     setInspectionLatitude(String(snapshot.inspection_latitude ?? ''))
     setInspectionLongitude(String(snapshot.inspection_longitude ?? ''))
@@ -1736,7 +1754,8 @@ export default function ProjectUpdates() {
         contract_amount: contractAmount || String(project.contract_amount ?? project.budget ?? ''),
         has_contract_modification: hasContractModification,
         contract_modification_type: contractModificationType,
-        revised_project_cost: revisedProjectCost,
+        has_revised_project_cost: hasRevisedProjectCost,
+        revised_project_cost: hasRevisedProjectCost ? revisedProjectCost : null,
         revised_contract_expiration_date: revisedContractExpirationDate,
         inspection_latitude: inspectionLatitude,
         inspection_longitude: inspectionLongitude,
@@ -2530,7 +2549,7 @@ export default function ProjectUpdates() {
       if (hasContractModification && !contractModificationType.trim()) {
         return 'Please select the type of contract modification.'
       }
-      if (hasContractModification && !revisedProjectCost.trim()) {
+      if (hasContractModification && hasRevisedProjectCost && !revisedProjectCost.trim()) {
         return 'Please enter the revised project cost.'
       }
       if (hasContractModification && !revisedContractExpirationDate.trim()) {
@@ -2694,7 +2713,7 @@ export default function ProjectUpdates() {
       return'Please select the type of contract modification.'
     }
 
-    if (hasContractModification && !revisedProjectCost.trim()) {
+    if (hasContractModification && hasRevisedProjectCost && !revisedProjectCost.trim()) {
       return'Please enter the revised project cost.'
     }
 
@@ -2874,7 +2893,10 @@ export default function ProjectUpdates() {
       risk_level: autoRiskLevel,
       has_contract_modification: hasContractModification,
       contract_modification_type: hasContractModification ? contractModificationType : null,
-      revised_project_cost: hasContractModification ? toNumber(revisedProjectCost) : null,
+      revised_project_cost:
+        hasContractModification && hasRevisedProjectCost
+          ? toNumber(revisedProjectCost)
+          : null,
       revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
       not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       last_inspection_date: inspectionDate,
@@ -2890,6 +2912,9 @@ export default function ProjectUpdates() {
     if (projectUpdateError) {
       throw projectUpdateError
     }
+
+    await updateSharedProjectCache(projectId, projectPatch)
+    setProject((current) => current ? { ...current, ...projectPatch } : current)
 
     let photoUploadResult = {
       uploadedCount: 0,
@@ -2948,7 +2973,10 @@ export default function ProjectUpdates() {
       contract_expiration_date: project?.contract_expiration_date || null,
       has_contract_modification: hasContractModification,
       contract_modification_type: hasContractModification ? contractModificationType : null,
-      revised_project_cost: hasContractModification ? toNumber(revisedProjectCost) : null,
+      revised_project_cost:
+        hasContractModification && hasRevisedProjectCost
+          ? toNumber(revisedProjectCost)
+          : null,
       revised_contract_expiration_date: hasContractModification
         ? revisedContractExpirationDate
         : null,
@@ -3089,7 +3117,10 @@ export default function ProjectUpdates() {
       contract_expiration_date: project?.contract_expiration_date || null,
       has_contract_modification: hasContractModification,
       contract_modification_type: hasContractModification ? contractModificationType : null,
-      revised_project_cost: hasContractModification ? toNumber(revisedProjectCost) : null,
+      revised_project_cost:
+        hasContractModification && hasRevisedProjectCost
+          ? toNumber(revisedProjectCost)
+          : null,
       revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
       not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       synced: false,
@@ -3148,7 +3179,32 @@ export default function ProjectUpdates() {
       contract_expiration_date: project?.contract_expiration_date || null,
       has_contract_modification: hasContractModification,
       contract_modification_type: hasContractModification ? contractModificationType : null,
-      revised_project_cost: hasContractModification ? toNumber(revisedProjectCost) : null,
+      revised_project_cost:
+        hasContractModification && hasRevisedProjectCost
+          ? toNumber(revisedProjectCost)
+          : null,
+      revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
+      not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
+      last_inspection_date: inspectionDate,
+      ...latestCoordinatePatch,
+      updated_at: currentTimestamp,
+    })
+
+    await updateSharedProjectCache(projectId, {
+      status: projectStatus,
+      physical_accomplishment: clampProgress(physicalAccomplishment),
+      target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
+      target_physical_as_of: inspectionDate,
+      target_physical_source: 'manual',
+      financial_accomplishment: clampProgress(financialAccomplishment),
+      risk_level: autoRiskLevel,
+      contract_expiration_date: project?.contract_expiration_date || null,
+      has_contract_modification: hasContractModification,
+      contract_modification_type: hasContractModification ? contractModificationType : null,
+      revised_project_cost:
+        hasContractModification && hasRevisedProjectCost
+          ? toNumber(revisedProjectCost)
+          : null,
       revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
       not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       last_inspection_date: inspectionDate,
@@ -3746,20 +3802,54 @@ export default function ProjectUpdates() {
 
               {hasContractModification && (
                 <>
-                  <label className="pu-field">
-                    <span>Revised Project Cost *</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      inputMode="decimal"
-                      value={revisedProjectCost}
-                      onChange={(event) => setRevisedProjectCost(event.target.value)}
-                      disabled={saving}
-                      placeholder="0.00"
-                      required
-                    />
-                  </label>
+                  <div className="pu-field pu-full-field">
+                    <span>Project Cost Revision?</span>
+                    <div className="pu-two-choice-grid" role="radiogroup" aria-label="Project cost revision">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={!hasRevisedProjectCost}
+                        className={`pu-choice-card ${!hasRevisedProjectCost ? 'active' : ''}`}
+                        onClick={() => {
+                          setHasRevisedProjectCost(false)
+                          setRevisedProjectCost('')
+                        }}
+                        disabled={saving}
+                      >
+                        <strong>No Revision</strong>
+                        <small>Retain the current project cost</small>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={hasRevisedProjectCost}
+                        className={`pu-choice-card ${hasRevisedProjectCost ? 'active' : ''}`}
+                        onClick={() => setHasRevisedProjectCost(true)}
+                        disabled={saving}
+                      >
+                        <strong>Revised Cost</strong>
+                        <small>Enter the approved revised amount</small>
+                      </button>
+                    </div>
+                  </div>
+
+                  {hasRevisedProjectCost && (
+                    <label className="pu-field pu-full-field">
+                      <span>Revised Project Cost *</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={revisedProjectCost}
+                        onChange={(event) => setRevisedProjectCost(event.target.value)}
+                        disabled={saving}
+                        placeholder="0.00"
+                        required
+                      />
+                    </label>
+                  )}
 
                   <div className="pu-field pu-date-field">
                     <span>Revised Contract Expiration Date *</span>
