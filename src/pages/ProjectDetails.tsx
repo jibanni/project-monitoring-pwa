@@ -18,6 +18,8 @@ import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveIma
 import ActionMenu from '../components/ActionMenu'
 import AideMemoireGenerationDialog from '../components/AideMemoireGenerationDialog'
 
+const PROJECT_UPDATE_HISTORY_LIMIT = 5
+
 function toNumber(value: unknown): number {
   if (value === null || value === undefined || value === '') return 0
 
@@ -396,9 +398,13 @@ export default function ProjectDetails() {
     setAccessDenied(false)
     setProject(cachedProject || null)
     setUpdates(
-      pendingUpdates.sort((a, b) =>
-        String(b.created_at || '').localeCompare(String(a.created_at || '')),
-      ),
+      pendingUpdates
+        .sort((a, b) =>
+          String(b.inspection_date || b.created_at || '').localeCompare(
+            String(a.inspection_date || a.created_at || ''),
+          ),
+        )
+        .slice(0, PROJECT_UPDATE_HISTORY_LIMIT),
     )
     setPhotos([])
     setDataSource('offline')
@@ -429,7 +435,9 @@ export default function ProjectDetails() {
         .from('project_updates')
         .select('*')
         .eq('project_id', id)
+        .order('inspection_date', { ascending: false })
         .order('created_at', { ascending: false })
+        .limit(PROJECT_UPDATE_HISTORY_LIMIT)
 
       if (projectResult.error) {
         throw projectResult.error
@@ -1243,8 +1251,11 @@ export default function ProjectDetails() {
                 <h2>Update History</h2>
               </div>
 
-              <span className="pd-section-chip">
-                {updates.length} record{updates.length === 1 ? '' : 's'}
+              <span
+                className="pd-section-chip"
+                title={`Showing only the ${PROJECT_UPDATE_HISTORY_LIMIT} most recent updates`}
+              >
+                {updates.length === 1 ? 'Latest record' : `Latest ${updates.length}`}
               </span>
             </div>
 
@@ -1291,52 +1302,58 @@ export default function ProjectDetails() {
                       </div>
                     </div>
 
-                    <div className="pd-note-grid pd-history-note-grid">
-                      <div className="pd-note-box">
-                        <span>Issues / Findings</span>
-                        <p>{getDisplayValue(update.issues, 'No issues encoded.')}</p>
-                      </div>
+                    <details className="pd-history-details">
+                      <summary>View details</summary>
 
-                      <div className="pd-note-box">
-                        <span>Recommendations</span>
-                        <p>
-                          {getDisplayValue(
-                            update.recommendations,
-                            'No recommendations encoded.',
-                          )}
-                        </p>
-                      </div>
+                      <div className="pd-history-details-body">
+                        <div className="pd-note-grid pd-history-note-grid">
+                          <div className="pd-note-box">
+                            <span>Issues / Findings</span>
+                            <p>{getDisplayValue(update.issues, 'No issues encoded.')}</p>
+                          </div>
 
-                      <div className="pd-note-box">
-                        <span>Remarks</span>
-                        <p>{getDisplayValue(update.remarks, 'No remarks encoded.')}</p>
-                      </div>
-                    </div>
+                          <div className="pd-note-box">
+                            <span>Recommendations</span>
+                            <p>
+                              {getDisplayValue(
+                                update.recommendations,
+                                'No recommendations encoded.',
+                              )}
+                            </p>
+                          </div>
 
-                    {canUpdateCurrentProject && updateReference && (
-                      <div className={`pd-history-actions ${aideDraft ? 'has-aide-draft' : ''}`}>
-                        {aideDraft && (
-                          <div className="pd-aide-draft-status">
-                            <span>Aide Memoire</span>
-                            <strong>{aideDraft.status === 'final' ? 'Ready' : 'Draft Saved'}</strong>
-                            <small>{aideDraft.status === 'final' ? 'Generated from submitted update' : `Last saved ${formatDateTime(aideDraft.updated_at)}`}</small>
+                          <div className="pd-note-box">
+                            <span>Remarks</span>
+                            <p>{getDisplayValue(update.remarks, 'No remarks encoded.')}</p>
+                          </div>
+                        </div>
+
+                        {canUpdateCurrentProject && updateReference && (
+                          <div className={`pd-history-actions ${aideDraft ? 'has-aide-draft' : ''}`}>
+                            {aideDraft && (
+                              <div className="pd-aide-draft-status">
+                                <span>Aide Memoire</span>
+                                <strong>{aideDraft.status === 'final' ? 'Ready' : 'Draft Saved'}</strong>
+                                <small>{aideDraft.status === 'final' ? 'Generated from submitted update' : `Last saved ${formatDateTime(aideDraft.updated_at)}`}</small>
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              className="pd-aide-btn"
+                              onClick={() => {
+                                setAideGenerationRequest({
+                                  updateRef: updateReference,
+                                  source: updateSource === 'offline' ? 'offline' : 'online',
+                                })
+                              }}
+                            >
+                              {aideDraft ? 'Generate / Open Aide Memoire' : 'Generate Aide Memoire'}
+                            </button>
                           </div>
                         )}
-
-                        <button
-                          type="button"
-                          className="pd-aide-btn"
-                          onClick={() => {
-                            setAideGenerationRequest({
-                              updateRef: updateReference,
-                              source: updateSource === 'offline' ? 'offline' : 'online',
-                            })
-                          }}
-                        >
-                          {aideDraft ? 'Generate / Open Aide Memoire' : 'Generate Aide Memoire'}
-                        </button>
                       </div>
-                    )}
+                    </details>
                   </article>
                   )
                 })}

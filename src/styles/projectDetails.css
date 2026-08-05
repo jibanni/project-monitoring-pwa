@@ -3569,3 +3569,129 @@ body .pd-page .pd-summary-card .pd-progress-track {
   }
 }
 /* PMS10 PHASE 5.15 OVERRIDE END */
+
+
+/* Phase 5.29: latest-five compact project update history. */
+.pd-history-section .pd-history-list {
+  max-height: none;
+  gap: 0.55rem;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.pd-history-section .pd-history-card {
+  margin-right: 0;
+  padding: 0.68rem;
+  border-radius: 15px;
+  box-shadow: 0 6px 15px rgba(15, 23, 42, 0.035);
+}
+
+.pd-history-section .pd-history-top {
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.pd-history-section .pd-history-top span,
+.pd-history-section .pd-history-progress span {
+  margin-bottom: 0.14rem;
+  font-size: 0.58rem;
+}
+
+.pd-history-section .pd-history-top strong,
+.pd-history-section .pd-history-progress strong {
+  font-size: 0.8rem;
+  line-height: 1.18;
+}
+
+.pd-history-section .pd-risk-badge {
+  padding: 0.34rem 0.58rem;
+  font-size: 0.65rem;
+}
+
+.pd-history-section .pd-history-progress {
+  gap: 0.42rem;
+  margin-bottom: 0;
+}
+
+.pd-history-section .pd-history-progress > div {
+  padding: 0.5rem 0.58rem;
+  border-radius: 12px;
+}
+
+.pd-history-details {
+  margin-top: 0.48rem;
+  border-top: 1px solid #e8eef7;
+}
+
+.pd-history-details > summary {
+  position: relative;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.48rem 0.12rem 0;
+  color: #315b89;
+  font-size: 0.72rem;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+  touch-action: manipulation;
+}
+
+.pd-history-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.pd-history-details > summary::after {
+  content: '+';
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.pd-history-details[open] > summary::after {
+  content: '−';
+}
+
+.pd-history-details-body {
+  padding-top: 0.52rem;
+}
+
+.pd-history-section .pd-history-note-grid {
+  grid-template-columns: 1fr;
+  gap: 0.42rem;
+}
+
+.pd-history-section .pd-history-note-grid .pd-note-box {
+  padding: 0.58rem;
+  border-radius: 12px;
+}
+
+.pd-history-section .pd-history-note-grid .pd-note-box p {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.78rem;
+  line-height: 1.36;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.pd-history-section .pd-history-actions {
+  margin-top: 0.48rem;
+}
+
+@media (max-width: 420px) {
+  .pd-history-section .pd-history-card {
+    padding: 0.62rem;
+  }
+
+  .pd-history-section .pd-history-progress > div {
+    padding: 0.46rem 0.52rem;
+  }
+}

@@ -199,7 +199,7 @@ type CoordinateResult = {
   reason: string
 }
 
-const RECENT_UPDATE_LIMIT = 4
+const RECENT_UPDATE_LIMIT = 5
 
 const statusOptions = ['Ongoing', 'Completed', 'Suspended', 'Terminated']
 
