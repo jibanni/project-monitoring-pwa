@@ -20,7 +20,6 @@ export const routeLoaders = {
   createProject: () => import('../pages/CreateProject'),
   editProject: () => import('../pages/EditProject'),
   projectMap: () => import('../pages/ProjectMap'),
-  offlineSync: () => import('../pages/OfflineSync'),
   reports: () => import('../pages/Reports'),
   userManagement: () => import('../pages/UserManagement'),
   userAccess: () => import('../pages/UserAccess'),
@@ -58,7 +57,6 @@ function getRouteLoader(pathname: string): PageLoader | null {
   if (/^\/projects\/[^/]+\/?$/.test(path)) return routeLoaders.projectDetails
   if (path === '/map') return routeLoaders.projectMap
   if (path === '/reports') return routeLoaders.reports
-  if (path === '/offline-sync') return routeLoaders.offlineSync
   if (/^\/users\/[^/]+\/access\/?$/.test(path)) return routeLoaders.userAccess
   if (path === '/users') return routeLoaders.userManagement
 

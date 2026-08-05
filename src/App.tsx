@@ -13,6 +13,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import PendingApproval from './pages/PendingApproval'
 import Unauthorized from './pages/Unauthorized'
+import OfflineSync from './pages/OfflineSync'
 
 const Dashboard = lazy(routeLoaders.dashboard)
 const Projects = lazy(routeLoaders.projects)
@@ -22,7 +23,6 @@ const AideMemoirePdfViewer = lazy(routeLoaders.aideMemoirePdfViewer)
 const CreateProject = lazy(routeLoaders.createProject)
 const EditProject = lazy(routeLoaders.editProject)
 const ProjectMap = lazy(routeLoaders.projectMap)
-const OfflineSync = lazy(routeLoaders.offlineSync)
 const Reports = lazy(routeLoaders.reports)
 const UserManagement = lazy(routeLoaders.userManagement)
 const UserAccess = lazy(routeLoaders.userAccess)
