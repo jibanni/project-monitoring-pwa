@@ -46,10 +46,6 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function formatPercent(value: unknown) {
-  return `${toNumber(value).toFixed(2)}%`
-}
-
 function formatLongDate(value: unknown) {
   const rawValue = textValue(value)
 
@@ -199,10 +195,6 @@ function getPhotoProject(record: HydratedOfflinePhoto) {
     textValue(record.project_name) ||
     `Project ${textValue(record.project_id) || 'Photo'}`
   )
-}
-
-function getPhotoDate(record: OfflineProjectPhoto) {
-  return record.created_at || record.uploaded_at
 }
 
 function getPhotoSize(record: OfflineProjectPhoto) {
@@ -622,158 +614,128 @@ export default function OfflineSync() {
         </section>
       ) : (
         <>
-          <section className="offline-sync-workspace">
-            <div className="offline-sync-panel">
-              <div className="offline-sync-panel-header">
-                <div>
-                  <p>OFFLINE QUEUE</p>
-                  <h2>Pending Updates</h2>
-                  <span>{pendingUpdatesCount} AOR-allowed offline inspection update/s found.</span>
-                </div>
+          <section className="offline-sync-compact-queue">
+            <div className="offline-sync-compact-heading">
+              <div>
+                <p>SYNC QUEUE</p>
+                <h2>Data Waiting to Sync</h2>
+                <span>
+                  {totalPendingCount === 0
+                    ? 'No offline records are waiting on this device.'
+                    : `${totalPendingCount} AOR-allowed record/s ready for synchronization.`}
+                </span>
               </div>
 
-              {offlineUpdates.length === 0 ? (
-                <div className="offline-sync-empty">
-                  <h3>No pending offline updates</h3>
-                  <p>Inspection updates saved offline within your assigned AOR will appear here before syncing.</p>
-                </div>
-              ) : (
-                <div className="offline-sync-list">
-                  {offlineUpdates.map((record, index) => (
-                    <article
-                      key={textValue(record.id) || textValue(record.local_id) || `update-${index}`}
-                      className={`offline-sync-record-card ${isOrphanedUpdate(record) ? 'orphaned' : ''}`}
-                    >
-                      <div className="offline-sync-record-top">
-                        <div>
-                          <h3>{getUpdateTitle(record)}</h3>
-                          <p>{formatLongDate(getUpdateDate(record))}</p>
-                        </div>
+              <div className="offline-sync-compact-counts" aria-label="Pending sync counts">
+                <span>
+                  <strong>{pendingUpdatesCount}</strong>
+                  Updates
+                </span>
+                <span>
+                  <strong>{pendingPhotosCount}</strong>
+                  Photos
+                </span>
+                <span className="total">
+                  <strong>{totalPendingCount}</strong>
+                  Total
+                </span>
+              </div>
+            </div>
 
-                        <span className={`offline-sync-status ${getStatusClass(record)}`}>
-                          {getStatusLabel(record)}
-                        </span>
-                      </div>
+            {totalPendingCount === 0 ? (
+              <div className="offline-sync-compact-empty">
+                <strong>All synced</strong>
+                <span>New offline updates and photos will appear here as a simple list.</span>
+              </div>
+            ) : (
+              <div className="offline-sync-compact-groups">
+                {offlineUpdates.length > 0 && (
+                  <div className="offline-sync-compact-group">
+                    <div className="offline-sync-compact-group-title">
+                      <span>Updates</span>
+                      <strong>{pendingUpdatesCount}</strong>
+                    </div>
 
-                      <div className="offline-sync-record-grid">
-                        <span>
-                          <strong>Physical</strong>
-                          {formatPercent(record.physical_accomplishment)}
-                        </span>
-                        <span>
-                          <strong>Financial</strong>
-                          {formatPercent(record.financial_accomplishment)}
-                        </span>
-                        <span>
-                          <strong>Risk</strong>
-                          {textValue(record.risk_level) || 'No Risk'}
-                        </span>
-                        <span>
-                          <strong>Photos</strong>
-                          {record.pending_photo_count || 0} pending
-                        </span>
-                      </div>
-
-                      {textValue(record.issues) && (
-                        <div className="offline-sync-note">
-                          <strong>Issues:</strong> {textValue(record.issues)}
-                        </div>
-                      )}
-
-                      {textValue(record.error) && (
-                        <div className="offline-sync-record-error">
-                          {textValue(record.error)}
-                        </div>
-                      )}
-
-                      {isOrphanedUpdate(record) && (
-                        <div className="offline-sync-orphaned-note">
-                          <strong>Orphaned Update</strong>
-                          <span>
-                            The original project no longer exists in PMS10. This update cannot be synchronized.
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="offline-sync-record-actions">
-                        <button
-                          type="button"
-                          className="offline-sync-remove-button"
-                          onClick={() => openRemovalDialog(record)}
-                          disabled={syncing || removingUpdate}
+                    <div className="offline-sync-compact-list">
+                      {offlineUpdates.map((record, index) => (
+                        <article
+                          key={textValue(record.id) || textValue(record.local_id) || `update-${index}`}
+                          className={`offline-sync-compact-row ${isOrphanedUpdate(record) ? 'orphaned' : ''}`}
                         >
-                          {isOrphanedUpdate(record)
-                            ? 'Remove Pending Update'
-                            : 'Remove from Device'}
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
+                          <div className="offline-sync-compact-row-main">
+                            <strong>{getUpdateTitle(record)}</strong>
+                            <span>
+                              {formatLongDate(getUpdateDate(record))}
+                              {' · '}
+                              {record.pending_photo_count || 0} photo/s
+                            </span>
+                          </div>
 
-            <div className="offline-sync-panel">
-              <div className="offline-sync-panel-header">
-                <div>
-                  <p>PHOTO QUEUE</p>
-                  <h2>Pending Photos</h2>
-                  <span>{pendingPhotosCount} AOR-allowed offline photo/s found.</span>
-                </div>
+                          <div className="offline-sync-compact-row-side">
+                            <span className={`offline-sync-status ${getStatusClass(record)}`}>
+                              {getStatusLabel(record)}
+                            </span>
+                            <button
+                              type="button"
+                              className="offline-sync-compact-remove"
+                              onClick={() => openRemovalDialog(record)}
+                              disabled={syncing || removingUpdate}
+                              aria-label={`Remove ${getUpdateTitle(record)} from this device`}
+                              title="Remove from device"
+                            >
+                              ×
+                            </button>
+                          </div>
+
+                          {textValue(record.error) && (
+                            <small className="offline-sync-compact-error">
+                              {textValue(record.error)}
+                            </small>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {offlinePhotos.length > 0 && (
+                  <div className="offline-sync-compact-group">
+                    <div className="offline-sync-compact-group-title">
+                      <span>Photos</span>
+                      <strong>{pendingPhotosCount}</strong>
+                    </div>
+
+                    <div className="offline-sync-compact-list">
+                      {offlinePhotos.map((record, index) => (
+                        <article
+                          key={textValue(record.id) || `photo-${index}`}
+                          className="offline-sync-compact-row photo"
+                        >
+                          <div className="offline-sync-compact-row-main">
+                            <strong>{getPhotoProject(record)}</strong>
+                            <span>
+                              {getPhotoTitle(record)}
+                              {' · '}
+                              {formatFileSize(getPhotoSize(record))}
+                            </span>
+                          </div>
+
+                          <span className={`offline-sync-status ${getStatusClass(record)}`}>
+                            {getStatusLabel(record)}
+                          </span>
+
+                          {textValue(record.error) && (
+                            <small className="offline-sync-compact-error">
+                              {textValue(record.error)}
+                            </small>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {offlinePhotos.length === 0 ? (
-                <div className="offline-sync-empty">
-                  <h3>No pending offline photos</h3>
-                  <p>Photos captured during offline inspection within your assigned AOR will appear here.</p>
-                </div>
-              ) : (
-                <div className="offline-sync-list">
-                  {offlinePhotos.map((record, index) => (
-                    <article
-                      key={textValue(record.id) || `photo-${index}`}
-                      className="offline-sync-record-card photo"
-                    >
-                      <div className="offline-sync-record-top">
-                        <div>
-                          <h3>{getPhotoProject(record)}</h3>
-                          <p>{getPhotoTitle(record)}</p>
-                        </div>
-
-                        <span className={`offline-sync-status ${getStatusClass(record)}`}>
-                          {getStatusLabel(record)}
-                        </span>
-                      </div>
-
-                      <div className="offline-sync-record-grid">
-                        <span>
-                          <strong>Date Saved</strong>
-                          {formatLongDate(getPhotoDate(record))}
-                        </span>
-                        <span>
-                          <strong>File Size</strong>
-                          {formatFileSize(getPhotoSize(record))}
-                        </span>
-                        <span>
-                          <strong>Caption</strong>
-                          {textValue(record.caption) || '-'}
-                        </span>
-                        <span>
-                          <strong>Project ID</strong>
-                          {textValue(record.project_id) || '-'}
-                        </span>
-                      </div>
-
-                      {textValue(record.error) && (
-                        <div className="offline-sync-record-error">
-                          {textValue(record.error)}
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
           </section>
 
           <section className="offline-sync-action-card">
