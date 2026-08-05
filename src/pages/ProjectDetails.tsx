@@ -75,23 +75,6 @@ function formatDate(value: unknown) {
   })
 }
 
-function formatDateTime(value: unknown) {
-  const rawValue = String(value ?? '').trim()
-
-  if (!rawValue) return '-'
-
-  const date = new Date(rawValue)
-
-  if (Number.isNaN(date.getTime())) return rawValue
-
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
 
 function getDisplayValue(value: unknown, fallback = '-') {
   const displayValue = String(value ?? '').trim()
@@ -250,6 +233,7 @@ export default function ProjectDetails() {
   const [loading, setLoading] = useState(true)
   const [dataSource, setDataSource] = useState('online')
   const [photosExpanded, setPhotosExpanded] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const [isHeroCompact, setIsHeroCompact] = useState(false)
   const [accessDenied, setAccessDenied] = useState(false)
@@ -260,6 +244,25 @@ export default function ProjectDetails() {
   useEffect(() => {
     setPortalReady(true)
   }, [])
+
+  useEffect(() => {
+    if (!historyOpen) return
+
+    const previousOverflow = document.body.style.overflow
+
+    document.body.style.overflow = 'hidden'
+
+    function handleHistoryEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setHistoryOpen(false)
+    }
+
+    document.addEventListener('keydown', handleHistoryEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', handleHistoryEscape)
+    }
+  }, [historyOpen])
 
 
   useEffect(() => {
@@ -291,6 +294,7 @@ export default function ProjectDetails() {
 
   useEffect(() => {
     setPhotosExpanded(false)
+    setHistoryOpen(false)
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -1244,75 +1248,125 @@ export default function ProjectDetails() {
               </div>
             )}
           </section>
-          <section className="pd-card pd-history-section">
-            <div className="pd-section-header">
-              <div>
-                <p className="pd-section-eyebrow">History</p>
-                <h2>Update History</h2>
-              </div>
-
-              <span
-                className="pd-section-chip"
-                title={`Showing only the ${PROJECT_UPDATE_HISTORY_LIMIT} most recent updates`}
-              >
-                {updates.length === 1 ? 'Latest record' : `Latest ${updates.length}`}
+          <section className="pd-history-pill-section" aria-label="Update history">
+            <button
+              type="button"
+              className={`pd-history-pill ${updates.length === 0 ? 'is-empty' : ''}`}
+              onClick={() => {
+                if (updates.length > 0) setHistoryOpen(true)
+              }}
+              disabled={updates.length === 0}
+              aria-haspopup="dialog"
+            >
+              <span className="pd-history-pill-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 7v5l3 2" />
+                  <path d="M4.9 4.9A10 10 0 1 1 2 12" />
+                  <path d="M2 5v7h7" />
+                </svg>
               </span>
-            </div>
 
-            {updates.length === 0 ? (
-              <div className="pd-empty-inline">No update history available.</div>
-            ) : (
-              <div className="pd-history-list">
-                {updates.map((update) => {
-                  const updateReference = String(
-                    update.local_id || update.online_update_id || update.id || '',
-                  )
-                  const updateSource =
-                    update.is_offline || update.local_id ? 'offline' : 'online'
-                  const aideDraft = aideDraftByUpdate.get(
-                    `${updateSource}:${updateReference}`,
-                  )
+              <span className="pd-history-pill-copy">
+                <strong>
+                  {updates.length === 0
+                    ? 'No Update History'
+                    : `Latest ${updates.length} Update${updates.length === 1 ? '' : 's'}`}
+                </strong>
+                <small>
+                  {updates.length === 0
+                    ? 'No inspection records available'
+                    : 'Tap to view compact history'}
+                </small>
+              </span>
 
-                  return (
-                  <article key={update.id} className="pd-history-card">
-                    <div className="pd-history-top">
-                      <div>
-                        <span>Inspection Date</span>
-                        <strong>{formatDate(update.inspection_date)}</strong>
-                      </div>
+              {updates.length > 0 && (
+                <>
+                  <span className="pd-history-pill-count">{updates.length}</span>
+                  <span className="pd-history-pill-chevron" aria-hidden="true">›</span>
+                </>
+              )}
+            </button>
+          </section>
 
-                      <span
-                        className={`pd-risk-badge pd-risk-${normalizeClassName(
-                          computedRiskLevel === 'None' ? 'None' : update.risk_level,
-                        )}`}
-                      >
-                        {computedRiskLevel === 'None' ? 'None' : getDisplayValue(update.risk_level, 'No Risk')}
-                      </span>
-                    </div>
+        </aside>
+      </main>
 
-                    <div className="pd-history-progress">
-                      <div>
-                        <span>Physical</span>
-                        <strong>{formatPercent(update.physical_accomplishment)}</strong>
-                      </div>
+      {portalReady && historyOpen
+        ? createPortal(
+            <div
+              className="pd-history-modal-layer"
+              role="presentation"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) setHistoryOpen(false)
+              }}
+            >
+              <section
+                className="pd-history-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="pd-history-modal-title"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <header className="pd-history-modal-header">
+                  <div>
+                    <p>History</p>
+                    <h2 id="pd-history-modal-title">
+                      Latest {updates.length} Update{updates.length === 1 ? '' : 's'}
+                    </h2>
+                  </div>
 
-                      <div>
-                        <span>Financial</span>
-                        <strong>{formatPercent(update.financial_accomplishment)}</strong>
-                      </div>
-                    </div>
+                  <button
+                    type="button"
+                    className="pd-history-modal-close"
+                    aria-label="Close update history"
+                    onClick={() => setHistoryOpen(false)}
+                  >
+                    ×
+                  </button>
+                </header>
 
-                    <details className="pd-history-details">
-                      <summary>View details</summary>
+                <div className="pd-history-modal-list">
+                  {updates.map((update, index) => {
+                    const updateReference = String(
+                      update.local_id || update.online_update_id || update.id || '',
+                    )
+                    const updateSource =
+                      update.is_offline || update.local_id ? 'offline' : 'online'
+                    const aideDraft = aideDraftByUpdate.get(
+                      `${updateSource}:${updateReference}`,
+                    )
 
-                      <div className="pd-history-details-body">
-                        <div className="pd-note-grid pd-history-note-grid">
-                          <div className="pd-note-box">
+                    return (
+                      <details key={update.id} className="pd-history-modal-item">
+                        <summary>
+                          <span className="pd-history-modal-number">{index + 1}</span>
+
+                          <span className="pd-history-modal-summary-copy">
+                            <strong>{formatDate(update.inspection_date)}</strong>
+                            <small>
+                              Physical {formatPercent(update.physical_accomplishment)} · Financial{' '}
+                              {formatPercent(update.financial_accomplishment)}
+                            </small>
+                          </span>
+
+                          <span
+                            className={`pd-risk-badge pd-risk-${normalizeClassName(
+                              computedRiskLevel === 'None' ? 'None' : update.risk_level,
+                            )}`}
+                          >
+                            {computedRiskLevel === 'None'
+                              ? 'None'
+                              : getDisplayValue(update.risk_level, 'No Risk')}
+                          </span>
+                        </summary>
+
+                        <div className="pd-history-modal-item-body">
+                          <div className="pd-history-modal-note">
                             <span>Issues / Findings</span>
                             <p>{getDisplayValue(update.issues, 'No issues encoded.')}</p>
                           </div>
 
-                          <div className="pd-note-box">
+                          <div className="pd-history-modal-note">
                             <span>Recommendations</span>
                             <p>
                               {getDisplayValue(
@@ -1322,47 +1376,43 @@ export default function ProjectDetails() {
                             </p>
                           </div>
 
-                          <div className="pd-note-box">
+                          <div className="pd-history-modal-note">
                             <span>Remarks</span>
                             <p>{getDisplayValue(update.remarks, 'No remarks encoded.')}</p>
                           </div>
+
+                          {canUpdateCurrentProject && updateReference && (
+                            <div className="pd-history-modal-actions">
+                              {aideDraft && (
+                                <small>
+                                  Aide Memoire: {aideDraft.status === 'final' ? 'Ready' : 'Draft Saved'}
+                                </small>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setHistoryOpen(false)
+                                  setAideGenerationRequest({
+                                    updateRef: updateReference,
+                                    source: updateSource === 'offline' ? 'offline' : 'online',
+                                  })
+                                }}
+                              >
+                                {aideDraft ? 'Open Aide Memoire' : 'Generate Aide Memoire'}
+                              </button>
+                            </div>
+                          )}
                         </div>
-
-                        {canUpdateCurrentProject && updateReference && (
-                          <div className={`pd-history-actions ${aideDraft ? 'has-aide-draft' : ''}`}>
-                            {aideDraft && (
-                              <div className="pd-aide-draft-status">
-                                <span>Aide Memoire</span>
-                                <strong>{aideDraft.status === 'final' ? 'Ready' : 'Draft Saved'}</strong>
-                                <small>{aideDraft.status === 'final' ? 'Generated from submitted update' : `Last saved ${formatDateTime(aideDraft.updated_at)}`}</small>
-                              </div>
-                            )}
-
-                            <button
-                              type="button"
-                              className="pd-aide-btn"
-                              onClick={() => {
-                                setAideGenerationRequest({
-                                  updateRef: updateReference,
-                                  source: updateSource === 'offline' ? 'offline' : 'online',
-                                })
-                              }}
-                            >
-                              {aideDraft ? 'Generate / Open Aide Memoire' : 'Generate Aide Memoire'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </details>
-                  </article>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-
-        </aside>
-      </main>
+                      </details>
+                    )
+                  })}
+                </div>
+              </section>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {portalReady && isHeroCompact
         ? createPortal(
