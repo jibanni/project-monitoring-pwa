@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { offlineDb, type OfflineProjectPhoto, type OfflineProjectUpdate } from '../lib/offlineDb'
 import * as offlineSyncService from '../services/offlineSyncService'
 import { useAuth } from '../context/AuthContext'
 import { canUpdateProject, type AorProjectLike } from '../utils/aorAccess'
-import AppDiagnosticsPanel from '../components/AppDiagnosticsPanel'
 import '../styles/offlineSync.css'
 import '../styles/pageHero.css'
 
@@ -576,8 +576,6 @@ export default function OfflineSync() {
           <h2>Access Restricted</h2>
           <p>Your current account can view records based on AOR but cannot sync offline field updates.</p>
         </section>
-
-        <AppDiagnosticsPanel canRetrySync={false} />
       </div>
     )
   }
@@ -818,16 +816,17 @@ export default function OfflineSync() {
         </>
       )}
 
-      <AppDiagnosticsPanel
-        onRetrySync={() => syncNow(false)}
-        retryingSync={syncing}
-        canRetrySync={
-          isOnline &&
-          userCanUseOfflineSync &&
-          canSyncCurrentQueue &&
-          totalPendingCount > 0
-        }
-      />
+      <Link
+        to="/offline-sync/diagnostics"
+        className="offline-sync-diagnostics-fab"
+        aria-label="Open App Diagnostics"
+        title="App Diagnostics"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M13.4 2.7a1 1 0 0 0-1.8 0l-.7 1.6a8.2 8.2 0 0 0-1.4.6L7.9 4.3a1 1 0 0 0-1.2.4L4.8 6.6a1 1 0 0 0-.2 1.2l.7 1.6a8.2 8.2 0 0 0-.6 1.4l-1.7.7a1 1 0 0 0-.6.9v2.7a1 1 0 0 0 .6.9l1.7.7c.2.5.4 1 .6 1.4l-.7 1.6a1 1 0 0 0 .2 1.2l1.9 1.9a1 1 0 0 0 1.2.2l1.6-.7c.5.3.9.5 1.4.6l.7 1.6a1 1 0 0 0 .9.6h2.7a1 1 0 0 0 .9-.6l.7-1.6c.5-.2 1-.4 1.4-.6l1.6.7a1 1 0 0 0 1.2-.2l1.9-1.9a1 1 0 0 0 .2-1.2l-.7-1.6c.3-.5.5-.9.6-1.4l1.6-.7a1 1 0 0 0 .6-.9v-2.7a1 1 0 0 0-.6-.9l-1.6-.7a8.2 8.2 0 0 0-.6-1.4l.7-1.6a1 1 0 0 0-.2-1.2l-1.9-1.9a1 1 0 0 0-1.2-.2l-1.6.7a8.2 8.2 0 0 0-1.4-.6l-.7-1.6a1 1 0 0 0-.9-.6h-2.7Zm1.4 10.7a2.8 2.8 0 1 1-5.6 0 2.8 2.8 0 0 1 5.6 0Z" />
+        </svg>
+        <span>Diagnostics</span>
+      </Link>
 
       {removalDialog && (
         <div

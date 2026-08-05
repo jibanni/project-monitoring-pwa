@@ -274,3 +274,135 @@
     width: 100%;
   }
 }
+
+/* Phase 5.25: dedicated diagnostics route within Offline Sync. */
+.offline-diagnostics-page {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 0 calc(118px + env(safe-area-inset-bottom));
+  color: #0f172a;
+}
+
+.offline-diagnostics-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 148px;
+  margin-bottom: 18px;
+  padding: 28px 30px;
+  overflow: hidden;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 88% 8%, rgba(255, 255, 255, 0.16), transparent 36%),
+    linear-gradient(135deg, #123f73 0%, #18599d 56%, #2368b5 100%);
+  color: #ffffff;
+  box-shadow: 0 22px 48px rgba(15, 48, 87, 0.2);
+  isolation: isolate;
+}
+
+.offline-diagnostics-hero::after {
+  content: '';
+  position: absolute;
+  right: -74px;
+  bottom: -126px;
+  width: 280px;
+  height: 280px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.offline-diagnostics-hero > * {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.offline-diagnostics-hero p {
+  margin: 0 0 8px;
+  color: #fed7aa;
+  font-size: 0.76rem;
+  font-weight: 950;
+  letter-spacing: 0.15em;
+}
+
+.offline-diagnostics-hero h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2rem, 7vw, 3.7rem);
+  font-weight: 950;
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.offline-diagnostics-hero > div > span {
+  display: block;
+  max-width: 760px;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.95rem;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.offline-diagnostics-back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 950;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+  touch-action: manipulation;
+}
+
+.offline-diagnostics-back-link svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  fill: currentColor;
+}
+
+.offline-diagnostics-aor-notice {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.84rem;
+  font-weight: 780;
+  line-height: 1.45;
+}
+
+.offline-diagnostics-page .app-diagnostics-card {
+  margin-top: 0;
+}
+
+@media (max-width: 700px) {
+  .offline-diagnostics-hero {
+    align-items: stretch;
+    flex-direction: column;
+    min-height: 0;
+    padding: 24px 20px;
+    border-radius: 24px;
+  }
+
+  .offline-diagnostics-hero h1 {
+    font-size: clamp(2rem, 11vw, 3rem);
+  }
+
+  .offline-diagnostics-back-link {
+    align-self: flex-start;
+  }
+}

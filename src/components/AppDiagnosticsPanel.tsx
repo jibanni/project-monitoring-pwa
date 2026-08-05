@@ -13,6 +13,8 @@ type AppDiagnosticsPanelProps = {
   onRetrySync?: () => Promise<void> | void
   retryingSync?: boolean
   canRetrySync?: boolean
+  defaultExpanded?: boolean
+  showRetrySync?: boolean
 }
 
 type ActionState = 'idle' | 'loading' | 'success' | 'error'
@@ -99,11 +101,13 @@ export default function AppDiagnosticsPanel({
   onRetrySync,
   retryingSync = false,
   canRetrySync = false,
+  defaultExpanded = false,
+  showRetrySync = true,
 }: AppDiagnosticsPanelProps) {
   const auth = useAuth()
   const [diagnostics, setDiagnostics] = useState<AppDiagnosticsSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(defaultExpanded)
   const [actionState, setActionState] = useState<ActionState>('idle')
   const [actionMessage, setActionMessage] = useState('')
 
@@ -177,7 +181,11 @@ export default function AppDiagnosticsPanel({
     } catch (error) {
       console.error(error)
       setActionState('error')
-      setActionMessage('The offline queue retry did not complete successfully.')
+      setActionMessage(
+        error instanceof Error
+          ? error.message
+          : 'The offline queue retry did not complete successfully.',
+      )
     }
   }
 
@@ -362,14 +370,16 @@ export default function AppDiagnosticsPanel({
       )}
 
       <div className="app-diagnostics-actions">
-        <button
-          type="button"
-          className="primary"
-          onClick={() => void handleRetrySync()}
-          disabled={!canRetrySync || retryingSync || actionState === 'loading'}
-        >
-          {retryingSync ? 'Retrying Sync…' : 'Retry Sync'}
-        </button>
+        {showRetrySync && (
+          <button
+            type="button"
+            className="primary"
+            onClick={() => void handleRetrySync()}
+            disabled={!canRetrySync || retryingSync || actionState === 'loading'}
+          >
+            {retryingSync ? 'Retrying Sync…' : 'Retry Sync'}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => void handleRefreshProjects()}

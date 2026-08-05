@@ -912,3 +912,70 @@
     width: 100%;
   }
 }
+
+/* Phase 5.25: diagnostics moved to a separate Offline Sync page. */
+.offline-sync-diagnostics-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 24px;
+  z-index: 2147481400;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 0 16px 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.44);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0f477f 0%, #1d6ec2 100%);
+  color: #ffffff;
+  box-shadow: 0 16px 34px rgba(15, 71, 127, 0.3);
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  isolation: isolate;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.offline-sync-diagnostics-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 19px 38px rgba(15, 71, 127, 0.36);
+}
+
+.offline-sync-diagnostics-fab:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.offline-sync-diagnostics-fab svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  fill: currentColor;
+}
+
+@media (max-width: 900px) {
+  .offline-sync-diagnostics-fab {
+    right: 14px;
+    bottom: calc(var(--pms10-nav-total-h, 72px) + 14px);
+    z-index: 2147482000;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+  }
+
+  .offline-sync-diagnostics-fab span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
