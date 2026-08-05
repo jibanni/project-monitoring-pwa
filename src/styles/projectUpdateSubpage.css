@@ -2037,3 +2037,118 @@
 }
 
 /* PMS10 PHASE 5.13 — MATCH PHOTO/FINDING NUMBER + COMPACT STEP 1 END */
+
+/* PMS10 Phase 5.20: update type, retained disbursement, and optional attendance */
+.pu-update-type-field,
+.pu-disbursement-mode-field {
+  margin-bottom: 0.8rem;
+}
+
+.pu-update-type-field .pu-choice-card,
+.pu-disbursement-mode-field .pu-choice-card {
+  min-height: 88px;
+}
+
+.pu-office-update-note,
+.pu-retained-disbursement {
+  border: 1px solid #cfe0f4;
+  border-radius: 16px;
+  background: #f5f9ff;
+  padding: 0.8rem 0.9rem;
+  color: #254b75;
+}
+
+.pu-office-update-note {
+  margin: 0.2rem 0 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.pu-retained-disbursement {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.pu-retained-disbursement > span {
+  color: #536b88;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pu-retained-disbursement > strong {
+  color: #12233f;
+  font-size: 1.18rem;
+}
+
+.pu-retained-disbursement > small {
+  color: #687e99;
+  font-size: 0.8rem;
+}
+
+.pu-contract-reason-field {
+  margin-top: 0.25rem;
+}
+
+.pu-no-attendees-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  border: 1px solid #b9d8fb;
+  border-radius: 16px;
+  background: #eef7ff;
+  padding: 0.85rem 0.9rem;
+  color: #174f87;
+  cursor: pointer;
+}
+
+.pu-no-attendees-toggle input {
+  width: 22px;
+  height: 22px;
+  margin-top: 0.1rem;
+  accent-color: #126fd1;
+  flex: 0 0 auto;
+}
+
+.pu-no-attendees-toggle > span {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.pu-no-attendees-toggle strong {
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.pu-no-attendees-toggle small {
+  color: #587493;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .pu-update-type-field .pu-two-choice-grid,
+  .pu-disbursement-mode-field .pu-two-choice-grid {
+    gap: 0.55rem;
+  }
+
+  .pu-update-type-field .pu-choice-card,
+  .pu-disbursement-mode-field .pu-choice-card {
+    min-height: 80px;
+    padding: 0.75rem;
+  }
+
+  .pu-update-type-field .pu-choice-card strong,
+  .pu-disbursement-mode-field .pu-choice-card strong {
+    font-size: 0.92rem;
+  }
+
+  .pu-update-type-field .pu-choice-card small,
+  .pu-disbursement-mode-field .pu-choice-card small {
+    font-size: 0.72rem;
+    line-height: 1.3;
+  }
+}

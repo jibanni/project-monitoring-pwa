@@ -176,6 +176,7 @@ type PhotoCaptureMetadata = {
 }
 
 type SaveMode ='online' |'offline'
+type UpdateType = 'site' | 'office'
 
 type SaveSuccessDialog = {
   title: string
@@ -213,7 +214,7 @@ const WIZARD_STEPS = [
   { number: 8, title: 'Additional Photos and Final Review', shortTitle: 'Review' },
 ] as const
 
-const WIZARD_STEP_COUNT = WIZARD_STEPS.length
+const OFFICE_WIZARD_STEP_NUMBERS = new Set([1, 2, 3, 4, 8])
 
 const NOT_YET_STARTED_REASONS = ['No TDRs Submitted','Lacking TDRs Submitted','TDRs under PO Engineers Review','TDRs under Review (PO)','TDRs under Review (RO)',
 ]
@@ -895,6 +896,7 @@ export default function ProjectUpdates() {
   const targetPhysicalSource ='manual' as const
   const [financialAccomplishment, setFinancialAccomplishment] = useState('')
   const [disbursementAmount, setDisbursementAmount] = useState('')
+  const [hasNewDisbursement, setHasNewDisbursement] = useState(false)
   const [contractAmount, setContractAmount] = useState('')
   const [notYetStartedReason, setNotYetStartedReason] = useState('')
   const [hasContractModification, setHasContractModification] = useState(false)
@@ -918,6 +920,8 @@ export default function ProjectUpdates() {
   const [noticeDialog, setNoticeDialog] = useState<NoticeDialog>(null)
   const [aideFindings, setAideFindings] = useState<AideMemoireFinding[]>([createBlankAideFinding()])
   const [noFindingsObserved, setNoFindingsObserved] = useState(false)
+  const [noAttendees, setNoAttendees] = useState(false)
+  const [updateType, setUpdateType] = useState<UpdateType>('site')
   const [aideAttendance, setAideAttendance] = useState<AideMemoireAttendance[]>([createBlankAideAttendee()])
   const [generalObservations, setGeneralObservations] = useState('')
   const [modeOfImplementation, setModeOfImplementation] = useState('BY CONTRACT')
@@ -929,6 +933,21 @@ export default function ProjectUpdates() {
   const [wizardStep, setWizardStep] = useState(1)
   const [maxReachedStep, setMaxReachedStep] = useState(1)
   const [wizardError, setWizardError] = useState('')
+
+  const isOfficeUpdate = updateType === 'office'
+  const visibleWizardSteps = useMemo(
+    () => isOfficeUpdate
+      ? WIZARD_STEPS.filter((step) => OFFICE_WIZARD_STEP_NUMBERS.has(step.number))
+      : [...WIZARD_STEPS],
+    [isOfficeUpdate],
+  )
+  const currentVisibleStepIndex = Math.max(
+    0,
+    visibleWizardSteps.findIndex((step) => step.number === wizardStep),
+  )
+  const currentVisibleStepNumber = currentVisibleStepIndex + 1
+  const isFinalWizardStep = currentVisibleStepIndex >= visibleWizardSteps.length - 1
+  const nextVisibleWizardStep = visibleWizardSteps[currentVisibleStepIndex + 1] || null
 
   const routeProject = useMemo(() => {
     const state = location.state as ProjectUpdateRouteState | null
@@ -953,6 +972,7 @@ export default function ProjectUpdates() {
         targetPhysicalAccomplishment,
         financialAccomplishment,
         disbursementAmount,
+        hasNewDisbursement,
         contractAmount,
         notYetStartedReason,
         hasContractModification,
@@ -964,6 +984,8 @@ export default function ProjectUpdates() {
         inspectionLongitude,
         aideFindings,
         noFindingsObserved,
+        noAttendees,
+        updateType,
         aideAttendance,
         generalObservations,
         modeOfImplementation,
@@ -989,6 +1011,7 @@ export default function ProjectUpdates() {
       targetPhysicalAccomplishment,
       financialAccomplishment,
       disbursementAmount,
+      hasNewDisbursement,
       contractAmount,
       notYetStartedReason,
       hasContractModification,
@@ -1000,6 +1023,8 @@ export default function ProjectUpdates() {
       inspectionLongitude,
       aideFindings,
       noFindingsObserved,
+      noAttendees,
+      updateType,
       aideAttendance,
       generalObservations,
       modeOfImplementation,
@@ -1024,7 +1049,8 @@ export default function ProjectUpdates() {
         physicalAccomplishment !== String(project.physical_accomplishment ?? '') ||
         targetPhysicalAccomplishment ||
         financialAccomplishment !== String(project.financial_accomplishment ?? '') ||
-        disbursementAmount ||
+        hasNewDisbursement ||
+        disbursementAmount !== String(project.disbursement_amount ?? '') ||
         (contractAmount && contractAmount !== defaultContractAmount) ||
         notYetStartedReason ||
         hasContractModification ||
@@ -1036,6 +1062,8 @@ export default function ProjectUpdates() {
         inspectionLongitude ||
         aideFindings.some(hasAideFindingContent) ||
         noFindingsObserved ||
+        noAttendees ||
+        updateType !== 'site' ||
         aideAttendance.some(hasAideAttendeeContent) ||
         generalObservations ||
         photoInputs.length > 0 ||
@@ -1051,6 +1079,7 @@ export default function ProjectUpdates() {
     targetPhysicalAccomplishment,
     financialAccomplishment,
     disbursementAmount,
+    hasNewDisbursement,
     contractAmount,
     notYetStartedReason,
     hasContractModification,
@@ -1062,6 +1091,8 @@ export default function ProjectUpdates() {
     inspectionLongitude,
     aideFindings,
     noFindingsObserved,
+    noAttendees,
+    updateType,
     aideAttendance,
     generalObservations,
     photoInputs.length,
@@ -1071,6 +1102,11 @@ export default function ProjectUpdates() {
   const effectiveContractAmount = useMemo(
     () => toNumber(contractAmount || project?.contract_amount || project?.budget),
     [contractAmount, project?.contract_amount, project?.budget],
+  )
+
+  const effectiveDisbursementAmount = useMemo(
+    () => toNumber(disbursementAmount || project?.disbursement_amount),
+    [disbursementAmount, project?.disbursement_amount],
   )
 
   const activeModificationType = hasContractModification ? contractModificationType :''
@@ -1107,7 +1143,9 @@ export default function ProjectUpdates() {
     }
 
     setContractAmount(String(project.contract_amount ?? project.budget ?? ''))
-  }, [project?.id, project?.mode_of_implementation, project?.contract_amount, project?.budget, workingAideDraft?.id])
+    setDisbursementAmount(String(project.disbursement_amount ?? ''))
+    setHasNewDisbursement(false)
+  }, [project?.id, project?.mode_of_implementation, project?.contract_amount, project?.budget, project?.disbursement_amount, workingAideDraft?.id])
 
   useEffect(() => {
     centerWizardStep(wizardStep)
@@ -1544,6 +1582,39 @@ export default function ProjectUpdates() {
     setTargetPhysicalAccomplishment(value)
   }
 
+  function handleUpdateTypeChange(nextType: UpdateType) {
+    setUpdateType(nextType)
+    setWizardStep(1)
+    setMaxReachedStep(1)
+    setWizardError('')
+
+    if (nextType === 'office') {
+      setNoFindingsObserved(true)
+      setNoAttendees(true)
+      setAideFindings([createBlankAideFinding()])
+      setAideAttendance([createBlankAideAttendee()])
+      setGeneralObservations('')
+      setInspectionLatitude('')
+      setInspectionLongitude('')
+      setGpsMessage('')
+      return
+    }
+
+    setNoFindingsObserved(false)
+    setNoAttendees(false)
+  }
+
+  function handleDisbursementModeChange(hasNewValue: boolean) {
+    setHasNewDisbursement(hasNewValue)
+
+    if (!hasNewValue) {
+      setDisbursementAmount(String(project?.disbursement_amount ?? ''))
+      setFinancialAccomplishment(
+        formatProgressInput(project?.financial_accomplishment ?? financialAccomplishment ?? 0),
+      )
+    }
+  }
+
 
   function applyDisbursementComputation(rawValue = disbursementAmount) {
     try {
@@ -1572,15 +1643,15 @@ export default function ProjectUpdates() {
 
   function getUpdateRemarksWithReason() {
     const remarksValue = cleanText(remarks)
+    const lines = [`Update Type: ${isOfficeUpdate ? 'Office Update' : 'Site Update'}`]
 
-    if (!requiresUpdateReason || !notYetStartedReason) return remarksValue
+    if (requiresUpdateReason && notYetStartedReason) {
+      lines.push(`${projectReasonLabel}: ${notYetStartedReason}`)
+    }
 
-    const reasonLine = `${projectReasonLabel}: ${notYetStartedReason}`
+    if (remarksValue) lines.push(remarksValue)
 
-    if (!remarksValue) return reasonLine
-    if (remarksValue.includes(reasonLine)) return remarksValue
-
-    return `${reasonLine}\n\n${remarksValue}`
+    return lines.join('\n\n')
   }
 
 
@@ -1612,7 +1683,8 @@ export default function ProjectUpdates() {
     setPhysicalAccomplishment(String(snapshot.physical_accomplishment ?? draft.actual_to_date ?? ''))
     setTargetPhysicalAccomplishment(String(snapshot.target_physical_accomplishment ?? draft.target_to_date ?? ''))
     setFinancialAccomplishment(String(snapshot.financial_accomplishment ?? draft.financial_accomplishment ?? ''))
-    setDisbursementAmount(String(snapshot.disbursement_amount ?? draft.total_disbursement ?? ''))
+    setDisbursementAmount(String(snapshot.disbursement_amount ?? draft.total_disbursement ?? project?.disbursement_amount ?? ''))
+    setHasNewDisbursement(Boolean(snapshot.has_new_disbursement))
     setContractAmount(String(snapshot.contract_amount ?? draft.contract_amount ?? project?.contract_amount ?? project?.budget ?? ''))
     setHasContractModification(Boolean(snapshot.has_contract_modification))
     setContractModificationType(String(snapshot.contract_modification_type || ''))
@@ -1626,6 +1698,8 @@ export default function ProjectUpdates() {
     setInspectionLongitude(String(snapshot.inspection_longitude ?? ''))
     setAideFindings(draft.findings?.length ? draft.findings.map((row) => ({ ...row })) : [createBlankAideFinding()])
     setNoFindingsObserved(Boolean(snapshot.no_findings_observed))
+    setNoAttendees(Boolean(snapshot.no_attendees))
+    setUpdateType(snapshot.update_type === 'office' ? 'office' : 'site')
     setAideAttendance(draft.attendance?.length ? draft.attendance.map((row) => ({ ...row })) : [createBlankAideAttendee()])
     setGeneralObservations(draft.general_observations || '')
     setModeOfImplementation(
@@ -1670,8 +1744,10 @@ export default function ProjectUpdates() {
   }
 
   function getInspectionPhotoCaption(photo: PhotoInput, index: number) {
+    if (photo.photoKind !== 'finding') return cleanText(photo.caption)
+
     const linkedFinding = aideFindings.find((row) => (row.photo_refs || []).includes(photo.id))
-    return cleanText(photo.caption) || cleanText(linkedFinding?.finding) || `Project update photo ${index + 1}`
+    return cleanText(photo.caption) || cleanText(linkedFinding?.finding) || `Finding photo ${index + 1}`
   }
 
   function buildAideMemoireRecord(
@@ -1685,12 +1761,12 @@ export default function ProjectUpdates() {
     const officeLocation = getAideOfficeLocation(project, auth)
     const office = getDilgOfficeDirectoryEntry(officeLocation)
     const parsedCost = effectiveContractAmount
-    const parsedDisbursement = disbursementAmount ? toNumber(disbursementAmount) : 0
+    const parsedDisbursement = effectiveDisbursementAmount
     const photos: AideMemoirePhoto[] = photoInputs.map((photo, index) => ({
       id: photo.id,
       photo_ref: photo.id,
       photo_number: index + 1,
-      caption: getInspectionPhotoCaption(photo, index),
+      caption: getInspectionPhotoCaption(photo, index) ?? '',
       file_name: photo.file.name,
       file_type: photo.file.type,
       file_blob: photo.file,
@@ -1734,14 +1810,18 @@ export default function ProjectUpdates() {
       actual_to_date: physicalAccomplishment,
       physical_variance: String(Number((toNumber(physicalAccomplishment) - toNumber(targetPhysicalAccomplishment)).toFixed(2))),
       balance: parsedCost > 0 ? String(Math.max(0, parsedCost - parsedDisbursement)) : '',
-      total_disbursement: disbursementAmount,
+      total_disbursement: String(effectiveDisbursementAmount),
       financial_accomplishment: financialAccomplishment,
-      findings: aideFindings.filter(hasAideFindingContent).map((row) => ({
-        ...row,
-        photo_refs: [...(row.photo_refs || [])],
-      })),
-      general_observations: generalObservations,
-      attendance: aideAttendance.filter(hasAideAttendeeContent).map((row) => ({ ...row })),
+      findings: isOfficeUpdate
+        ? []
+        : aideFindings.filter(hasAideFindingContent).map((row) => ({
+            ...row,
+            photo_refs: [...(row.photo_refs || [])],
+          })),
+      general_observations: isOfficeUpdate ? '' : generalObservations,
+      attendance: isOfficeUpdate || noAttendees
+        ? []
+        : aideAttendance.filter(hasAideAttendeeContent).map((row) => ({ ...row })),
       photos,
       project_snapshot: { ...project },
       update_snapshot: {
@@ -1750,7 +1830,8 @@ export default function ProjectUpdates() {
         physical_accomplishment: physicalAccomplishment,
         target_physical_accomplishment: targetPhysicalAccomplishment,
         financial_accomplishment: financialAccomplishment,
-        disbursement_amount: disbursementAmount,
+        disbursement_amount: String(effectiveDisbursementAmount),
+        has_new_disbursement: hasNewDisbursement,
         contract_amount: contractAmount || String(project.contract_amount ?? project.budget ?? ''),
         has_contract_modification: hasContractModification,
         contract_modification_type: contractModificationType,
@@ -1760,9 +1841,11 @@ export default function ProjectUpdates() {
         inspection_latitude: inspectionLatitude,
         inspection_longitude: inspectionLongitude,
         findings: aideFindings,
-        no_findings_observed: noFindingsObserved,
-        attendance: aideAttendance,
-        general_observations: generalObservations,
+        no_findings_observed: isOfficeUpdate ? true : noFindingsObserved,
+        no_attendees: isOfficeUpdate ? true : noAttendees,
+        update_type: updateType,
+        attendance: isOfficeUpdate || noAttendees ? [] : aideAttendance,
+        general_observations: isOfficeUpdate ? '' : generalObservations,
         mode_of_implementation: modeOfImplementation || 'BY CONTRACT',
         wizard_step: wizardStep,
         max_reached_step: maxReachedStep,
@@ -2423,14 +2506,6 @@ export default function ProjectUpdates() {
     })
   }
 
-  function updatePhotoCaption(photoId: string, caption: string) {
-    setPhotoInputs((previous) =>
-      previous.map((photo) =>
-        photo.id === photoId ? { ...photo, caption } : photo
-      )
-    )
-  }
-
   async function captureGps() {
     setGpsMessage('')
     setErrorMessage('')
@@ -2518,7 +2593,8 @@ export default function ProjectUpdates() {
 
   function validateWizardStep(step: number) {
     if (step === 1) {
-      if (!inspectionDate) return 'Please select the inspection date.'
+      if (!inspectionDate) return 'Please select the update date.'
+      if (!updateType) return 'Please select Site Update or Office Update.'
       return ''
     }
 
@@ -2526,7 +2602,9 @@ export default function ProjectUpdates() {
       if (physicalAccomplishment === '') return 'Please enter the physical accomplishment.'
       if (targetPhysicalAccomplishment === '') return 'Please enter the target physical accomplishment.'
       if (financialAccomplishment === '') return 'Please enter the financial accomplishment.'
-      if (disbursementAmount.trim() === '') return 'Please enter the total disbursement. Enter 0 when there is no disbursement yet.'
+      if (hasNewDisbursement && disbursementAmount.trim() === '') {
+        return 'Please enter the updated total disbursement.'
+      }
 
       const physical = toNumber(physicalAccomplishment)
       const target = toNumber(targetPhysicalAccomplishment)
@@ -2539,7 +2617,7 @@ export default function ProjectUpdates() {
 
     if (step === 3) {
       if (!projectStatus) return 'Please select the project status.'
-      if (requiresUpdateReason && !notYetStartedReason.trim()) {
+      if (isNotYetStartedSelected && !notYetStartedReason.trim()) {
         return `Please provide the ${projectReasonLabel.toLowerCase()}.`
       }
       return ''
@@ -2555,11 +2633,14 @@ export default function ProjectUpdates() {
       if (hasContractModification && !revisedContractExpirationDate.trim()) {
         return 'Please enter the revised contract expiration date.'
       }
+      if (requiresUpdateReason && !isNotYetStartedSelected && !notYetStartedReason.trim()) {
+        return `Please provide the ${projectReasonLabel.toLowerCase()}.`
+      }
       return ''
     }
 
     if (step === 5) {
-      if (noFindingsObserved) return ''
+      if (isOfficeUpdate || noFindingsObserved) return ''
 
       const contentRows = aideFindings.filter(hasAideFindingContent)
       if (contentRows.length === 0) {
@@ -2581,6 +2662,7 @@ export default function ProjectUpdates() {
     }
 
     if (step === 6) {
+      if (isOfficeUpdate) return ''
       if (!generalObservations.trim()) {
         return 'Please enter the general observations. Enter “No additional observations” when none apply.'
       }
@@ -2588,15 +2670,13 @@ export default function ProjectUpdates() {
     }
 
     if (step === 7) {
+      if (isOfficeUpdate || noAttendees) return ''
+
       const attendees = aideAttendance.filter(hasAideAttendeeContent)
-      if (attendees.length === 0) return 'Please add at least one attendee.'
+      if (attendees.length === 0) return 'Please add at least one attendee or select “No attendees.”'
       if (attendees.some((row) => !row.name.trim() || !row.designation_agency.trim())) {
         return 'Each attendee must include a name and designation/agency.'
       }
-      return ''
-    }
-
-    if (step === 8) {
       return ''
     }
 
@@ -2661,7 +2741,7 @@ export default function ProjectUpdates() {
       console.error('Unable to preserve the working update.', error)
     }
 
-    const nextStep = Math.min(WIZARD_STEP_COUNT, wizardStep + 1)
+    const nextStep = nextVisibleWizardStep?.number ?? wizardStep
     setWizardStep(nextStep)
     setMaxReachedStep((current) => Math.max(current, nextStep))
     scrollToWizardTop()
@@ -2669,7 +2749,8 @@ export default function ProjectUpdates() {
 
   function goToPreviousWizardStep() {
     setWizardError('')
-    setWizardStep((current) => Math.max(1, current - 1))
+    const previousStep = visibleWizardSteps[Math.max(0, currentVisibleStepIndex - 1)]?.number || 1
+    setWizardStep(previousStep)
     scrollToWizardTop()
   }
 
@@ -2705,7 +2786,7 @@ export default function ProjectUpdates() {
       return'Please enter the financial accomplishment.'
     }
 
-    if (requiresUpdateReason && !notYetStartedReason.trim()) {
+    if (isNotYetStartedSelected && !notYetStartedReason.trim()) {
       return `Please provide the ${projectReasonLabel.toLowerCase()}.`
     }
 
@@ -2719,6 +2800,10 @@ export default function ProjectUpdates() {
 
     if (hasContractModification && !revisedContractExpirationDate.trim()) {
       return'Please enter the revised contract expiration date.'
+    }
+
+    if (requiresUpdateReason && !isNotYetStartedSelected && !notYetStartedReason.trim()) {
+      return `Please provide the ${projectReasonLabel.toLowerCase()}.`
     }
 
     const physical = toNumber(physicalAccomplishment)
@@ -2748,7 +2833,8 @@ export default function ProjectUpdates() {
       return inspectionCoordinateStatus.reason
     }
 
-    for (let step = 1; step <= WIZARD_STEP_COUNT; step += 1) {
+    for (const stepEntry of visibleWizardSteps) {
+      const step = stepEntry.number
       const stepError = validateWizardStep(step)
       if (stepError) {
         setWizardStep(step)
@@ -2890,6 +2976,7 @@ export default function ProjectUpdates() {
       target_physical_as_of: inspectionDate,
       target_physical_source:'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
+      disbursement_amount: effectiveDisbursementAmount,
       risk_level: autoRiskLevel,
       has_contract_modification: hasContractModification,
       contract_modification_type: hasContractModification ? contractModificationType : null,
@@ -3002,7 +3089,7 @@ export default function ProjectUpdates() {
       file_name: photo.file.name,
       file_type: photo.file.type,
       file_size: photo.file.size,
-      caption: getInspectionPhotoCaption(photo, index),
+      caption: getInspectionPhotoCaption(photo, index) ?? '',
       created_at: currentTimestamp,
       uploaded_at: currentTimestamp,
       synced: false,
@@ -3051,7 +3138,7 @@ export default function ProjectUpdates() {
             project_id: projectId,
             project_update_id: updateId,
             photo_url: getDrivePhotoUrl(uploadedFile),
-            caption: getInspectionPhotoCaption(photo, index),
+            caption: getInspectionPhotoCaption(photo, index) ?? '',
             uploaded_at: new Date().toISOString(),
           },
         ])
@@ -3122,6 +3209,9 @@ export default function ProjectUpdates() {
           ? toNumber(revisedProjectCost)
           : null,
       revised_contract_expiration_date: hasContractModification ? revisedContractExpirationDate : null,
+      disbursement_amount: effectiveDisbursementAmount,
+      update_type: updateType,
+      no_attendees: isOfficeUpdate ? true : noAttendees,
       not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       synced: false,
       sync_status:'pending',
@@ -3144,7 +3234,7 @@ export default function ProjectUpdates() {
       file_name: photo.file.name,
       file_type: photo.file.type,
       file_size: photo.file.size,
-      caption: getInspectionPhotoCaption(photo, index),
+      caption: getInspectionPhotoCaption(photo, index) ?? '',
       created_at: new Date().toISOString(),
       uploaded_at: new Date().toISOString(),
       synced: false,
@@ -3175,6 +3265,7 @@ export default function ProjectUpdates() {
       target_physical_as_of: inspectionDate,
       target_physical_source:'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
+      disbursement_amount: effectiveDisbursementAmount,
       risk_level: autoRiskLevel,
       contract_expiration_date: project?.contract_expiration_date || null,
       has_contract_modification: hasContractModification,
@@ -3197,6 +3288,7 @@ export default function ProjectUpdates() {
       target_physical_as_of: inspectionDate,
       target_physical_source: 'manual',
       financial_accomplishment: clampProgress(financialAccomplishment),
+      disbursement_amount: effectiveDisbursementAmount,
       risk_level: autoRiskLevel,
       contract_expiration_date: project?.contract_expiration_date || null,
       has_contract_modification: hasContractModification,
@@ -3233,9 +3325,12 @@ export default function ProjectUpdates() {
     setRemarks('')
     setAideFindings([createBlankAideFinding()])
     setNoFindingsObserved(false)
+    setNoAttendees(false)
+    setUpdateType('site')
     setAideAttendance([createBlankAideAttendee()])
     setGeneralObservations('')
-    setDisbursementAmount('')
+    setDisbursementAmount(String(project?.disbursement_amount ?? ''))
+    setHasNewDisbursement(false)
     setNotYetStartedReason('')
     setInspectionDate(todayInputValue())
     setGpsMessage('')
@@ -3393,11 +3488,11 @@ export default function ProjectUpdates() {
         <form className="pu-form-card pu-wizard-form-card" onSubmit={handleSubmit} noValidate>
           <div className="pu-wizard-shell" ref={wizardTopRef}>
             <div className="pu-wizard-title-row">
-              <span className="pu-wizard-count">Step {wizardStep} of {WIZARD_STEP_COUNT}</span>
+              <span className="pu-wizard-count">Step {currentVisibleStepNumber} of {visibleWizardSteps.length}</span>
             </div>
 
             <div className="pu-wizard-progress" ref={wizardProgressRef} aria-label="Project Update steps">
-              {WIZARD_STEPS.map((step) => {
+              {visibleWizardSteps.map((step, visibleIndex) => {
                 const isCurrent = wizardStep === step.number
                 const isReached = step.number <= maxReachedStep
                 const isCompleted = step.number < wizardStep || (step.number < maxReachedStep && !isCurrent)
@@ -3416,7 +3511,7 @@ export default function ProjectUpdates() {
                     aria-label={`${step.number}. ${step.title}${isCompleted ? ', completed' : isCurrent ? ', current step' : ''}`}
                     title={step.title}
                   >
-                    <span aria-hidden="true">{step.number}</span>
+                    <span aria-hidden="true">{visibleIndex + 1}</span>
                     {isCurrent && (
                       <strong className="pu-wizard-active-step-title">{step.shortTitle}</strong>
                     )}
@@ -3427,8 +3522,8 @@ export default function ProjectUpdates() {
 
             <div className="pu-wizard-step-summary">
               <small>
-                {wizardStep < WIZARD_STEP_COUNT
-                  ? `Next: ${WIZARD_STEPS[wizardStep].title}`
+                {nextVisibleWizardStep
+                  ? `Next: ${nextVisibleWizardStep.number === 8 && isOfficeUpdate ? 'Documentation Photos and Final Review' : nextVisibleWizardStep.title}`
                   : 'Final review and submission'}
               </small>
             </div>
@@ -3441,8 +3536,37 @@ export default function ProjectUpdates() {
             <div className="pu-section-heading">
               <span>01</span>
               <div>
-                <strong>Capture and Update Date</strong>
-                <small>Set the inspection date, GPS, and implementation mode.</small>
+                <strong>Update Date and Type</strong>
+                <small>Choose whether this update is prepared at the project site or from the office.</small>
+              </div>
+            </div>
+
+            <div className="pu-field pu-full-field pu-update-type-field">
+              <span>Type of Update</span>
+              <div className="pu-two-choice-grid" role="radiogroup" aria-label="Type of project update">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={updateType === 'site'}
+                  className={`pu-choice-card ${updateType === 'site' ? 'active' : ''}`}
+                  onClick={() => handleUpdateTypeChange('site')}
+                  disabled={saving}
+                >
+                  <strong>Site Update</strong>
+                  <small>Full inspection workflow with GPS, findings, observations, attendance, and photos</small>
+                </button>
+
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={updateType === 'office'}
+                  className={`pu-choice-card ${updateType === 'office' ? 'active' : ''}`}
+                  onClick={() => handleUpdateTypeChange('office')}
+                  disabled={saving}
+                >
+                  <strong>Office Update</strong>
+                  <small>Progress and contract monitoring with documentation photos only</small>
+                </button>
               </div>
             </div>
 
@@ -3456,7 +3580,7 @@ export default function ProjectUpdates() {
                     <small>Selected update date</small>
                   </div>
 
-                  <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ?'disabled' :''}`}>
+                  <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ? 'disabled' : ''}`}>
                     Change Date
                     <input
                       ref={dateInputRef}
@@ -3472,37 +3596,44 @@ export default function ProjectUpdates() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="pu-action-btn pu-action-gps"
-                onClick={captureGps}
-                disabled={gpsLoading || saving}
-              >
-                {gpsLoading ?'Capturing GPS...' :'Update GPS'}
-                <span>Capture location</span>
-              </button>
-
-            </div>
-
-            <div className="pu-gps-inline-wrap">
-              {gpsMessage && <div className="pu-gps-message pu-gps-message-inline">{gpsMessage}</div>}
-
-              {hasInspectionCoordinates ? (
-                <div className="pu-gps-inline-result">
-                  <strong>{inspectionCoordinateStatus.isValid ?'GPS captured' :'GPS needs checking'}</strong>
-                  <em>
-                    {inspectionCoordinateStatus.isValid
-                      ? `Lat ${inspectionCoordinateStatus.latitude?.toFixed(7) ||''} · Long ${inspectionCoordinateStatus.longitude?.toFixed(7) ||''}`
-                      : inspectionCoordinateStatus.reason}
-                  </em>
-                </div>
-              ) : (
-                <div className="pu-gps-inline-result muted">
-                  <strong>No GPS captured yet</strong>
-                  <em>Tap Update GPS while you are at the project site. Coordinates will appear here.</em>
-                </div>
+              {!isOfficeUpdate && (
+                <button
+                  type="button"
+                  className="pu-action-btn pu-action-gps"
+                  onClick={captureGps}
+                  disabled={gpsLoading || saving}
+                >
+                  {gpsLoading ? 'Capturing GPS...' : 'Update GPS'}
+                  <span>Capture location</span>
+                </button>
               )}
             </div>
+
+            {!isOfficeUpdate ? (
+              <div className="pu-gps-inline-wrap">
+                {gpsMessage && <div className="pu-gps-message pu-gps-message-inline">{gpsMessage}</div>}
+
+                {hasInspectionCoordinates ? (
+                  <div className="pu-gps-inline-result">
+                    <strong>{inspectionCoordinateStatus.isValid ? 'GPS captured' : 'GPS needs checking'}</strong>
+                    <em>
+                      {inspectionCoordinateStatus.isValid
+                        ? `Lat ${inspectionCoordinateStatus.latitude?.toFixed(7) || ''} · Long ${inspectionCoordinateStatus.longitude?.toFixed(7) || ''}`
+                        : inspectionCoordinateStatus.reason}
+                    </em>
+                  </div>
+                ) : (
+                  <div className="pu-gps-inline-result muted">
+                    <strong>No GPS captured yet</strong>
+                    <em>Tap Update GPS while you are at the project site. Coordinates will appear here.</em>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="pu-office-update-note">
+                Office Update does not require inspection GPS, findings, general observations, or attendance.
+              </div>
+            )}
 
             <label className="pu-field pu-full-field pu-mode-of-implementation-field">
               <span>Mode of Implementation</span>
@@ -3578,32 +3709,69 @@ export default function ProjectUpdates() {
                 <small>Defaults to Project Cost but remains editable for the awarded contract amount.</small>
               </label>
 
-              <label className="pu-field pu-disbursement-field pu-progress-full">
-                <span>Disbursement (₱)</span>
-                <div className="pu-disbursement-control">
-                  <input
-                    type="text"
-                    value={disbursementAmount}
-                    onChange={(event) => setDisbursementAmount(event.target.value)}
-                    onKeyDown={handleDisbursementKeyDown}
-                    placeholder=""
-                    inputMode="decimal"
+              <div className="pu-field pu-full-field pu-disbursement-mode-field">
+                <span>Disbursement Update</span>
+                <div className="pu-two-choice-grid" role="radiogroup" aria-label="Disbursement update">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!hasNewDisbursement}
+                    className={`pu-choice-card ${!hasNewDisbursement ? 'active' : ''}`}
+                    onClick={() => handleDisbursementModeChange(false)}
                     disabled={saving}
-                  />
+                  >
+                    <strong>No New Disbursement</strong>
+                    <small>Retain ₱{effectiveDisbursementAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                  </button>
 
                   <button
                     type="button"
-                    className="pu-disbursement-equals-btn"
-                    onClick={() => applyDisbursementComputation()}
-                    disabled={saving || effectiveContractAmount <= 0}
-                    aria-label="Compute disbursement and financial accomplishment"
-                    title="Compute"
+                    role="radio"
+                    aria-checked={hasNewDisbursement}
+                    className={`pu-choice-card ${hasNewDisbursement ? 'active' : ''}`}
+                    onClick={() => handleDisbursementModeChange(true)}
+                    disabled={saving}
                   >
-                    =
+                    <strong>Update Disbursement</strong>
+                    <small>Enter a new cumulative amount or expression</small>
                   </button>
                 </div>
-                <small>Enter amount or expression, then tap =.</small>
-              </label>
+              </div>
+
+              {hasNewDisbursement ? (
+                <label className="pu-field pu-disbursement-field pu-progress-full">
+                  <span>Updated Disbursement (₱)</span>
+                  <div className="pu-disbursement-control">
+                    <input
+                      type="text"
+                      value={disbursementAmount}
+                      onChange={(event) => setDisbursementAmount(event.target.value)}
+                      onKeyDown={handleDisbursementKeyDown}
+                      placeholder="0.00"
+                      inputMode="decimal"
+                      disabled={saving}
+                    />
+
+                    <button
+                      type="button"
+                      className="pu-disbursement-equals-btn"
+                      onClick={() => applyDisbursementComputation()}
+                      disabled={saving || effectiveContractAmount <= 0}
+                      aria-label="Compute disbursement and financial accomplishment"
+                      title="Compute"
+                    >
+                      =
+                    </button>
+                  </div>
+                  <small>Enter the new cumulative amount or expression, then tap =.</small>
+                </label>
+              ) : (
+                <div className="pu-retained-disbursement pu-progress-full">
+                  <span>Retained Total Disbursement</span>
+                  <strong>₱{effectiveDisbursementAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                  <small>No change will be applied to the stored disbursement.</small>
+                </div>
+              )}
 
               <label className="pu-field pu-field-important pu-progress-field">
                 <span>Financial Accomplishment (%)</span>
@@ -3676,7 +3844,7 @@ export default function ProjectUpdates() {
               </div>
             </div>
 
-            {isNotYetStartedSelected ? (
+            {isNotYetStartedSelected && (
               <div className="pu-field pu-full-field">
                 <span>{projectReasonLabel} *</span>
                 <div className="pu-reason-chip-grid" role="radiogroup" aria-label="Reason for not yet started">
@@ -3686,7 +3854,7 @@ export default function ProjectUpdates() {
                       type="button"
                       role="radio"
                       aria-checked={notYetStartedReason === reason}
-                      className={`pu-reason-chip ${notYetStartedReason === reason ?'active' :''}`}
+                      className={`pu-reason-chip ${notYetStartedReason === reason ? 'active' : ''}`}
                       onClick={() => setNotYetStartedReason(reason)}
                       disabled={saving}
                     >
@@ -3695,22 +3863,6 @@ export default function ProjectUpdates() {
                   ))}
                 </div>
               </div>
-            ) : (
-              <label className="pu-field pu-full-field pu-critical-reason-field">
-                <span>{projectReasonLabel} {requiresUpdateReason ?'*' :''}</span>
-                <textarea
-                  value={notYetStartedReason}
-                  onChange={(event) => setNotYetStartedReason(event.target.value)}
-                  required={requiresUpdateReason}
-                  disabled={!requiresUpdateReason || saving}
-                  placeholder={
-                    requiresUpdateReason
-                      ?'State the reason/justification for this critical status or contract modification.'
-                      :'Reason field is enabled only for critical status or contract modification.'
-                  }
-                  rows={3}
-                />
-              </label>
             )}
           </div>
           )}
@@ -3876,6 +4028,21 @@ export default function ProjectUpdates() {
                     </div>
                   </div>
                 </>
+              )}
+
+              {requiresUpdateReason && !isNotYetStartedSelected && (
+                <label className="pu-field pu-full-field pu-contract-reason-field">
+                  <span>{projectReasonLabel} *</span>
+                  <textarea
+                    value={notYetStartedReason}
+                    onChange={(event) => setNotYetStartedReason(event.target.value)}
+                    required
+                    disabled={saving}
+                    placeholder="State the reason or justification for the variation, suspension, termination, or other approved contract change."
+                    rows={3}
+                  />
+                  <small>This reason is recorded with the contract modification or critical project status.</small>
+                </label>
               )}
             </div>
           </div>
@@ -4102,89 +4269,107 @@ export default function ProjectUpdates() {
             </div>
           )}
 
-          {wizardStep === 7 && (
+          {wizardStep === 7 && !isOfficeUpdate && (
             <div className="pu-update-section pu-section-notes pu-wizard-section">
               <div className="pu-section-heading">
                 <span>07</span>
                 <div>
                   <strong>Attendance</strong>
-                  <small>Record the inspection attendees.</small>
+                  <small>Record the inspection attendees or confirm that no attendee was available.</small>
                 </div>
               </div>
 
-              <div className="pu-aide-section-heading">
-                <div>
-                  <h3>Inspection Attendance</h3>
-                  <p>Name and designation/agency are required for every attendee.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={addAttendeeRow}
-                >
-                  + Add Attendee
-                </button>
-              </div>
+              <label className="pu-no-attendees-toggle">
+                <input
+                  type="checkbox"
+                  checked={noAttendees}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setNoAttendees(checked)
+                    if (checked) setAideAttendance([createBlankAideAttendee()])
+                  }}
+                  disabled={saving}
+                />
+                <span>
+                  <strong>No attendees for this site update</strong>
+                  <small>Use when the update was completed without an LGU/LPMC attendee.</small>
+                </span>
+              </label>
 
-              <div className="pu-aide-row-list">
-                {aideAttendance.map((row, index) => (
-                  <article className="pu-aide-edit-row compact" key={row.id}>
-                    <div className="pu-aide-row-title">
-                      <strong>Attendee {index + 1}</strong>
-                      <button
-                        type="button"
-                        className="danger"
-                        onClick={() =>
-                          setAideAttendance((rows) => {
-                            const next = rows.filter((item) => item.id !== row.id)
-                            return next.length ? next : [createBlankAideAttendee()]
-                          })
-                        }
-                      >
-                        Remove
-                      </button>
+              {!noAttendees && (
+                <>
+                  <div className="pu-aide-section-heading">
+                    <div>
+                      <h3>Inspection Attendance</h3>
+                      <p>Name and designation/agency are required for every attendee.</p>
                     </div>
-                    <div className="pu-aide-two-column">
-                      <label className="pu-field">
-                        <span>Name</span>
-                        <input
-                          ref={(element) => {
-                            attendeeInputRefs.current[row.id] = element
-                          }}
-                          type="text"
-                          value={row.name}
-                          onChange={(event) =>
-                            setAideAttendance((rows) =>
-                              rows.map((item) => item.id === row.id ? { ...item, name: event.target.value } : item),
-                            )
-                          }
-                        />
-                      </label>
-                      <label className="pu-field">
-                        <span>Designation / Agency</span>
-                        <input
-                          type="text"
-                          value={row.designation_agency}
-                          onChange={(event) =>
-                            setAideAttendance((rows) =>
-                              rows.map((item) => item.id === row.id ? { ...item, designation_agency: event.target.value } : item),
-                            )
-                          }
-                        />
-                      </label>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                    <button type="button" onClick={addAttendeeRow}>
+                      + Add Attendee
+                    </button>
+                  </div>
+
+                  <div className="pu-aide-row-list">
+                    {aideAttendance.map((row, index) => (
+                      <article className="pu-aide-edit-row compact" key={row.id}>
+                        <div className="pu-aide-row-title">
+                          <strong>Attendee {index + 1}</strong>
+                          <button
+                            type="button"
+                            className="danger"
+                            onClick={() =>
+                              setAideAttendance((rows) => {
+                                const next = rows.filter((item) => item.id !== row.id)
+                                return next.length ? next : [createBlankAideAttendee()]
+                              })
+                            }
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="pu-aide-two-column">
+                          <label className="pu-field">
+                            <span>Name</span>
+                            <input
+                              ref={(element) => {
+                                attendeeInputRefs.current[row.id] = element
+                              }}
+                              type="text"
+                              value={row.name}
+                              onChange={(event) =>
+                                setAideAttendance((rows) =>
+                                  rows.map((item) => item.id === row.id ? { ...item, name: event.target.value } : item),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="pu-field">
+                            <span>Designation / Agency</span>
+                            <input
+                              type="text"
+                              value={row.designation_agency}
+                              onChange={(event) =>
+                                setAideAttendance((rows) =>
+                                  rows.map((item) => item.id === row.id ? { ...item, designation_agency: event.target.value } : item),
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {wizardStep === 8 && (
             <div className="pu-update-section pu-section-notes pu-wizard-section pu-review-step">
               <div className="pu-section-heading">
-                <span>08</span>
+                <span>{isOfficeUpdate ? '05' : '08'}</span>
                 <div>
-                  <strong>Additional Photos and Final Review</strong>
-                  <small>Add optional general photos, then review the update.</small>
+                  <strong>{isOfficeUpdate ? 'Documentation Photos and Final Review' : 'Additional Photos and Final Review'}</strong>
+                  <small>Add caption-free documentation photos, then review the update.</small>
                 </div>
               </div>
 
@@ -4192,7 +4377,7 @@ export default function ProjectUpdates() {
                 <div className="pu-photo-source-actions pu-optional-photo-source-actions">
                   <label className="pu-gallery-select-btn pu-photo-source-btn pu-unified-photo-source-btn">
                     <IconGallery />
-                    <span>Capture / Upload Additional Photo</span>
+                    <span>Capture / Upload Documentation Photo</span>
                     <input
                       type="file"
                       accept="image/*,.heic,.heif"
@@ -4204,12 +4389,12 @@ export default function ProjectUpdates() {
                 </div>
 
                 <span className="pu-photo-selection-count">
-                  {photoInputs.filter((photo) => photo.photoKind !== 'finding').length} optional photo(s) selected
+                  {photoInputs.filter((photo) => photo.photoKind !== 'finding').length} documentation photo(s) selected · no caption required
                 </span>
               </div>
 
               {photoInputs.filter((photo) => photo.photoKind !== 'finding').length === 0 ? (
-                <div className="pu-photo-empty">No additional photos selected. This step is optional.</div>
+                <div className="pu-photo-empty">No documentation photos selected. Photos are optional for both Site and Office Updates.</div>
               ) : (
                 <div className="pu-photo-grid">
                   {photoInputs.filter((photo) => photo.photoKind !== 'finding').map((photo, index) => {
@@ -4225,15 +4410,9 @@ export default function ProjectUpdates() {
                           <div className="pu-photo-preview" style={{ backgroundImage: `url(${photo.previewUrl})` }} />
                         )}
                         <div className="pu-photo-meta">
-                          <strong>Photo {index + 1}</strong>
+                          <strong>Documentation Photo {index + 1}</strong>
                           <span>{photo.file.name}</span>
                         </div>
-                        <input
-                          type="text"
-                          value={photo.caption}
-                          onChange={(event) => updatePhotoCaption(photo.id, event.target.value)}
-                          placeholder="Photo caption"
-                        />
                         <button
                           type="button"
                           className="pu-remove-photo-btn"
@@ -4280,7 +4459,7 @@ export default function ProjectUpdates() {
               </Link>
             )}
 
-            {wizardStep < WIZARD_STEP_COUNT ? (
+            {!isFinalWizardStep ? (
               <button
                 type="button"
                 className="pu-primary-btn pu-wizard-next-btn"

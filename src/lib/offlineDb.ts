@@ -13,6 +13,7 @@ export type OfflineProject = {
   target_physical_as_of?: string | null
   target_physical_source?: string | null
   financial_accomplishment: number
+  disbursement_amount?: number | string | null
   risk_level: string
   project_type?: string
   funding_source?: string
@@ -68,6 +69,9 @@ export type OfflineProjectUpdate = {
   target_physical_as_of?: string | null
   target_physical_source?: string | null
   financial_accomplishment: number
+  disbursement_amount?: number | string | null
+  update_type?: 'site' | 'office' | string
+  no_attendees?: boolean
   risk_level: string
   issues: string | null
   recommendations: string | null
