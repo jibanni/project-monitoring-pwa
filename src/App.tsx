@@ -23,7 +23,6 @@ const CreateProject = lazy(routeLoaders.createProject)
 const EditProject = lazy(routeLoaders.editProject)
 const ProjectMap = lazy(routeLoaders.projectMap)
 const OfflineSync = lazy(routeLoaders.offlineSync)
-const OfflineSyncDiagnostics = lazy(routeLoaders.offlineSyncDiagnostics)
 const Reports = lazy(routeLoaders.reports)
 const UserManagement = lazy(routeLoaders.userManagement)
 const UserAccess = lazy(routeLoaders.userAccess)
@@ -137,16 +136,6 @@ function App() {
               }
             />
 
-            <Route
-              path="offline-sync/diagnostics"
-              element={
-                <RoleProtectedPage
-                  allowedRoles={['Admin', 'RO Engineer', 'PO Engineer', 'PEO', 'Engineer']}
-                >
-                  <OfflineSyncDiagnostics />
-                </RoleProtectedPage>
-              }
-            />
 
             <Route
               path="projects/import-subaybayan"

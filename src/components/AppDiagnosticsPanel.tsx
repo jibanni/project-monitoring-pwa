@@ -13,8 +13,7 @@ type AppDiagnosticsPanelProps = {
   onRetrySync?: () => Promise<void> | void
   retryingSync?: boolean
   canRetrySync?: boolean
-  defaultExpanded?: boolean
-  showRetrySync?: boolean
+  onClose: () => void
 }
 
 type ActionState = 'idle' | 'loading' | 'success' | 'error'
@@ -26,7 +25,7 @@ function textValue(value: unknown) {
 
 function formatDateTime(value: unknown) {
   const raw = textValue(value)
-  if (!raw) return 'Not yet available'
+  if (!raw) return 'Not yet'
 
   const date = new Date(raw)
   if (Number.isNaN(date.getTime())) return raw
@@ -34,7 +33,6 @@ function formatDateTime(value: unknown) {
   return date.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
   })
@@ -42,9 +40,8 @@ function formatDateTime(value: unknown) {
 
 function shortenCommit(value: string) {
   const clean = textValue(value)
-  if (!clean) return 'Local build'
-  if (clean === 'local') return 'Local build'
-  return clean.slice(0, 12)
+  if (!clean || clean === 'local') return 'Local build'
+  return clean.slice(0, 8)
 }
 
 function getAorSummary(auth: ReturnType<typeof useAuth>) {
@@ -55,7 +52,9 @@ function getAorSummary(auth: ReturnType<typeof useAuth>) {
       .map((assignment) => textValue(assignment.province))
       .filter(Boolean)
 
-    return provinces.length > 0 ? provinces.join(', ') : textValue(auth.profile?.province) || 'RO Engineer AOR'
+    return provinces.length > 0
+      ? provinces.join(', ')
+      : textValue(auth.profile?.province) || 'RO Engineer AOR'
   }
 
   if (auth.isPOEngineer || auth.isEngineer) {
@@ -101,13 +100,11 @@ export default function AppDiagnosticsPanel({
   onRetrySync,
   retryingSync = false,
   canRetrySync = false,
-  defaultExpanded = false,
-  showRetrySync = true,
+  onClose,
 }: AppDiagnosticsPanelProps) {
   const auth = useAuth()
   const [diagnostics, setDiagnostics] = useState<AppDiagnosticsSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState(defaultExpanded)
   const [actionState, setActionState] = useState<ActionState>('idle')
   const [actionMessage, setActionMessage] = useState('')
 
@@ -143,56 +140,17 @@ export default function AppDiagnosticsPanel({
 
     window.addEventListener('online', handleConnectionChange)
     window.addEventListener('offline', handleConnectionChange)
+
     return () => {
       window.removeEventListener('online', handleConnectionChange)
       window.removeEventListener('offline', handleConnectionChange)
     }
   }, [loadDiagnostics])
 
-  async function handleRefreshProjects() {
-    try {
-      setActionState('loading')
-      setActionMessage('Refreshing the shared project cache...')
-      const projects = await refreshSharedProjects({ force: true })
-      await loadDiagnostics()
-      setActionState('success')
-      setActionMessage(
-        navigator.onLine
-          ? `${projects.length} project record(s) are ready in the shared cache.`
-          : `${projects.length} cached project record(s) remain available offline.`,
-      )
-    } catch (error) {
-      console.error(error)
-      setActionState('error')
-      setActionMessage('Unable to refresh the project cache.')
-    }
-  }
-
-  async function handleRetrySync() {
-    if (!onRetrySync || !canRetrySync) return
-
-    try {
-      setActionState('loading')
-      setActionMessage('Retrying pending offline records...')
-      await onRetrySync()
-      await loadDiagnostics()
-      setActionState('success')
-      setActionMessage('Offline queue check completed. Review the pending counts below.')
-    } catch (error) {
-      console.error(error)
-      setActionState('error')
-      setActionMessage(
-        error instanceof Error
-          ? error.message
-          : 'The offline queue retry did not complete successfully.',
-      )
-    }
-  }
-
   function buildDiagnosticReport(snapshot: AppDiagnosticsSnapshot | null = diagnostics) {
     if (!snapshot) return ''
 
-    const lines = [
+    return [
       'PMS10 Diagnostic Report',
       `Generated: ${formatDateTime(snapshot.capturedAt)}`,
       '',
@@ -223,9 +181,39 @@ export default function AppDiagnosticsPanel({
       `Cache Storage entries: ${snapshot.cacheNames.length}`,
       `Storage used: ${formatDiagnosticBytes(snapshot.storageUsedBytes)}`,
       `Storage quota: ${formatDiagnosticBytes(snapshot.storageQuotaBytes)}`,
-    ]
+    ].join('\n')
+  }
 
-    return lines.join('\n')
+  async function handleRetrySync() {
+    if (!onRetrySync || !canRetrySync) return
+
+    try {
+      setActionState('loading')
+      setActionMessage('Retrying pending records…')
+      await onRetrySync()
+      await loadDiagnostics()
+      setActionState('success')
+      setActionMessage('Offline queue checked.')
+    } catch (error) {
+      console.error(error)
+      setActionState('error')
+      setActionMessage(error instanceof Error ? error.message : 'Retry did not complete.')
+    }
+  }
+
+  async function handleRefreshProjects() {
+    try {
+      setActionState('loading')
+      setActionMessage('Refreshing project cache…')
+      const projects = await refreshSharedProjects({ force: true })
+      await loadDiagnostics()
+      setActionState('success')
+      setActionMessage(`${projects.length} project record(s) ready.`)
+    } catch (error) {
+      console.error(error)
+      setActionState('error')
+      setActionMessage('Unable to refresh project cache.')
+    }
   }
 
   async function handleCopyReport() {
@@ -235,182 +223,139 @@ export default function AppDiagnosticsPanel({
       if (!report) throw new Error('Diagnostics are still loading.')
       await copyText(report)
       setActionState('success')
-      setActionMessage('Diagnostic report copied to the clipboard.')
+      setActionMessage('Diagnostic report copied.')
     } catch (error) {
       console.error(error)
       setActionState('error')
-      setActionMessage(error instanceof Error ? error.message : 'Unable to copy the diagnostic report.')
+      setActionMessage(error instanceof Error ? error.message : 'Unable to copy report.')
     }
   }
 
   async function handleRefreshAppCache() {
     if (!navigator.onLine) {
       setActionState('error')
-      setActionMessage('Connect to the internet before refreshing the app-shell cache.')
+      setActionMessage('Connect to the internet first.')
       return
     }
 
     const confirmed = window.confirm(
-      'Refresh the PMS10 app-shell cache? Pending updates, photos, drafts, cached projects, and Aide Memoire files will not be deleted. The app will reload after the cache is refreshed.',
+      'Refresh PMS10 app files? Pending updates, photos, drafts, cached projects, and Aide Memoire files will not be deleted.',
     )
 
     if (!confirmed) return
 
     try {
       setActionState('loading')
-      setActionMessage('Refreshing the PMS10 app-shell cache...')
+      setActionMessage('Refreshing app files…')
       await refreshServiceWorkerAndAppShellCache()
       window.setTimeout(() => window.location.reload(), 250)
     } catch (error) {
       console.error(error)
       setActionState('error')
-      setActionMessage('Unable to refresh the app-shell cache on this device.')
+      setActionMessage('Unable to refresh app files.')
     }
   }
 
-  const lastSyncLabel = diagnostics?.lastSuccessfulSync
-    ? formatDateTime(diagnostics.lastSuccessfulSync.at)
-    : 'No successful offline sync recorded on this device'
+  const pendingTotal =
+    (diagnostics?.pendingUpdates || 0) + (diagnostics?.pendingPhotos || 0)
+  const failedTotal =
+    (diagnostics?.failedUpdates || 0) + (diagnostics?.failedPhotos || 0)
 
   return (
-    <section className="app-diagnostics-card" aria-labelledby="pms10-diagnostics-title">
-      <div className="app-diagnostics-header">
+    <section
+      className="app-diagnostics-popover-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pms10-diagnostics-title"
+    >
+      <header className="app-diagnostics-popover-header">
+        <div className="app-diagnostics-popover-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M13.4 2.7a1 1 0 0 0-1.8 0l-.7 1.6a8.2 8.2 0 0 0-1.4.6L7.9 4.3a1 1 0 0 0-1.2.4L4.8 6.6a1 1 0 0 0-.2 1.2l.7 1.6a8.2 8.2 0 0 0-.6 1.4l-1.7.7a1 1 0 0 0-.6.9v2.7a1 1 0 0 0 .6.9l1.7.7c.2.5.4 1 .6 1.4l-.7 1.6a1 1 0 0 0 .2 1.2l1.9 1.9a1 1 0 0 0 1.2.2l1.6-.7c.5.3.9.5 1.4.6l.7 1.6a1 1 0 0 0 .9.6h2.7a1 1 0 0 0 .9-.6l.7-1.6c.5-.2 1-.4 1.4-.6l1.6.7a1 1 0 0 0 1.2-.2l1.9-1.9a1 1 0 0 0 .2-1.2l-.7-1.6c.3-.5.5-.9.6-1.4l1.6-.7a1 1 0 0 0 .6-.9v-2.7a1 1 0 0 0-.6-.9l-1.6-.7a8.2 8.2 0 0 0-.6-1.4l.7-1.6a1 1 0 0 0-.2-1.2l-1.9-1.9a1 1 0 0 0-1.2-.2l-1.6.7a8.2 8.2 0 0 0-1.4-.6l-.7-1.6a1 1 0 0 0-.9-.6h-2.7Zm1.4 10.7a2.8 2.8 0 1 1-5.6 0 2.8 2.8 0 0 1 5.6 0Z" />
+          </svg>
+        </div>
+
         <div>
-          <p>RELEASE READINESS</p>
-          <h2 id="pms10-diagnostics-title">App Diagnostics</h2>
-          <span>Device, cache, synchronization, and installed-build information.</span>
+          <h2 id="pms10-diagnostics-title">Diagnostics</h2>
+          <p>Quick device and sync check</p>
         </div>
 
         <button
           type="button"
-          className="app-diagnostics-toggle"
-          onClick={() => setExpanded((current) => !current)}
-          aria-expanded={expanded}
+          className="app-diagnostics-popover-close"
+          onClick={onClose}
+          aria-label="Close diagnostics"
         >
-          {expanded ? 'Hide Details' : 'Show Details'}
+          ×
         </button>
+      </header>
+
+      <div className="app-diagnostics-popover-status">
+        <span className={diagnostics?.online ? 'online' : 'offline'}>
+          {diagnostics?.online ? 'Online' : 'Offline'}
+        </span>
+        <span>{diagnostics?.mode || 'Checking mode…'}</span>
       </div>
 
-      <div className="app-diagnostics-summary">
+      <div className="app-diagnostics-popover-metrics">
         <div>
           <span>Version</span>
-          <strong>{diagnostics?.version || 'Loading…'}</strong>
+          <strong>{diagnostics?.version || '…'}</strong>
           <small>{shortenCommit(diagnostics?.commit || '')}</small>
         </div>
         <div>
-          <span>Installed Mode</span>
-          <strong>{diagnostics?.mode || 'Loading…'}</strong>
-          <small>{diagnostics?.platform || 'Checking device'}</small>
+          <span>Pending</span>
+          <strong>{loading ? '…' : pendingTotal}</strong>
+          <small>{failedTotal > 0 ? `${failedTotal} failed` : 'queue records'}</small>
         </div>
         <div>
-          <span>Project Cache</span>
+          <span>Projects</span>
           <strong>{loading ? '…' : diagnostics?.cachedProjects ?? 0}</strong>
-          <small>records on this device</small>
+          <small>cached</small>
         </div>
         <div>
-          <span>Pending Queue</span>
-          <strong>
-            {loading
-              ? '…'
-              : (diagnostics?.pendingUpdates || 0) + (diagnostics?.pendingPhotos || 0)}
+          <span>Last Sync</span>
+          <strong className="date-value">
+            {loading ? '…' : formatDateTime(diagnostics?.lastSuccessfulSync?.at)}
           </strong>
-          <small>
-            {diagnostics?.failedUpdates || diagnostics?.failedPhotos
-              ? `${(diagnostics?.failedUpdates || 0) + (diagnostics?.failedPhotos || 0)} failed/orphaned`
-              : 'no recorded failures'}
-          </small>
+          <small>this device</small>
         </div>
       </div>
 
-      {expanded && diagnostics && (
-        <div className="app-diagnostics-details">
-          <div className="app-diagnostics-section">
-            <h3>Build and Runtime</h3>
-            <dl>
-              <div><dt>Build date</dt><dd>{formatDateTime(diagnostics.buildDate)}</dd></div>
-              <div><dt>Commit</dt><dd>{diagnostics.commit}</dd></div>
-              <div><dt>Connection</dt><dd>{diagnostics.online ? 'Online' : 'Offline'}</dd></div>
-              <div><dt>Service worker</dt><dd>{diagnostics.serviceWorkerState}</dd></div>
-              <div><dt>Controlled by SW</dt><dd>{diagnostics.serviceWorkerControlled ? 'Yes' : 'No'}</dd></div>
-              <div><dt>App-shell caches</dt><dd>{diagnostics.cacheNames.length}</dd></div>
-            </dl>
-          </div>
-
-          <div className="app-diagnostics-section">
-            <h3>User and AOR</h3>
-            <dl>
-              <div><dt>User</dt><dd>{userName}</dd></div>
-              <div><dt>Email</dt><dd>{userEmail}</dd></div>
-              <div><dt>Role</dt><dd>{role}</dd></div>
-              <div><dt>Assigned AOR</dt><dd>{aorSummary}</dd></div>
-            </dl>
-          </div>
-
-          <div className="app-diagnostics-section">
-            <h3>Local Data</h3>
-            <dl>
-              <div><dt>Pending updates</dt><dd>{diagnostics.pendingUpdates}</dd></div>
-              <div><dt>Pending photos</dt><dd>{diagnostics.pendingPhotos}</dd></div>
-              <div><dt>Aide Memoire records</dt><dd>{diagnostics.localAideMemoires}</dd></div>
-              <div><dt>Generated documents</dt><dd>{diagnostics.localDocuments}</dd></div>
-              <div><dt>Storage used</dt><dd>{formatDiagnosticBytes(diagnostics.storageUsedBytes)}</dd></div>
-              <div><dt>Storage quota</dt><dd>{formatDiagnosticBytes(diagnostics.storageQuotaBytes)}</dd></div>
-            </dl>
-          </div>
-
-          <div className="app-diagnostics-section">
-            <h3>Synchronization</h3>
-            <dl>
-              <div><dt>Last successful sync</dt><dd>{lastSyncLabel}</dd></div>
-              <div><dt>Last synced updates</dt><dd>{diagnostics.lastSuccessfulSync?.syncedUpdates ?? 0}</dd></div>
-              <div><dt>Last synced photos</dt><dd>{diagnostics.lastSuccessfulSync?.syncedPhotos ?? 0}</dd></div>
-            </dl>
-          </div>
-        </div>
-      )}
-
-      <div className="app-diagnostics-actions">
-        {showRetrySync && (
-          <button
-            type="button"
-            className="primary"
-            onClick={() => void handleRetrySync()}
-            disabled={!canRetrySync || retryingSync || actionState === 'loading'}
-          >
-            {retryingSync ? 'Retrying Sync…' : 'Retry Sync'}
-          </button>
-        )}
+      <div className="app-diagnostics-popover-actions">
+        <button
+          type="button"
+          className="primary"
+          onClick={() => void handleRetrySync()}
+          disabled={!canRetrySync || retryingSync || actionState === 'loading'}
+        >
+          {retryingSync ? 'Retrying…' : 'Retry Sync'}
+        </button>
         <button
           type="button"
           onClick={() => void handleRefreshProjects()}
           disabled={actionState === 'loading'}
         >
-          Refresh Project Cache
+          Refresh
         </button>
         <button
           type="button"
           onClick={() => void handleCopyReport()}
           disabled={loading || actionState === 'loading'}
         >
-          Copy Diagnostic Report
+          Copy Report
         </button>
         <button
           type="button"
-          className="warning"
           onClick={() => void handleRefreshAppCache()}
           disabled={actionState === 'loading' || diagnostics?.online === false}
         >
-          Refresh App Cache
+          App Cache
         </button>
       </div>
 
-      <p className="app-diagnostics-safety-note">
-        Refresh App Cache requires an internet connection and clears only downloaded app-shell files.
-        It does not delete pending updates, photos, drafts, cached projects, or locally generated Aide Memoire files.
-      </p>
-
       {actionMessage && (
-        <div className={`app-diagnostics-message ${actionState}`} role="status">
+        <div className={`app-diagnostics-popover-message ${actionState}`} role="status">
           {actionMessage}
         </div>
       )}

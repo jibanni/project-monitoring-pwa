@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { offlineDb, type OfflineProjectPhoto, type OfflineProjectUpdate } from '../lib/offlineDb'
 import * as offlineSyncService from '../services/offlineSyncService'
 import { useAuth } from '../context/AuthContext'
+import AppDiagnosticsPanel from '../components/AppDiagnosticsPanel'
 import { canUpdateProject, type AorProjectLike } from '../utils/aorAccess'
 import '../styles/offlineSync.css'
 import '../styles/pageHero.css'
@@ -305,6 +306,7 @@ export default function OfflineSync() {
   const [removalDialog, setRemovalDialog] = useState<RemovalDialogState | null>(null)
   const [loadingRemovalPreview, setLoadingRemovalPreview] = useState(false)
   const [removingUpdate, setRemovingUpdate] = useState(false)
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
 
   const [offlineUpdates, setOfflineUpdates] = useState<HydratedOfflineUpdate[]>([])
   const [offlinePhotos, setOfflinePhotos] = useState<HydratedOfflinePhoto[]>([])
@@ -333,6 +335,17 @@ export default function OfflineSync() {
       window.removeEventListener('offline', handleOffline)
     }
   }, [])
+
+  useEffect(() => {
+    if (!diagnosticsOpen) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setDiagnosticsOpen(false)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [diagnosticsOpen])
 
   useEffect(() => {
     let ticking = false
@@ -816,17 +829,50 @@ export default function OfflineSync() {
         </>
       )}
 
-      <Link
-        to="/offline-sync/diagnostics"
-        className="offline-sync-diagnostics-fab"
-        aria-label="Open App Diagnostics"
-        title="App Diagnostics"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M13.4 2.7a1 1 0 0 0-1.8 0l-.7 1.6a8.2 8.2 0 0 0-1.4.6L7.9 4.3a1 1 0 0 0-1.2.4L4.8 6.6a1 1 0 0 0-.2 1.2l.7 1.6a8.2 8.2 0 0 0-.6 1.4l-1.7.7a1 1 0 0 0-.6.9v2.7a1 1 0 0 0 .6.9l1.7.7c.2.5.4 1 .6 1.4l-.7 1.6a1 1 0 0 0 .2 1.2l1.9 1.9a1 1 0 0 0 1.2.2l1.6-.7c.5.3.9.5 1.4.6l.7 1.6a1 1 0 0 0 .9.6h2.7a1 1 0 0 0 .9-.6l.7-1.6c.5-.2 1-.4 1.4-.6l1.6.7a1 1 0 0 0 1.2-.2l1.9-1.9a1 1 0 0 0 .2-1.2l-.7-1.6c.3-.5.5-.9.6-1.4l1.6-.7a1 1 0 0 0 .6-.9v-2.7a1 1 0 0 0-.6-.9l-1.6-.7a8.2 8.2 0 0 0-.6-1.4l.7-1.6a1 1 0 0 0-.2-1.2l-1.9-1.9a1 1 0 0 0-1.2-.2l-1.6.7a8.2 8.2 0 0 0-1.4-.6l-.7-1.6a1 1 0 0 0-.9-.6h-2.7Zm1.4 10.7a2.8 2.8 0 1 1-5.6 0 2.8 2.8 0 0 1 5.6 0Z" />
-        </svg>
-        <span>Diagnostics</span>
-      </Link>
+      {createPortal(
+        <>
+          <button
+            type="button"
+            className="offline-sync-diagnostics-fab"
+            aria-label="Open diagnostics"
+            title="Diagnostics"
+            aria-expanded={diagnosticsOpen}
+            onClick={() => setDiagnosticsOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M13.4 2.7a1 1 0 0 0-1.8 0l-.7 1.6a8.2 8.2 0 0 0-1.4.6L7.9 4.3a1 1 0 0 0-1.2.4L4.8 6.6a1 1 0 0 0-.2 1.2l.7 1.6a8.2 8.2 0 0 0-.6 1.4l-1.7.7a1 1 0 0 0-.6.9v2.7a1 1 0 0 0 .6.9l1.7.7c.2.5.4 1 .6 1.4l-.7 1.6a1 1 0 0 0 .2 1.2l1.9 1.9a1 1 0 0 0 1.2.2l1.6-.7c.5.3.9.5 1.4.6l.7 1.6a1 1 0 0 0 .9.6h2.7a1 1 0 0 0 .9-.6l.7-1.6c.5-.2 1-.4 1.4-.6l1.6.7a1 1 0 0 0 1.2-.2l1.9-1.9a1 1 0 0 0 .2-1.2l-.7-1.6c.3-.5.5-.9.6-1.4l1.6-.7a1 1 0 0 0 .6-.9v-2.7a1 1 0 0 0-.6-.9l-1.6-.7a8.2 8.2 0 0 0-.6-1.4l.7-1.6a1 1 0 0 0-.2-1.2l-1.9-1.9a1 1 0 0 0-1.2-.2l-1.6.7a8.2 8.2 0 0 0-1.4-.6l-.7-1.6a1 1 0 0 0-.9-.6h-2.7Zm1.4 10.7a2.8 2.8 0 1 1-5.6 0 2.8 2.8 0 0 1 5.6 0Z" />
+            </svg>
+          </button>
+
+          {diagnosticsOpen && (
+            <div
+              className="offline-sync-diagnostics-popover-layer"
+              role="presentation"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) setDiagnosticsOpen(false)
+              }}
+            >
+              <div
+                className="offline-sync-diagnostics-popover-shell"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <AppDiagnosticsPanel
+                  onRetrySync={() => syncNow(false)}
+                  retryingSync={syncing}
+                  canRetrySync={Boolean(
+                    isOnline &&
+                      canSyncCurrentQueue &&
+                      totalPendingCount > 0 &&
+                      !syncing,
+                  )}
+                  onClose={() => setDiagnosticsOpen(false)}
+                />
+              </div>
+            </div>
+          )}
+        </>,
+        document.body,
+      )}
 
       {removalDialog && (
         <div
