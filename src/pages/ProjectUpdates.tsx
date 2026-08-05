@@ -855,10 +855,10 @@ function IconPdf() {
 
 function SavingDots() {
   return (
-    <span className="pms10-save-dots" aria-hidden="true">
-      <i className="pms10-save-dot" />
-      <i className="pms10-save-dot" />
-      <i className="pms10-save-dot" />
+    <span className="pms10-submit-loader" aria-hidden="true">
+      <span />
+      <span />
+      <span />
     </span>
   )
 }
