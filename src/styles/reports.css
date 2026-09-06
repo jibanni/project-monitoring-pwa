@@ -1172,3 +1172,23 @@
   }
 }
 /* PMS10 REPORTS DESKTOP PILL SPACING REFINEMENT END */
+
+
+/* =========================================================
+   PMS10 REPORTS DESKTOP SPACING RHYTHM V2
+   Uses one consistent 12px rhythm between the filter panel,
+   the Regional Reporting / Project-Level Reporting cards,
+   and the following Reports content.
+   Desktop only; mobile remains unchanged.
+   ========================================================= */
+@media (min-width: 761px) {
+  .reports-filter-card.pm-unified-filter-panel {
+    margin-bottom: 12px !important;
+  }
+
+  .reports-products-card {
+    gap: 12px !important;
+    margin: 0 0 12px !important;
+  }
+}
+/* PMS10 REPORTS DESKTOP SPACING RHYTHM V2 END */

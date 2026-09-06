@@ -193,7 +193,7 @@ function drawRegionalHeader(doc: any, assets: HeaderAssets) {
 
   if (assets.dilgDataUrl && assets.bagongDataUrl) {
     const dilgSize = 17
-    const bagongHeight = 22
+    const bagongHeight = 25
     const bagongAspectRatio = 499 / 520
     const bagongWidth = bagongHeight * bagongAspectRatio
     const gap = 4
