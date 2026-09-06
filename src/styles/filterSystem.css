@@ -404,3 +404,26 @@
 }
 
 /* Keep the established mobile layouts as their current source of truth. */
+
+
+/* =========================================================
+   PMS10 MOBILE DASHBOARD FILTER TITLE MATCH PROJECT FILTER
+   Mobile only. Makes "Dashboard filters" use the same compact
+   visual scale as the Project Registry filter label.
+   ========================================================= */
+@media (max-width: 700px) {
+  body #root .dashboard-filter-summary-text p {
+    margin: 0 0 2px !important;
+    font-size: 0.54rem !important;
+    font-weight: 850 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.10em !important;
+    text-transform: uppercase !important;
+  }
+
+  body #root .dashboard-filter-summary-text strong {
+    font-size: 0.78rem !important;
+    line-height: 1.08 !important;
+  }
+}
+/* PMS10 MOBILE DASHBOARD FILTER TITLE MATCH PROJECT FILTER END */

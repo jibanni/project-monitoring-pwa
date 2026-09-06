@@ -8588,3 +8588,22 @@ body > .pu-update-fab-drawer.is-closed .pu-update-fab-stack {
   }
 }
 
+
+
+/* =========================================================
+   PMS10 MOBILE PROJECT UPDATE VERTICAL SPACING CONSISTENCY
+   Mobile only. Tightens the gap after the Project Update hero
+   and between the wizard header/content so it matches the
+   denser spacing used across the other PMS10 mobile pages.
+   ========================================================= */
+@media (max-width: 760px) {
+  .pu-content-grid.pu-update-subpage-system {
+    margin-top: 8px !important;
+    gap: 10px !important;
+  }
+
+  .pu-wizard-shell {
+    margin-bottom: 10px !important;
+  }
+}
+/* PMS10 MOBILE PROJECT UPDATE VERTICAL SPACING CONSISTENCY END */
