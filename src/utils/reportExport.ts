@@ -146,6 +146,15 @@ function projectProgram(project: ReportExportProject) {
   return normalizeProgramName(project.funding_source || project.project_type) || 'Unspecified Program'
 }
 
+
+function projectProgramYear(project: ReportExportProject) {
+  const program = projectProgram(project)
+  const fundingYear = formatFundingYear(project.funding_year)
+
+  if (fundingYear === '—') return program
+  return `${program}\n${fundingYear}`
+}
+
 function projectRisk(project: ReportExportProject) {
   return getPmsRiskLevel(project as Record<string, unknown>)
 }
@@ -518,7 +527,7 @@ export async function generateProgramSummaryPdf(
     margin: { left: 10, right: 10, top: continuationTop, bottom: 15 },
     head: [[
       'Project',
-      'Program',
+      'Program / FY',
       'Province/HUC',
       'LGU',
       'Cost',
@@ -531,7 +540,7 @@ export async function generateProgramSummaryPdf(
     ]],
     body: projects.map((project) => [
       textValue(project.project_name, 'Untitled Project'),
-      projectProgram(project),
+      projectProgramYear(project),
       textValue(project.province, '—'),
       textValue(project.municipality, '—'),
       formatMoney(project.budget),
@@ -560,7 +569,7 @@ export async function generateProgramSummaryPdf(
     columnStyles: {
       // Total = 310 mm, matching the Folio landscape usable width.
       0: { cellWidth: 60 },
-      1: { cellWidth: 28 },
+      1: { cellWidth: 28, halign: 'center' },
       2: { cellWidth: 24 },
       3: { cellWidth: 24 },
       4: { cellWidth: 28, halign: 'right' },
