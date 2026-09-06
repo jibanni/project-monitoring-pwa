@@ -3337,3 +3337,24 @@
 }
 /* PMS10 MOBILE GIS FLOATING SUMMARY PILL END */
 
+
+
+/* =========================================================
+   PMS10 MOBILE FULLSCREEN GIS SUMMARY VISIBILITY FIX
+   Mobile only.
+   In map fullscreen mode the map shell begins at viewport top,
+   behind the fixed PMS10 header. Keep the floating GIS summary
+   and Leaflet zoom control below the live app header.
+   Desktop/PC remains untouched.
+   ========================================================= */
+@media (max-width: 760px) {
+  .pm-map-shell.is-map-fullscreen .pm-map-mobile-floating-summary {
+    top: calc(var(--app-header-live-h, var(--current-header-h, 74px)) + 10px) !important;
+    z-index: 1200 !important;
+  }
+
+  .pm-map-shell.is-map-fullscreen .leaflet-control-zoom {
+    margin-top: calc(var(--app-header-live-h, var(--current-header-h, 74px)) + 12px) !important;
+  }
+}
+/* PMS10 MOBILE FULLSCREEN GIS SUMMARY VISIBILITY FIX END */
