@@ -88,6 +88,15 @@ function textValue(value: unknown, fallback = '') {
   return text || fallback
 }
 
+
+function abbreviateEngineerTitle(value: unknown, fallback = '') {
+  const text = textValue(value, fallback)
+  return text
+    .replace(/\bEngineer\s+/gi, 'Engr. ')
+    .replace(/\bEngr\.\s*/gi, 'Engr. ')
+    .trim()
+}
+
 function toNumber(value: unknown) {
   if (value === null || value === undefined || value === '') return 0
   const parsed = typeof value === 'number' ? value : Number(String(value).replace(/,/g, '').trim())
@@ -235,6 +244,154 @@ async function fetchImageDataUrl(url: string) {
   const response = await fetch(url, { cache: 'force-cache' })
   if (!response.ok) throw new Error(`Unable to load ${url}`)
   return blobToDataUrl(await response.blob())
+}
+
+
+function validCoordinate(value: unknown, min: number, max: number) {
+  const number = Number(value)
+  return Number.isFinite(number) && number >= min && number <= max ? number : null
+}
+
+function latLngToWorldPixel(latitude: number, longitude: number, zoom: number) {
+  const tileCount = 2 ** zoom
+  const sinLat = Math.sin((latitude * Math.PI) / 180)
+  const worldSize = tileCount * 256
+
+  return {
+    x: ((longitude + 180) / 360) * worldSize,
+    y:
+      (0.5 -
+        Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) *
+      worldSize,
+    worldSize,
+  }
+}
+
+async function loadMapTile(url: string) {
+  const response = await fetch(url, {
+    mode: 'cors',
+    cache: 'force-cache',
+  })
+
+  if (!response.ok) {
+    throw new Error(`Map tile request failed: ${response.status}`)
+  }
+
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+
+  try {
+    return await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image()
+      image.onload = () => resolve(image)
+      image.onerror = () => reject(new Error('Unable to decode map tile.'))
+      image.src = objectUrl
+    })
+  } finally {
+    // The image pixels remain available after load; release the Blob URL.
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+  }
+}
+
+async function createProjectLocationMapDataUrl(
+  latitude: number,
+  longitude: number,
+): Promise<string | null> {
+  if (typeof document === 'undefined') return null
+
+  try {
+    const width = 900
+    const height = 360
+    const zoom = 14
+    const tileSize = 256
+    const tileCount = 2 ** zoom
+    const center = latLngToWorldPixel(latitude, longitude, zoom)
+    const left = center.x - width / 2
+    const top = center.y - height / 2
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+
+    // Neutral fallback background while tiles load.
+    ctx.fillStyle = '#eef3f8'
+    ctx.fillRect(0, 0, width, height)
+
+    const minTileX = Math.floor(left / tileSize)
+    const maxTileX = Math.floor((left + width) / tileSize)
+    const minTileY = Math.max(0, Math.floor(top / tileSize))
+    const maxTileY = Math.min(tileCount - 1, Math.floor((top + height) / tileSize))
+
+    const tileJobs: Promise<void>[] = []
+
+    for (let tileY = minTileY; tileY <= maxTileY; tileY += 1) {
+      for (let tileX = minTileX; tileX <= maxTileX; tileX += 1) {
+        const wrappedTileX = ((tileX % tileCount) + tileCount) % tileCount
+        const tileUrl = `https://tile.openstreetmap.org/${zoom}/${wrappedTileX}/${tileY}.png`
+
+        tileJobs.push(
+          loadMapTile(tileUrl)
+            .then((image) => {
+              const drawX = tileX * tileSize - left
+              const drawY = tileY * tileSize - top
+              ctx.drawImage(image, drawX, drawY, tileSize, tileSize)
+            })
+            .catch(() => {
+              // One failed tile should not prevent the Project Briefer from generating.
+            }),
+        )
+      }
+    }
+
+    await Promise.all(tileJobs)
+
+    // Project marker.
+    const markerX = width / 2
+    const markerY = height / 2
+
+    ctx.save()
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.24)'
+    ctx.shadowBlur = 9
+    ctx.shadowOffsetY = 3
+
+    ctx.beginPath()
+    ctx.fillStyle = '#d92323'
+    ctx.arc(markerX, markerY - 10, 15, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.moveTo(markerX - 8, markerY - 1)
+    ctx.lineTo(markerX + 8, markerY - 1)
+    ctx.lineTo(markerX, markerY + 20)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.restore()
+
+    ctx.beginPath()
+    ctx.fillStyle = '#ffffff'
+    ctx.arc(markerX, markerY - 10, 5.5, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Attribution.
+    ctx.font = '17px Arial, sans-serif'
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'bottom'
+    const attribution = '© OpenStreetMap contributors'
+    const attributionWidth = ctx.measureText(attribution).width
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.82)'
+    ctx.fillRect(width - attributionWidth - 18, height - 29, attributionWidth + 12, 24)
+    ctx.fillStyle = '#334155'
+    ctx.fillText(attribution, width - 10, height - 7)
+
+    return canvas.toDataURL('image/jpeg', 0.88)
+  } catch {
+    // Briefer generation must still work offline or when map tiles are unavailable.
+    return null
+  }
 }
 
 async function loadHeaderAssets(): Promise<HeaderAssets> {
@@ -745,7 +902,17 @@ export async function generateProjectBrieferPdf(
   context: ProjectBrieferExportContext,
 ) {
   const { default: jsPDF } = await import('jspdf')
-  const assets = await loadHeaderAssets()
+
+  const latitude = validCoordinate(project.latitude, -90, 90)
+  const longitude = validCoordinate(project.longitude, -180, 180)
+
+  const [assets, locationMapDataUrl] = await Promise.all([
+    loadHeaderAssets(),
+    latitude !== null && longitude !== null
+      ? createProjectLocationMapDataUrl(latitude, longitude)
+      : Promise.resolve(null),
+  ])
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: FOLIO_FORMAT_MM, compress: true })
   const pageWidth = doc.internal.pageSize.getWidth()
   const latest = context.latestUpdate || null
@@ -812,7 +979,7 @@ export async function generateProjectBrieferPdf(
     ['Implementing LGU', textValue(project.implementing_office || project.municipality, '—')],
     ['Mode', textValue(project.mode_of_implementation, '—')],
     ['Status', normalizeStatus(latest?.status || project.status)],
-    ['Assigned Engineer', textValue(context.assignedEngineer, 'No assigned engineer recorded')],
+    ['Assigned Engr.', abbreviateEngineerTitle(context.assignedEngineer, 'No assigned engineer recorded')],
   ]
   const rightRows: Array<[string, string]> = [
     ['Contractor', textValue(project.contractor, '—')],
@@ -826,6 +993,53 @@ export async function generateProjectBrieferPdf(
   leftRows.forEach(([label, value], index) => addLabelValue(doc, label, value, 12, y + index * 8, 31, halfWidth - 31))
   rightRows.forEach(([label, value], index) => addLabelValue(doc, label, value, 14 + halfWidth, y + index * 8, 31, halfWidth - 31))
   y += 52
+
+  if (latitude !== null && longitude !== null) {
+    const mapSectionHeight = locationMapDataUrl ? 62 : 19
+    const safeBottom = doc.internal.pageSize.getHeight() - 18
+
+    if (y + mapSectionHeight > safeBottom) {
+      doc.addPage()
+      y = drawRegionalHeader(doc, assets)
+    }
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.2)
+    doc.setTextColor(13, 62, 111)
+    doc.text('PROJECT LOCATION', 12, y + 4)
+
+    if (locationMapDataUrl) {
+      doc.setDrawColor(205, 213, 224)
+      doc.setFillColor(250, 251, 253)
+      doc.roundedRect(12, y + 7, pageWidth - 24, 48, 2.5, 2.5, 'FD')
+      doc.addImage(locationMapDataUrl, 'JPEG', 13, y + 8, pageWidth - 26, 42)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.6)
+      doc.setTextColor(75, 85, 100)
+      doc.text(
+        `Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+        14,
+        y + 53,
+      )
+
+      y += 60
+    } else {
+      // Offline-safe fallback: retain the coordinates even if OSM tiles are unavailable.
+      doc.setDrawColor(205, 213, 224)
+      doc.setFillColor(250, 251, 253)
+      doc.roundedRect(12, y + 7, pageWidth - 24, 10, 2, 2, 'FD')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7.2)
+      doc.setTextColor(75, 85, 100)
+      doc.text(
+        `Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} — map tiles unavailable.`,
+        16,
+        y + 13,
+      )
+      y += 19
+    }
+  }
 
   const addBrieferSection = (title: string, body: string) => {
     const sectionHeight = getSectionBoxHeight(doc, body)
