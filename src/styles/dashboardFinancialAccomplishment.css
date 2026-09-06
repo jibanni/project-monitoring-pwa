@@ -166,3 +166,83 @@
     font-size: clamp(2.1rem, 11.5vw, 2.95rem) !important;
   }
 }
+
+/* =========================================================
+   PMS10 MOBILE COMPLETION PERFORMANCE FIX
+   Mobile only. Prevents the Completion Performance card from
+   inheriting the generic Priority-section max-height, which was
+   clipping the Financial Accomplishment donut on small screens.
+   Desktop/PC layout is intentionally untouched.
+   ========================================================= */
+@media (max-width: 767px) {
+  .dashboard-priority-section .dashboard-completion-card {
+    max-height: none !important;
+    height: auto !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-completion-card .dashboard-card-header {
+    align-items: flex-start !important;
+  }
+
+  .dashboard-completion-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    padding: 0 12px 14px !important;
+  }
+
+  .dashboard-performance-gauges {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .dashboard-performance-gauge-wrap {
+    gap: 6px !important;
+  }
+
+  .dashboard-performance-gauge-label {
+    margin: 0 0 2px !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.11em !important;
+  }
+
+  .dashboard-performance-gauges .dashboard-completion-gauge {
+    width: 100% !important;
+    min-height: 0 !important;
+    height: 200px !important;
+    max-height: 200px !important;
+    border-radius: 20px !important;
+  }
+
+  .dashboard-performance-gauges .dashboard-completion-center {
+    padding: 16px !important;
+  }
+
+  .dashboard-performance-gauges .dashboard-completion-center strong {
+    font-size: clamp(2.35rem, 12vw, 3.15rem) !important;
+  }
+
+  .dashboard-financial-gauge .dashboard-completion-center strong {
+    font-size: clamp(2.2rem, 10.8vw, 2.9rem) !important;
+  }
+
+  .dashboard-completion-breakdown {
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-completion-grid {
+    padding: 0 10px 12px !important;
+  }
+
+  .dashboard-performance-gauges {
+    gap: 14px !important;
+  }
+
+  .dashboard-performance-gauges .dashboard-completion-gauge {
+    height: 188px !important;
+    max-height: 188px !important;
+  }
+}
+/* PMS10 MOBILE COMPLETION PERFORMANCE FIX END */
