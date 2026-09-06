@@ -1192,3 +1192,102 @@
   }
 }
 /* PMS10 REPORTS DESKTOP SPACING RHYTHM V2 END */
+
+
+/* =========================================================
+   PMS10 REPORTS DESKTOP NO-HORIZONTAL-SCROLL TABLE
+   Essential Project Briefer source columns fit inside the
+   Reports workspace. Mobile keeps its existing card layout.
+   ========================================================= */
+@media (min-width: 761px) {
+  .reports-table-wrap {
+    overflow-x: hidden !important;
+  }
+
+  .reports-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+  }
+
+  .reports-table th,
+  .reports-table td {
+    padding: 10px 9px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .reports-table th {
+    font-size: 0.68rem !important;
+    white-space: normal !important;
+    line-height: 1.12 !important;
+  }
+
+  .reports-table td {
+    font-size: 0.78rem !important;
+    line-height: 1.22 !important;
+  }
+
+  .reports-table th:nth-child(1),
+  .reports-table td:nth-child(1) { width: 23%; }
+
+  .reports-table th:nth-child(2),
+  .reports-table td:nth-child(2) { width: 16%; }
+
+  .reports-table th:nth-child(3),
+  .reports-table td:nth-child(3) { width: 10%; }
+
+  .reports-table th:nth-child(4),
+  .reports-table td:nth-child(4) { width: 12%; }
+
+  .reports-table th:nth-child(5),
+  .reports-table td:nth-child(5) { width: 9%; }
+
+  .reports-table th:nth-child(6),
+  .reports-table td:nth-child(6) { width: 8%; }
+
+  .reports-table th:nth-child(7),
+  .reports-table td:nth-child(7) { width: 10%; }
+
+  .reports-table th:nth-child(8),
+  .reports-table td:nth-child(8) { width: 12%; }
+
+  .reports-program-year-cell {
+    text-align: center;
+  }
+
+  .reports-program-year-cell strong,
+  .reports-program-year-cell span {
+    text-align: center;
+  }
+
+  .reports-progress-cell {
+    display: grid;
+    gap: 4px;
+  }
+
+  .reports-progress-cell span {
+    display: flex !important;
+    align-items: center;
+    gap: 5px;
+    margin: 0 !important;
+    white-space: nowrap;
+    font-size: 0.74rem !important;
+  }
+
+  .reports-progress-cell span strong {
+    display: inline !important;
+    min-width: 13px;
+    color: #0f4c81;
+    font-size: 0.66rem;
+  }
+
+  .reports-table .reports-briefer-btn {
+    width: 100%;
+    min-height: 34px;
+    padding: 7px 8px;
+    font-size: 0.68rem;
+    line-height: 1.15;
+    white-space: normal;
+  }
+}
+/* PMS10 REPORTS DESKTOP NO-HORIZONTAL-SCROLL TABLE END */

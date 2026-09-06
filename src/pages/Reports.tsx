@@ -124,6 +124,15 @@ function formatPercent(value: unknown) {
   return `${toNumber(value).toFixed(2)}%`
 }
 
+
+function formatFundingYear(value: unknown) {
+  const raw = textValue(value)
+  if (!raw) return '—'
+
+  const cleaned = raw.replace(/^FY\s*/i, '').trim()
+  return cleaned ? `FY ${cleaned}` : '—'
+}
+
 function formatLongDate(value: string | null | undefined) {
   if (!value) return 'No date'
 
@@ -1304,78 +1313,72 @@ export default function Reports() {
                       <tr>
                         <th>Project</th>
                         <th>Location</th>
-                        <th>Latest Update</th>
-                        <th>Funding Source</th>
+                        <th>Program / FY</th>
                         <th>Project Cost</th>
                         <th>Status</th>
                         <th>Risk</th>
-                        <th>Actual</th>
-                        <th>Target</th>
-                        <th>Variance</th>
-                        <th>Financial</th>
+                        <th>Progress</th>
                         <th>Project Briefer</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {filteredProjects.map((project) => {
-                        const varianceInfo = getProjectVariance(project)
-                        const latestUpdateDate = formatLongDate(
-                          getLatestUpdateDate(project, latestUpdateMap),
-                        )
-
-                        return (
-                          <tr key={project.id}>
-                            <td>
-                              <strong>{textValue(project.project_name) || 'Untitled Project'}</strong>
-                              <span>{textValue(project.project_type) || 'No project type'}</span>
-                            </td>
-                            <td>
-                              <strong>
-                                {textValue(project.municipality) || 'No Municipality'}
-                              </strong>
+                      {filteredProjects.map((project) => (
+                        <tr key={project.id}>
+                          <td>
+                            <strong>{textValue(project.project_name) || 'Untitled Project'}</strong>
+                            <span>{textValue(project.project_type) || 'No project type'}</span>
+                          </td>
+                          <td>
+                            <strong>
+                              {textValue(project.municipality) || 'No Municipality'}
+                            </strong>
+                            <span>
+                              {textValue(project.barangay) || 'No Barangay'},{' '}
+                              {textValue(project.province) || 'No Province'}
+                            </span>
+                          </td>
+                          <td className="reports-program-year-cell">
+                            <strong>{textValue(project.funding_source) || '—'}</strong>
+                            <span>{formatFundingYear(project.funding_year)}</span>
+                          </td>
+                          <td>{formatCurrency(project.budget)}</td>
+                          <td>
+                            <span className={`reports-status ${getStatusClass(project.status)}`}>
+                              {textValue(project.status) || 'No Status'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`reports-risk ${getRiskClass(getReportRisk(project))}`}>
+                              {getReportRisk(project)}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="reports-progress-cell">
                               <span>
-                                {textValue(project.barangay) || 'No Barangay'},{' '}
-                                {textValue(project.province) || 'No Province'}
+                                <strong>P</strong>
+                                {formatPercent(project.physical_accomplishment)}
                               </span>
-                              <span>{getAssignedAorLabel(project)}</span>
-                            </td>
-                            <td>
-                              <strong>{latestUpdateDate}</strong>
-                            </td>
-                            <td>{textValue(project.funding_source) || '-'}</td>
-                            <td>{formatCurrency(project.budget)}</td>
-                            <td>
-                              <span className={`reports-status ${getStatusClass(project.status)}`}>
-                                {textValue(project.status) || 'No Status'}
+                              <span>
+                                <strong>F</strong>
+                                {formatPercent(project.financial_accomplishment)}
                               </span>
-                            </td>
-                            <td>
-                              <span className={`reports-risk ${getRiskClass(getReportRisk(project))}`}>
-                                {getReportRisk(project)}
-                              </span>
-                            </td>
-                            <td>{formatPercent(varianceInfo.actualPhysical)}</td>
-                            <td>{formatPercent(varianceInfo.targetPhysical)}</td>
-                            <td>
-                              <span className={`reports-variance ${varianceInfo.className}`}>
-                                {formatSignedVariance(varianceInfo.variance)}
-                              </span>
-                            </td>
-                            <td>{formatPercent(project.financial_accomplishment)}</td>
-                            <td>
-                              <button
-                                type="button"
-                                className="reports-briefer-btn"
-                                onClick={() => void generateProjectBriefer(project)}
-                                disabled={generatingBrieferId === project.id}
-                              >
-                                {generatingBrieferId === project.id ? 'Preparing…' : 'Project Briefer'}
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })}
+                            </div>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="reports-briefer-btn"
+                              onClick={() => void generateProjectBriefer(project)}
+                              disabled={generatingBrieferId === project.id}
+                            >
+                              {generatingBrieferId === project.id
+                                ? 'Preparing…'
+                                : 'Generate Project Briefer'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, type OfflineAideMemoire, type OfflineAideMemoireDocument } from '../lib/offlineDb'
@@ -11,6 +9,16 @@ import { getPmsRiskLevel } from '../utils/projectStatus'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
 import { normalizeProgramName } from '../utils/program'
+import {
+  generateProjectBrieferPdf,
+  type ProjectBrieferUpdate,
+} from '../utils/reportExport'
+import {
+  canonicalizeRegion10Lgu,
+  canonicalizeRegion10ProvinceOrHuc,
+  getCanonicalProjectLgu,
+  getCanonicalProjectProvinceOrHuc,
+} from '../data/region10Directory'
 import { readPageView, writePageView } from '../lib/pageViewMemory'
 import '../styles/projectDetails.css'
 import '../styles/projectDetailsUnifiedHero.css'
@@ -134,11 +142,37 @@ function getDetailsHeroTitleSizeClass(value?: string | null) {
   return 'pd-unified-title-extra-long'
 }
 
-function sanitizeFileName(value: string) {
-  return value
-    .replace(/[\\/:*?"<>|]/g, '-')
-    .replace(/\s+/g, ' ')
+
+function normalizeComparisonText(value: unknown) {
+  return String(value ?? '')
     .trim()
+    .toLocaleLowerCase('en-PH')
+    .replace(/\s+/g, ' ')
+}
+
+function sameComparisonText(left: unknown, right: unknown) {
+  const leftValue = normalizeComparisonText(left)
+  const rightValue = normalizeComparisonText(right)
+  return Boolean(leftValue && rightValue && leftValue === rightValue)
+}
+
+function getBrieferProfileName(profile: any, fallback?: string | null) {
+  const fullName = String(profile?.full_name ?? '').trim()
+  if (fullName) return fullName
+
+  const email = String(profile?.email ?? '').trim()
+  if (email) return email
+
+  const fallbackValue = String(fallback ?? '').trim()
+  return fallbackValue ? `User ${fallbackValue.slice(0, 8)}` : ''
+}
+
+function formatBrieferEngineerName(value: unknown) {
+  const name = String(value ?? '').trim()
+  if (!name) return ''
+
+  if (/^(engr\.?|engineer)\s/i.test(name)) return name
+  return `Engineer ${name}`
 }
 
 function IconBack() {
@@ -246,6 +280,7 @@ export default function ProjectDetails() {
   const [copiedSubayCode, setCopiedSubayCode] = useState(false)
   const [latestGeneratedAidePdf, setLatestGeneratedAidePdf] = useState<OfflineAideMemoireDocument | null>(null)
   const [aideGenerationRequest, setAideGenerationRequest] = useState<{ updateRef: string; source: 'online' | 'offline' } | null>(null)
+  const [generatingProjectBriefer, setGeneratingProjectBriefer] = useState(false)
 
   useEffect(() => {
     setPortalReady(true)
@@ -600,159 +635,110 @@ export default function ProjectDetails() {
   const canUpdateCurrentProject = project ? canUpdateProject(project, auth) : false
   const canEditCurrentProject = project ? canEditProjectRecord(project, auth) : false
 
-  function generatePdfReport() {
-    if (!project) return
+  async function generateProjectBriefer() {
+    if (!project || generatingProjectBriefer) return
 
-    const doc = new jsPDF('p', 'mm', 'a4')
+    setGeneratingProjectBriefer(true)
 
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text('PROJECT MONITORING REPORT', 105, 15, {
-      align: 'center',
-    })
+    try {
+      const latestUpdateForBriefer = (latestUpdate || null) as ProjectBrieferUpdate | null
+      const assignedNames: string[] = []
 
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    doc.text('DILG-PDMU Project Monitoring System', 105, 21, {
-      align: 'center',
-    })
+      if (navigator.onLine) {
+        const assignmentsResult = await supabase
+          .from('po_engineer_lgu_assignments')
+          .select('user_id, province, municipality, is_active')
+          .eq('is_active', true)
 
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30)
+        if (!assignmentsResult.error) {
+          const projectProvince = getCanonicalProjectProvinceOrHuc(
+            project.province,
+            project.municipality,
+          )
+          const projectLgu = getCanonicalProjectLgu(
+            project.province,
+            project.municipality,
+          )
 
-    autoTable(doc, {
-      startY: 36,
-      head: [['Project Information', 'Details']],
-      body: [
-        ['Project Name', project.project_name || '-'],
-        ['Description', project.description || '-'],
-        ['Project Type', project.project_type || '-'],
-        ['Funding Year', formatFundingYear(project.funding_year)],
-        ['Funding Source', normalizeProgramName(project.funding_source) || '-'],
-        ['Implementing Office', project.implementing_office || '-'],
-        ['Contractor', project.contractor || '-'],
-        ['Total Project Cost', formatCurrency(getOfficialProjectCost(project))],
-        ['Province', project.province || '-'],
-        ['Municipality', project.municipality || '-'],
-        ['Barangay', project.barangay || '-'],
-        ['Latitude', project.latitude || '-'],
-        ['Longitude', project.longitude || '-'],
-      ],
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-      },
-      headStyles: {
-        fillColor: [37, 99, 235],
-      },
-    })
+          const matchingAssignments = (assignmentsResult.data || []).filter((assignment: any) => {
+            const assignmentProvince = canonicalizeRegion10ProvinceOrHuc(
+              assignment.province,
+            )
+            const assignmentLgu = canonicalizeRegion10Lgu(
+              assignment.municipality,
+              assignmentProvince,
+            )
 
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 8,
-      head: [['Implementation Status', 'Details']],
-      body: [
-        ['Status', displayStatus || '-'],
-        ['Risk Level', computedRiskLevel],
-        ['Physical Accomplishment', `${project.physical_accomplishment || 0}%`],
-        [
-          'Target Physical Accomplishment',
-          `${getTargetPhysicalInfo(project).targetPhysical}%`,
-        ],
-        ['Variance', getTargetPhysicalInfo(project).label],
-        ['Financial Accomplishment', `${project.financial_accomplishment || 0}%`],
-        ['Last Inspection Date', project.last_inspection_date || '-'],
-        ['Start Date', project.start_date || '-'],
-        ['Target Completion Date', project.target_completion_date || '-'],
-      ],
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-      },
-      headStyles: {
-        fillColor: [22, 163, 74],
-      },
-    })
+            return (
+              assignment.is_active !== false &&
+              sameComparisonText(projectProvince, assignmentProvince) &&
+              sameComparisonText(projectLgu, assignmentLgu)
+            )
+          })
 
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 8,
-      head: [['Latest Inspection Update', 'Details']],
-      body: latestUpdate
-        ? [
-            ['Inspection Date', latestUpdate.inspection_date || '-'],
-            ['Physical Accomplishment', `${latestUpdate.physical_accomplishment || 0}%`],
-            ['Financial Accomplishment', `${latestUpdate.financial_accomplishment || 0}%`],
-            ['Risk Level', computedRiskLevel === 'None' ? 'None' : latestUpdate.risk_level || '-'],
-            [
-              'Inspection GPS',
-              `${latestUpdate.inspection_latitude || '-'}, ${
-                latestUpdate.inspection_longitude || '-'
-              }`,
-            ],
-            ['Issues / Findings', latestUpdate.issues || '-'],
-            ['Recommendations', latestUpdate.recommendations || '-'],
-            ['Remarks', latestUpdate.remarks || '-'],
-          ]
-        : [['No update available', '-']],
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-      },
-      headStyles: {
-        fillColor: [245, 158, 11],
-      },
-    })
+          const profileIds = Array.from(
+            new Set(
+              matchingAssignments
+                .map((assignment: any) => String(assignment.user_id ?? '').trim())
+                .filter(Boolean),
+            ),
+          )
 
-    if (updates.length > 0) {
-      autoTable(doc, {
-        startY: (doc as any).lastAutoTable.finalY + 8,
-        head: [['Inspection Date', 'Physical', 'Financial', 'Risk', 'Remarks']],
-        body: updates.map((update) => [
-          update.inspection_date || '-',
-          `${update.physical_accomplishment || 0}%`,
-          `${update.financial_accomplishment || 0}%`,
-          computedRiskLevel === 'None' ? 'None' : update.risk_level || '-',
-          update.remarks || '-',
-        ]),
-        styles: {
-          fontSize: 8,
-          cellPadding: 2.5,
-        },
-        headStyles: {
-          fillColor: [55, 65, 81],
-        },
+          if (profileIds.length > 0) {
+            const profilesResult = await supabase
+              .from('profiles')
+              .select('id, full_name, email')
+              .in('id', profileIds)
+
+            if (!profilesResult.error) {
+              ;(profilesResult.data || []).forEach((profile: any) => {
+                const name = getBrieferProfileName(profile, profile.id)
+                if (name) assignedNames.push(name)
+              })
+            }
+          }
+        }
+
+        if (assignedNames.length === 0 && latestUpdateForBriefer?.engineer_id) {
+          const updateEngineerResult = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .eq('id', latestUpdateForBriefer.engineer_id)
+            .maybeSingle()
+
+          if (!updateEngineerResult.error && updateEngineerResult.data) {
+            const name = getBrieferProfileName(
+              updateEngineerResult.data,
+              latestUpdateForBriefer.engineer_id,
+            )
+            if (name) assignedNames.push(name)
+          }
+        }
+      }
+
+      const uniqueAssignedNames = Array.from(
+        new Map(
+          assignedNames
+            .map((name) => formatBrieferEngineerName(name))
+            .filter(Boolean)
+            .map((name) => [normalizeComparisonText(name), name]),
+        ).values(),
+      )
+
+      await generateProjectBrieferPdf(project, {
+        generatedBy:
+          String(auth.profile?.full_name || auth.profile?.email || 'PMS10 User').trim(),
+        generatedAt: new Date(),
+        assignedEngineer:
+          uniqueAssignedNames.join(', ') || 'No assigned engineer recorded',
+        latestUpdate: latestUpdateForBriefer,
       })
+    } catch (error) {
+      console.error('Unable to generate Project Briefer.', error)
+      alert('Unable to generate the Project Briefer. Please try again.')
+    } finally {
+      setGeneratingProjectBriefer(false)
     }
-
-    if (displayedPhotos.length > 0) {
-      autoTable(doc, {
-        startY: (doc as any).lastAutoTable.finalY + 8,
-        head: [['Photo Caption', 'Photo URL']],
-        body: displayedPhotos.map((photo) => [
-          photo.caption || '-',
-          photo.photo_url || '-',
-        ]),
-        styles: {
-          fontSize: 7,
-          cellPadding: 2,
-        },
-        headStyles: {
-          fillColor: [124, 58, 237],
-        },
-      })
-    }
-
-    const pageCount = doc.getNumberOfPages()
-
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i)
-      doc.setFontSize(8)
-      doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' })
-    }
-
-    const fileName = sanitizeFileName(
-      `${project.project_name || 'project'}-monitoring-report.pdf`,
-    )
-
-    doc.save(fileName)
   }
 
   async function handleDelete() {
@@ -1495,10 +1481,11 @@ export default function ProjectDetails() {
           },
           {
             id: 'project-report',
-            label: 'Project Report PDF',
+            label: generatingProjectBriefer ? 'Preparing Project Briefer…' : 'Generate Project Briefer',
             icon: <IconPdf />,
             tone: 'document',
-            onSelect: generatePdfReport,
+            disabled: generatingProjectBriefer,
+            onSelect: () => void generateProjectBriefer(),
           },
           {
             id: 'delete',

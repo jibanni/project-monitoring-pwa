@@ -995,7 +995,13 @@ export async function generateProjectBrieferPdf(
   y += 52
 
   if (latitude !== null && longitude !== null) {
-    const mapSectionHeight = locationMapDataUrl ? 62 : 19
+    const mapSourceWidth = 900
+    const mapSourceHeight = 360
+    const mapImageWidth = Math.min(pageWidth - 30, 172)
+    const mapImageHeight = mapImageWidth * (mapSourceHeight / mapSourceWidth)
+    const mapImageX = (pageWidth - mapImageWidth) / 2
+    const mapBoxHeight = mapImageHeight + 12
+    const mapSectionHeight = locationMapDataUrl ? mapBoxHeight + 15 : 19
     const safeBottom = doc.internal.pageSize.getHeight() - 18
 
     if (y + mapSectionHeight > safeBottom) {
@@ -1011,8 +1017,23 @@ export async function generateProjectBrieferPdf(
     if (locationMapDataUrl) {
       doc.setDrawColor(205, 213, 224)
       doc.setFillColor(250, 251, 253)
-      doc.roundedRect(12, y + 7, pageWidth - 24, 48, 2.5, 2.5, 'FD')
-      doc.addImage(locationMapDataUrl, 'JPEG', 13, y + 8, pageWidth - 26, 42)
+      doc.roundedRect(
+        12,
+        y + 7,
+        pageWidth - 24,
+        mapBoxHeight,
+        2.5,
+        2.5,
+        'FD',
+      )
+      doc.addImage(
+        locationMapDataUrl,
+        'JPEG',
+        mapImageX,
+        y + 10,
+        mapImageWidth,
+        mapImageHeight,
+      )
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6.6)
@@ -1020,10 +1041,10 @@ export async function generateProjectBrieferPdf(
       doc.text(
         `Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
         14,
-        y + 53,
+        y + mapBoxHeight + 12,
       )
 
-      y += 60
+      y += mapSectionHeight
     } else {
       // Offline-safe fallback: retain the coordinates even if OSM tiles are unavailable.
       doc.setDrawColor(205, 213, 224)
