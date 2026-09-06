@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase'
 import { useSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import { useDesktopViewport } from '../hooks/useDesktopViewport'
+import ActionMenu from '../components/ActionMenu'
 import { readPageView, writePageView } from '../lib/pageViewMemory'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
@@ -1108,6 +1109,55 @@ export default function ProjectMap() {
     </div>
   )
 
+
+  const mobileMapActionMenu = !isDesktopViewport ? (
+    <ActionMenu
+      ariaLabel="GIS map actions"
+      launcherLabel="GIS map actions"
+      className="pm-map-collapsible-action-menu"
+      items={[
+        {
+          id: 'back-to-project',
+          label: 'Back to Project',
+          icon: <BackIcon />,
+          tone: 'neutral',
+          hidden: !selectedProjectMode,
+          onSelect: () => navigate(`/projects/${selectedProjectId}`),
+        },
+        {
+          id: 'fullscreen',
+          label: isMapFullscreen ? 'Exit Fullscreen' : 'Fullscreen',
+          icon: isMapFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />,
+          tone: 'primary',
+          onSelect: () => setIsMapFullscreen((current) => !current),
+        },
+        {
+          id: 'map-layer',
+          label: mapLayer === 'satellite' ? 'Street Map' : 'Satellite View',
+          icon: mapLayer === 'satellite' ? <StreetMapIcon /> : <SatelliteIcon />,
+          tone: 'primary',
+          onSelect: () =>
+            setMapLayer((current) => (current === 'satellite' ? 'street' : 'satellite')),
+        },
+        {
+          id: 'refocus',
+          label: 'Refocus Map',
+          icon: <RefocusIcon />,
+          tone: 'primary',
+          onSelect: () => setFocusSignal((current) => current + 1),
+        },
+        {
+          id: 'refresh',
+          label: refreshing ? 'Refreshing…' : 'Refresh Map',
+          icon: <RefreshIcon />,
+          tone: 'accent',
+          disabled: refreshing,
+          onSelect: () => void loadProjects(),
+        },
+      ]}
+    />
+  ) : null
+
   return (
     <>
       <main className={`pm-map-page ${isMapScrolled ? 'is-map-scrolled' : ''}`}>
@@ -1632,7 +1682,9 @@ export default function ProjectMap() {
         </section>
       </main>
 
-      {portalReady && (!isDesktopViewport || isMapFullscreen)
+      {mobileMapActionMenu}
+
+      {portalReady && isDesktopViewport && isMapFullscreen
         ? createPortal(mapFabs, document.body)
         : null}
     </>
