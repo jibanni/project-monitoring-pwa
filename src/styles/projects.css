@@ -2254,3 +2254,22 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* =========================================================
+   PMS10 MOBILE PROJECT REGISTRY HERO/FILTER RHYTHM
+   Mobile only. Tightens the vertical space between the
+   Project Registry hero banner and the Project Filters card
+   to match the compact rhythm used on the other mobile pages.
+   Desktop/PC is intentionally untouched.
+   ========================================================= */
+@media (max-width: 700px) {
+  .projects-page {
+    gap: 8px !important;
+  }
+
+  .projects-page > .projects-filter-card.pm-unified-filter-panel {
+    margin-top: -2px !important;
+  }
+}
+/* PMS10 MOBILE PROJECT REGISTRY HERO/FILTER RHYTHM END */
