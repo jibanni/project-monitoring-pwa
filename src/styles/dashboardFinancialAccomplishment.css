@@ -583,3 +583,12 @@
   }
 }
 /* PMS10 MOBILE SUPER-COMPACT COMPLETION PERFORMANCE END */
+
+
+/* PMS10 MOBILE HIDE DUPLICATE PERFORMANCE SUMMARY PILL */
+@media (max-width: 767px) {
+  .dashboard-performance-summary-pill {
+    display: none !important;
+  }
+}
+/* PMS10 MOBILE HIDE DUPLICATE PERFORMANCE SUMMARY PILL END */
