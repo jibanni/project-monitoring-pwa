@@ -9,6 +9,12 @@ import { filterProjectsByAor } from '../utils/aorAccess'
 import { normalizeProgramName } from '../utils/program'
 import { getPmsRiskLevel } from '../utils/projectStatus'
 import {
+  exportProgramSummaryExcel,
+  generateProgramSummaryPdf,
+  generateProjectBrieferPdf,
+  type ProjectBrieferUpdate,
+} from '../utils/reportExport'
+import {
   canonicalizeRegion10Lgu,
   canonicalizeRegion10ProvinceOrHuc,
   getCanonicalProjectLgu,
@@ -47,6 +53,19 @@ type ProjectRow = {
   risk_level: string | null
   last_inspection_date: string | null
   updated_at: string | null
+  funding_year?: number | string | null
+  contract_amount?: number | string | null
+  contract_duration?: number | string | null
+  revised_contract_duration?: number | string | null
+  contract_expiration_date?: string | null
+  revised_contract_expiration_date?: string | null
+  project_code?: string | null
+  subaybayan_project_code?: string | null
+  mode_of_implementation?: string | null
+  disbursement_amount?: number | string | null
+  beneficiaries?: string | number | null
+  target_beneficiaries?: string | number | null
+  [key: string]: unknown
 }
 
 type PoEngineerAssignmentRow = {
@@ -145,9 +164,6 @@ function getRiskClass(risk: string | null) {
   return 'none'
 }
 
-function cleanFilename(value: string) {
-  return value.replace(/[^a-z0-9-_]+/gi, '-').replace(/-+/g, '-').toLowerCase()
-}
 
 function getProjectVariance(project: ProjectRow) {
   return getTargetPhysicalInfo(project)
@@ -475,42 +491,32 @@ function getAssignedPoEngineersForProject(
   return names.length > 0 ? names.join(', ') : 'No assigned PO Engineer'
 }
 
-function getReportAssignedPoSummary(
-  projects: ProjectRow[],
-  assignments: PoEngineerAssignmentRow[],
-  profileMap: ProfileLookupMap,
-) {
-  const assignedNames = uniqueTextValues(
-    projects.flatMap((project) =>
-      getAssignedPoEngineersForProject(project, assignments, profileMap)
-        .split(',')
-        .map((name) => name.trim())
-        .filter((name) => name && name !== 'No assigned PO Engineer'),
-    ),
-  )
 
-  return assignedNames.length > 0 ? assignedNames.join(', ') : 'No assigned PO Engineer'
-}
-
-function getReportAorSummary(projects: ProjectRow[]) {
-  const aorLabels = uniqueTextValues(projects.map((project) => getAssignedAorLabel(project)))
-
-  if (aorLabels.length === 0) return 'No AOR records'
-  if (aorLabels.length <= 3) return aorLabels.join('; ')
-
-  return `${aorLabels.slice(0, 3).join('; ')}; and ${aorLabels.length - 3} more AOR/s`
-}
-
-function compactReportHeaderText(value: string, maxLength = 210) {
-  if (value.length <= maxLength) return value
-  return `${value.slice(0, maxLength - 3)}...`
-}
 
 function getAssignedAorLabel(project: ProjectRow) {
   const province = textValue(project.province) || 'No province'
   const lgu = textValue(project.municipality) || 'No LGU'
 
   return `${province} / ${lgu}`
+}
+
+function getEngineersAssignedOfficeSummary(projects: ProjectRow[]) {
+  const officeLabels = uniqueTextValues(
+    projects.map((project) =>
+      getCanonicalProjectProvinceOrHuc(project.province, project.municipality),
+    ),
+  ).sort((left, right) => left.localeCompare(right))
+
+  if (officeLabels.length === 0) return 'PDMU Engineers of DILG Region X'
+
+  return `PDMU Engineers of DILG ${officeLabels.join(', ')}`
+}
+
+function formatAssignedEngineerName(name: string) {
+  const cleaned = textValue(name)
+  if (!cleaned) return ''
+  if (/^(engr\.?|engineer)\s/i.test(cleaned)) return cleaned
+  return `Engineer ${cleaned}`
 }
 
 function getLatestUpdateForProject(project: ProjectRow, latestUpdateMap: LatestUpdateMap) {
@@ -584,6 +590,7 @@ export default function Reports() {
     provinceFilter: '',
     municipalityFilter: '',
     programFilter: '',
+    fundingYearFilter: '',
     statusFilter: '',
     riskFilter: '',
   })
@@ -596,8 +603,10 @@ export default function Reports() {
   const [provinceFilter, setProvinceFilter] = useState(rememberedView.provinceFilter || '')
   const [municipalityFilter, setMunicipalityFilter] = useState(rememberedView.municipalityFilter || '')
   const [programFilter, setProgramFilter] = useState(rememberedView.programFilter || '')
+  const [fundingYearFilter, setFundingYearFilter] = useState(rememberedView.fundingYearFilter || '')
   const [statusFilter, setStatusFilter] = useState(rememberedView.statusFilter || '')
   const [riskFilter, setRiskFilter] = useState(rememberedView.riskFilter || '')
+  const [generatingBrieferId, setGeneratingBrieferId] = useState<string | null>(null)
 
   useEffect(() => {
     writePageView('reports', {
@@ -606,6 +615,7 @@ export default function Reports() {
       provinceFilter,
       municipalityFilter,
       programFilter,
+      fundingYearFilter,
       statusFilter,
       riskFilter,
     })
@@ -615,6 +625,7 @@ export default function Reports() {
     provinceFilter,
     municipalityFilter,
     programFilter,
+    fundingYearFilter,
     statusFilter,
     riskFilter,
   ])
@@ -729,6 +740,7 @@ export default function Reports() {
     setProvinceFilter('')
     setMunicipalityFilter('')
     setProgramFilter('')
+    setFundingYearFilter('')
     setStatusFilter('')
     setRiskFilter('')
   }
@@ -753,6 +765,16 @@ export default function Reports() {
           .filter(Boolean),
       ),
     ).sort()
+  }, [aorProjects])
+
+  const fundingYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        aorProjects
+          .map((project) => textValue(project.funding_year))
+          .filter(Boolean),
+      ),
+    ).sort((left, right) => right.localeCompare(left))
   }, [aorProjects])
 
   const statuses = useMemo(() => {
@@ -782,6 +804,10 @@ export default function Reports() {
       setProgramFilter('')
     }
 
+    if (fundingYearFilter && !fundingYears.includes(fundingYearFilter)) {
+      setFundingYearFilter('')
+    }
+
     if (statusFilter && !statuses.includes(statusFilter)) {
       setStatusFilter('')
     }
@@ -796,6 +822,8 @@ export default function Reports() {
     municipalities,
     programFilter,
     programs,
+    fundingYearFilter,
+    fundingYears,
     statusFilter,
     statuses,
     riskFilter,
@@ -850,6 +878,10 @@ export default function Reports() {
         ? normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)) === programFilter
         : true
 
+      const fundingYearMatches = fundingYearFilter
+        ? textValue(project.funding_year) === fundingYearFilter
+        : true
+
       const statusMatches = statusFilter
         ? textValue(project.status) === statusFilter
         : true
@@ -863,6 +895,7 @@ export default function Reports() {
         provinceMatches &&
         municipalityMatches &&
         programMatches &&
+        fundingYearMatches &&
         statusMatches &&
         riskMatches
       )
@@ -876,6 +909,7 @@ export default function Reports() {
     provinceFilter,
     municipalityFilter,
     programFilter,
+    fundingYearFilter,
     statusFilter,
     riskFilter,
   ])
@@ -885,6 +919,7 @@ export default function Reports() {
     provinceFilter,
     municipalityFilter,
     programFilter,
+    fundingYearFilter,
     statusFilter,
     riskFilter,
   ].filter(Boolean).length
@@ -892,186 +927,107 @@ export default function Reports() {
   const hasActiveSearch = activeFilterCount > 0
   const reportProjects = hasActiveSearch ? filteredProjects : aorProjects
 
+  function getReportFiltersLabel() {
+    const labels = [
+      programFilter ? `Program: ${programFilter}` : 'Programs: All',
+      fundingYearFilter ? `Funding Year: FY ${fundingYearFilter}` : 'Funding Years: All',
+      provinceFilter ? `Province/HUC: ${provinceFilter}` : '',
+      municipalityFilter ? `LGU: ${municipalityFilter}` : '',
+      statusFilter ? `Status: ${statusFilter}` : '',
+      riskFilter ? `Risk: ${riskFilter}` : '',
+      searchTerm.trim() ? `Search: ${searchTerm.trim()}` : '',
+    ].filter(Boolean)
+
+    return labels.join(' | ')
+  }
+
+  function getGeneratedBy() {
+    return textValue(auth.profile?.full_name || auth.profile?.email || 'PMS10 User')
+  }
+
   async function generatePdfReport() {
-    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
-      import('jspdf'),
-      import('jspdf-autotable'),
-    ])
-
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4',
+    await generateProgramSummaryPdf(reportProjects, {
+      generatedBy: getGeneratedBy(),
+      generatedAt: new Date(),
+      engineersAssigned: getEngineersAssignedOfficeSummary(reportProjects),
+      filtersLabel: getReportFiltersLabel(),
     })
-
-    const generatedDate = formatLongDate(new Date().toISOString())
-    const title = 'DILG-PDMU Project Monitoring Report'
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(15)
-    doc.text(title, 14, 16)
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.text('Department of the Interior and Local Government Region X', 14, 22)
-    doc.text('Project Development and Management Unit', 14, 27)
-    doc.text(`Generated: ${generatedDate}`, 14, 32)
-    let headerY = 37
-    doc.text('Scope: Records are filtered according to the logged-in user AOR.', 14, headerY)
-
-    const assignedPoSummary = compactReportHeaderText(
-      getReportAssignedPoSummary(reportProjects, poEngineerAssignments, profileMap),
-    )
-    const assignedAorSummary = compactReportHeaderText(getReportAorSummary(reportProjects))
-
-    headerY += 5
-    doc.text(`Assigned PO Engineer/s: ${assignedPoSummary}`, 14, headerY)
-    headerY += 5
-    doc.text(`Assigned AOR: ${assignedAorSummary}`, 14, headerY)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    headerY += 7
-    doc.text(`Projects Included: ${reportProjects.length}`, 14, headerY)
-
-    autoTable(doc, {
-      startY: headerY + 7,
-      margin: { left: 10, right: 10 },
-      tableWidth: 'auto',
-      head: [
-        [
-          'Project',
-          'Province',
-          'LGU',
-          'Funding',
-          'Cost',
-          'Status',
-          'Risk',
-          'Actual',
-          'Target',
-          'Variance',
-          'Financial',
-          'Latest Update',
-        ],
-      ],
-      body: reportProjects.map((project) => {
-        const varianceInfo = getProjectVariance(project)
-
-        return [
-          textValue(project.project_name) || 'Untitled Project',
-          textValue(project.province) || '-',
-          textValue(project.municipality) || '-',
-          normalizeProgramName(project.funding_source || project.project_type) || '-',
-          formatCurrency(project.budget),
-          textValue(project.status) || '-',
-          getReportRisk(project),
-          formatPercent(varianceInfo.actualPhysical),
-          formatPercent(varianceInfo.targetPhysical),
-          formatSignedVariance(varianceInfo.variance),
-          formatPercent(project.financial_accomplishment),
-          formatLongDate(getLatestUpdateDate(project, latestUpdateMap)),
-        ]
-      }),
-      styles: {
-        fontSize: 5.8,
-        cellPadding: 1.1,
-        overflow: 'linebreak',
-      },
-      headStyles: {
-        fillColor: [11, 55, 105],
-        textColor: 255,
-        fontStyle: 'bold',
-      },
-      alternateRowStyles: {
-        fillColor: [245, 247, 250],
-      },
-      columnStyles: {
-        0: { cellWidth: 44 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 22 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 15 },
-        7: { cellWidth: 14 },
-        8: { cellWidth: 14 },
-        9: { cellWidth: 16 },
-        10: { cellWidth: 17 },
-        11: { cellWidth: 24 },
-      },
-      didDrawPage: () => {
-        const pageCount = doc.getNumberOfPages()
-        const pageSize = doc.internal.pageSize
-        const pageWidth = pageSize.getWidth()
-        const pageHeight = pageSize.getHeight()
-
-        doc.setFontSize(8)
-        doc.setTextColor(100)
-        doc.text(
-          `Page ${doc.getCurrentPageInfo().pageNumber} of ${pageCount}`,
-          pageWidth - 34,
-          pageHeight - 8,
-        )
-      },
-    })
-
-    doc.save(`${cleanFilename(title)}.pdf`)
   }
 
   async function exportExcelReport() {
-    const XLSX = await import('xlsx')
-    const rows = reportProjects.map((project) => {
-      const varianceInfo = getProjectVariance(project)
-
-      return {
-        Project: textValue(project.project_name) || 'Untitled Project',
-        Description: textValue(project.description),
-        Province: textValue(project.province),
-        Municipality: textValue(project.municipality),
-        Barangay: textValue(project.barangay),
-        'Assigned Province / AOR': getAssignedAorLabel(project),
-        'Latest Update Date': formatLongDate(getLatestUpdateDate(project, latestUpdateMap)),
-        'Funding Source': textValue(project.funding_source),
-        'Project Type': textValue(project.project_type),
-        'Implementing Office': textValue(project.implementing_office),
-        Contractor: textValue(project.contractor),
-        'Project Cost': toNumber(project.budget),
-        Status: textValue(project.status),
-        'Risk Level': getReportRisk(project),
-        'Actual Physical': Number(varianceInfo.actualPhysical.toFixed(2)),
-        'Target Physical': Number(varianceInfo.targetPhysical.toFixed(2)),
-        Variance: Number(varianceInfo.variance.toFixed(2)),
-        'Financial Accomplishment': toNumber(project.financial_accomplishment),
-        'Start Date': formatLongDate(project.start_date),
-        'Target Completion Date': formatLongDate(project.target_completion_date),
-        'Last Inspection Date': formatLongDate(project.last_inspection_date),
-        Latitude: textValue(project.latitude),
-        Longitude: textValue(project.longitude),
-      }
+    await exportProgramSummaryExcel(reportProjects, {
+      generatedBy: getGeneratedBy(),
+      generatedAt: new Date(),
+      engineersAssigned: getEngineersAssignedOfficeSummary(reportProjects),
+      filtersLabel: getReportFiltersLabel(),
     })
+  }
 
-    const summaryRows = [
-      ['DILG-PDMU Project Monitoring Report'],
-      ['Generated', formatLongDate(new Date().toISOString())],
-      ['Scope', 'Records are filtered according to the logged-in user AOR.'],
-      [
-        'Assigned PO Engineer/s',
-        getReportAssignedPoSummary(reportProjects, poEngineerAssignments, profileMap),
-      ],
-      ['Assigned AOR', getReportAorSummary(reportProjects)],
-      ['Projects Included', reportProjects.length],
-      ['Active Filters', activeFilterCount],
-      [],
-    ]
+  async function generateProjectBriefer(project: ProjectRow) {
+    setGeneratingBrieferId(project.id)
 
-    const workbook = XLSX.utils.book_new()
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows)
-    const dataSheet = XLSX.utils.json_to_sheet(rows)
+    try {
+      let latestUpdate: ProjectBrieferUpdate | null = null
 
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary')
-    XLSX.utils.book_append_sheet(workbook, dataSheet, 'Projects')
+      if (navigator.onLine) {
+        const latestResult = await supabase
+          .from('project_updates')
+          .select(
+            'engineer_id, inspection_date, status, physical_accomplishment, financial_accomplishment, disbursement_amount, issues, recommendations, remarks, created_at',
+          )
+          .eq('project_id', project.id)
+          .order('inspection_date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
-    XLSX.writeFile(workbook, 'dilg-pdmu-project-monitoring-report.xlsx')
+        if (!latestResult.error) {
+          latestUpdate = latestResult.data as ProjectBrieferUpdate | null
+        }
+      }
+
+      const assignedNames = getAssignedPoEngineersForProject(
+        project,
+        poEngineerAssignments,
+        profileMap,
+      )
+        .split(',')
+        .map((name) => name.trim())
+        .filter((name) => name && name !== 'No assigned PO Engineer')
+
+      if (assignedNames.length === 0 && latestUpdate?.engineer_id) {
+        let updateEngineerProfile = profileMap[latestUpdate.engineer_id]
+
+        if (!updateEngineerProfile && navigator.onLine) {
+          const profileResult = await supabase
+            .from('profiles')
+            .select('id, full_name, email, role, approved, is_active')
+            .eq('id', latestUpdate.engineer_id)
+            .maybeSingle()
+
+          if (!profileResult.error && profileResult.data) {
+            updateEngineerProfile = profileResult.data as ProfileLookupRow
+          }
+        }
+
+        if (updateEngineerProfile) {
+          assignedNames.push(getProfileDisplayName(updateEngineerProfile, latestUpdate.engineer_id))
+        }
+      }
+
+      const assignedEngineer = uniqueTextValues(assignedNames)
+        .map(formatAssignedEngineerName)
+        .join(', ') || 'No assigned engineer recorded'
+
+      await generateProjectBrieferPdf(project, {
+        generatedBy: getGeneratedBy(),
+        generatedAt: new Date(),
+        assignedEngineer,
+        latestUpdate,
+      })
+    } finally {
+      setGeneratingBrieferId(null)
+    }
   }
 
   const reportsFabStack = (
@@ -1081,8 +1037,8 @@ export default function Reports() {
         className="reports-fab reports-fab-excel"
         onClick={exportExcelReport}
         disabled={aorProjects.length === 0}
-        aria-label="Export Excel"
-        title="Export Excel"
+        aria-label="Export Program Summary Excel"
+        title="Export Program Summary Excel"
       >
         <ExcelIcon />
       </button>
@@ -1092,8 +1048,8 @@ export default function Reports() {
         className="reports-fab reports-fab-pdf"
         onClick={generatePdfReport}
         disabled={aorProjects.length === 0}
-        aria-label="Generate PDF"
-        title="Generate PDF"
+        aria-label="Generate Program Summary PDF"
+        title="Generate Program Summary PDF"
       >
         <PdfIcon />
       </button>
@@ -1110,8 +1066,8 @@ export default function Reports() {
               <p className="reports-eyebrow">Reports Module</p>
               <h1>Project Reports</h1>
               <p>
-                Generate project monitoring reports by province, LGU, funding source,
-                implementation status, and risk level.
+                Generate Program Summary Reports for regional reporting and Project Briefers for
+                management, inaugurations, groundbreakings, inspections, and project visits.
               </p>
             </div>
           </section>
@@ -1148,6 +1104,7 @@ export default function Reports() {
                   {[
                     searchTerm.trim() ? `Search: ${searchTerm.trim()}` : '',
                     programFilter,
+                    fundingYearFilter ? `FY ${fundingYearFilter}` : '',
                     provinceFilter,
                     municipalityFilter,
                     statusFilter,
@@ -1246,6 +1203,21 @@ export default function Reports() {
               </label>
 
               <label>
+                <span>Funding Year</span>
+                <select
+                  value={fundingYearFilter}
+                  onChange={(event) => setFundingYearFilter(event.target.value)}
+                >
+                  <option value="">All Funding Years</option>
+                  {fundingYears.map((year) => (
+                    <option key={year} value={year}>
+                      FY {year}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 <span>Status</span>
                 <select
                   value={statusFilter}
@@ -1301,17 +1273,30 @@ export default function Reports() {
           </div>
         </section>
 
+        <section className="reports-products-card" aria-label="Report products">
+          <div>
+            <p>REGIONAL REPORTING</p>
+            <h2>Program Summary Report</h2>
+            <span>Use the PDF and Excel buttons to export the current AOR/filter scope, summarized per program.</span>
+          </div>
+          <div>
+            <p>PROJECT-LEVEL REPORTING</p>
+            <h2>Project Briefer</h2>
+            <span>Filter to find a project, then generate its executive briefer from the project row/card.</span>
+          </div>
+        </section>
+
         {hasActiveSearch && (
           <section className="reports-table-card">
             <div className="reports-table-header">
               <div>
-                <p>REPORT DATA</p>
-                <h2>Search Results</h2>
+                <p>PROJECT BRIEFER SOURCE</p>
+                <h2>Filtered Projects</h2>
                 <span>
                   Showing {filteredProjects.length} matched project/s.
                 </span>
                 <span>
-                  Assigned PO Engineer/s: {getReportAssignedPoSummary(filteredProjects, poEngineerAssignments, profileMap)}
+                  Program Summary Engineers: {getEngineersAssignedOfficeSummary(filteredProjects)}
                 </span>
               </div>
             </div>
@@ -1341,6 +1326,7 @@ export default function Reports() {
                         <th>Target</th>
                         <th>Variance</th>
                         <th>Financial</th>
+                        <th>Project Briefer</th>
                       </tr>
                     </thead>
 
@@ -1390,6 +1376,16 @@ export default function Reports() {
                               </span>
                             </td>
                             <td>{formatPercent(project.financial_accomplishment)}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="reports-briefer-btn"
+                                onClick={() => void generateProjectBriefer(project)}
+                                disabled={generatingBrieferId === project.id}
+                              >
+                                {generatingBrieferId === project.id ? 'Preparing…' : 'Project Briefer'}
+                              </button>
+                            </td>
                           </tr>
                         )
                       })}
@@ -1460,6 +1456,15 @@ export default function Reports() {
                             {formatPercent(project.financial_accomplishment)}
                           </span>
                         </div>
+
+                        <button
+                          type="button"
+                          className="reports-briefer-btn reports-briefer-btn-mobile"
+                          onClick={() => void generateProjectBriefer(project)}
+                          disabled={generatingBrieferId === project.id}
+                        >
+                          {generatingBrieferId === project.id ? 'Preparing Project Briefer…' : 'Generate Project Briefer'}
+                        </button>
                       </article>
                     )
                   })}

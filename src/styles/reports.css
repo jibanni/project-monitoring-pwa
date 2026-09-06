@@ -995,3 +995,105 @@
   font-size: 0.8rem;
   font-weight: 700;
 }
+
+/* =========================================================
+   PMS10 REPORT PRODUCTS + PROJECT BRIEFER ACTIONS
+   Additive only. Existing desktop/mobile Reports layout remains intact.
+   ========================================================= */
+.reports-products-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.reports-products-card > div {
+  min-width: 0;
+  padding: 15px 17px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055);
+}
+
+.reports-products-card p {
+  margin: 0 0 4px;
+  color: #d65a09;
+  font-size: 0.66rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.12em;
+}
+
+.reports-products-card h2 {
+  margin: 0;
+  color: #123f73;
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.reports-products-card span {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.reports-briefer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 10px;
+  color: #ffffff;
+  background: #123f73;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 5px 12px rgba(18, 63, 115, 0.18);
+}
+
+.reports-briefer-btn:hover:not(:disabled) {
+  background: #18599d;
+}
+
+.reports-briefer-btn:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+.reports-briefer-btn-mobile {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
+  border-radius: 13px;
+}
+
+@media (max-width: 760px) {
+  .reports-products-card {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .reports-products-card > div {
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  .reports-products-card h2 {
+    font-size: 0.92rem;
+  }
+
+  .reports-products-card span {
+    font-size: 0.72rem;
+  }
+}
+/* PMS10 REPORT PRODUCTS + PROJECT BRIEFER ACTIONS END */
