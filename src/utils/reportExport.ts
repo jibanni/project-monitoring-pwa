@@ -193,13 +193,12 @@ function drawRegionalHeader(doc: any, assets: HeaderAssets) {
 
   if (assets.dilgDataUrl && assets.bagongDataUrl) {
     const dilgSize = 17
-    const bagongWidth = 32
-    const bagongHeight = 17
+    const bagongSize = 17
     const gap = 4
-    const groupWidth = dilgSize + gap + bagongWidth
+    const groupWidth = dilgSize + gap + bagongSize
     const x = (pageWidth - groupWidth) / 2
     doc.addImage(assets.dilgDataUrl, 'PNG', x, y, dilgSize, dilgSize)
-    doc.addImage(assets.bagongDataUrl, 'PNG', x + dilgSize + gap, y, bagongWidth, bagongHeight)
+    doc.addImage(assets.bagongDataUrl, 'PNG', x + dilgSize + gap, y, bagongSize, bagongSize)
     y += 20
   } else {
     y += 2
@@ -398,25 +397,35 @@ export async function generateProgramSummaryPdf(
       item.moderateRisk,
       item.highRisk,
     ]),
-    styles: { fontSize: 6.4, cellPadding: 1.2, overflow: 'linebreak', valign: 'middle' },
-    headStyles: { fillColor: [13, 62, 111], textColor: 255, fontStyle: 'bold', halign: 'center' },
+    styles: { fontSize: 6.1, cellPadding: 1.0, overflow: 'linebreak', valign: 'middle' },
+    headStyles: {
+      fillColor: [13, 62, 111],
+      textColor: 255,
+      fontStyle: 'bold',
+      halign: 'center',
+      fontSize: 6.0,
+      cellPadding: 0.9,
+    },
     alternateRowStyles: { fillColor: [246, 248, 251] },
     columnStyles: {
+      // Total width = 268 mm, matching the Project Details table below.
+      // Status/risk columns are deliberately wider so labels such as
+      // Completed, Suspended, and Terminated remain on one line.
       0: { cellWidth: 14, halign: 'center' },
-      1: { cellWidth: 35 },
-      2: { cellWidth: 12, halign: 'center' },
-      3: { cellWidth: 27, halign: 'right' },
-      4: { cellWidth: 13, halign: 'center' },
-      5: { cellWidth: 13, halign: 'center' },
-      6: { cellWidth: 15, halign: 'center' },
-      7: { cellWidth: 14, halign: 'center' },
-      8: { cellWidth: 14, halign: 'center' },
-      9: { cellWidth: 17, halign: 'center' },
-      10: { cellWidth: 17, halign: 'center' },
-      11: { cellWidth: 12, halign: 'center' },
-      12: { cellWidth: 10, halign: 'center' },
-      13: { cellWidth: 13, halign: 'center' },
-      14: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 34 },
+      2: { cellWidth: 13, halign: 'center' },
+      3: { cellWidth: 30, halign: 'right' },
+      4: { cellWidth: 18, halign: 'center' },
+      5: { cellWidth: 15, halign: 'center' },
+      6: { cellWidth: 18, halign: 'center' },
+      7: { cellWidth: 18, halign: 'center' },
+      8: { cellWidth: 18, halign: 'center' },
+      9: { cellWidth: 19, halign: 'center' },
+      10: { cellWidth: 19, halign: 'center' },
+      11: { cellWidth: 14, halign: 'center' },
+      12: { cellWidth: 11, halign: 'center' },
+      13: { cellWidth: 16, halign: 'center' },
+      14: { cellWidth: 11, halign: 'center' },
     },
   })
 
