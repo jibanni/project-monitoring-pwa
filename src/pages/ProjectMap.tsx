@@ -1351,6 +1351,33 @@ export default function ProjectMap() {
             {isDesktopViewport && !isMapFullscreen ? mapFabs : null}
 
             <div className={`pm-map-shell ${isMapFullscreen ? 'is-map-fullscreen' : ''}`}>
+              <div className="pm-map-mobile-floating-summary" aria-hidden="true">
+                <div className="pm-map-mobile-floating-heading">
+                  <span>GIS View</span>
+                  <strong>{selectedProjectMode ? 'Selected Project' : 'Displayed Projects'}</strong>
+                  <em>{displayedProjects.length}/{filteredProjects.length}</em>
+                </div>
+
+                <div className="pm-map-mobile-floating-legend">
+                  <span>
+                    <i className="pm-legend-dot pm-legend-neutral" />
+                    No Risk
+                  </span>
+                  <span>
+                    <i className="pm-legend-dot pm-legend-low" />
+                    Low
+                  </span>
+                  <span>
+                    <i className="pm-legend-dot pm-legend-moderate" />
+                    Moderate
+                  </span>
+                  <span>
+                    <i className="pm-legend-dot pm-legend-high" />
+                    High
+                  </span>
+                </div>
+              </div>
+
               <MapContainer
                   center={MINDANAO_CENTER}
                   zoom={DEFAULT_ZOOM}

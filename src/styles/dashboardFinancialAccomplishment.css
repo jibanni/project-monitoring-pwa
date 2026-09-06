@@ -246,3 +246,154 @@
   }
 }
 /* PMS10 MOBILE COMPLETION PERFORMANCE FIX END */
+
+/* =========================================================
+   PMS10 MOBILE COMPACT PERFORMANCE SUMMARY
+   Mobile only. Keeps the PC/desktop dashboard unchanged.
+   - One compact pill contains both physical and financial rates.
+   - Donut center percentages and gauges are reduced in size.
+   ========================================================= */
+.dashboard-performance-summary-pill {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .dashboard-completion-card .dashboard-card-header {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    padding: 18px 18px 10px !important;
+  }
+
+  .dashboard-completion-rate-pill {
+    display: none !important;
+  }
+
+  .dashboard-performance-summary-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 7px !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    padding: 6px 9px !important;
+    border: 1px solid rgba(59, 130, 246, 0.10) !important;
+    border-radius: 999px !important;
+    background: rgba(239, 246, 255, 0.88) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+    white-space: nowrap !important;
+  }
+
+  .dashboard-performance-summary-item {
+    display: inline-flex !important;
+    align-items: baseline !important;
+    gap: 4px !important;
+    min-width: 0 !important;
+  }
+
+  .dashboard-performance-summary-item strong {
+    font-size: 0.74rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .dashboard-performance-summary-item em {
+    font-size: 0.58rem !important;
+    font-style: normal !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+  }
+
+  .dashboard-performance-summary-item.is-physical strong {
+    color: #1d4ed8 !important;
+  }
+
+  .dashboard-performance-summary-item.is-physical em {
+    color: #64748b !important;
+  }
+
+  .dashboard-performance-summary-item.is-financial strong {
+    color: #c2410c !important;
+  }
+
+  .dashboard-performance-summary-item.is-financial em {
+    color: #64748b !important;
+  }
+
+  .dashboard-performance-summary-pill > i {
+    width: 1px !important;
+    height: 14px !important;
+    flex: 0 0 1px !important;
+    background: rgba(100, 116, 139, 0.30) !important;
+  }
+
+  .dashboard-completion-grid {
+    gap: 10px !important;
+    padding: 0 12px 12px !important;
+  }
+
+  .dashboard-performance-gauges {
+    gap: 11px !important;
+  }
+
+  .dashboard-performance-gauge-wrap {
+    gap: 4px !important;
+  }
+
+  .dashboard-performance-gauge-label {
+    margin-bottom: 0 !important;
+    font-size: 0.66rem !important;
+    letter-spacing: 0.10em !important;
+  }
+
+  .dashboard-performance-gauges .dashboard-completion-gauge {
+    height: 172px !important;
+    max-height: 172px !important;
+    border-radius: 18px !important;
+  }
+
+  .dashboard-performance-gauges .dashboard-completion-center {
+    padding: 12px !important;
+  }
+
+  .dashboard-performance-gauges .dashboard-completion-center strong {
+    font-size: clamp(1.95rem, 9.5vw, 2.45rem) !important;
+    letter-spacing: -0.05em !important;
+    line-height: 0.96 !important;
+  }
+
+  .dashboard-financial-gauge .dashboard-completion-center strong {
+    font-size: clamp(1.8rem, 8.8vw, 2.25rem) !important;
+  }
+
+  .dashboard-performance-gauges .dashboard-completion-center span {
+    margin-top: 4px !important;
+    font-size: 0.58rem !important;
+    letter-spacing: 0.13em !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .dashboard-performance-summary-pill {
+    gap: 6px !important;
+    padding: 6px 8px !important;
+  }
+
+  .dashboard-performance-summary-item strong {
+    font-size: 0.70rem !important;
+  }
+
+  .dashboard-performance-summary-item em {
+    font-size: 0.54rem !important;
+  }
+
+  .dashboard-performance-gauges .dashboard-completion-gauge {
+    height: 162px !important;
+    max-height: 162px !important;
+  }
+}
+/* PMS10 MOBILE COMPACT PERFORMANCE SUMMARY END */
+

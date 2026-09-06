@@ -1598,7 +1598,24 @@ export default function Dashboard() {
                 <h2>Completion Performance</h2>
               </div>
 
-              <span>{dashboardData.completionRate}% complete</span>
+              <span className="dashboard-completion-rate-pill">
+                {dashboardData.completionRate}% complete
+              </span>
+
+              <div
+                className="dashboard-performance-summary-pill"
+                aria-label={`Physical completion ${dashboardData.completionRate} percent; financial accomplishment ${formatPercent(dashboardData.financialAccomplishment)}`}
+              >
+                <span className="dashboard-performance-summary-item is-physical">
+                  <strong>{dashboardData.completionRate}%</strong>
+                  <em>Physical</em>
+                </span>
+                <i aria-hidden="true" />
+                <span className="dashboard-performance-summary-item is-financial">
+                  <strong>{formatPercent(dashboardData.financialAccomplishment)}</strong>
+                  <em>Financial</em>
+                </span>
+              </div>
             </div>
 
             <div className="dashboard-completion-grid">

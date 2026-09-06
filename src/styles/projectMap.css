@@ -3208,3 +3208,132 @@
   }
 }
 /* PMS10 MOBILE GIS LEGEND READABILITY TUNE END */
+
+/* =========================================================
+   PMS10 MOBILE GIS FLOATING SUMMARY PILL
+   Mobile only. The desktop/PC GIS header and legend are unchanged.
+   - Hides the old below-map mobile heading/legend.
+   - Places one compact translucent GIS summary inside the Leaflet map.
+   - Overlay stays fixed while the map itself is panned/zoomed.
+   ========================================================= */
+.pm-map-mobile-floating-summary {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .pm-map-main-card > .pm-map-card-header,
+  .pm-map-main-card > .pm-map-legend {
+    display: none !important;
+  }
+
+  .pm-map-mobile-floating-summary {
+    position: absolute !important;
+    top: 10px !important;
+    left: 64px !important;
+    right: 78px !important;
+    z-index: 850 !important;
+    display: grid !important;
+    gap: 6px !important;
+    width: auto !important;
+    max-width: calc(100% - 142px) !important;
+    padding: 8px 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.58) !important;
+    border-radius: 18px !important;
+    background: rgba(255, 255, 255, 0.78) !important;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14) !important;
+    backdrop-filter: blur(10px) saturate(1.08) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(1.08) !important;
+    pointer-events: none !important;
+  }
+
+  .pm-map-mobile-floating-heading {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+
+  .pm-map-mobile-floating-heading > span {
+    color: #f97316 !important;
+    font-size: 0.56rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.13em !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+
+  .pm-map-mobile-floating-heading > strong {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    color: #0f172a !important;
+    font-size: 0.72rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .pm-map-mobile-floating-heading > em {
+    color: #16467a !important;
+    font-size: 0.66rem !important;
+    font-style: normal !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .pm-map-mobile-floating-legend {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+
+  .pm-map-mobile-floating-legend > span {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    min-height: 20px !important;
+    padding: 3px 6px !important;
+    border: 1px solid rgba(148, 163, 184, 0.15) !important;
+    border-radius: 999px !important;
+    color: #475569 !important;
+    background: rgba(248, 250, 252, 0.72) !important;
+    font-size: 0.56rem !important;
+    font-weight: 850 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .pm-map-mobile-floating-legend .pm-legend-dot {
+    width: 6px !important;
+    height: 6px !important;
+    flex: 0 0 6px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .pm-map-mobile-floating-summary {
+    left: 60px !important;
+    right: 72px !important;
+    max-width: calc(100% - 132px) !important;
+    padding: 7px 8px !important;
+    border-radius: 16px !important;
+  }
+
+  .pm-map-mobile-floating-heading > strong {
+    font-size: 0.68rem !important;
+  }
+
+  .pm-map-mobile-floating-heading > em {
+    font-size: 0.62rem !important;
+  }
+
+  .pm-map-mobile-floating-legend > span {
+    padding: 3px 5px !important;
+    font-size: 0.53rem !important;
+  }
+}
+/* PMS10 MOBILE GIS FLOATING SUMMARY PILL END */
+
