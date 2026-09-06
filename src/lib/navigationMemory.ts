@@ -171,3 +171,27 @@ export function getRouteScroll(route: string) {
   const value = Number(storage.getItem(key))
   return Number.isFinite(value) && value >= 0 ? value : 0
 }
+
+
+/**
+ * Clears protected-route memory when an authentication transition must start
+ * from a neutral page (for example after password recovery).
+ *
+ * This prevents one account from inheriting another account's remembered
+ * admin/project route on a shared browser.
+ */
+export function clearProtectedNavigationMemory() {
+  const storage = getStorage()
+  if (!storage) return
+
+  const keysToRemove: string[] = []
+
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index)
+    if (key?.startsWith('pms10:navigation:')) {
+      keysToRemove.push(key)
+    }
+  }
+
+  keysToRemove.forEach((key) => storage.removeItem(key))
+}

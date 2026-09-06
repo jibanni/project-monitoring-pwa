@@ -48,6 +48,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [loginState, setLoginState] = useState<LoginState>('idle')
   const [errorMessage, setErrorMessage] = useState('')
+  const passwordResetComplete =
+    new URLSearchParams(location.search).get('password-reset') === 'success'
 
   const isLoading = loginState === 'loading'
 
@@ -171,6 +173,12 @@ export default function Login() {
               <h2>Login</h2>
               <p>Use your approved DILG-PDMU account.</p>
             </div>
+
+            {passwordResetComplete && !errorMessage && (
+              <div className="auth-alert success" role="status">
+                Password updated successfully. Please log in with your new password.
+              </div>
+            )}
 
             {errorMessage && (
               <div className="auth-alert error" role="alert">

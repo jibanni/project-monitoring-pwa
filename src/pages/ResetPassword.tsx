@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { clearProtectedNavigationMemory } from '../lib/navigationMemory'
 import '../styles/auth.css'
 
-type RecoveryState = 'checking' | 'ready' | 'saving' | 'saved' | 'invalid'
+type RecoveryState = 'checking' | 'ready' | 'saving' | 'invalid'
 
 export default function ResetPassword() {
+  const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -25,7 +27,9 @@ export default function ResetPassword() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
-      if (event === 'PASSWORD_RECOVERY' || session) setRecoveryState('ready')
+      if (event === 'PASSWORD_RECOVERY' || session) {
+        setRecoveryState('ready')
+      }
     })
 
     void supabase.auth.getSession().then(({ data }) => {
@@ -56,15 +60,30 @@ export default function ResetPassword() {
     setErrorMessage('')
 
     const { error } = await supabase.auth.updateUser({ password })
+
     if (error) {
-      setErrorMessage(error.message || 'Unable to update the password. Request a new reset link and try again.')
+      setErrorMessage(
+        error.message ||
+          'Unable to update the password. Request a new reset link and try again.',
+      )
       setRecoveryState('ready')
       return
     }
 
+    clearProtectedNavigationMemory()
+
+    const { error: signOutError } = await supabase.auth.signOut()
+
+    if (signOutError) {
+      console.warn(
+        'Password was changed but the recovery session could not be signed out cleanly.',
+        signOutError,
+      )
+    }
+
     setPassword('')
     setConfirmPassword('')
-    setRecoveryState('saved')
+    navigate('/login?password-reset=success', { replace: true })
   }
 
   return (
@@ -76,6 +95,7 @@ export default function ResetPassword() {
               <img src="/dilg-logo.png" alt="DILG Logo" />
               <img src="/bagong-pilipinas-logo.png" alt="Bagong Pilipinas Logo" />
             </div>
+
             <p className="auth-eyebrow">DILG Region X</p>
             <h1>Set a New PMS10 Password</h1>
             <p>Choose a new password that will be used for your approved PMS10 account.</p>
@@ -89,10 +109,16 @@ export default function ResetPassword() {
               <p>Use at least 8 characters.</p>
             </div>
 
-            {errorMessage && <div className="auth-alert error" role="alert">{errorMessage}</div>}
+            {errorMessage && (
+              <div className="auth-alert error" role="alert">
+                {errorMessage}
+              </div>
+            )}
 
             {recoveryState === 'checking' && (
-              <div className="auth-alert success" role="status">Checking the secure reset link...</div>
+              <div className="auth-alert success" role="status">
+                Checking the secure reset link...
+              </div>
             )}
 
             {recoveryState === 'invalid' && (
@@ -100,14 +126,9 @@ export default function ResetPassword() {
                 <div className="auth-alert error" role="alert">
                   This reset link is invalid or has expired. Request a new link to continue.
                 </div>
-                <Link to="/forgot-password" className="auth-link-button">Request Another Link</Link>
-              </>
-            )}
-
-            {recoveryState === 'saved' && (
-              <>
-                <div className="auth-alert success" role="status">Your password has been updated successfully.</div>
-                <Link to="/dashboard" className="auth-link-button">Continue to PMS10</Link>
+                <Link to="/forgot-password" className="auth-link-button">
+                  Request Another Link
+                </Link>
               </>
             )}
 
@@ -125,7 +146,11 @@ export default function ResetPassword() {
                       minLength={8}
                       required
                     />
-                    <button type="button" onClick={() => setShowPassword((current) => !current)}>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      disabled={recoveryState === 'saving'}
+                    >
                       {showPassword ? 'Hide' : 'Show'}
                     </button>
                   </div>
