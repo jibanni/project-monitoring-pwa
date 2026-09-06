@@ -1,10 +1,11 @@
 import { lazy, Suspense } from 'react'
 import type { ComponentProps, ReactNode } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 
 import { AuthProvider } from './context/AuthContext'
 import { routeLoaders } from './lib/routePreload'
 import { getLastProtectedRoute } from './lib/navigationMemory'
+import { hasPasswordRecoveryIntent } from './lib/supabase'
 
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -47,6 +48,29 @@ function PageLoader() {
   )
 }
 
+
+function PasswordRecoveryRouteGuard({ children }: { children: ReactNode }) {
+  const location = useLocation()
+
+  if (
+    hasPasswordRecoveryIntent() &&
+    location.pathname !== '/reset-password'
+  ) {
+    return (
+      <Navigate
+        to={{
+          pathname: '/reset-password',
+          search: location.search,
+          hash: location.hash,
+        }}
+        replace
+      />
+    )
+  }
+
+  return <>{children}</>
+}
+
 function PublicPage({ children }: { children: ReactNode }) {
   return <div className="public-page-transition">{children}</div>
 }
@@ -80,7 +104,8 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <PasswordRecoveryRouteGuard>
+          <Routes>
           <Route
             path="/login"
             element={
@@ -229,7 +254,8 @@ function App() {
           </Route>
 
           <Route path="*" element={<ResumeLastProtectedRoute />} />
-        </Routes>
+          </Routes>
+        </PasswordRecoveryRouteGuard>
       </AuthProvider>
     </BrowserRouter>
   )

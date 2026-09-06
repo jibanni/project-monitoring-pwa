@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import {
+  clearPasswordRecoveryIntent,
+  hasPasswordRecoveryIntent,
+  markPasswordRecoveryIntent,
+  supabase,
+} from '../lib/supabase'
 import { clearProtectedNavigationMemory } from '../lib/navigationMemory'
 import '../styles/auth.css'
 
@@ -46,6 +51,7 @@ export default function ResetPassword() {
         if (!mounted) return
 
         if (error) {
+          clearPasswordRecoveryIntent()
           setErrorMessage(
             error.message ||
               'This password reset link is invalid or has expired.',
@@ -75,7 +81,17 @@ export default function ResetPassword() {
       } = await supabase.auth.getSession()
 
       if (!mounted) return
-      setRecoveryState(session ? 'ready' : 'invalid')
+
+      if (session && hasPasswordRecoveryIntent()) {
+        setRecoveryState('ready')
+        return
+      }
+
+      clearPasswordRecoveryIntent()
+      setErrorMessage(
+        'This reset link is invalid or has expired. Request a new link to continue.',
+      )
+      setRecoveryState('invalid')
     }
 
     const {
@@ -83,7 +99,13 @@ export default function ResetPassword() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
 
-      if (event === 'PASSWORD_RECOVERY' || session) {
+      if (event === 'PASSWORD_RECOVERY') {
+        markPasswordRecoveryIntent()
+        setRecoveryState('ready')
+        return
+      }
+
+      if (session && hasPasswordRecoveryIntent()) {
         setRecoveryState('ready')
       }
     })
@@ -123,6 +145,7 @@ export default function ResetPassword() {
       return
     }
 
+    clearPasswordRecoveryIntent()
     clearProtectedNavigationMemory()
 
     const { error: signOutError } = await supabase.auth.signOut()

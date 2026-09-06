@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { AuthError, Session, User } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { markPasswordRecoveryIntent, supabase } from '../lib/supabase'
 import { offlineDb } from '../lib/offlineDb'
 import type { UserProfile } from '../types/auth'
 
@@ -365,7 +365,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        markPasswordRecoveryIntent()
+      }
+
       // Run outside the Supabase callback stack to avoid auth callback deadlocks.
       window.setTimeout(() => {
         if (mounted) void hydrateSession(currentSession)
