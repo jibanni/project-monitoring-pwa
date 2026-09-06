@@ -16,26 +16,79 @@ export default function ResetPassword() {
   const [errorMessage, setErrorMessage] = useState('')
 
   const canSubmit = useMemo(
-    () => password.length >= 8 && confirmPassword.length >= 8 && recoveryState === 'ready',
+    () =>
+      password.length >= 8 &&
+      confirmPassword.length >= 8 &&
+      recoveryState === 'ready',
     [password, confirmPassword, recoveryState],
   )
 
   useEffect(() => {
     let mounted = true
 
+    async function initializeRecovery() {
+      const params = new URLSearchParams(window.location.search)
+      const tokenHash = params.get('token_hash')
+      const recoveryType = params.get('type')
+
+      /*
+       * Preferred PMS10 recovery flow:
+       * the email opens /reset-password directly with token_hash.
+       * PMS10 verifies the recovery OTP itself instead of relying on
+       * Supabase to redirect through the application's root route.
+       */
+      if (tokenHash && recoveryType === 'recovery') {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'recovery',
+        })
+
+        if (!mounted) return
+
+        if (error) {
+          setErrorMessage(
+            error.message ||
+              'This password reset link is invalid or has expired.',
+          )
+          setRecoveryState('invalid')
+          return
+        }
+
+        // Do not leave the one-time token in browser history after verification.
+        window.history.replaceState(
+          window.history.state,
+          document.title,
+          '/reset-password',
+        )
+
+        setRecoveryState('ready')
+        return
+      }
+
+      /*
+       * Backward compatibility:
+       * older Supabase ConfirmationURL emails may still create the
+       * recovery session before redirecting to this page.
+       */
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!mounted) return
+      setRecoveryState(session ? 'ready' : 'invalid')
+    }
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
+
       if (event === 'PASSWORD_RECOVERY' || session) {
         setRecoveryState('ready')
       }
     })
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setRecoveryState(data.session ? 'ready' : 'invalid')
-    })
+    void initializeRecovery()
 
     return () => {
       mounted = false
@@ -98,7 +151,10 @@ export default function ResetPassword() {
 
             <p className="auth-eyebrow">DILG Region X</p>
             <h1>Set a New PMS10 Password</h1>
-            <p>Choose a new password that will be used for your approved PMS10 account.</p>
+            <p>
+              Choose a new password that will be used for your approved PMS10
+              account.
+            </p>
           </div>
         </aside>
 
@@ -109,7 +165,7 @@ export default function ResetPassword() {
               <p>Use at least 8 characters.</p>
             </div>
 
-            {errorMessage && (
+            {errorMessage && recoveryState !== 'invalid' && (
               <div className="auth-alert error" role="alert">
                 {errorMessage}
               </div>
@@ -117,14 +173,15 @@ export default function ResetPassword() {
 
             {recoveryState === 'checking' && (
               <div className="auth-alert success" role="status">
-                Checking the secure reset link...
+                Verifying your secure PMS10 reset link...
               </div>
             )}
 
             {recoveryState === 'invalid' && (
               <>
                 <div className="auth-alert error" role="alert">
-                  This reset link is invalid or has expired. Request a new link to continue.
+                  {errorMessage ||
+                    'This reset link is invalid or has expired. Request a new link to continue.'}
                 </div>
                 <Link to="/forgot-password" className="auth-link-button">
                   Request Another Link
@@ -169,8 +226,14 @@ export default function ResetPassword() {
                   />
                 </label>
 
-                <button type="submit" className="auth-submit-btn" disabled={!canSubmit}>
-                  {recoveryState === 'saving' ? 'Updating Password...' : 'Update Password'}
+                <button
+                  type="submit"
+                  className="auth-submit-btn"
+                  disabled={!canSubmit}
+                >
+                  {recoveryState === 'saving'
+                    ? 'Updating Password...'
+                    : 'Update Password'}
                 </button>
               </form>
             )}
