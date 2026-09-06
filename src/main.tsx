@@ -13,7 +13,9 @@ import './styles/secondaryFilterSingleFrame.css'
 import App from './App.tsx'
 import './utils/titleCaseLocationsDom'
 import { initPms10StandalonePwaClass } from './utils/pms10StandalonePwaClass'
+import { initPms10PwaAutoUpdate } from './utils/pwaAutoUpdate'
 initPms10StandalonePwaClass()
+initPms10PwaAutoUpdate()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
