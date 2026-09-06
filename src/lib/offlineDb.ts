@@ -90,6 +90,7 @@ export type OfflineProjectUpdate = {
 
 export type OfflineProjectPhoto = {
   id?: number | string
+  client_photo_id?: string
   offline_update_id?: number | string
   local_update_id?: string
   project_update_id?: string

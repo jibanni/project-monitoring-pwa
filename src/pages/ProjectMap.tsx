@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -7,12 +7,15 @@ import {
   Popup,
   TileLayer,
   useMap,
+  useMapEvents,
 } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../lib/supabase'
 import { useSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
+import { useDesktopViewport } from '../hooks/useDesktopViewport'
+import { readPageView, writePageView } from '../lib/pageViewMemory'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
 import {
@@ -26,6 +29,7 @@ import {
 import '../styles/projectMap.css'
 import '../styles/unifiedFilters.css'
 import '../styles/pageHero.css'
+import '../styles/projectMapDesktop.css'
 
 const MINDANAO_BOUNDS = {
   minLat: 4,
@@ -36,6 +40,26 @@ const MINDANAO_BOUNDS = {
 
 const MINDANAO_CENTER: [number, number] = [7.8, 124.8]
 const DEFAULT_ZOOM = 7
+
+type MapViewportMemory = {
+  lat: number
+  lng: number
+  zoom: number
+}
+
+type MapPageMemory = {
+  showFilters: boolean
+  isMapFullscreen: boolean
+  mapLayer: MapLayer
+  searchTerm: string
+  provinceFilter: string
+  municipalityFilter: string
+  fundingYearFilter: string
+  programFilter: string
+  statusFilter: string
+  riskFilter: string
+  selectedPopupProjectId: string
+}
 
 const REGION_10_BOUNDS: [[number, number], [number, number]] = [
   [7.15, 123.25],
@@ -535,13 +559,25 @@ function focusMapToProjectSet(map: L.Map, projects: MapProject[]) {
 function FitMapToMarkers({
   projects,
   focusSignal,
+  filterKey,
+  preserveInitialView,
 }: {
   projects: MapProject[]
   focusSignal: number
+  filterKey: string
+  preserveInitialView: boolean
 }) {
   const map = useMap()
+  const initialFilterKeyRef = useRef(filterKey)
 
   useEffect(() => {
+    const shouldPreserveRememberedView =
+      preserveInitialView &&
+      focusSignal === 0 &&
+      filterKey === initialFilterKeyRef.current
+
+    if (shouldPreserveRememberedView) return
+
     const timeout = window.setTimeout(() => {
       focusMapToProjectSet(map, projects)
     }, 180)
@@ -549,7 +585,7 @@ function FitMapToMarkers({
     return () => {
       window.clearTimeout(timeout)
     }
-  }, [map, projects, focusSignal])
+  }, [map, projects, focusSignal, filterKey, preserveInitialView])
 
   return null
 }
@@ -600,7 +636,65 @@ function MapResizeWatcher({ trigger }: { trigger: unknown }) {
   return null
 }
 
+function PersistMapViewport({ remembered }: { remembered: MapViewportMemory | null }) {
+  const restoreFinishedRef = useRef(false)
+  const map = useMapEvents({
+    moveend() {
+      if (!restoreFinishedRef.current) return
+      const center = map.getCenter()
+      writePageView<MapViewportMemory>('map:viewport', {
+        lat: center.lat,
+        lng: center.lng,
+        zoom: map.getZoom(),
+      })
+    },
+    zoomend() {
+      if (!restoreFinishedRef.current) return
+      const center = map.getCenter()
+      writePageView<MapViewportMemory>('map:viewport', {
+        lat: center.lat,
+        lng: center.lng,
+        zoom: map.getZoom(),
+      })
+    },
+  })
+
+  useEffect(() => {
+    const timers: number[] = []
+
+    const restore = () => {
+      if (!remembered) return
+      if (!Number.isFinite(remembered.lat) || !Number.isFinite(remembered.lng)) return
+      if (!Number.isFinite(remembered.zoom)) return
+
+      map.setView([remembered.lat, remembered.lng], remembered.zoom, {
+        animate: false,
+      })
+    }
+
+    // FitMapToMarkers also runs during the first data paint. Restore the exact
+    // user's map viewport after that automatic fit has completed.
+    restore()
+    timers.push(window.setTimeout(restore, 260))
+    timers.push(
+      window.setTimeout(() => {
+        restore()
+        restoreFinishedRef.current = true
+      }, 720),
+    )
+
+    if (!remembered) {
+      restoreFinishedRef.current = true
+    }
+
+    return () => timers.forEach((timer) => window.clearTimeout(timer))
+  }, [map, remembered])
+
+  return null
+}
+
 export default function ProjectMap() {
+  const isDesktopViewport = useDesktopViewport()
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -612,22 +706,73 @@ export default function ProjectMap() {
     errorMessage: sharedProjectError,
     refreshProjects,
   } = useSharedProjects<ProjectRecord>()
+  const rememberedView = readPageView<MapPageMemory>('map', {
+    showFilters: false,
+    isMapFullscreen: false,
+    mapLayer: 'street',
+    searchTerm: '',
+    provinceFilter: 'All',
+    municipalityFilter: 'All',
+    fundingYearFilter: 'All',
+    programFilter: 'All',
+    statusFilter: 'All',
+    riskFilter: 'All',
+    selectedPopupProjectId: '',
+  })
+  const rememberedViewportRef = useRef(
+    readPageView<MapViewportMemory | null>('map:viewport', null),
+  )
+  const rememberedViewport = rememberedViewportRef.current
+
   const [updateMap, setUpdateMap] = useState<Map<string, ProjectUpdateRecord[]>>(new Map())
   const [gpsErrorMessage, setGpsErrorMessage] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
+  const [showFilters, setShowFilters] = useState(Boolean(rememberedView.showFilters))
   const [portalReady, setPortalReady] = useState(false)
   const [isMapScrolled, setIsMapScrolled] = useState(false)
   const [focusSignal, setFocusSignal] = useState(0)
-  const [isMapFullscreen, setIsMapFullscreen] = useState(false)
-  const [mapLayer, setMapLayer] = useState<MapLayer>('street')
+  const [isMapFullscreen, setIsMapFullscreen] = useState(Boolean(rememberedView.isMapFullscreen))
+  const [mapLayer, setMapLayer] = useState<MapLayer>(
+    rememberedView.mapLayer === 'satellite' ? 'satellite' : 'street',
+  )
+  const [selectedPopupProjectId, setSelectedPopupProjectId] = useState(
+    rememberedView.selectedPopupProjectId || '',
+  )
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const [provinceFilter, setProvinceFilter] = useState('All')
-  const [municipalityFilter, setMunicipalityFilter] = useState('All')
-  const [fundingYearFilter, setFundingYearFilter] = useState('All')
-  const [programFilter, setProgramFilter] = useState('All')
-  const [statusFilter, setStatusFilter] = useState('All')
-  const [riskFilter, setRiskFilter] = useState('All')
+  const [searchTerm, setSearchTerm] = useState(rememberedView.searchTerm || '')
+  const [provinceFilter, setProvinceFilter] = useState(rememberedView.provinceFilter || 'All')
+  const [municipalityFilter, setMunicipalityFilter] = useState(rememberedView.municipalityFilter || 'All')
+  const [fundingYearFilter, setFundingYearFilter] = useState(rememberedView.fundingYearFilter || 'All')
+  const [programFilter, setProgramFilter] = useState(rememberedView.programFilter || 'All')
+  const [statusFilter, setStatusFilter] = useState(rememberedView.statusFilter || 'All')
+  const [riskFilter, setRiskFilter] = useState(rememberedView.riskFilter || 'All')
+
+  useEffect(() => {
+    writePageView<MapPageMemory>('map', {
+      showFilters,
+      isMapFullscreen,
+      mapLayer,
+      searchTerm,
+      provinceFilter,
+      municipalityFilter,
+      fundingYearFilter,
+      programFilter,
+      statusFilter,
+      riskFilter,
+      selectedPopupProjectId,
+    })
+  }, [
+    showFilters,
+    isMapFullscreen,
+    mapLayer,
+    searchTerm,
+    provinceFilter,
+    municipalityFilter,
+    fundingYearFilter,
+    programFilter,
+    statusFilter,
+    riskFilter,
+    selectedPopupProjectId,
+  ])
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const selectedProjectId = searchParams.get('projectId') || ''
@@ -966,17 +1111,19 @@ export default function ProjectMap() {
   return (
     <>
       <main className={`pm-map-page ${isMapScrolled ? 'is-map-scrolled' : ''}`}>
-        <section className="pm-map-hero">
-          <div>
-            <p className="pm-map-eyebrow">{selectedProjectMode ? 'Selected GIS View' : 'GIS Mapping'}</p>
-            <h1>{selectedProjectMode ? selectedProject?.project_name || 'Selected Project Map' : 'Project GIS Map'}</h1>
-            <p>
-              {selectedProjectMode
-                ? 'Focused map view for the selected project record.'
-                : 'View mapped infrastructure projects using the latest project or inspection GPS coordinates.'}
-            </p>
-          </div>
-        </section>
+        {!isDesktopViewport && (
+          <section className="pm-map-hero">
+            <div>
+              <p className="pm-map-eyebrow">{selectedProjectMode ? 'Selected GIS View' : 'GIS Mapping'}</p>
+              <h1>{selectedProjectMode ? selectedProject?.project_name || 'Selected Project Map' : 'Project GIS Map'}</h1>
+              <p>
+                {selectedProjectMode
+                  ? 'Focused map view for the selected project record.'
+                  : 'View mapped infrastructure projects using the latest project or inspection GPS coordinates.'}
+              </p>
+            </div>
+          </section>
+        )}
 
         {(sharedProjectError || gpsErrorMessage) && sharedProjects.length === 0 && (
           <div className="pm-map-alert pm-map-alert-error">
@@ -1201,6 +1348,8 @@ export default function ProjectMap() {
               </span>
             </div>
 
+            {isDesktopViewport && !isMapFullscreen ? mapFabs : null}
+
             <div className={`pm-map-shell ${isMapFullscreen ? 'is-map-fullscreen' : ''}`}>
               <MapContainer
                   center={MINDANAO_CENTER}
@@ -1231,9 +1380,13 @@ export default function ProjectMap() {
                     trigger={`${displayedProjects.length}-${searchTerm}-${showFilters}-${isMapFullscreen}-${mapLayer}`}
                   />
 
+                  <PersistMapViewport remembered={rememberedViewport} />
+
                   <FitMapToMarkers
                     projects={displayedProjects}
                     focusSignal={focusSignal}
+                    filterKey={`${selectedProjectId}-${searchTerm}-${provinceFilter}-${municipalityFilter}-${fundingYearFilter}-${programFilter}-${statusFilter}-${riskFilter}`}
+                    preserveInitialView={Boolean(rememberedViewport) && !selectedProjectMode}
                   />
 
                   {displayedProjects.map((project) => {
@@ -1242,6 +1395,17 @@ export default function ProjectMap() {
                     return (
                       <CircleMarker
                         key={project.id}
+                        ref={(marker) => {
+                          if (!marker || selectedPopupProjectId !== project.id) return
+
+                          window.setTimeout(() => {
+                            try {
+                              marker.openPopup()
+                            } catch {
+                              // The map may still be resizing during route restoration.
+                            }
+                          }, 760)
+                        }}
                         center={[
                           project.displayLatitude as number,
                           project.displayLongitude as number,
@@ -1257,8 +1421,19 @@ export default function ProjectMap() {
                       
                         bubblingMouseEvents={false}
                         eventHandlers={{
-                          click: pms10CenterPressedMapMarker,
-                          popupopen: pms10CenterPressedMapMarker,
+                          click: (event) => {
+                            setSelectedPopupProjectId(project.id)
+                            pms10CenterPressedMapMarker(event)
+                          },
+                          popupopen: (event) => {
+                            setSelectedPopupProjectId(project.id)
+                            pms10CenterPressedMapMarker(event)
+                          },
+                          popupclose: () => {
+                            setSelectedPopupProjectId((current) =>
+                              current === project.id ? '' : current,
+                            )
+                          },
                         }}>
                         <Popup
                           className="pm-map-project-popup"
@@ -1430,7 +1605,9 @@ export default function ProjectMap() {
         </section>
       </main>
 
-      {portalReady ? createPortal(mapFabs, document.body) : null}
+      {portalReady && (!isDesktopViewport || isMapFullscreen)
+        ? createPortal(mapFabs, document.body)
+        : null}
     </>
   )
 }

@@ -1,0 +1,129 @@
+/* =========================================================
+   PMS10 DASHBOARD DRILLDOWN FILTERS + DESKTOP CENTERING
+   ========================================================= */
+
+.dashboard-drilldown-filterbar {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.35fr) repeat(4, minmax(120px, 0.72fr)) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.dashboard-drilldown-filterbar label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dashboard-drilldown-filterbar label > span {
+  color: #64748b;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase;
+}
+
+.dashboard-drilldown-filterbar input,
+.dashboard-drilldown-filterbar select {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #dbe5f0;
+  border-radius: 10px;
+  outline: none;
+  color: #0f172a;
+  background: #f8fafc;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+.dashboard-drilldown-filterbar input:focus,
+.dashboard-drilldown-filterbar select:focus {
+  border-color: #93c5fd;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.dashboard-drilldown-filter-reset {
+  height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  color: #ffffff;
+  background: #155a93;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+}
+
+.dashboard-drilldown-filter-reset:disabled {
+  color: #94a3b8;
+  background: #eef2f7;
+  cursor: default;
+}
+
+/* Make the modal visibly centered inside the live desktop workspace. */
+@media (min-width: 1024px) {
+  body .dashboard-modal-backdrop {
+    inset: var(--dashboard-modal-top-offset) 0 0 264px !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding: 18px 32px 22px !important;
+  }
+
+  body:has(.app-shell.app-sidebar-collapsed) .dashboard-modal-backdrop {
+    left: 78px !important;
+  }
+
+  body .dashboard-drilldown-modal {
+    width: min(1120px, calc(100% - 64px)) !important;
+    max-width: 1120px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  body .dashboard-modal-header {
+    padding: 18px 20px 15px !important;
+  }
+
+  body .dashboard-modal-body {
+    padding: 12px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-drilldown-filterbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 10px;
+  }
+
+  .dashboard-drilldown-search {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-drilldown-filter-reset {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-drilldown-filterbar input,
+  .dashboard-drilldown-filterbar select {
+    height: 42px;
+    font-size: 16px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-drilldown-filterbar {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-drilldown-search,
+  .dashboard-drilldown-filter-reset {
+    grid-column: auto;
+  }
+}

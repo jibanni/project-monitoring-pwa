@@ -5,7 +5,18 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { preloadRoute, scheduleRoutePreloads } from '../lib/routePreload'
 import { initializeSharedProjects, refreshSharedProjects } from '../lib/projectDataCache'
+import {
+  getPathnameFromRoute,
+  getRememberedSectionRoute,
+  getRouteFromLocation,
+  getRouteScroll,
+  rememberProtectedRoute,
+  saveRouteScroll,
+  type PmsNavigationSection,
+} from '../lib/navigationMemory'
 import '../styles/layout.css'
+import '../styles/sidebarFooterDesktopPolish.css'
+import '../styles/sidebarBrandingPolish.css'
 
 type LayoutProps = {
   children?: ReactNode
@@ -197,6 +208,79 @@ function getCompactRoleLabel(role: unknown, fallback: string) {
   return fallback || 'User'
 }
 
+
+type DesktopPageMeta = {
+  eyebrow: string
+  title: string
+}
+
+function getDesktopPageMeta(pathname: string): DesktopPageMeta {
+  if (pathname === '/' || pathname === '/dashboard') {
+    return { eyebrow: 'DILG Region X', title: 'PDMU Project Monitoring Dashboard' }
+  }
+
+  if (pathname === '/projects') {
+    return { eyebrow: 'Project Workspace', title: 'Project Registry' }
+  }
+
+  if (pathname === '/projects/create') {
+    return { eyebrow: 'Project Workspace', title: 'Enroll Project' }
+  }
+
+  if (pathname === '/projects/import-subaybayan') {
+    return { eyebrow: 'Project Workspace', title: 'Import Projects' }
+  }
+
+  if (isProjectUpdatePath(pathname)) {
+    return { eyebrow: 'Field Monitoring', title: 'Project Update' }
+  }
+
+  if (isProjectEditPath(pathname)) {
+    return { eyebrow: 'Project Workspace', title: 'Edit Project' }
+  }
+
+  if (isProjectDetailsPath(pathname)) {
+    return { eyebrow: 'Project Workspace', title: 'Project Details' }
+  }
+
+  if (pathname === '/map') {
+    return { eyebrow: 'GIS Mapping', title: 'Project GIS Map' }
+  }
+
+  if (pathname.startsWith('/reports')) {
+    return { eyebrow: 'Reporting', title: 'Project Monitoring Reports' }
+  }
+
+  if (pathname.startsWith('/offline-sync')) {
+    return { eyebrow: 'Field Data', title: 'Offline Sync' }
+  }
+
+  if (pathname.startsWith('/users')) {
+    return { eyebrow: 'Administration', title: 'User Management' }
+  }
+
+  return { eyebrow: 'PMS10', title: 'Project Monitoring System' }
+}
+
+function isNavItemPath(item: NavItem, pathname: string) {
+  if (item.key === 'dashboard') return pathname === '/' || pathname === '/dashboard'
+  if (item.key === 'projects') return pathname === '/projects' || pathname.startsWith('/projects/')
+  if (item.key === 'map') return pathname === '/map' || pathname.startsWith('/map/')
+  if (item.key === 'reports') return pathname === '/reports' || pathname.startsWith('/reports/')
+  if (item.key === 'sync') return pathname === '/offline-sync' || pathname.startsWith('/offline-sync/')
+  if (item.key === 'users') return pathname === '/users' || pathname.startsWith('/users/')
+  return pathname === item.to
+}
+
+function getNavSection(item: NavItem): PmsNavigationSection {
+  if (item.key === 'projects') return 'projects'
+  if (item.key === 'map') return 'map'
+  if (item.key === 'reports') return 'reports'
+  if (item.key === 'sync') return 'sync'
+  if (item.key === 'users') return 'users'
+  return 'dashboard'
+}
+
 export default function Layout({ children }: LayoutProps) {
   const auth = useAuth() as any
   const navigate = useNavigate()
@@ -224,10 +308,26 @@ export default function Layout({ children }: LayoutProps) {
   const [pendingMobilePath, setPendingMobilePath] = useState('')
   const [headerPortalReady, setHeaderPortalReady] = useState(false)
   const [mobileKeyboardOpen, setMobileKeyboardOpen] = useState(false)
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('pms10:desktop-sidebar-collapsed') === '1'
+  })
+
+  const currentRoute = useMemo(
+    () => getRouteFromLocation(location),
+    [location.pathname, location.search, location.hash],
+  )
 
   useEffect(() => {
     setHeaderPortalReady(true)
   }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      'pms10:desktop-sidebar-collapsed',
+      desktopSidebarCollapsed ? '1' : '0',
+    )
+  }, [desktopSidebarCollapsed])
 
 
   useEffect(() => {
@@ -325,22 +425,60 @@ export default function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     setPendingMobilePath('')
+    rememberProtectedRoute(currentRoute)
 
-    const frame = window.requestAnimationFrame(() => {
+    const restoreY = getRouteScroll(currentRoute)
+    let frameOne = 0
+    let frameTwo = 0
+    const timers: number[] = []
+    let cancelled = false
+
+    const restoreScroll = () => {
+      if (cancelled) return
+
       window.scrollTo({
-        top: 0,
+        top: restoreY,
         left: 0,
         behavior: 'auto',
       })
+    }
 
-      document.documentElement.scrollTop = 0
-      document.body.scrollTop = 0
+    frameOne = window.requestAnimationFrame(() => {
+      frameTwo = window.requestAnimationFrame(restoreScroll)
     })
 
+    // Data-heavy routes grow after their first render. A couple of quiet retries
+    // restore the user's exact working position once those cards/forms are mounted.
+    timers.push(window.setTimeout(restoreScroll, 180))
+    timers.push(window.setTimeout(restoreScroll, 650))
+
     return () => {
-      window.cancelAnimationFrame(frame)
+      cancelled = true
+      window.cancelAnimationFrame(frameOne)
+      window.cancelAnimationFrame(frameTwo)
+      timers.forEach((timer) => window.clearTimeout(timer))
+      saveRouteScroll(currentRoute, window.scrollY)
     }
-  }, [location.pathname])
+  }, [currentRoute])
+
+  useEffect(() => {
+    const persistCurrentPlace = () => {
+      rememberProtectedRoute(currentRoute)
+      saveRouteScroll(currentRoute, window.scrollY)
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') persistCurrentPlace()
+    }
+
+    window.addEventListener('pagehide', persistCurrentPlace)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('pagehide', persistCurrentPlace)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [currentRoute])
 
   useEffect(() => {
     let ticking = false
@@ -380,6 +518,11 @@ export default function Layout({ children }: LayoutProps) {
       return true
     })
   }, [isAdmin, isEngineer])
+
+  const desktopPageMeta = useMemo(
+    () => getDesktopPageMeta(location.pathname),
+    [location.pathname],
+  )
 
   useEffect(() => {
     void initializeSharedProjects()
@@ -432,65 +575,49 @@ export default function Layout({ children }: LayoutProps) {
   const initials = getInitials(String(displayName))
 
   const isItemActive = (item: NavItem) => {
-    const path = location.pathname
+    if (isNavItemPath(item, location.pathname)) return true
 
-    if (pendingMobilePath === item.to) return true
-
-    if (item.key === 'dashboard') {
-      return path === '/' || path === '/dashboard'
+    if (pendingMobilePath) {
+      const pendingPathname = getPathnameFromRoute(pendingMobilePath)
+      if (pendingPathname && isNavItemPath(item, pendingPathname)) return true
     }
 
-    if (item.key === 'projects') {
-      return (
-        path === '/projects' ||
-        (path.startsWith('/projects/') && !path.startsWith('/projects/create'))
-      )
-    }
+    return false
+  }
 
-    if (item.key === 'create') {
-      return path.startsWith('/projects/create')
-    }
-
-    if (item.key === 'map') {
-      return path === '/map'
-    }
-
-    if (item.key === 'reports') {
-      return path.startsWith('/reports')
-    }
-
-    if (item.key === 'sync') {
-      return path.startsWith('/offline-sync')
-    }
-
-    if (item.key === 'users') {
-      return path.startsWith('/users')
-    }
-
-    return path === item.to
+  const getItemDestination = (item: NavItem) => {
+    // Every workspace button resumes the exact route last used in that section.
+    // This applies even when the section is already active, so a nested working
+    // page (Project Details / Edit / Update, etc.) is never reset to the root just
+    // because the user clicked the sidebar item again.
+    return getRememberedSectionRoute(getNavSection(item), item.to)
   }
 
   const navigateMobile = (item: NavItem) => {
-    const path = location.pathname
-    const isSameDashboard = item.key === 'dashboard' && (path === '/' || path === '/dashboard')
-    const isSamePath = path === item.to || isSameDashboard
+    const destination = getItemDestination(item)
+    const destinationPathname = getPathnameFromRoute(destination)
+    const isSameDestination =
+      destinationPathname === location.pathname &&
+      destination === currentRoute
 
-    if (isSamePath) {
+    if (isSameDestination) {
       window.scrollTo({
         top: 0,
         left: 0,
         behavior: 'smooth',
       })
+      saveRouteScroll(currentRoute, 0)
       return
     }
 
-    setPendingMobilePath(item.to)
-    navigate(item.to)
+    setPendingMobilePath(destination)
+    navigate(destination)
   }
 
   const shellClassName = [
     'app-shell',
     isScrolled ? 'app-scrolled' : '',
+    location.pathname === '/dashboard' ? 'app-dashboard-route' : '',
     location.pathname === '/projects' ? 'app-projects-route' : '',
     location.pathname === '/projects/create' ? 'app-project-create-route' : '',
     isProjectDetailsPath(location.pathname) ? 'app-project-details-route' : '',
@@ -500,12 +627,14 @@ export default function Layout({ children }: LayoutProps) {
     location.pathname.startsWith('/reports') ? 'app-reports-route' : '',
     location.pathname.startsWith('/offline-sync') ? 'app-offline-sync-route' : '',
     location.pathname.startsWith('/users') ? 'app-users-route' : '',
+    desktopSidebarCollapsed ? 'app-sidebar-collapsed' : '',
   ]
     .filter(Boolean)
     .join(' ')
 
   const shellStyle = {
     '--app-header-live-h': `${headerHeight}px`,
+    '--app-sidebar-w': desktopSidebarCollapsed ? '78px' : '264px',
   } as CSSProperties
 
   const handleLogout = async () => {
@@ -521,6 +650,97 @@ export default function Layout({ children }: LayoutProps) {
   const activeMobileIndex = Math.max(
     0,
     visibleNavItems.findIndex((item) => isItemActive(item)),
+  )
+
+  const appDesktopSidebar = (
+    <aside
+      className={[
+        'app-desktop-sidebar',
+        desktopSidebarCollapsed ? 'is-collapsed' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={shellStyle}
+      aria-label="Desktop navigation"
+    >
+      <div className="app-sidebar-brand-row">
+        <NavLink
+          to="/dashboard"
+          end
+          className="app-sidebar-brand"
+          aria-label="PMS10 dashboard"
+          onPointerEnter={() => void preloadRoute('/dashboard')}
+          onFocus={() => void preloadRoute('/dashboard')}
+        >
+          <span className="app-sidebar-logo-wrap" aria-hidden="true">
+            <img src="/dilg-logo.png" alt="DILG Logo" className="app-sidebar-logo" />
+          </span>
+
+          <span className="app-sidebar-brand-copy">
+            <strong>PMS10</strong>
+            <span>Project Monitoring System</span>
+          </span>
+        </NavLink>
+      </div>
+
+      <div className="app-sidebar-section-label">Workspace</div>
+
+      <nav className="app-sidebar-nav" aria-label="PMS10 workspace">
+        {visibleNavItems.map((item) => {
+          const active = isItemActive(item)
+          const destination = getItemDestination(item)
+
+          return (
+            <NavLink
+              key={item.key}
+              to={destination}
+              end={item.key === 'dashboard' || item.key === 'projects'}
+              className={['app-sidebar-link', active ? 'active' : '']
+                .filter(Boolean)
+                .join(' ')}
+              aria-current={active ? 'page' : undefined}
+              title={desktopSidebarCollapsed ? item.label : undefined}
+              onPointerEnter={() => void preloadRoute(destination)}
+              onFocus={() => void preloadRoute(destination)}
+            >
+              <span className="app-sidebar-link-icon" aria-hidden="true">
+                <AppIcon type={item.icon} />
+              </span>
+              <span className="app-sidebar-link-label">{item.label}</span>
+            </NavLink>
+          )
+        })}
+      </nav>
+
+      <div className="app-sidebar-footer">
+        <div className="app-sidebar-office">
+          <span className="app-sidebar-office-mark">X</span>
+          <span className="app-sidebar-office-copy">
+            <strong>DILG Region X – PDMU</strong>
+            <span className="app-sidebar-office-system">
+              PMS10
+            </span>
+            <span className="app-sidebar-office-copyright">
+              © 2026 DILG Region X – PDMU
+            </span>
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className="app-sidebar-collapse-button"
+          onClick={() => setDesktopSidebarCollapsed((current) => !current)}
+          aria-expanded={!desktopSidebarCollapsed}
+          aria-label={desktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={desktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.8 5.6 8.4 12l6.4 6.4 1.4-1.4-5-5 5-5-1.4-1.4Z" />
+          </svg>
+          <span>Collapse sidebar</span>
+        </button>
+      </div>
+    </aside>
   )
 
   const appHeader = (
@@ -556,24 +776,28 @@ export default function Layout({ children }: LayoutProps) {
           </span>
         </NavLink>
 
-        
+        <div className="app-desktop-page-context" aria-hidden="true">
+          <span className="app-desktop-page-eyebrow">{desktopPageMeta.eyebrow}</span>
+          <span className="app-desktop-page-title">{desktopPageMeta.title}</span>
+        </div>
 
         <nav className="app-desktop-nav" aria-label="Main navigation">
           {visibleNavItems.map((item) => {
             const active = isItemActive(item)
+            const destination = getItemDestination(item)
 
             return (
               <NavLink
                 key={item.key}
-                to={item.to}
+                to={destination}
                 end={item.key === 'dashboard' || item.key === 'projects'}
                 className={['app-nav-link', active ? 'active' : '']
                   .filter(Boolean)
                   .join(' ')}
                 aria-current={active ? 'page' : undefined}
-                onPointerEnter={() => void preloadRoute(item.to)}
-                onFocus={() => void preloadRoute(item.to)}
-                onClick={() => setPendingMobilePath(item.to)}
+                onPointerEnter={() => void preloadRoute(destination)}
+                onFocus={() => void preloadRoute(destination)}
+                onClick={() => setPendingMobilePath(destination)}
               >
                 <span className="app-nav-icon">
                   <AppIcon type={item.icon} />
@@ -628,6 +852,7 @@ export default function Layout({ children }: LayoutProps) {
 
         {visibleNavItems.map((item) => {
           const active = isItemActive(item)
+          const destination = getItemDestination(item)
 
           return (
             <button
@@ -644,7 +869,7 @@ export default function Layout({ children }: LayoutProps) {
 
                 event.preventDefault()
                 lastMobilePointerNavRef.current = {
-                  path: item.to,
+                  path: destination,
                   at: Date.now(),
                 }
                 navigateMobile(item)
@@ -652,7 +877,7 @@ export default function Layout({ children }: LayoutProps) {
               onClick={() => {
                 const lastPointerNavigation = lastMobilePointerNavRef.current
                 const wasHandledByPointer =
-                  lastPointerNavigation?.path === item.to &&
+                  lastPointerNavigation?.path === destination &&
                   Date.now() - lastPointerNavigation.at < 800
 
                 if (wasHandledByPointer) return
@@ -673,6 +898,7 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <>
+      {appDesktopSidebar}
       {headerPortalReady ? createPortal(appHeader, document.body) : appHeader}
 
       <div className={shellClassName} style={shellStyle}>

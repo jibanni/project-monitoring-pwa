@@ -262,7 +262,7 @@ export function canViewProject(project: AorProjectLike, auth: AorAuthLike | null
   }
 
   if (currentAuth.isMLGOO || role === 'MLGOO') {
-    return projectMatchesMunicipality(project, profile.municipality)
+    return canAccessPoLgu(project, currentAuth)
   }
 
   return canViewByAorLevel(project, profile)

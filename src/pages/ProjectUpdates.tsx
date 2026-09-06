@@ -4,6 +4,7 @@ import type { ChangeEvent, FormEvent, KeyboardEvent } from'react'
 import { Link, useLocation, useNavigate, useParams } from'react-router-dom'
 import { supabase } from'../lib/supabase'
 import { updateSharedProjectCache } from'../lib/projectDataCache'
+import { clearFormDraft, createFormDraftKey, loadFormDraft, saveFormDraft } from'../lib/formDraftStorage'
 import { aideMemoireDocumentToBlob, aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
 import { useAuth } from'../context/AuthContext'
 import {
@@ -17,13 +18,22 @@ import {
 import { getPmsRiskLevel } from'../utils/projectStatus'
 import { canUpdateProject, getCanonicalRole } from'../utils/aorAccess'
 import { getDilgOfficeDirectoryEntry, normalizeDilgOfficeLocation } from'../data/dilgOfficeDirectory'
-import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from'../services/googleDrivePhotoUploadService'
-import { compressInspectionImage } from'../utils/imageCompression'
+import {
+  ensureProjectPhotoReference,
+  getDrivePhotoUrl,
+  uploadProjectPhotoToDrive,
+} from'../services/googleDrivePhotoUploadService'
+import {
+  compressInspectionImage,
+  MAX_INSPECTION_PHOTO_BYTES,
+  MAX_INSPECTION_PHOTOS_PER_UPDATE,
+} from'../utils/imageCompression'
 import ActionMenu from'../components/ActionMenu'
 import AideMemoireGenerationDialog from'../components/AideMemoireGenerationDialog'
 import'../styles/projectUpdates.css'
 import'../styles/projectUpdatesModalFix.css'
 import'../styles/projectUpdateSubpage.css'
+import'../styles/projectUpdateDesktopPolish.css'
 
 type ProjectRecord = {
   id: string
@@ -911,6 +921,7 @@ export default function ProjectUpdates() {
   const lastGpsPositionRef = useRef<GeolocationPosition | null>(null)
   const lastAutoSaveFingerprintRef = useRef('')
   const autoSaveSuspendedRef = useRef(false)
+  const restoredShadowDraftKeyRef = useRef<string | null>(null)
 
   const [project, setProject] = useState<ProjectRecord | null>(null)
   const [recentUpdates, setRecentUpdates] = useState<ProjectUpdateRecord[]>([])
@@ -999,6 +1010,9 @@ export default function ProjectUpdates() {
   const draftOwnerKey = String(auth?.user?.id || auth?.profile?.id || 'local-user').replace(/[^a-zA-Z0-9_-]/g, '-')
   const workingUpdateRef = id ? `working-${id}-${draftOwnerKey}` : ''
   const workingDraftId = id && workingUpdateRef ? `aide-${id}-offline-${workingUpdateRef}` : ''
+  const shadowDraftKey = workingDraftId
+    ? createFormDraftKey('project-update', workingDraftId, draftOwnerKey)
+    : ''
 
   const workingDraftFingerprint = useMemo(
     () =>
@@ -1068,6 +1082,63 @@ export default function ProjectUpdates() {
       wizardStep,
       maxReachedStep,
       photoInputs,
+    ],
+  )
+
+  const workingShadowDraft = useMemo(
+    () => ({
+      inspectionDate,
+      projectStatus,
+      physicalAccomplishment,
+      targetPhysicalAccomplishment,
+      financialAccomplishment,
+      disbursementAmount,
+      hasNewDisbursement,
+      contractAmount,
+      notYetStartedReason,
+      hasContractModification,
+      contractModificationType,
+      hasRevisedProjectCost,
+      revisedProjectCost,
+      revisedContractExpirationDate,
+      inspectionLatitude,
+      inspectionLongitude,
+      aideFindings,
+      noFindingsObserved,
+      noAttendees,
+      updateType,
+      aideAttendance,
+      generalObservations,
+      modeOfImplementation,
+      wizardStep,
+      maxReachedStep,
+    }),
+    [
+      inspectionDate,
+      projectStatus,
+      physicalAccomplishment,
+      targetPhysicalAccomplishment,
+      financialAccomplishment,
+      disbursementAmount,
+      hasNewDisbursement,
+      contractAmount,
+      notYetStartedReason,
+      hasContractModification,
+      contractModificationType,
+      hasRevisedProjectCost,
+      revisedProjectCost,
+      revisedContractExpirationDate,
+      inspectionLatitude,
+      inspectionLongitude,
+      aideFindings,
+      noFindingsObserved,
+      noAttendees,
+      updateType,
+      aideAttendance,
+      generalObservations,
+      modeOfImplementation,
+      wizardStep,
+      maxReachedStep,
     ],
   )
 
@@ -1410,9 +1481,56 @@ export default function ProjectUpdates() {
 
   useEffect(() => {
     setWorkingDraftLoaded(false)
+    restoredShadowDraftKeyRef.current = null
     void refreshWorkingAideDraft()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workingDraftId])
+
+  useEffect(() => {
+    if (
+      !workingDraftLoaded ||
+      loading ||
+      !project ||
+      workingAideDraft ||
+      !shadowDraftKey ||
+      restoredShadowDraftKeyRef.current === shadowDraftKey
+    ) {
+      return
+    }
+
+    restoredShadowDraftKeyRef.current = shadowDraftKey
+    const shadowDraft = loadFormDraft<typeof workingShadowDraft>(shadowDraftKey)
+    if (!shadowDraft) return
+
+    restoreWorkingShadowDraft(shadowDraft)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workingDraftLoaded, loading, project?.id, workingAideDraft?.id, shadowDraftKey])
+
+  useEffect(() => {
+    if (
+      !workingDraftLoaded ||
+      loading ||
+      !project ||
+      !shadowDraftKey ||
+      autoSaveSuspendedRef.current
+    ) {
+      return
+    }
+
+    if (hasMeaningfulWorkingUpdate) {
+      saveFormDraft(shadowDraftKey, workingShadowDraft)
+    } else {
+      clearFormDraft(shadowDraftKey)
+    }
+  }, [
+    workingDraftLoaded,
+    loading,
+    project?.id,
+    shadowDraftKey,
+    hasMeaningfulWorkingUpdate,
+    workingDraftFingerprint,
+    workingShadowDraft,
+  ])
 
 
   useEffect(() => {
@@ -1438,9 +1556,17 @@ export default function ProjectUpdates() {
     if (restoredDraftIdRef.current === workingAideDraft.id) return
 
     restoredDraftIdRef.current = workingAideDraft.id
-    void restoreWorkingAideDraft()
+    void restoreWorkingAideDraft().then(() => {
+      if (!shadowDraftKey) return
+
+      const shadowDraft = loadFormDraft<typeof workingShadowDraft>(shadowDraftKey)
+      if (!shadowDraft) return
+
+      restoreWorkingShadowDraft(shadowDraft)
+      restoredShadowDraftKeyRef.current = shadowDraftKey
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workingAideDraft?.id, project?.id])
+  }, [workingAideDraft?.id, project?.id, shadowDraftKey])
 
   useEffect(() => {
     if (
@@ -1496,6 +1622,8 @@ export default function ProjectUpdates() {
         return
       }
 
+      saveFormDraft(shadowDraftKey, workingShadowDraft)
+
       void saveLatestUpdateDraft({ silent: true }).catch((error) => {
         console.error('Unable to preserve the Project Update before leaving the page.', error)
       })
@@ -1517,8 +1645,10 @@ export default function ProjectUpdates() {
     workingDraftLoaded,
     project?.id,
     workingDraftId,
+    shadowDraftKey,
     hasMeaningfulWorkingUpdate,
     workingDraftFingerprint,
+    workingShadowDraft,
   ])
 
   useEffect(() => {
@@ -1717,6 +1847,7 @@ export default function ProjectUpdates() {
     setDisbursementAmount(String(snapshot.disbursement_amount ?? draft.total_disbursement ?? project?.disbursement_amount ?? ''))
     setHasNewDisbursement(Boolean(snapshot.has_new_disbursement))
     setContractAmount(String(snapshot.contract_amount ?? draft.contract_amount ?? project?.contract_amount ?? project?.budget ?? ''))
+    setNotYetStartedReason(String(snapshot.not_yet_started_reason || ''))
     setHasContractModification(Boolean(snapshot.has_contract_modification))
     setContractModificationType(String(snapshot.contract_modification_type || ''))
     const restoredRevisedCost = String(snapshot.revised_project_cost ?? '').trim()
@@ -1770,8 +1901,39 @@ export default function ProjectUpdates() {
         },
       ]
     })
+    photoInputsRef.current = restoredPhotos
     setPhotoInputs(restoredPhotos)
     return restoredWizardStep
+  }
+
+  function restoreWorkingShadowDraft(draft: typeof workingShadowDraft) {
+    setInspectionDate(String(draft.inspectionDate || todayInputValue()).slice(0, 10))
+    setProjectStatus(normalizeUpdateStatus(draft.projectStatus, draft.physicalAccomplishment))
+    setPhysicalAccomplishment(String(draft.physicalAccomplishment ?? ''))
+    setTargetPhysicalAccomplishment(String(draft.targetPhysicalAccomplishment ?? ''))
+    setFinancialAccomplishment(String(draft.financialAccomplishment ?? ''))
+    setDisbursementAmount(String(draft.disbursementAmount ?? project?.disbursement_amount ?? ''))
+    setHasNewDisbursement(Boolean(draft.hasNewDisbursement))
+    setContractAmount(String(draft.contractAmount ?? project?.contract_amount ?? project?.budget ?? ''))
+    setNotYetStartedReason(String(draft.notYetStartedReason || ''))
+    setHasContractModification(Boolean(draft.hasContractModification))
+    setContractModificationType(String(draft.contractModificationType || ''))
+    setHasRevisedProjectCost(Boolean(draft.hasRevisedProjectCost))
+    setRevisedProjectCost(String(draft.revisedProjectCost ?? ''))
+    setRevisedContractExpirationDate(String(draft.revisedContractExpirationDate || '').slice(0, 10))
+    setInspectionLatitude(String(draft.inspectionLatitude ?? ''))
+    setInspectionLongitude(String(draft.inspectionLongitude ?? ''))
+    setAideFindings(draft.aideFindings?.length ? draft.aideFindings.map((row) => ({ ...row })) : [createBlankAideFinding()])
+    setNoFindingsObserved(Boolean(draft.noFindingsObserved))
+    setNoAttendees(Boolean(draft.noAttendees))
+    setUpdateType(draft.updateType === 'office' ? 'office' : 'site')
+    setAideAttendance(draft.aideAttendance?.length ? draft.aideAttendance.map((row) => ({ ...row })) : [createBlankAideAttendee()])
+    setGeneralObservations(String(draft.generalObservations || ''))
+    setModeOfImplementation(String(draft.modeOfImplementation || project?.mode_of_implementation || 'BY CONTRACT'))
+    const restoredWizardStep = Math.min(8, Math.max(1, Number(draft.wizardStep || 1)))
+    const restoredMaxStep = Math.min(8, Math.max(restoredWizardStep, Number(draft.maxReachedStep || restoredWizardStep)))
+    setWizardStep(restoredWizardStep)
+    setMaxReachedStep(restoredMaxStep)
   }
 
   function getInspectionPhotoCaption(photo: PhotoInput, index: number) {
@@ -1864,6 +2026,7 @@ export default function ProjectUpdates() {
         disbursement_amount: String(effectiveDisbursementAmount),
         has_new_disbursement: hasNewDisbursement,
         contract_amount: contractAmount || String(project.contract_amount ?? project.budget ?? ''),
+        not_yet_started_reason: requiresUpdateReason ? notYetStartedReason : '',
         has_contract_modification: hasContractModification,
         contract_modification_type: contractModificationType,
         has_revised_project_cost: hasRevisedProjectCost,
@@ -1937,6 +2100,7 @@ export default function ProjectUpdates() {
 
   async function saveUpdateDraftFromFab() {
     setErrorMessage('')
+    saveFormDraft(shadowDraftKey, workingShadowDraft)
     try {
       await saveLatestUpdateDraft()
       setNoticeDialog({
@@ -1960,6 +2124,7 @@ export default function ProjectUpdates() {
     const finalRecord = buildAideMemoireRecord(updateRef, source, 'final')
     await saveAideMemoireRecord(finalRecord)
     if (workingDraftId) await offlineDb.aide_memoires.delete(workingDraftId)
+    clearFormDraft(shadowDraftKey)
     setWorkingAideDraft(null)
   }
 
@@ -2330,6 +2495,12 @@ export default function ProjectUpdates() {
   ) {
     const imageFiles = files.filter(isLikelyImage)
     const rejectedCount = files.length - imageFiles.length
+    const availableSlots = Math.max(
+      0,
+      MAX_INSPECTION_PHOTOS_PER_UPDATE - photoInputsRef.current.length,
+    )
+    const acceptedImageFiles = imageFiles.slice(0, availableSlots)
+    const overLimitCount = imageFiles.length - acceptedImageFiles.length
 
     if (imageFiles.length === 0) {
       if (rejectedCount > 0) {
@@ -2338,9 +2509,16 @@ export default function ProjectUpdates() {
       return [] as PhotoInput[]
     }
 
+    if (availableSlots === 0) {
+      setErrorMessage(
+        `A project update can contain up to ${MAX_INSPECTION_PHOTOS_PER_UPDATE} photos. Remove a photo before adding another.`,
+      )
+      return [] as PhotoInput[]
+    }
+
     setPhotoProcessing(true)
     setErrorMessage('')
-    setMessage(`Preparing ${imageFiles.length} inspection photo(s)…`)
+    setMessage(`Preparing ${acceptedImageFiles.length} inspection photo(s)…`)
 
     try {
       const metadataPromise: Promise<PhotoCaptureMetadata> = options.captureGps
@@ -2362,7 +2540,7 @@ export default function ProjectUpdates() {
       let originalBytes = 0
       let compressedBytes = 0
 
-      for (const sourceFile of imageFiles) {
+      for (const sourceFile of acceptedImageFiles) {
         originalBytes += sourceFile.size
 
         try {
@@ -2375,16 +2553,29 @@ export default function ProjectUpdates() {
             compressed: result.compressed,
           })
         } catch (compressionError: any) {
-          console.warn(`Unable to compress ${sourceFile.name}; keeping the original image.`, compressionError)
-          compressedBytes += sourceFile.size
-          preparedPhotos.push({
-            file: sourceFile,
-            originalSize: sourceFile.size,
-            compressedSize: sourceFile.size,
-            compressed: false,
-          })
-          warnings.push(`${sourceFile.name} could not be compressed on this device.`)
+          if (sourceFile.size <= MAX_INSPECTION_PHOTO_BYTES) {
+            console.warn(`Unable to compress ${sourceFile.name}; keeping the size-safe original image.`, compressionError)
+            compressedBytes += sourceFile.size
+            preparedPhotos.push({
+              file: sourceFile,
+              originalSize: sourceFile.size,
+              compressedSize: sourceFile.size,
+              compressed: false,
+            })
+            warnings.push(`${sourceFile.name} stayed at its original size.`)
+          } else {
+            console.warn(`Skipping oversized photo ${sourceFile.name}.`, compressionError)
+            warnings.push(
+              `${sourceFile.name} was skipped because it could not be reduced below 700 KB.`,
+            )
+          }
         }
+      }
+
+      if (preparedPhotos.length === 0) {
+        setErrorMessage(warnings.join(' ') || 'No photos could be prepared for this update.')
+        setMessage('')
+        return [] as PhotoInput[]
       }
 
       const metadata = await metadataPromise
@@ -2403,7 +2594,14 @@ export default function ProjectUpdates() {
         photoKind: options.photoKind,
       }))
 
-      setPhotoInputs((previous) => [...previous, ...mappedPhotos])
+      setPhotoInputs((previous) => {
+        const nextPhotos = [...previous, ...mappedPhotos].slice(
+          0,
+          MAX_INSPECTION_PHOTOS_PER_UPDATE,
+        )
+        photoInputsRef.current = nextPhotos
+        return nextPhotos
+      })
 
       if (
         options.captureGps &&
@@ -2431,15 +2629,23 @@ export default function ProjectUpdates() {
         ? Math.max(0, Math.round((1 - compressedBytes / originalBytes) * 100))
         : 0
       const skippedMessage = rejectedCount > 0 ? ` ${rejectedCount} non-image file(s) were skipped.` : ''
-      const warningMessage = warnings.length > 0 ? ` ${warnings.length} photo(s) kept their original size.` : ''
+      const limitMessage = overLimitCount > 0
+        ? ` ${overLimitCount} photo(s) were skipped because the maximum is ${MAX_INSPECTION_PHOTOS_PER_UPDATE}.`
+        : ''
+      const warningMessage = warnings.length > 0 ? ` ${warnings.join(' ')}` : ''
       const gpsMessage = options.captureGps ? ` ${metadata.gpsMessage}` : ''
 
       setMessage(
-        `${mappedPhotos.length} photo(s) ready. ${originalMb.toFixed(1)} MB was reduced to ${compressedMb.toFixed(1)} MB (${savedPercent}% smaller).${gpsMessage}${skippedMessage}${warningMessage}`,
+        `${mappedPhotos.length} photo(s) ready. ${originalMb.toFixed(1)} MB was reduced to ${compressedMb.toFixed(1)} MB (${savedPercent}% smaller).${gpsMessage}${skippedMessage}${limitMessage}${warningMessage}`,
       )
 
-      if (rejectedCount > 0 || warnings.length > 0 || (options.captureGps && metadata.latitude === null)) {
-        setErrorMessage(`${gpsMessage}${skippedMessage}${warningMessage}`.trim())
+      if (
+        rejectedCount > 0 ||
+        overLimitCount > 0 ||
+        warnings.length > 0 ||
+        (options.captureGps && metadata.latitude === null)
+      ) {
+        setErrorMessage(`${gpsMessage}${skippedMessage}${limitMessage}${warningMessage}`.trim())
       }
 
       return mappedPhotos
@@ -2533,7 +2739,9 @@ export default function ProjectUpdates() {
         URL.revokeObjectURL(photoToRemove.previewUrl)
       }
 
-      return previous.filter((photo) => photo.id !== photoId)
+      const nextPhotos = previous.filter((photo) => photo.id !== photoId)
+      photoInputsRef.current = nextPhotos
+      return nextPhotos
     })
   }
 
@@ -2799,6 +3007,17 @@ export default function ProjectUpdates() {
 
     if (!canSubmit) {
       return'You are not allowed to submit project updates.'
+    }
+
+    if (photoInputs.length > MAX_INSPECTION_PHOTOS_PER_UPDATE) {
+      return `A project update can contain up to ${MAX_INSPECTION_PHOTOS_PER_UPDATE} photos. Remove the extra photos before saving.`
+    }
+
+    const oversizedPhoto = photoInputs.find(
+      (photo) => photo.file.size > MAX_INSPECTION_PHOTO_BYTES,
+    )
+    if (oversizedPhoto) {
+      return `${oversizedPhoto.file.name} is larger than 700 KB. Remove it and add the photo again so PMS10 can compress it.`
     }
 
     if (!inspectionDate) {
@@ -3114,6 +3333,7 @@ export default function ProjectUpdates() {
     } as any)
 
     const photoRows = await Promise.all(failedPhotos.map(async ({ photo, index, message }) => ({
+      client_photo_id: photo.id,
       offline_update_id: offlineUpdateId,
       local_update_id: localQueueId,
       project_update_id: updateId,
@@ -3160,6 +3380,7 @@ export default function ProjectUpdates() {
       try {
         const uploadedFile = await uploadProjectPhotoToDrive({
           file: photo.file,
+          photoId: photo.id,
           projectId,
           updateId,
           projectTitle,
@@ -3170,17 +3391,12 @@ export default function ProjectUpdates() {
           uploadedBy,
         })
 
-        const { error: photoInsertError } = await supabase.from('project_photos').insert([
-          {
-            project_id: projectId,
-            project_update_id: updateId,
-            photo_url: getDrivePhotoUrl(uploadedFile),
-            caption: getInspectionPhotoCaption(photo, index) ?? '',
-            uploaded_at: new Date().toISOString(),
-          },
-        ])
-
-        if (photoInsertError) throw photoInsertError
+        await ensureProjectPhotoReference({
+          projectId,
+          projectUpdateId: updateId,
+          photoUrl: getDrivePhotoUrl(uploadedFile),
+          caption: getInspectionPhotoCaption(photo, index) ?? '',
+        })
         uploadedCount += 1
       } catch (error: any) {
         console.error(`Unable to upload project photo ${index + 1}.`, error)
@@ -3263,6 +3479,7 @@ export default function ProjectUpdates() {
     const offlineUpdateId = await updateTable.add(offlineUpdateRecord)
 
     const offlinePhotoRecords = await Promise.all(photoInputs.map(async (photo, index) => ({
+      client_photo_id: photo.id,
       offline_update_id: offlineUpdateId,
       local_update_id: localUpdateId,
       project_update_id: localUpdateId,
@@ -3369,6 +3586,7 @@ export default function ProjectUpdates() {
 
   function clearFormAfterSave() {
     autoSaveSuspendedRef.current = true
+    clearFormDraft(shadowDraftKey)
     setIssues('')
     setRecommendations('')
     setRemarks('')
@@ -4801,7 +5019,14 @@ export default function ProjectUpdates() {
             label: 'Back to Project',
             icon: <IconBack />,
             tone: 'neutral',
-            onSelect: () => navigate(`/projects/${id}`),
+            onSelect: () => {
+              if (id) {
+                navigate(`/projects/${id}`)
+                return
+              }
+
+              navigate('/projects')
+            },
           },
         ]}
       />

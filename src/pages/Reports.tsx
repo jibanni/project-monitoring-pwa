@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
+import { useDesktopViewport } from '../hooks/useDesktopViewport'
+import { readPageView, writePageView } from '../lib/pageViewMemory'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import { normalizeProgramName } from '../utils/program'
 import { getPmsRiskLevel } from '../utils/projectStatus'
@@ -564,6 +566,7 @@ function ExcelIcon() {
 }
 
 export default function Reports() {
+  const isDesktopViewport = useDesktopViewport()
   const auth = useAuth()
 
   const {
@@ -575,16 +578,46 @@ export default function Reports() {
   const [poEngineerAssignments, setPoEngineerAssignments] = useState<PoEngineerAssignmentRow[]>([])
   const [profileMap, setProfileMap] = useState<ProfileLookupMap>({})
   const [latestUpdateMap] = useState<LatestUpdateMap>({})
-  const [showFilters, setShowFilters] = useState(false)
+  const rememberedView = readPageView('reports', {
+    showFilters: false,
+    searchTerm: '',
+    provinceFilter: '',
+    municipalityFilter: '',
+    programFilter: '',
+    statusFilter: '',
+    riskFilter: '',
+  })
+
+  const [showFilters, setShowFilters] = useState(Boolean(rememberedView.showFilters))
   const [portalReady, setPortalReady] = useState(false)
   const [isReportsScrolled, setIsReportsScrolled] = useState(false)
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const [provinceFilter, setProvinceFilter] = useState('')
-  const [municipalityFilter, setMunicipalityFilter] = useState('')
-  const [programFilter, setProgramFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [riskFilter, setRiskFilter] = useState('')
+  const [searchTerm, setSearchTerm] = useState(rememberedView.searchTerm || '')
+  const [provinceFilter, setProvinceFilter] = useState(rememberedView.provinceFilter || '')
+  const [municipalityFilter, setMunicipalityFilter] = useState(rememberedView.municipalityFilter || '')
+  const [programFilter, setProgramFilter] = useState(rememberedView.programFilter || '')
+  const [statusFilter, setStatusFilter] = useState(rememberedView.statusFilter || '')
+  const [riskFilter, setRiskFilter] = useState(rememberedView.riskFilter || '')
+
+  useEffect(() => {
+    writePageView('reports', {
+      showFilters,
+      searchTerm,
+      provinceFilter,
+      municipalityFilter,
+      programFilter,
+      statusFilter,
+      riskFilter,
+    })
+  }, [
+    showFilters,
+    searchTerm,
+    provinceFilter,
+    municipalityFilter,
+    programFilter,
+    statusFilter,
+    riskFilter,
+  ])
 
   useEffect(() => {
     setPortalReady(true)
@@ -1071,16 +1104,18 @@ export default function Reports() {
   return (
     <>
       <div className={`reports-page ${isReportsScrolled ? 'is-reports-scrolled' : ''}`}>
-        <section className="reports-hero">
-          <div>
-            <p className="reports-eyebrow">Reports Module</p>
-            <h1>Project Reports</h1>
-            <p>
-              Generate project monitoring reports by province, LGU, funding source,
-              implementation status, and risk level.
-            </p>
-          </div>
-        </section>
+        {!isDesktopViewport && (
+          <section className="reports-hero">
+            <div>
+              <p className="reports-eyebrow">Reports Module</p>
+              <h1>Project Reports</h1>
+              <p>
+                Generate project monitoring reports by province, LGU, funding source,
+                implementation status, and risk level.
+              </p>
+            </div>
+          </section>
+        )}
 
         {errorMessage && projects.length === 0 && (
           <section className="reports-error-card" role="alert">

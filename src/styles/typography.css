@@ -1,0 +1,457 @@
+/* =========================================================
+   PMS10 GLOBAL TYPOGRAPHY SYSTEM
+   Facebook-inspired discipline:
+   - small, limited type scale
+   - only 400 / 600 / 700 font weights
+   - no decorative italics in the application UI
+   - system-native sans serif
+   - applies to desktop + mobile
+   ========================================================= */
+
+:root {
+  --pms-font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  /* Limited PMS10 type scale */
+  --pms-type-xs: 12px;
+  --pms-type-sm: 14px;
+  --pms-type-md: 16px;
+  --pms-type-lg: 20px;
+  --pms-type-page-mobile: 28px;
+  --pms-type-page: 32px;
+
+  /* Only three UI weights */
+  --pms-weight-regular: 400;
+  --pms-weight-semibold: 600;
+  --pms-weight-bold: 700;
+
+  --pms-leading-tight: 1.15;
+  --pms-leading-normal: 1.4;
+  --pms-tracking-label: 0.08em;
+}
+
+/* ---------------------------------------------------------
+   Global application base
+   --------------------------------------------------------- */
+
+html,
+body,
+#root {
+  font-family: var(--pms-font-family) !important;
+}
+
+#root {
+  font-size: var(--pms-type-sm);
+  font-weight: var(--pms-weight-regular);
+  line-height: var(--pms-leading-normal);
+}
+
+#root *,
+#root *::before,
+#root *::after {
+  font-family: inherit;
+}
+
+/* Preserve monospaced content if PMS10 ever renders code-like text. */
+#root code,
+#root pre,
+#root kbd,
+#root samp {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    monospace !important;
+}
+
+/* PMS10 application UI does not use decorative italics. */
+#root em,
+#root i,
+#root cite,
+#root [class*="italic"] {
+  font-style: normal !important;
+}
+
+/* ---------------------------------------------------------
+   Semantic hierarchy
+   --------------------------------------------------------- */
+
+#root h1 {
+  margin-top: 0;
+  font-size: var(--pms-type-page) !important;
+  font-weight: var(--pms-weight-bold) !important;
+  line-height: var(--pms-leading-tight) !important;
+  letter-spacing: -0.03em !important;
+}
+
+#root h2 {
+  font-size: var(--pms-type-lg) !important;
+  font-weight: var(--pms-weight-bold) !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em !important;
+}
+
+#root h3,
+#root h4,
+#root h5,
+#root h6 {
+  font-size: var(--pms-type-md) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.01em !important;
+}
+
+#root p,
+#root li,
+#root dd,
+#root dt,
+#root td {
+  font-size: var(--pms-type-sm);
+  font-weight: var(--pms-weight-regular);
+}
+
+#root strong,
+#root b {
+  font-weight: var(--pms-weight-semibold);
+}
+
+/* ---------------------------------------------------------
+   Controls
+   --------------------------------------------------------- */
+
+#root button,
+#root [role="button"],
+#root a {
+  font-size: var(--pms-type-sm);
+  font-weight: var(--pms-weight-semibold);
+  font-style: normal;
+}
+
+#root input,
+#root select,
+#root textarea {
+  font-size: var(--pms-type-sm) !important;
+  font-weight: var(--pms-weight-regular) !important;
+  line-height: var(--pms-leading-normal) !important;
+  font-style: normal !important;
+}
+
+#root input::placeholder,
+#root textarea::placeholder {
+  font-size: var(--pms-type-sm);
+  font-weight: var(--pms-weight-regular);
+}
+
+/* Form labels and table headers use the small label tier. */
+#root label,
+#root th {
+  font-size: var(--pms-type-xs) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* ---------------------------------------------------------
+   Reusable PMS10 eyebrow / kicker / metadata tier
+   --------------------------------------------------------- */
+
+#root [class*="eyebrow"],
+#root [class*="kicker"],
+#root [class*="section-label"],
+#root .app-sidebar-section-label,
+#root .app-user-role,
+#root .dashboard-card-kicker,
+#root .dashboard-modal-project-kicker,
+#root .projects-section-eyebrow,
+#root .pd-info-item > span,
+#root .pd-description-box > span,
+#root .pd-note-box > span,
+#root .pu-field > label,
+#root .edit-project-field > label,
+#root .create-project-card label,
+#root .user-management-state,
+#root .offline-sync-compact-group-title {
+  font-size: var(--pms-type-xs) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+  line-height: 1.2 !important;
+  letter-spacing: var(--pms-tracking-label) !important;
+  font-style: normal !important;
+}
+
+/* ---------------------------------------------------------
+   Main page titles
+   --------------------------------------------------------- */
+
+#root .app-desktop-page-title,
+#root .dashboard-hero h1,
+#root .projects-hero h1,
+#root .pm-map-hero h1,
+#root .reports-hero h1,
+#root .offline-sync-hero h1,
+#root .user-management-hero h1,
+#root .create-project-hero h1,
+#root .edit-project-hero h1 {
+  font-size: var(--pms-type-page) !important;
+  font-weight: var(--pms-weight-bold) !important;
+  line-height: var(--pms-leading-tight) !important;
+  letter-spacing: -0.03em !important;
+}
+
+/* Project Details / Project Update have potentially long project titles.
+   Keep them on the major-title tier without ultra-heavy weights. */
+#root .pd-unified-hero-title,
+#root .pu-hero h1,
+#root .pu-update-hero-card h1 {
+  font-weight: var(--pms-weight-bold) !important;
+}
+
+/* ---------------------------------------------------------
+   Sidebar + application chrome
+   --------------------------------------------------------- */
+
+#root .app-brand-title,
+#root .app-sidebar-brand-copy strong {
+  font-size: var(--pms-type-md) !important;
+  font-weight: var(--pms-weight-bold) !important;
+  letter-spacing: 0 !important;
+}
+
+#root .app-brand-subtitle,
+#root .app-brand-unit,
+#root .app-sidebar-brand-copy span,
+#root .app-sidebar-office-copy span {
+  font-size: var(--pms-type-xs) !important;
+  font-weight: var(--pms-weight-regular) !important;
+  letter-spacing: 0 !important;
+}
+
+#root .app-nav-label,
+#root .app-sidebar-link-label,
+#root .app-mobile-nav-label {
+  font-size: var(--pms-type-sm) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+  letter-spacing: 0 !important;
+}
+
+#root .app-user-name {
+  font-size: var(--pms-type-sm) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+  letter-spacing: 0 !important;
+}
+
+#root .app-user-role {
+  font-size: var(--pms-type-xs) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+  letter-spacing: 0.06em !important;
+}
+
+#root .app-logout-button,
+#root .app-user-logout-inline {
+  font-size: var(--pms-type-sm) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+}
+
+/* ---------------------------------------------------------
+   Card / section titles
+   --------------------------------------------------------- */
+
+#root .dashboard-card-header h2,
+#root .projects-list-header h2,
+#root .pm-map-card-header h2,
+#root .reports-table-header h2,
+#root .user-management-list-header h2,
+#root .pd-section-header h2,
+#root .pu-aide-section-heading,
+#root .edit-project-section-header h2,
+#root .create-project-card-header h2,
+#root .offline-sync-compact-heading {
+  font-size: var(--pms-type-md) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Bigger standalone section headings */
+#root .dashboard-completion-card > .dashboard-card-header h2,
+#root .dashboard-priority-section > .dashboard-card-header h2,
+#root .dashboard-recent-section > .dashboard-card-header h2 {
+  font-size: var(--pms-type-lg) !important;
+  font-weight: var(--pms-weight-bold) !important;
+}
+
+/* ---------------------------------------------------------
+   KPI / major values
+   --------------------------------------------------------- */
+
+#root .dashboard-stat-card > strong,
+#root .projects-summary-card > strong,
+#root .pm-map-summary-card > strong,
+#root .user-management-summary-card > strong,
+#root .pd-summary-card > strong {
+  font-size: var(--pms-type-page) !important;
+  font-weight: var(--pms-weight-bold) !important;
+  line-height: 1 !important;
+  letter-spacing: -0.03em !important;
+}
+
+/* Currency/date values should stay readable rather than oversized. */
+#root .pd-summary-card > .pd-cost-value,
+#root .pd-summary-card > .pd-date-value {
+  font-size: var(--pms-type-lg) !important;
+  font-weight: var(--pms-weight-bold) !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* ---------------------------------------------------------
+   Information cards / table content
+   --------------------------------------------------------- */
+
+#root .pd-info-item strong,
+#root .pd-description-box p,
+#root .pd-note-box p,
+#root .project-row-main h3,
+#root .pm-map-project-card h3,
+#root .pm-map-popup h3,
+#root .user-management-person strong,
+#root .user-management-mobile-card strong {
+  font-size: var(--pms-type-sm) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+  line-height: 1.3 !important;
+}
+
+#root .project-row-location,
+#root .pm-map-project-meta,
+#root .dashboard-modal-project-location,
+#root .dashboard-modal-project-meta,
+#root .user-management-mobile-meta,
+#root .reports-info-line {
+  font-size: var(--pms-type-sm) !important;
+  font-weight: var(--pms-weight-regular) !important;
+}
+
+/* ---------------------------------------------------------
+   Pills / badges / chips
+   --------------------------------------------------------- */
+
+#root [class*="badge"],
+#root [class*="chip"],
+#root [class*="pill"],
+#root .project-row-status-stack,
+#root .dashboard-modal-project-meta,
+#root .pm-map-popup-badges,
+#root .reports-mobile-badges,
+#root .user-management-state {
+  font-size: var(--pms-type-xs) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+  font-style: normal !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Avoid accidental oversized text inside pill wrappers. */
+#root [class*="badge"] strong,
+#root [class*="chip"] strong,
+#root [class*="pill"] strong {
+  font-size: inherit !important;
+  font-weight: inherit !important;
+}
+
+/* ---------------------------------------------------------
+   Modal / drilldown hierarchy
+   --------------------------------------------------------- */
+
+#root .dashboard-modal-header h2,
+#root .pd-history-modal-header h2,
+#root .user-management-modal-header h2,
+#root .offline-sync-remove-dialog h2 {
+  font-size: var(--pms-type-lg) !important;
+  font-weight: var(--pms-weight-bold) !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em !important;
+}
+
+#root .dashboard-modal-project-info h3,
+#root .pd-history-modal-item h3 {
+  font-size: var(--pms-type-md) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+}
+
+/* ---------------------------------------------------------
+   Auth pages
+   --------------------------------------------------------- */
+
+#root .auth-form-header h1 {
+  font-size: var(--pms-type-page) !important;
+  font-weight: var(--pms-weight-bold) !important;
+}
+
+#root .auth-eyebrow,
+#root .auth-footnote,
+#root .auth-brand-credit {
+  font-size: var(--pms-type-xs) !important;
+}
+
+#root .auth-submit-btn {
+  font-size: var(--pms-type-sm) !important;
+  font-weight: var(--pms-weight-semibold) !important;
+}
+
+/* ---------------------------------------------------------
+   MOBILE
+   Same system, only the major page-title tier steps down.
+   Inputs stay at 16px to avoid iOS focus zoom.
+   --------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  #root h1,
+  #root .dashboard-hero h1,
+  #root .projects-hero h1,
+  #root .pm-map-hero h1,
+  #root .reports-hero h1,
+  #root .offline-sync-hero h1,
+  #root .user-management-hero h1,
+  #root .create-project-hero h1,
+  #root .edit-project-hero h1,
+  #root .auth-form-header h1 {
+    font-size: var(--pms-type-page-mobile) !important;
+  }
+
+  /* Important iPhone/Safari usability safeguard. */
+  #root input,
+  #root select,
+  #root textarea {
+    font-size: var(--pms-type-md) !important;
+  }
+
+  #root .dashboard-stat-card > strong,
+  #root .projects-summary-card > strong,
+  #root .pm-map-summary-card > strong,
+  #root .user-management-summary-card > strong,
+  #root .pd-summary-card > strong {
+    font-size: var(--pms-type-page-mobile) !important;
+  }
+
+  #root .pd-summary-card > .pd-cost-value,
+  #root .pd-summary-card > .pd-date-value {
+    font-size: var(--pms-type-md) !important;
+  }
+}
+
+/* ---------------------------------------------------------
+   PRINT
+   Keep generated/printable web content readable.
+   --------------------------------------------------------- */
+
+@media print {
+  #root {
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+}

@@ -15,13 +15,18 @@ import {
 
 import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
+import { useDesktopViewport } from '../hooks/useDesktopViewport'
+import { readPageView, removePageView, writePageView } from '../lib/pageViewMemory'
 import { filterProjectsByAor, type AorProjectLike } from '../utils/aorAccess'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
+import { getOfficialProjectCost } from '../utils/projectVariance'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
 import {
   getCanonicalProjectLgu,
   getCanonicalProjectProvinceOrHuc,
 } from '../data/region10Directory'
+import '../styles/dashboardDrilldownFilters.css'
+import '../styles/dashboardFinancialAccomplishment.css'
 
 type ProjectRecord = SharedProjectRow & AorProjectLike & Record<string, any>
 
@@ -31,6 +36,22 @@ type DrilldownState = {
   projects: ProjectRecord[]
 }
 
+type DrilldownFilters = {
+  search: string
+  program: string
+  year: string
+  province: string
+  lgu: string
+}
+
+type DashboardDrilldownMemory = {
+  title: string
+  subtitle: string
+  projectIds: string[]
+  visibleCount: number
+  scrollTop: number
+  filters?: DrilldownFilters
+}
 
 type DashboardFilters = {
   program: string
@@ -42,6 +63,14 @@ type DashboardFilters = {
 const ALL_FILTER_VALUE = '__ALL__'
 
 const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
+  program: ALL_FILTER_VALUE,
+  year: ALL_FILTER_VALUE,
+  province: ALL_FILTER_VALUE,
+  lgu: ALL_FILTER_VALUE,
+}
+
+const DEFAULT_DRILLDOWN_FILTERS: DrilldownFilters = {
+  search: '',
   program: ALL_FILTER_VALUE,
   year: ALL_FILTER_VALUE,
   province: ALL_FILTER_VALUE,
@@ -281,6 +310,20 @@ function getPhysicalProgress(project: ProjectRecord) {
   )
 }
 
+function clampDashboardPercent(value: unknown) {
+  return Math.min(100, Math.max(0, asNumber(value)))
+}
+
+function getFinancialProgress(project: ProjectRecord) {
+  return clampDashboardPercent(
+    project.financial_accomplishment ??
+      project.financial_progress ??
+      project.financial_percentage ??
+      project.financial ??
+      project.actual_financial,
+  )
+}
+
 function getUpdatedTime(project: ProjectRecord) {
   const value =
     project.updated_at ??
@@ -330,9 +373,19 @@ function getRiskColor(riskLevel: unknown, fallbackIndex = 0) {
 }
 
 export default function Dashboard() {
+  const isDesktopViewport = useDesktopViewport()
   const navigate = useNavigate()
   const auth = useAuth()
   const modalCloseTimerRef = useRef<number | null>(null)
+  const modalBodyRef = useRef<HTMLDivElement | null>(null)
+  const rememberedDrilldownRef = useRef(
+    readPageView<DashboardDrilldownMemory | null>('dashboard:drilldown', null),
+  )
+  const drilldownScrollTopRef = useRef(rememberedDrilldownRef.current?.scrollTop || 0)
+  const rememberedView = readPageView('dashboard', {
+    filters: DEFAULT_DASHBOARD_FILTERS,
+    showFilters: false,
+  })
 
   const {
     projects,
@@ -342,12 +395,28 @@ export default function Dashboard() {
   } = useSharedProjects<ProjectRecord>()
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
   const [isDrilldownClosing, setIsDrilldownClosing] = useState(false)
-  const [drilldownVisibleCount, setDrilldownVisibleCount] = useState(DRILLDOWN_PAGE_SIZE)
-  const [isDashboardScrolled, setIsDashboardScrolled] = useState(false)
-  const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>(
-    DEFAULT_DASHBOARD_FILTERS,
+  const [drilldownVisibleCount, setDrilldownVisibleCount] = useState(
+    rememberedDrilldownRef.current?.visibleCount || DRILLDOWN_PAGE_SIZE,
   )
-  const [showDashboardFilters, setShowDashboardFilters] = useState(false)
+  const [drilldownFilters, setDrilldownFilters] = useState<DrilldownFilters>({
+    ...DEFAULT_DRILLDOWN_FILTERS,
+    ...(rememberedDrilldownRef.current?.filters || {}),
+  })
+  const [isDashboardScrolled, setIsDashboardScrolled] = useState(false)
+  const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>({
+    ...DEFAULT_DASHBOARD_FILTERS,
+    ...(rememberedView.filters || {}),
+  })
+  const [showDashboardFilters, setShowDashboardFilters] = useState(
+    Boolean(rememberedView.showFilters),
+  )
+
+  useEffect(() => {
+    writePageView('dashboard', {
+      filters: dashboardFilters,
+      showFilters: showDashboardFilters,
+    })
+  }, [dashboardFilters, showDashboardFilters])
 
   useEffect(() => {
     return () => {
@@ -409,7 +478,21 @@ export default function Dashboard() {
       window.clearTimeout(modalCloseTimerRef.current)
     }
 
+    const memory: DashboardDrilldownMemory = {
+      title,
+      subtitle,
+      projectIds: selectedProjects.map((project) => project.id),
+      visibleCount: DRILLDOWN_PAGE_SIZE,
+      scrollTop: 0,
+      filters: DEFAULT_DRILLDOWN_FILTERS,
+    }
+
+    rememberedDrilldownRef.current = memory
+    drilldownScrollTopRef.current = 0
+    writePageView('dashboard:drilldown', memory)
+
     setIsDrilldownClosing(false)
+    setDrilldownFilters(DEFAULT_DRILLDOWN_FILTERS)
     setDrilldownVisibleCount(DRILLDOWN_PAGE_SIZE)
     setDrilldown({
       title,
@@ -422,6 +505,9 @@ export default function Dashboard() {
     if (!drilldown || isDrilldownClosing) return
 
     setIsDrilldownClosing(true)
+    rememberedDrilldownRef.current = null
+    drilldownScrollTopRef.current = 0
+    removePageView('dashboard:drilldown')
 
     modalCloseTimerRef.current = window.setTimeout(() => {
       setDrilldown(null)
@@ -473,6 +559,56 @@ export default function Dashboard() {
       )
     })
   }, [aorProjects, dashboardFilters])
+
+  useEffect(() => {
+    const remembered = rememberedDrilldownRef.current
+    if (!remembered || drilldown || loading) return
+
+    const byId = new Map(visibleProjects.map((project) => [project.id, project]))
+    const restoredProjects = remembered.projectIds
+      .map((projectId) => byId.get(projectId))
+      .filter((project): project is ProjectRecord => Boolean(project))
+
+    if (remembered.projectIds.length > 0 && restoredProjects.length === 0) return
+
+    setDrilldownVisibleCount(
+      Math.max(DRILLDOWN_PAGE_SIZE, Number(remembered.visibleCount) || DRILLDOWN_PAGE_SIZE),
+    )
+    setDrilldownFilters({
+      ...DEFAULT_DRILLDOWN_FILTERS,
+      ...(remembered.filters || {}),
+    })
+    setDrilldown({
+      title: remembered.title,
+      subtitle: remembered.subtitle,
+      projects: restoredProjects,
+    })
+  }, [drilldown, loading, visibleProjects])
+
+  useEffect(() => {
+    if (!drilldown) return
+
+    const projectIds = drilldown.projects.map((project) => project.id)
+    const memory: DashboardDrilldownMemory = {
+      title: drilldown.title,
+      subtitle: drilldown.subtitle,
+      projectIds,
+      visibleCount: drilldownVisibleCount,
+      scrollTop: drilldownScrollTopRef.current,
+      filters: drilldownFilters,
+    }
+
+    rememberedDrilldownRef.current = memory
+    writePageView('dashboard:drilldown', memory)
+
+    const frame = window.requestAnimationFrame(() => {
+      if (modalBodyRef.current) {
+        modalBodyRef.current.scrollTop = drilldownScrollTopRef.current
+      }
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [drilldown, drilldownVisibleCount, drilldownFilters])
 
   const dashboardData = useMemo(() => {
     const underProcurementProjects = visibleProjects.filter(
@@ -535,6 +671,49 @@ export default function Dashboard() {
         ? Math.round((completedProjects.length / visibleProjects.length) * 100)
         : 0
 
+    const financialWeightBase = visibleProjects.reduce(
+      (sum, project) => sum + Math.max(0, getOfficialProjectCost(project as unknown as Parameters<typeof getOfficialProjectCost>[0])),
+      0,
+    )
+
+    const weightedFinancialAccomplishment = visibleProjects.reduce(
+      (sum, project) => {
+        const cost = Math.max(0, getOfficialProjectCost(project as unknown as Parameters<typeof getOfficialProjectCost>[0]))
+
+        return sum + cost * (getFinancialProgress(project) / 100)
+      },
+      0,
+    )
+
+    const simpleFinancialAverage =
+      visibleProjects.length > 0
+        ? visibleProjects.reduce(
+            (sum, project) => sum + getFinancialProgress(project),
+            0,
+          ) / visibleProjects.length
+        : 0
+
+    const financialAccomplishment =
+      financialWeightBase > 0
+        ? (weightedFinancialAccomplishment / financialWeightBase) * 100
+        : simpleFinancialAverage
+
+    const financialAccomplishmentMethod =
+      financialWeightBase > 0
+        ? 'Cost-weighted across visible project costs'
+        : 'Average across visible projects'
+
+    const financialPerformanceData = [
+      {
+        name: 'Financial Accomplishment',
+        value: financialAccomplishment,
+      },
+      {
+        name: 'Remaining',
+        value: Math.max(0, 100 - financialAccomplishment),
+      },
+    ]
+
     const completionData = [
       { name: 'Completed', count: completedProjects.length },
       { name: 'Remaining', count: completionRemainingCount },
@@ -576,6 +755,9 @@ export default function Dashboard() {
       completionPendingProjects,
       completionRemainingCount,
       completionRate,
+      financialAccomplishment,
+      financialAccomplishmentMethod,
+      financialPerformanceData,
       completionData,
       statusData,
       riskData,
@@ -676,6 +858,89 @@ export default function Dashboard() {
     },
   ]
 
+  const drilldownFilterOptions = useMemo(() => {
+    const sourceProjects = drilldown?.projects || []
+    const provinceProjects = sourceProjects.filter((project) =>
+      drilldownFilters.province === ALL_FILTER_VALUE
+        ? true
+        : getProvinceFilterValue(project) === drilldownFilters.province,
+    )
+
+    return {
+      programs: buildProgramFilterOptions(
+        sourceProjects.map(getProgramFilterValue),
+        false,
+      ),
+      years: uniqueSortedTextValues(sourceProjects.map(getYearFilterValue)).sort(
+        (a, b) => asNumber(b) - asNumber(a),
+      ),
+      provinces: uniqueSortedTextValues(sourceProjects.map(getProvinceFilterValue)),
+      lgus: uniqueSortedTextValues(provinceProjects.map(getLguFilterValue)),
+    }
+  }, [drilldown, drilldownFilters.province])
+
+  const filteredDrilldownProjects = useMemo(() => {
+    if (!drilldown) return []
+
+    const search = normalizeForCompare(drilldownFilters.search)
+
+    return drilldown.projects.filter((project) => {
+      const searchableText = normalizeForCompare(
+        [
+          getProjectName(project),
+          getLocation(project),
+          getFundingDisplay(project),
+          getStatus(project),
+          getRiskLevel(project),
+        ].join(' '),
+      )
+
+      return (
+        (!search || searchableText.includes(search)) &&
+        matchesDashboardFilter(
+          getProgramFilterValue(project),
+          drilldownFilters.program,
+        ) &&
+        matchesDashboardFilter(getYearFilterValue(project), drilldownFilters.year) &&
+        matchesDashboardFilter(
+          getProvinceFilterValue(project),
+          drilldownFilters.province,
+        ) &&
+        matchesDashboardFilter(getLguFilterValue(project), drilldownFilters.lgu)
+      )
+    })
+  }, [drilldown, drilldownFilters])
+
+  const hasActiveDrilldownFilters = useMemo(() => {
+    return (
+      drilldownFilters.search.trim().length > 0 ||
+      drilldownFilters.program !== ALL_FILTER_VALUE ||
+      drilldownFilters.year !== ALL_FILTER_VALUE ||
+      drilldownFilters.province !== ALL_FILTER_VALUE ||
+      drilldownFilters.lgu !== ALL_FILTER_VALUE
+    )
+  }, [drilldownFilters])
+
+  function updateDrilldownFilters(next: Partial<DrilldownFilters>) {
+    setDrilldownFilters((current) => ({ ...current, ...next }))
+    setDrilldownVisibleCount(DRILLDOWN_PAGE_SIZE)
+    drilldownScrollTopRef.current = 0
+
+    window.requestAnimationFrame(() => {
+      if (modalBodyRef.current) modalBodyRef.current.scrollTop = 0
+    })
+  }
+
+  function clearDrilldownFilters() {
+    setDrilldownFilters(DEFAULT_DRILLDOWN_FILTERS)
+    setDrilldownVisibleCount(DRILLDOWN_PAGE_SIZE)
+    drilldownScrollTopRef.current = 0
+
+    window.requestAnimationFrame(() => {
+      if (modalBodyRef.current) modalBodyRef.current.scrollTop = 0
+    })
+  }
+
   function renderProjectCard(project: ProjectRecord) {
     const projectId = getProjectId(project)
     const projectName = getProjectName(project)
@@ -727,9 +992,12 @@ export default function Dashboard() {
   function renderModal() {
     if (!drilldown) return null
 
-    const visibleDrilldownProjects = drilldown.projects.slice(0, drilldownVisibleCount)
+    const visibleDrilldownProjects = filteredDrilldownProjects.slice(
+      0,
+      drilldownVisibleCount,
+    )
     const hiddenDrilldownCount = Math.max(
-      drilldown.projects.length - visibleDrilldownProjects.length,
+      filteredDrilldownProjects.length - visibleDrilldownProjects.length,
       0,
     )
 
@@ -755,8 +1023,10 @@ export default function Dashboard() {
               <p className="dashboard-modal-eyebrow">Dashboard Drilldown</p>
               <h2 id="dashboard-drilldown-title">{drilldown.title}</h2>
               <p>
-                {drilldown.subtitle} Showing {formatCount(drilldown.projects.length)}{' '}
-                record{drilldown.projects.length === 1 ? '' : 's'}.
+                {drilldown.subtitle}{' '}
+                {hasActiveDrilldownFilters
+                  ? `Showing ${formatCount(filteredDrilldownProjects.length)} of ${formatCount(drilldown.projects.length)} records.`
+                  : `Showing ${formatCount(drilldown.projects.length)} record${drilldown.projects.length === 1 ? '' : 's'}.`}
               </p>
             </div>
 
@@ -770,8 +1040,125 @@ export default function Dashboard() {
             </button>
           </header>
 
-          <div className="dashboard-modal-body">
-            {drilldown.projects.length > 0 ? (
+          <div className="dashboard-drilldown-filterbar" aria-label="Drilldown filters">
+            <label className="dashboard-drilldown-search">
+              <span>Search</span>
+              <input
+                type="search"
+                value={drilldownFilters.search}
+                placeholder="Search project or location"
+                onChange={(event) =>
+                  updateDrilldownFilters({ search: event.target.value })
+                }
+              />
+            </label>
+
+            <label>
+              <span>Program</span>
+              <select
+                value={drilldownFilters.program}
+                onChange={(event) =>
+                  updateDrilldownFilters({ program: event.target.value })
+                }
+              >
+                <option value={ALL_FILTER_VALUE}>All Programs</option>
+                {drilldownFilterOptions.programs.map((program) => {
+                  const label = normalizeProgramName(program) || String(program)
+                  return (
+                    <option key={label} value={label}>
+                      {label}
+                    </option>
+                  )
+                })}
+              </select>
+            </label>
+
+            <label>
+              <span>FY</span>
+              <select
+                value={drilldownFilters.year}
+                onChange={(event) =>
+                  updateDrilldownFilters({ year: event.target.value })
+                }
+              >
+                <option value={ALL_FILTER_VALUE}>All FY</option>
+                {drilldownFilterOptions.years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Province/HUC</span>
+              <select
+                value={drilldownFilters.province}
+                onChange={(event) =>
+                  updateDrilldownFilters({
+                    province: event.target.value,
+                    lgu: ALL_FILTER_VALUE,
+                  })
+                }
+              >
+                <option value={ALL_FILTER_VALUE}>All Provinces/HUCs</option>
+                {drilldownFilterOptions.provinces.map((province) => (
+                  <option key={province} value={province}>
+                    {province}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>LGU</span>
+              <select
+                value={drilldownFilters.lgu}
+                onChange={(event) =>
+                  updateDrilldownFilters({ lgu: event.target.value })
+                }
+              >
+                <option value={ALL_FILTER_VALUE}>All LGUs</option>
+                {drilldownFilterOptions.lgus.map((lgu) => (
+                  <option key={lgu} value={lgu}>
+                    {lgu}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              className="dashboard-drilldown-filter-reset"
+              disabled={!hasActiveDrilldownFilters}
+              onClick={clearDrilldownFilters}
+            >
+              Reset
+            </button>
+          </div>
+
+          <div
+            className="dashboard-modal-body"
+            ref={modalBodyRef}
+            onScroll={(event) => {
+              const scrollTop = event.currentTarget.scrollTop
+              drilldownScrollTopRef.current = scrollTop
+
+              if (drilldown) {
+                const memory: DashboardDrilldownMemory = {
+                  title: drilldown.title,
+                  subtitle: drilldown.subtitle,
+                  projectIds: drilldown.projects.map((project) => project.id),
+                  visibleCount: drilldownVisibleCount,
+                  scrollTop,
+                  filters: drilldownFilters,
+                }
+                rememberedDrilldownRef.current = memory
+                writePageView('dashboard:drilldown', memory)
+              }
+            }}
+          >
+            {filteredDrilldownProjects.length > 0 ? (
               (
                 <>
                   {visibleDrilldownProjects.map(renderProjectCard)}
@@ -794,7 +1181,7 @@ export default function Dashboard() {
             ) : (
               <div className="dashboard-empty-state">
                 <strong>No projects found</strong>
-                <p>There are no records under this selected category.</p>
+                <p>There are no records matching the current drilldown filters.</p>
               </div>
             )}
           </div>
@@ -842,16 +1229,18 @@ export default function Dashboard() {
           isDashboardScrolled ? 'is-dashboard-scrolled' : ''
         }`}
       >
-        <section className="dashboard-hero">
-          <div>
-            <p className="dashboard-eyebrow">DILG Region X</p>
-            <h1>PDMU Project Monitoring Dashboard</h1>
-            <p>
-              Field-ready overview of implementation status, risk level, and
-              completion performance for monitoring.
-            </p>
-          </div>
-        </section>
+        {!isDesktopViewport && (
+          <section className="dashboard-hero">
+            <div>
+              <p className="dashboard-eyebrow">DILG Region X</p>
+              <h1>PDMU Project Monitoring Dashboard</h1>
+              <p>
+                Field-ready overview of implementation status, risk level, and
+                completion performance for monitoring.
+              </p>
+            </div>
+          </section>
+        )}
 
         <section
           className={[
@@ -1213,7 +1602,13 @@ export default function Dashboard() {
             </div>
 
             <div className="dashboard-completion-grid">
-              <div className="dashboard-completion-gauge">
+              <div className="dashboard-performance-gauges">
+                <div className="dashboard-performance-gauge-wrap">
+                  <p className="dashboard-performance-gauge-label">
+                    Project Completion
+                  </p>
+
+                  <div className="dashboard-completion-gauge dashboard-physical-gauge">
                 {dashboardData.totalProjects > 0 ? (
                   <>
                     <ResponsiveContainer width="100%" height="100%">
@@ -1276,6 +1671,60 @@ export default function Dashboard() {
                     <p>No project records match the current dashboard filters.</p>
                   </div>
                 )}
+                  </div>
+                </div>
+
+                <div className="dashboard-performance-gauge-wrap">
+                  <p className="dashboard-performance-gauge-label">
+                    Financial Accomplishment
+                  </p>
+
+                  <div className="dashboard-completion-gauge dashboard-financial-gauge">
+                    {dashboardData.totalProjects > 0 ? (
+                      <>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={dashboardData.financialPerformanceData}
+                              dataKey="value"
+                              nameKey="name"
+                              innerRadius="70%"
+                              outerRadius="92%"
+                              startAngle={90}
+                              endAngle={-270}
+                              paddingAngle={2}
+                            >
+                              {dashboardData.financialPerformanceData.map((entry) => (
+                                <Cell
+                                  key={entry.name}
+                                  fill={
+                                    entry.name === 'Financial Accomplishment'
+                                      ? '#f97316'
+                                      : '#e2e8f0'
+                                  }
+                                />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+
+                        <div className="dashboard-completion-center" aria-hidden="true">
+                          <div>
+                            <strong>
+                              {formatPercent(dashboardData.financialAccomplishment)}
+                            </strong>
+                            <span>Financial</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="dashboard-empty-state compact">
+                        <strong>No financial data</strong>
+                        <p>No project records match the current dashboard filters.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="dashboard-completion-breakdown">
@@ -1318,9 +1767,10 @@ export default function Dashboard() {
                 </button>
 
                 <div className="dashboard-completion-note">
-                  <strong>Scope:</strong> This completion rate uses the currently visible
-                  dashboard records, so it changes when you filter by program, funding
-                  year, province, or LGU.
+                  <strong>Scope:</strong> Both gauges use the currently visible dashboard
+                  records. Financial accomplishment is cost-weighted across visible project
+                  costs, and both gauges change when you filter by program, funding year,
+                  province, or LGU.
                 </div>
               </div>
             </div>

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getSafeReturnPath } from '../lib/navigation'
 import '../styles/auth.css'
 
 type LoginState = 'idle' | 'loading' | 'success'
@@ -39,6 +40,7 @@ function getFriendlyLoginError(message: string) {
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -124,9 +126,7 @@ export default function Login() {
 
       setLoginState('success')
 
-      // After successful login, always start from Dashboard.
-      // Role/page restrictions are handled by ProtectedRoute and the AOR guards.
-      navigate('/dashboard', { replace: true })
+      navigate(getSafeReturnPath(location.state), { replace: true })
     } catch (error) {
       console.error(error)
 
@@ -228,6 +228,10 @@ export default function Login() {
                 />
                 <span>Remember email</span>
               </label>
+
+              <div className="auth-desktop-recovery-link">
+                <Link to="/forgot-password">Forgot password?</Link>
+              </div>
 
               <button type="submit" className="auth-submit-btn" disabled={!canSubmit}>
                 {isLoading ? 'Logging in...' : 'Login'}

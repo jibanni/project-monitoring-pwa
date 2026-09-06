@@ -1,0 +1,166 @@
+/* =========================================================
+   PMS10 SIDEBAR — FOOTER BRANDING + ORANGE WORKSPACE
+   Desktop only (>=1024px).
+
+   Expanded footer:
+   DILG Region X – PDMU
+   PMS10 · Project Monitoring System
+   © 2026 DILG Region X – PDMU
+
+   Mobile navigation is untouched.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* -------------------------------------------------------
+     WORKSPACE LABEL
+     ------------------------------------------------------- */
+
+  .app-desktop-sidebar .app-sidebar-section-label {
+    color: #f59e0b !important;
+
+    font-size: 12px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.1 !important;
+
+    letter-spacing: 0.10em !important;
+    text-transform: uppercase !important;
+
+    opacity: 1 !important;
+  }
+
+
+  /* -------------------------------------------------------
+     EXPANDED FOOTER
+     ------------------------------------------------------- */
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-footer {
+    min-height: 84px !important;
+
+    align-items: center !important;
+
+    gap: 8px !important;
+
+    padding: 10px 12px !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-office {
+    flex: 1 1 auto !important;
+
+    min-width: 0 !important;
+
+    align-items: center !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-office-copy {
+    display: grid !important;
+
+    grid-template-columns: minmax(0, 1fr) !important;
+
+    gap: 3px !important;
+
+    min-width: 0 !important;
+
+    overflow: visible !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-office-copy strong {
+    display: block !important;
+
+    margin: 0 !important;
+
+    overflow: hidden !important;
+
+    color: rgba(255, 255, 255, 0.96) !important;
+
+    font-size: 12px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.15 !important;
+
+    letter-spacing: 0 !important;
+
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Override the older sidebar footer polish rule that hid
+     every secondary span. */
+  .app-desktop-sidebar:not(.is-collapsed)
+    .app-sidebar-office-copy
+    > span.app-sidebar-office-system {
+    display: block !important;
+
+    margin: 0 !important;
+
+    overflow: hidden !important;
+
+    color: rgba(219, 234, 254, 0.82) !important;
+
+    font-size: 11px !important;
+    font-weight: 400 !important;
+
+    line-height: 1.2 !important;
+
+    letter-spacing: 0 !important;
+
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed)
+    .app-sidebar-office-copy
+    > span.app-sidebar-office-copyright {
+    display: block !important;
+
+    margin: 1px 0 0 !important;
+
+    overflow: hidden !important;
+
+    color: rgba(191, 219, 254, 0.62) !important;
+
+    font-size: 10px !important;
+    font-weight: 400 !important;
+
+    line-height: 1.2 !important;
+
+    letter-spacing: 0 !important;
+
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Keep collapse button compact beside the three-line footer. */
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-collapse-button {
+    align-self: center !important;
+  }
+
+
+  /* -------------------------------------------------------
+     COLLAPSED SIDEBAR
+     Keep branding text hidden so the collapsed rail remains clean.
+     ------------------------------------------------------- */
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-office {
+    display: none !important;
+  }
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-footer {
+    min-height: 62px !important;
+  }
+}
+
+
+/* =========================================================
+   PMS10 SIDEBAR FOOTER — COMPACT SECOND LINE
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  .app-desktop-sidebar:not(.is-collapsed)
+    .app-sidebar-office-copy
+    > span.app-sidebar-office-system {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+}

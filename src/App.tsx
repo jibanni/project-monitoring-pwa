@@ -4,12 +4,15 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom
 
 import { AuthProvider } from './context/AuthContext'
 import { routeLoaders } from './lib/routePreload'
+import { getLastProtectedRoute } from './lib/navigationMemory'
 
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import PublicRoute from './components/PublicRoute'
 
 import Login from './pages/Login'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Register from './pages/Register'
 import PendingApproval from './pages/PendingApproval'
 import Unauthorized from './pages/Unauthorized'
@@ -46,6 +49,10 @@ function PageLoader() {
 
 function PublicPage({ children }: { children: ReactNode }) {
   return <div className="public-page-transition">{children}</div>
+}
+
+function ResumeLastProtectedRoute() {
+  return <Navigate to={getLastProtectedRoute('/dashboard')} replace />
 }
 
 /**
@@ -97,6 +104,26 @@ function App() {
           />
 
           <Route
+            path="/forgot-password"
+            element={
+              <PublicRoute>
+                <PublicPage>
+                  <ForgotPassword />
+                </PublicPage>
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            path="/reset-password"
+            element={
+              <PublicPage>
+                <ResetPassword />
+              </PublicPage>
+            }
+          />
+
+          <Route
             path="/pending-approval"
             element={
               <ProtectedRoute requireApproval={false}>
@@ -119,7 +146,7 @@ function App() {
           />
 
           <Route element={<ProtectedAppShell />}>
-            <Route index element={<Dashboard />} />
+            <Route index element={<ResumeLastProtectedRoute />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="projects" element={<Projects />} />
             <Route path="reports" element={<Reports />} />
@@ -201,7 +228,7 @@ function App() {
             />
           </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<ResumeLastProtectedRoute />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

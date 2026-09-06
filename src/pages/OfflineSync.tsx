@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { offlineDb, type OfflineProjectPhoto, type OfflineProjectUpdate } from '../lib/offlineDb'
 import * as offlineSyncService from '../services/offlineSyncService'
 import { useAuth } from '../context/AuthContext'
+import { useDesktopViewport } from '../hooks/useDesktopViewport'
+import { readPageView, writePageView } from '../lib/pageViewMemory'
 import AppDiagnosticsPanel from '../components/AppDiagnosticsPanel'
 import { canUpdateProject, type AorProjectLike } from '../utils/aorAccess'
 import '../styles/offlineSync.css'
@@ -285,6 +287,7 @@ function isAdminAuth(auth: unknown) {
 }
 
 export default function OfflineSync() {
+  const isDesktopViewport = useDesktopViewport()
   const auth = useAuth()
 
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
@@ -298,7 +301,8 @@ export default function OfflineSync() {
   const [removalDialog, setRemovalDialog] = useState<RemovalDialogState | null>(null)
   const [loadingRemovalPreview, setLoadingRemovalPreview] = useState(false)
   const [removingUpdate, setRemovingUpdate] = useState(false)
-  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
+  const rememberedView = readPageView('offline-sync', { diagnosticsOpen: false })
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(Boolean(rememberedView.diagnosticsOpen))
 
   const [offlineUpdates, setOfflineUpdates] = useState<HydratedOfflineUpdate[]>([])
   const [offlinePhotos, setOfflinePhotos] = useState<HydratedOfflinePhoto[]>([])
@@ -306,6 +310,10 @@ export default function OfflineSync() {
 
   const userCanUseOfflineSync = useMemo(() => canUseOfflineSync(auth), [auth])
   const userIsAdmin = useMemo(() => isAdminAuth(auth), [auth])
+
+  useEffect(() => {
+    writePageView('offline-sync', { diagnosticsOpen })
+  }, [diagnosticsOpen])
 
   useEffect(() => {
     refreshOfflineData()
@@ -569,13 +577,15 @@ export default function OfflineSync() {
   if (!userCanUseOfflineSync) {
     return (
       <div className="offline-sync-page">
-        <section className="offline-sync-hero">
-          <div>
-            <p className="offline-sync-eyebrow">Offline Field Operations</p>
-            <h1>Offline Sync</h1>
-            <p>Offline Sync is limited to Admin, RO Engineer, and PO Engineer accounts.</p>
-          </div>
-        </section>
+        {!isDesktopViewport && (
+          <section className="offline-sync-hero">
+            <div>
+              <p className="offline-sync-eyebrow">Offline Field Operations</p>
+              <h1>Offline Sync</h1>
+              <p>Offline Sync is limited to Admin, RO Engineer, and PO Engineer accounts.</p>
+            </div>
+          </section>
+        )}
 
         <section className="offline-sync-loading-card">
           <h2>Access Restricted</h2>
@@ -587,24 +597,26 @@ export default function OfflineSync() {
 
   return (
     <div className={`offline-sync-page ${isOfflineScrolled ? 'is-offline-scrolled' : ''}`}>
-      <section className="offline-sync-hero">
-        <div>
-          <p className="offline-sync-eyebrow">Offline Field Operations</p>
-          <h1>Offline Sync</h1>
-          <p>
-            Review pending inspection updates and photos saved on this device, then
-            sync only records allowed under your assigned AOR.
-          </p>
-        </div>
-
-        <div className={`offline-sync-connection ${isOnline ? 'online' : 'offline'}`}>
-          <span className="offline-sync-dot" />
+      {!isDesktopViewport && (
+        <section className="offline-sync-hero">
           <div>
-            <strong>{isOnline ? 'Online' : 'Offline'}</strong>
-            <small>{isOnline ? 'Ready to sync' : 'Waiting for connection'}</small>
+            <p className="offline-sync-eyebrow">Offline Field Operations</p>
+            <h1>Offline Sync</h1>
+            <p>
+              Review pending inspection updates and photos saved on this device, then
+              sync only records allowed under your assigned AOR.
+            </p>
           </div>
-        </div>
-      </section>
+
+          <div className={`offline-sync-connection ${isOnline ? 'online' : 'offline'}`}>
+            <span className="offline-sync-dot" />
+            <div>
+              <strong>{isOnline ? 'Online' : 'Offline'}</strong>
+              <small>{isOnline ? 'Ready to sync' : 'Waiting for connection'}</small>
+            </div>
+          </div>
+        </section>
+      )}
 
       {loading ? (
         <section className="offline-sync-loading-card">

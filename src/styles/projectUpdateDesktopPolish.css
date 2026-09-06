@@ -1,0 +1,1559 @@
+/* =========================================================
+   PMS10 PROJECT UPDATE — DESKTOP PROJECT-DETAILS STYLE
+   Desktop only (>=1024px).
+   Mobile / tablet Project Update layout is intentionally untouched.
+
+   Goals:
+   - White fixed PMS10 page header, matching Project Details
+   - White project identity card instead of the large blue banner
+   - Dark navy project title + gold eyebrow
+   - Compact Status / Variance / Risk pills
+   - Tighter desktop gutters and card spacing
+   - Cleaner wizard and form section cards
+   - Keep Project Update identity visible while scrolling
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* =======================================================
+     DESKTOP APP HEADER
+     Remove the legacy blue Project Update route header.
+     ======================================================= */
+
+  body > .app-header.app-header-project-update,
+  body > .app-header.app-header-project-update.app-header-scrolled {
+    background: #ffffff !important;
+    background-image: none !important;
+
+    border-bottom: 1px solid #dbe5f0 !important;
+
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.02),
+      0 6px 18px rgba(15, 42, 72, 0.04) !important;
+
+    color: #0f172a !important;
+  }
+
+  body > .app-header.app-header-project-update .app-desktop-page-eyebrow {
+    color: #d99a00 !important;
+  }
+
+  body > .app-header.app-header-project-update .app-desktop-page-title {
+    color: #0b2d52 !important;
+  }
+
+  body > .app-header.app-header-project-update .app-user-name {
+    color: #0f172a !important;
+  }
+
+  body > .app-header.app-header-project-update .app-user-role {
+    color: #64748b !important;
+  }
+
+  body > .app-header.app-header-project-update .app-logout-button,
+  body > .app-header.app-header-project-update .app-user-logout-inline {
+    color: #64748b !important;
+    background: transparent !important;
+  }
+
+  body > .app-header.app-header-project-update .app-user-avatar {
+    color: #0b4f8a !important;
+    background: #eff6ff !important;
+    border-color: #cfe4fb !important;
+  }
+
+
+  /* =======================================================
+     PAGE WORKSPACE
+     Same compact desktop gutter rhythm as Project Details.
+     ======================================================= */
+
+  .app-shell.app-project-updates-route .app-main {
+    padding-top: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    background: #f3f6fa !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-page {
+    width: 100% !important;
+    max-width: none !important;
+
+    margin: 0 !important;
+    padding: 8px 10px 32px !important;
+
+    background: #f3f6fa !important;
+
+    overflow: visible !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-page.is-pu-scrolled {
+    padding-top: 8px !important;
+  }
+
+
+  /* =======================================================
+     PROJECT UPDATE IDENTITY CARD
+     Match the current Project Details desktop identity card.
+     ======================================================= */
+
+  .app-shell.app-project-updates-route
+    .pu-page
+    > .pu-hero.pu-update-hero-card,
+
+  .app-shell.app-project-updates-route
+    .pu-page:not(.is-pu-scrolled)
+    > .pu-hero.pu-update-hero-card,
+
+  .app-shell.app-project-updates-route
+    .pu-page.is-pu-scrolled
+    > .pu-hero.pu-update-hero-card {
+    display: block !important;
+
+    position: sticky !important;
+    inset: auto !important;
+
+    top: calc(var(--app-header-live-h, var(--current-header-h, 82px)) + 8px) !important;
+
+    width: 100% !important;
+    max-width: none !important;
+
+    min-width: 0 !important;
+    min-height: 0 !important;
+
+    height: auto !important;
+    max-height: none !important;
+
+    margin: 0 0 8px !important;
+
+    padding: 14px 18px 15px !important;
+
+    overflow: hidden !important;
+
+    border: 1px solid #dbe5f0 !important;
+    border-radius: 16px !important;
+
+    background: #ffffff !important;
+    background-image: none !important;
+
+    color: #0f172a !important;
+
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.025),
+      0 7px 18px rgba(15, 42, 72, 0.045) !important;
+
+    opacity: 1 !important;
+    visibility: visible !important;
+
+    transform: none !important;
+    transition: none !important;
+
+    z-index: 920 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-page
+    > .pu-hero.pu-update-hero-card::before,
+
+  .app-shell.app-project-updates-route
+    .pu-page
+    > .pu-hero.pu-update-hero-card::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-update-hero-content {
+    display: block !important;
+
+    width: 100% !important;
+    max-width: none !important;
+
+    min-width: 0 !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+
+  /* =======================================================
+     PROJECT UPDATE EYEBROW / TITLE / LOCATION
+     ======================================================= */
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    .pu-eyebrow {
+    display: block !important;
+
+    margin: 0 0 4px !important;
+    padding: 0 !important;
+
+    color: #d99a00 !important;
+
+    font-size: 12px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.1 !important;
+
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    .pu-update-hero-title,
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    h1 {
+    display: block !important;
+
+    width: 100% !important;
+    max-width: 1180px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    color: #0b2d52 !important;
+
+    font-size: clamp(1.85rem, 2.15vw, 2.45rem) !important;
+    font-weight: 700 !important;
+
+    line-height: 1.03 !important;
+
+    letter-spacing: -0.035em !important;
+
+    white-space: normal !important;
+
+    overflow: visible !important;
+    text-overflow: clip !important;
+
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    .pu-update-hero-title.pu-title-medium {
+    font-size: clamp(1.7rem, 2vw, 2.25rem) !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    .pu-update-hero-title.pu-title-long {
+    font-size: clamp(1.5rem, 1.8vw, 2rem) !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    .pu-update-hero-title.pu-title-extra-long {
+    font-size: clamp(1.3rem, 1.55vw, 1.75rem) !important;
+    line-height: 1.07 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    .pu-compact-location {
+    display: block !important;
+
+    width: 100% !important;
+
+    margin: 6px 0 0 !important;
+    padding: 0 !important;
+
+    color: #64748b !important;
+
+    font-size: 14px !important;
+    font-weight: 400 !important;
+
+    line-height: 1.25 !important;
+
+    overflow-wrap: anywhere !important;
+  }
+
+
+  /* =======================================================
+     STATUS / VARIANCE / RISK
+     Match the small pills used on Project Details.
+     ======================================================= */
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    .pu-flat-monitoring {
+    all: unset !important;
+
+    box-sizing: border-box !important;
+
+    display: flex !important;
+
+    align-items: center !important;
+    flex-wrap: wrap !important;
+
+    width: fit-content !important;
+    max-width: 100% !important;
+
+    gap: 7px !important;
+
+    margin: 10px 0 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+
+    font-family: inherit !important;
+
+    white-space: normal !important;
+
+    overflow: visible !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    .pu-flat-monitoring::before,
+
+  .app-shell.app-project-updates-route
+    .pu-update-hero-card
+    .pu-flat-monitoring::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__separator {
+    display: none !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__value {
+    all: unset !important;
+
+    box-sizing: border-box !important;
+
+    display: inline-flex !important;
+
+    align-items: center !important;
+    justify-content: center !important;
+
+    width: auto !important;
+    min-width: 0 !important;
+
+    min-height: 28px !important;
+
+    padding: 5px 11px !important;
+
+    border: 1px solid transparent !important;
+    border-radius: 999px !important;
+
+    font-family: inherit !important;
+
+    font-size: 12px !important;
+    font-weight: 600 !important;
+
+    line-height: 1 !important;
+
+    letter-spacing: 0 !important;
+
+    white-space: nowrap !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__status {
+    color: #0b4f8a !important;
+
+    background: #edf5ff !important;
+
+    border-color: #cfe4fb !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__variance[data-tone='positive'] {
+    color: #166534 !important;
+    background: #ecfdf3 !important;
+    border-color: #bbf7d0 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__variance[data-tone='negative'] {
+    color: #b42318 !important;
+    background: #fff1f2 !important;
+    border-color: #fecdd3 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__variance[data-tone='neutral'] {
+    color: #475569 !important;
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__risk[data-tone='none'] {
+    color: #166534 !important;
+    background: #ecfdf3 !important;
+    border-color: #bbf7d0 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__risk[data-tone='low'] {
+    color: #854d0e !important;
+    background: #fefce8 !important;
+    border-color: #fde68a !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__risk[data-tone='moderate'] {
+    color: #9a3412 !important;
+    background: #fff7ed !important;
+    border-color: #fed7aa !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__risk[data-tone='high'] {
+    color: #b42318 !important;
+    background: #fff1f2 !important;
+    border-color: #fecdd3 !important;
+  }
+
+
+  /* =======================================================
+     IMPORTANT:
+     Do not switch Project Update to the old compact blue
+     scrolled hero on desktop. Keep this identity card visible.
+     ======================================================= */
+
+  .app-shell.app-project-updates-route
+    .pu-page.is-pu-scrolled
+    .pu-eyebrow,
+
+  .app-shell.app-project-updates-route
+    .pu-page.is-pu-scrolled
+    .pu-compact-location,
+
+  .app-shell.app-project-updates-route
+    .pu-page.is-pu-scrolled
+    .pu-flat-monitoring {
+    display: flex !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-page.is-pu-scrolled
+    .pu-eyebrow,
+
+  .app-shell.app-project-updates-route
+    .pu-page.is-pu-scrolled
+    .pu-compact-location {
+    display: block !important;
+  }
+
+
+  /* =======================================================
+     CONTENT GRID
+     Same compact spacing language as Project Details.
+     ======================================================= */
+
+  .app-shell.app-project-updates-route .pu-content-grid {
+    width: 100% !important;
+    max-width: none !important;
+
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px) !important;
+
+    gap: 10px !important;
+
+    margin: 0 !important;
+    padding: 0 0 18px !important;
+
+    align-items: start !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-wizard-form-card {
+    min-width: 0 !important;
+
+    padding: 0 !important;
+
+    border: 0 !important;
+
+    background: transparent !important;
+
+    box-shadow: none !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-shell,
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-update-section,
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-side-card {
+    border: 1px solid #dbe5f0 !important;
+    border-radius: 16px !important;
+
+    background: #ffffff !important;
+
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.02),
+      0 6px 18px rgba(15, 42, 72, 0.04) !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-shell {
+    padding: 12px 14px !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-update-section {
+    margin-top: 10px !important;
+    padding: 14px !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-side-panel {
+    gap: 10px !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-side-card {
+    padding: 12px 14px !important;
+  }
+
+
+  /* =======================================================
+     WIZARD
+     ======================================================= */
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-title-row {
+    margin-bottom: 10px !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-count {
+    min-height: 30px !important;
+    height: 30px !important;
+
+    padding: 0 10px !important;
+
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress {
+    gap: 5px !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-step-summary {
+    margin-top: 9px !important;
+  }
+
+
+  /* =======================================================
+     FORM SECTION HEADER
+     Replace the heavy dark banner with the quieter Project
+     Details card language.
+     ======================================================= */
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-section-heading,
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-section-status
+    .pu-section-heading,
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-section-contract
+    .pu-section-heading {
+    display: grid !important;
+
+    grid-template-columns: 36px minmax(0, 1fr) !important;
+
+    align-items: center !important;
+
+    gap: 10px !important;
+
+    min-height: 56px !important;
+
+    margin: 0 0 12px !important;
+
+    padding: 9px 10px !important;
+
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+
+    background: #f8fafc !important;
+    background-image: none !important;
+
+    color: #0f172a !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-section-heading
+    > span {
+    width: 36px !important;
+    height: 36px !important;
+
+    min-width: 36px !important;
+    min-height: 36px !important;
+
+    border: 1px solid #dbe5f0 !important;
+    border-radius: 10px !important;
+
+    background: #ffffff !important;
+
+    color: #0b4f8a !important;
+
+    font-size: 14px !important;
+    font-weight: 700 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-section-heading
+    strong {
+    color: #0b2d52 !important;
+
+    font-size: 16px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.2 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-section-heading
+    small {
+    margin-top: 2px !important;
+
+    color: #64748b !important;
+
+    font-size: 12px !important;
+    font-weight: 400 !important;
+
+    line-height: 1.25 !important;
+  }
+
+
+  /* =======================================================
+     INPUTS / CHOICES
+     Slightly calmer Project Details-like controls.
+     ======================================================= */
+
+  .app-shell.app-project-updates-route
+    .pu-field
+    input:not([type='checkbox']):not([type='radio']),
+
+  .app-shell.app-project-updates-route
+    .pu-field
+    select,
+
+  .app-shell.app-project-updates-route
+    .pu-field
+    textarea {
+    border-color: #dbe5f0 !important;
+
+    background: #f8fafc !important;
+
+    box-shadow: none !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-two-choice-grid
+    > button,
+
+  .app-shell.app-project-updates-route
+    .pu-modification-grid
+    > button,
+
+  .app-shell.app-project-updates-route
+    .pu-status-button-grid
+    > button {
+    border-color: #dbe5f0 !important;
+
+    background: #f8fafc !important;
+
+    box-shadow: none !important;
+  }
+
+
+  /* =======================================================
+     LATEST RECORD SIDE CARD
+     ======================================================= */
+
+  .app-shell.app-project-updates-route
+    .pu-side-card
+    h3 {
+    color: #0b2d52 !important;
+
+    font-size: 16px !important;
+    font-weight: 600 !important;
+  }
+
+
+  /* =======================================================
+     SHORTER DESKTOP WIDTHS
+     Keep the update form usable instead of squeezing the side
+     card into a narrow column.
+     ======================================================= */
+
+  @media (max-width: 1180px) {
+    .app-shell.app-project-updates-route .pu-content-grid {
+      grid-template-columns: 1fr !important;
+    }
+
+    .app-shell.app-project-updates-route .pu-side-panel {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+}
+
+
+/* =========================================================
+   PMS10 PROJECT UPDATE — FULL-WIDTH DESKTOP WORKSPACE
+   Final desktop layout override.
+   - Form/wizard uses the full available workspace width.
+   - Latest Record / history moves below the form.
+   - Mobile/tablet remains unchanged.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* One full-width desktop column. */
+  .app-shell.app-project-updates-route .pu-content-grid,
+  .app-shell.app-project-updates-route .pu-content-grid.pu-update-subpage-system {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "update-form"
+      "update-history" !important;
+
+    width: 100% !important;
+    max-width: none !important;
+
+    gap: 10px !important;
+
+    margin: 0 !important;
+    padding: 0 0 18px !important;
+  }
+
+  /* Project Update form occupies the complete workspace. */
+  .app-shell.app-project-updates-route .pu-wizard-form-card {
+    grid-area: update-form !important;
+
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+
+    margin: 0 !important;
+  }
+
+  /* History now sits below the complete form instead of beside it. */
+  .app-shell.app-project-updates-route .pu-side-panel {
+    grid-area: update-history !important;
+
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+
+    gap: 10px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-side-panel > .pu-side-card,
+  .app-shell.app-project-updates-route .pu-history-card {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+
+    margin: 0 !important;
+  }
+
+  /* Compact collapsed history row at the bottom. */
+  .app-shell.app-project-updates-route .pu-history-toggle {
+    min-height: 58px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+
+    gap: 16px !important;
+
+    padding: 12px 16px !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-history-toggle-copy {
+    min-width: 0 !important;
+
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+
+    align-items: center !important;
+
+    column-gap: 16px !important;
+    row-gap: 2px !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-history-toggle-copy > strong {
+    color: #0b2d52 !important;
+
+    font-size: 16px !important;
+    font-weight: 600 !important;
+
+    white-space: nowrap !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-history-toggle-copy > small {
+    min-width: 0 !important;
+
+    color: #64748b !important;
+
+    font-size: 14px !important;
+    font-weight: 400 !important;
+
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-history-toggle-icon {
+    flex: 0 0 auto !important;
+  }
+
+  /* Expanded history uses the full desktop width efficiently. */
+  .app-shell.app-project-updates-route .pu-history-panel {
+    width: 100% !important;
+    max-width: none !important;
+
+    padding: 0 16px 16px !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-history-card.is-expanded .pu-recent-item {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .app-shell.app-project-updates-route .pu-history-card.is-expanded .pu-recent-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+
+    gap: 8px !important;
+  }
+
+  /* The old 1180px side-panel layout must not reappear. */
+  @media (max-width: 1180px) {
+    .app-shell.app-project-updates-route .pu-content-grid,
+    .app-shell.app-project-updates-route .pu-content-grid.pu-update-subpage-system {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .app-shell.app-project-updates-route .pu-side-panel {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+  }
+}
+
+
+/* =========================================================
+   PMS10 PROJECT UPDATE — STRONG RED + FULL-WIDTH STEPPER
+   Desktop only (>=1024px).
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* -------------------------------------------------------
+     Strong, crisp negative variance / high-risk text
+     ------------------------------------------------------- */
+
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__variance[data-tone='negative'],
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__risk[data-tone='high'] {
+    color: #dc2626 !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+    filter: none !important;
+  }
+
+  /* Keep separators subtle but not washed out. */
+  .app-shell.app-project-updates-route
+    .pu-flat-monitoring__separator {
+    color: #cbd5e1 !important;
+    opacity: 1 !important;
+  }
+
+  /* -------------------------------------------------------
+     Spread steps 1–8 across the full desktop width
+     ------------------------------------------------------- */
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress {
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+    align-items: center !important;
+    gap: 8px !important;
+
+    width: 100% !important;
+    max-width: none !important;
+
+    margin: 0 !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
+    margin: 0 !important;
+  }
+
+  /* Circular inactive steps stay centered within their equal cell. */
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-step:not(.is-active) {
+    justify-self: center !important;
+  }
+
+  /* Active step occupies its full 1/8 column instead of using
+     an arbitrary fixed width. */
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-step.is-active {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
+    justify-content: center !important;
+
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-step.is-active
+    .pu-wizard-step-label {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Slightly tighter gaps on medium desktop widths. */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress {
+    gap: 5px !important;
+  }
+
+  .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-step.is-active {
+    padding-left: 7px !important;
+    padding-right: 7px !important;
+  }
+}
+
+
+/* =========================================================
+   PMS10 PROJECT UPDATE — FINAL DESKTOP STEPPER + RED STATUS
+   Root-cause correction:
+   - Legacy ProjectUpdates.css uses a more-specific selector for
+     variance/risk, so earlier red overrides could not win.
+   - Wizard buttons do not have a .pu-wizard-step class; they are
+     direct <button> children, so earlier sizing targeted the
+     wrong elements.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* -------------------------------------------------------
+     CRISP HIGH-RISK / NEGATIVE VARIANCE RED
+     Match and exceed legacy selector specificity.
+     ------------------------------------------------------- */
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-page:not(.is-pu-scrolled)
+    .pu-update-hero-card
+    .pu-flat-monitoring
+    > .pu-flat-monitoring__variance[data-tone='negative'],
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-page:not(.is-pu-scrolled)
+    .pu-update-hero-card
+    .pu-flat-monitoring
+    > .pu-flat-monitoring__risk[data-tone='high'] {
+    color: #d40000 !important;
+    opacity: 1 !important;
+    filter: none !important;
+    text-shadow: none !important;
+    font-weight: 700 !important;
+  }
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-page.is-pu-scrolled
+    .pu-update-hero-card
+    .pu-flat-monitoring
+    > .pu-flat-monitoring__variance[data-tone='negative'],
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-page.is-pu-scrolled
+    .pu-update-hero-card
+    .pu-flat-monitoring
+    > .pu-flat-monitoring__risk[data-tone='high'] {
+    color: #d40000 !important;
+    opacity: 1 !important;
+    filter: none !important;
+    text-shadow: none !important;
+    font-weight: 700 !important;
+  }
+
+
+  /* -------------------------------------------------------
+     CLEAN FULL-WIDTH 8-STEP TRACKER
+     Every step owns one equal column.
+     Active step is a filled circle + small label, not a long pill.
+     ------------------------------------------------------- */
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress {
+    position: relative !important;
+
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+
+    align-items: start !important;
+
+    width: 100% !important;
+    max-width: none !important;
+
+    min-height: 64px !important;
+
+    gap: 0 !important;
+
+    margin: 4px 0 0 !important;
+    padding: 0 8px !important;
+
+    overflow: visible !important;
+
+    background: transparent !important;
+  }
+
+  /* Thin rail connecting the eight circles. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress::before {
+    content: '' !important;
+
+    position: absolute !important;
+
+    left: calc(6.25% + 18px) !important;
+    right: calc(6.25% + 18px) !important;
+    top: 18px !important;
+
+    height: 2px !important;
+
+    border-radius: 999px !important;
+
+    background: #dbe5f0 !important;
+
+    z-index: 0 !important;
+    pointer-events: none !important;
+  }
+
+  /* All steps: equal transparent cells. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.current,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.completed {
+    position: relative !important;
+    z-index: 1 !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+
+    justify-self: stretch !important;
+
+    flex: none !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
+    height: 64px !important;
+    min-height: 64px !important;
+
+    gap: 5px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+
+    color: #64748b !important;
+
+    transform: none !important;
+  }
+
+  /* Kill old connector pseudo-elements on each button. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button::before,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  /* Number circles. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button
+    > span,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.current
+    > span,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.completed
+    > span {
+    position: relative !important;
+    z-index: 2 !important;
+
+    flex: 0 0 36px !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 2px solid #dbe5f0 !important;
+    border-radius: 50% !important;
+
+    background: #ffffff !important;
+
+    color: #64748b !important;
+
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  /* Completed steps. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.completed
+    > span {
+    border-color: #93c5fd !important;
+    background: #eff6ff !important;
+    color: #0759b5 !important;
+  }
+
+  /* Active step: strong circle, no oversized pill. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.current
+    > span {
+    border-color: #0b68c8 !important;
+    background: #0b68c8 !important;
+    color: #ffffff !important;
+
+    box-shadow:
+      0 0 0 4px #dbeafe,
+      0 2px 5px rgba(11, 104, 200, 0.18) !important;
+  }
+
+  /* Active step label below its circle. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    .pu-wizard-active-step-title {
+    display: block !important;
+
+    max-width: calc(100% - 8px) !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow: hidden !important;
+
+    color: #0b4f8a !important;
+
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1.1 !important;
+
+    letter-spacing: 0 !important;
+
+    text-align: center !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* Disabled future steps remain clearly visible, just quieter. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button:disabled {
+    opacity: 1 !important;
+    cursor: default !important;
+  }
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button:disabled
+    > span {
+    border-color: #e2e8f0 !important;
+    background: #f8fafc !important;
+    color: #94a3b8 !important;
+  }
+
+  /* Keep Next text close to the tracker. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-step-summary {
+    margin-top: 4px !important;
+  }
+}
+
+
+/* On smaller desktop widths keep the same design, with slightly
+   smaller circles and label text. */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress {
+    min-height: 60px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress::before {
+    left: calc(6.25% + 16px) !important;
+    right: calc(6.25% + 16px) !important;
+    top: 16px !important;
+  }
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.current,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.completed {
+    height: 60px !important;
+    min-height: 60px !important;
+  }
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button
+    > span,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.current
+    > span,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.completed
+    > span {
+    flex-basis: 32px !important;
+
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+
+    font-size: 13px !important;
+  }
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    .pu-wizard-active-step-title {
+    font-size: 11px !important;
+  }
+}
+
+
+/* =========================================================
+   PMS10 PROJECT UPDATE — PERFECT CIRCLE STEPPER FIX
+   Desktop only (>=1024px).
+
+   Fix:
+   - Removes the active-step halo that could look clipped/flat.
+   - Forces every step marker to a true 1:1 circle.
+   - Ensures the parent button never clips the marker.
+   - Keeps the connecting rail vertically centered on the circles.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.current,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.completed {
+    overflow: visible !important;
+  }
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button
+    > span,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.current
+    > span,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.completed
+    > span {
+    box-sizing: border-box !important;
+
+    flex: 0 0 40px !important;
+
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+
+    aspect-ratio: 1 / 1 !important;
+
+    border-radius: 9999px !important;
+
+    overflow: hidden !important;
+
+    transform: none !important;
+    clip-path: circle(50% at 50% 50%) !important;
+
+    box-shadow: none !important;
+  }
+
+  /* Active step: use a real circular border instead of an outer halo. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.current
+    > span {
+    border: 4px solid #dbeafe !important;
+
+    background: #0b68c8 !important;
+    color: #ffffff !important;
+
+    box-shadow: none !important;
+  }
+
+  /* Completed circles. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.completed
+    > span {
+    border: 2px solid #93c5fd !important;
+
+    background: #eff6ff !important;
+    color: #0759b5 !important;
+  }
+
+  /* Future circles. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button:disabled
+    > span {
+    border: 2px solid #e2e8f0 !important;
+
+    background: #f8fafc !important;
+    color: #94a3b8 !important;
+  }
+
+  /* Re-center the rail on the 40px circles. */
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress::before {
+    left: calc(6.25% + 20px) !important;
+    right: calc(6.25% + 20px) !important;
+    top: 20px !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1280px) {
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button
+    > span,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.current
+    > span,
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress
+    > button.completed
+    > span {
+    flex-basis: 36px !important;
+
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+  }
+
+  body
+    .app-shell.app-project-updates-route
+    .pu-update-subpage-system
+    .pu-wizard-progress::before {
+    left: calc(6.25% + 18px) !important;
+    right: calc(6.25% + 18px) !important;
+    top: 18px !important;
+  }
+}

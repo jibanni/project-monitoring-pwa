@@ -6,11 +6,14 @@ import { useNavigate } from 'react-router-dom'
 import { offlineDb } from '../lib/offlineDb'
 import { useSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
+import { useDesktopViewport } from '../hooks/useDesktopViewport'
+import { readPageView, writePageView } from '../lib/pageViewMemory'
 import ActionMenu, { type ActionMenuItem } from '../components/ActionMenu'
 import { getOfficialProjectCost, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
 import '../styles/projects.css'
 import '../styles/unifiedFilters.css'
+import '../styles/projectRegistryDesktopPolish.css'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
 import { normalizeProgramName } from '../utils/program'
 import {
@@ -99,20 +102,6 @@ function formatCompactCurrency(value: unknown) {
 
 function formatPercent(value: unknown) {
   return `${toNumber(value).toFixed(0)}%`
-}
-
-function formatLongDate(value: string | null | undefined) {
-  if (!value) return 'No date'
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) return 'No date'
-
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 
@@ -250,6 +239,7 @@ function UpdateIcon() {
 
 
 export default function Projects() {
+  const isDesktopViewport = useDesktopViewport()
   const navigate = useNavigate()
   const auth = useAuth() as any
   const isAdmin = Boolean(auth?.isAdmin)
@@ -264,15 +254,48 @@ export default function Projects() {
     refreshProjects,
   } = useSharedProjects<ProjectRow>()
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const [provinceFilter, setProvinceFilter] = useState('')
-  const [municipalityFilter, setMunicipalityFilter] = useState('')
-  const [programFilter, setProgramFilter] = useState('')
-  const [fundingYearFilter, setFundingYearFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [riskFilter, setRiskFilter] = useState('')
+  const rememberedView = readPageView('projects', {
+    searchTerm: '',
+    provinceFilter: '',
+    municipalityFilter: '',
+    programFilter: '',
+    fundingYearFilter: '',
+    statusFilter: '',
+    riskFilter: '',
+    filtersOpen: false,
+  })
+
+  const [searchTerm, setSearchTerm] = useState(rememberedView.searchTerm || '')
+  const [provinceFilter, setProvinceFilter] = useState(rememberedView.provinceFilter || '')
+  const [municipalityFilter, setMunicipalityFilter] = useState(rememberedView.municipalityFilter || '')
+  const [programFilter, setProgramFilter] = useState(rememberedView.programFilter || '')
+  const [fundingYearFilter, setFundingYearFilter] = useState(rememberedView.fundingYearFilter || '')
+  const [statusFilter, setStatusFilter] = useState(rememberedView.statusFilter || '')
+  const [riskFilter, setRiskFilter] = useState(rememberedView.riskFilter || '')
   const [isRegistryScrolled, setIsRegistryScrolled] = useState(false)
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(Boolean(rememberedView.filtersOpen))
+
+  useEffect(() => {
+    writePageView('projects', {
+      searchTerm,
+      provinceFilter,
+      municipalityFilter,
+      programFilter,
+      fundingYearFilter,
+      statusFilter,
+      riskFilter,
+      filtersOpen,
+    })
+  }, [
+    searchTerm,
+    provinceFilter,
+    municipalityFilter,
+    programFilter,
+    fundingYearFilter,
+    statusFilter,
+    riskFilter,
+    filtersOpen,
+  ])
 
   useEffect(() => {
     const cleanupKey = 'pms10:aide-wizard:legacy-drafts-cleared:v1'
@@ -554,18 +577,21 @@ export default function Projects() {
         isRegistryScrolled ? 'is-registry-scrolled' : ''
       } ${filtersOpen ? 'filters-open' : ''}`}
     >
-      <section className="projects-hero projects-registry-hero">
-        <div className="projects-hero-copy">
-          <p className="projects-eyebrow">Project Workspace</p>
-          <h1>Project Registry</h1>
-          <p>
-            Mobile-first project monitoring cards for field inspection, validation,
-            and progress tracking.
-          </p>
-        </div>
-      </section>
-
-      <div className="projects-hero-spacer" aria-hidden="true" />
+      {!isDesktopViewport && (
+        <>
+          <section className="projects-hero projects-registry-hero">
+            <div className="projects-hero-copy">
+              <p className="projects-eyebrow">Project Workspace</p>
+              <h1>Project Registry</h1>
+              <p>
+                Mobile-first project monitoring cards for field inspection, validation,
+                and progress tracking.
+              </p>
+            </div>
+          </section>
+          <div className="projects-hero-spacer" aria-hidden="true" />
+        </>
+      )}
 
       <ActionMenu
         items={registryActionItems}
@@ -834,8 +860,6 @@ export default function Projects() {
                 .map(textValue)
                 .filter(Boolean)
                 .join(', ')
-              const latestInspection = project.last_inspection_date || project.updated_at
-
               return (
                 <article key={project.id} className={getProjectCardClass(computedRisk)}>
                   <div className="project-row-main">
@@ -873,15 +897,6 @@ export default function Projects() {
                       <strong>{formatPercent(financial)}</strong>
                     </div>
 
-                    <div className="project-row-metric project-row-cost">
-                      <span>Cost</span>
-                      <strong>{formatCompactCurrency(getOfficialProjectCost(project))}</strong>
-                    </div>
-
-                    <div className="project-row-metric">
-                      <span>Latest</span>
-                      <strong>{formatLongDate(latestInspection)}</strong>
-                    </div>
                   </div>
 
                   <div className="project-row-actions">

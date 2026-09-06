@@ -14,6 +14,9 @@ type CompressionOptions = {
   minimumQuality?: number
 }
 
+export const MAX_INSPECTION_PHOTO_BYTES = 700 * 1024
+export const MAX_INSPECTION_PHOTOS_PER_UPDATE = 3
+
 function replaceExtensionWithJpeg(fileName: string) {
   const base = fileName.replace(/\.[^/.]+$/, '').trim() || 'inspection-photo'
   return `${base}.jpg`
@@ -108,7 +111,7 @@ export async function compressInspectionImage(
   options: CompressionOptions = {},
 ): Promise<InspectionImageCompressionResult> {
   const maxDimension = options.maxDimension ?? 1920
-  const targetMaxBytes = options.targetMaxBytes ?? 700 * 1024
+  const targetMaxBytes = options.targetMaxBytes ?? MAX_INSPECTION_PHOTO_BYTES
   const initialQuality = options.initialQuality ?? 0.84
   const minimumQuality = options.minimumQuality ?? 0.48
 
@@ -122,7 +125,7 @@ export async function compressInspectionImage(
     let quality = initialQuality
     let bestBlob: Blob | null = null
 
-    for (let resizePass = 0; resizePass < 3; resizePass += 1) {
+    for (let resizePass = 0; resizePass < 5; resizePass += 1) {
       const canvas = document.createElement('canvas')
       canvas.width = scaled.width
       canvas.height = scaled.height
@@ -152,6 +155,11 @@ export async function compressInspectionImage(
     }
 
     if (!bestBlob) throw new Error('The selected photo could not be compressed.')
+    if (bestBlob.size > targetMaxBytes) {
+      throw new Error(
+        `${file.name} could not be reduced below ${Math.round(targetMaxBytes / 1024)} KB.`,
+      )
+    }
 
     const compressedFile = new File([bestBlob], replaceExtensionWithJpeg(file.name), {
       type: 'image/jpeg',

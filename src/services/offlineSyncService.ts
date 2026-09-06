@@ -6,9 +6,18 @@ import {
   type OfflineProjectUpdate,
 } from '../lib/offlineDb'
 import { getComputedRiskLevel } from '../utils/projectVariance'
-import { getDrivePhotoUrl, uploadProjectPhotoToDrive } from './googleDrivePhotoUploadService'
-import { compressInspectionImage } from '../utils/imageCompression'
+import {
+  ensureProjectPhotoReference,
+  getDrivePhotoUrl,
+  uploadProjectPhotoToDrive,
+} from './googleDrivePhotoUploadService'
+import {
+  compressInspectionImage,
+  MAX_INSPECTION_PHOTO_BYTES,
+  MAX_INSPECTION_PHOTOS_PER_UPDATE,
+} from '../utils/imageCompression'
 import { recordSuccessfulSync } from '../lib/appDiagnostics'
+import { canUpdateProject, getCanonicalRole } from '../utils/aorAccess'
 
 type SyncResult = {
   success: boolean
@@ -44,6 +53,91 @@ function nullableNumber(value: unknown) {
 
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+async function assertCurrentUserCanSyncUpdate(update: OfflineProjectUpdate) {
+  const projectId = textValue(update.project_id)
+  const userResult = await supabase.auth.getUser()
+  const currentUser = userResult.data.user
+
+  if (userResult.error || !currentUser) {
+    throw new Error('Your PMS10 session has expired. Sign in again before syncing offline updates.')
+  }
+
+  const queuedUserId = textValue(update.engineer_id)
+  if (queuedUserId && queuedUserId !== currentUser.id) {
+    throw new Error('This offline update belongs to another PMS10 user on this device and cannot be synced from the current account.')
+  }
+
+  const [profileResult, projectResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, role, approved, aor_level, province, huc, city, municipality, is_active')
+      .eq('id', currentUser.id)
+      .single(),
+    supabase
+      .from('projects')
+      .select('id, province, municipality')
+      .eq('id', projectId)
+      .maybeSingle(),
+  ])
+
+  if (profileResult.error) throw profileResult.error
+  if (projectResult.error) throw projectResult.error
+  if (!profileResult.data || !projectResult.data) {
+    throw new Error('The user profile or project could not be verified before syncing.')
+  }
+
+  const role = getCanonicalRole(profileResult.data.role)
+  let poEngineerLguAssignments: Array<{
+    province?: string | null
+    municipality?: string | null
+    is_active?: boolean | null
+  }> = []
+  let roEngineerProvinceAssignments: Array<{
+    province?: string | null
+    is_active?: boolean | null
+  }> = []
+
+  if (role === 'PO Engineer') {
+    const assignmentResult = await supabase
+      .from('po_engineer_lgu_assignments')
+      .select('province, municipality, is_active')
+      .eq('user_id', currentUser.id)
+      .eq('is_active', true)
+
+    if (assignmentResult.error) throw assignmentResult.error
+    poEngineerLguAssignments = assignmentResult.data || []
+  }
+
+  if (role === 'RO Engineer') {
+    const assignmentResult = await supabase
+      .from('ro_engineer_province_assignments')
+      .select('province, is_active')
+      .eq('user_id', currentUser.id)
+      .eq('is_active', true)
+
+    if (assignmentResult.error) throw assignmentResult.error
+    roEngineerProvinceAssignments = assignmentResult.data || []
+  }
+
+  const allowed = canUpdateProject(projectResult.data, {
+    profile: {
+      ...profileResult.data,
+      role,
+    },
+    isAdmin: role === 'Admin',
+    isROEngineer: role === 'RO Engineer',
+    isPOEngineer: role === 'PO Engineer',
+    isEngineer: role === 'PO Engineer',
+    isPEO: role === 'PEO',
+    poEngineerLguAssignments,
+    roEngineerProvinceAssignments,
+  })
+
+  if (!allowed) {
+    throw new Error('Your current role or assigned area no longer allows updates for this project.')
+  }
 }
 
 
@@ -500,6 +594,7 @@ export async function saveOfflineProjectPhotos(
 
   for (const file of files) {
     await offlineDb.project_photos.add({
+      client_photo_id: crypto.randomUUID(),
       offline_update_id: offlineUpdateId,
       project_id: projectId,
       project_name: projectName,
@@ -585,6 +680,12 @@ async function syncPhotosForOfflineUpdate(
   const driveFundingSource = getOfflineDriveFundingSource(update, projectMeta)
   let uploadedPhotoCount = 0
 
+  if (photos.length > MAX_INSPECTION_PHOTOS_PER_UPDATE) {
+    throw new Error(
+      `This pending update contains ${photos.length} photos. PMS10 now allows a maximum of ${MAX_INSPECTION_PHOTOS_PER_UPDATE}; remove the extra photos before syncing.`,
+    )
+  }
+
   for (let index = 0; index < photos.length; index += 1) {
     const photo = photos[index]
     const blob = getPhotoBlob(photo)
@@ -613,7 +714,7 @@ async function syncPhotosForOfflineUpdate(
     let uploadFile = file
 
     try {
-      if (file.size > 700 * 1024 || file.type !== 'image/jpeg') {
+      if (file.size > MAX_INSPECTION_PHOTO_BYTES || file.type !== 'image/jpeg') {
         const compressed = await compressInspectionImage(file)
         uploadFile = compressed.file
 
@@ -633,12 +734,22 @@ async function syncPhotosForOfflineUpdate(
         }
       }
     } catch (compressionError) {
-      console.warn(`Unable to compress pending photo ${file.name}; retrying the original file.`, compressionError)
+      if (file.size > MAX_INSPECTION_PHOTO_BYTES) {
+        const message = `${file.name} could not be reduced below 700 KB. Re-open this update and replace the photo before syncing.`
+        await markPhotoStatus(photo, { sync_status: 'failed', error: message })
+        throw new Error(message, { cause: compressionError })
+      }
+
+      console.warn(`Unable to compress pending photo ${file.name}; using the size-safe original file.`, compressionError)
     }
 
     try {
       const uploadedFile = await uploadProjectPhotoToDrive({
         file: uploadFile,
+        photoId:
+          textValue(photo.client_photo_id) ||
+          textValue(photo.id) ||
+          `${getUpdateLocalId(update)}-${textValue(photo.file_name)}-${textValue(photo.created_at)}`,
         projectId: update.project_id,
         updateId: onlineProjectUpdateId,
         projectTitle: driveProjectTitle,
@@ -649,23 +760,20 @@ async function syncPhotosForOfflineUpdate(
         uploadedBy: update.engineer_id || 'Offline PMS10 User',
       })
 
-      const insertPhotoResult = await supabase.from('project_photos').insert([
-        {
-          project_id: update.project_id,
-          project_update_id: onlineProjectUpdateId,
-          photo_url: getDrivePhotoUrl(uploadedFile),
+      try {
+        await ensureProjectPhotoReference({
+          projectId: update.project_id,
+          projectUpdateId: onlineProjectUpdateId,
+          photoUrl: getDrivePhotoUrl(uploadedFile),
           caption: textValue(photo.caption) || `Project update photo ${index + 1}`,
-          uploaded_at: new Date().toISOString(),
-        },
-      ])
-
-      if (insertPhotoResult.error) {
+        })
+      } catch (photoReferenceError: any) {
         await markPhotoStatus(photo, {
           sync_status: 'failed',
-          error: insertPhotoResult.error.message,
+          error: photoReferenceError?.message || 'Unable to save the uploaded photo reference.',
         })
 
-        throw insertPhotoResult.error
+        throw photoReferenceError
       }
     } catch (error: any) {
       await markPhotoStatus(photo, {
@@ -717,6 +825,37 @@ async function ensureOnlineProjectExists(update: OfflineProjectUpdate) {
 async function createOrReuseOnlineUpdate(update: OfflineProjectUpdate) {
   if (textValue(update.online_update_id)) {
     return textValue(update.online_update_id)
+  }
+
+  const createdAt = textValue(update.created_at)
+
+  if (createdAt) {
+    const existingResult = await supabase
+      .from('project_updates')
+      .select('id')
+      .eq('project_id', update.project_id)
+      .eq('created_at', createdAt)
+      .limit(1)
+      .maybeSingle()
+
+    if (existingResult.error) {
+      await markUpdateStatus(update, {
+        sync_status: 'failed',
+        error: existingResult.error.message,
+      })
+      throw existingResult.error
+    }
+
+    const existingUpdateId = textValue(existingResult.data?.id)
+
+    if (existingUpdateId) {
+      await markUpdateStatus(update, {
+        online_update_id: existingUpdateId,
+        sync_status: 'uploading_photos',
+        error: '',
+      })
+      return existingUpdateId
+    }
   }
 
   const insertResult = await supabase
@@ -888,6 +1027,8 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
       if (!update.project_id) {
         throw new Error('Pending update has no project ID.')
       }
+
+      await assertCurrentUserCanSyncUpdate(update)
 
       await markUpdateStatus(update, {
         sync_status: 'syncing',

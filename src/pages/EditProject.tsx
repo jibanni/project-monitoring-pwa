@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { clearFormDraft, createFormDraftKey, loadFormDraft, saveFormDraft } from '../lib/formDraftStorage'
 import { useAuth } from '../context/AuthContext'
+import { useSmartBack } from '../hooks/useSmartBack'
 import { canEditProjectRecord, getCanonicalRole } from '../utils/aorAccess'
 import {
   getComputedRiskLevel,
@@ -369,8 +371,11 @@ function IconDetails() {
 export default function EditProject() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const smartBack = useSmartBack(id ? `/projects/${id}` : '/projects')
   const auth = useAuth()
   const revisedContractExpirationDateInputRef = useRef<HTMLInputElement | null>(null)
+  const baselineFormFingerprintRef = useRef('')
+  const formReadyRef = useRef(false)
 
   const [form, setForm] = useState<ProjectForm>(emptyForm)
   const [loading, setLoading] = useState(true)
@@ -378,6 +383,9 @@ export default function EditProject() {
   const [pageError, setPageError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [portalReady, setPortalReady] = useState(false)
+
+  const draftOwnerId = String(auth.user?.id || auth.profile?.id || 'local-user')
+  const editDraftKey = id ? createFormDraftKey('edit-project', id, draftOwnerId) : ''
 
   const role = getCanonicalRole(auth.profile?.role)
   const canAccessEditRoute = auth.isAdmin || auth.isROEngineer || role === 'RO Engineer'
@@ -556,6 +564,29 @@ export default function EditProject() {
   }, [])
 
   useEffect(() => {
+    if (!formReadyRef.current || loading || !editDraftKey) return
+
+    const fingerprint = JSON.stringify(form)
+    if (fingerprint === baselineFormFingerprintRef.current) {
+      clearFormDraft(editDraftKey)
+      return
+    }
+
+    saveFormDraft(editDraftKey, form)
+  }, [editDraftKey, form, loading])
+
+  useEffect(() => {
+    function preserveEditDraft() {
+      if (!formReadyRef.current || !editDraftKey) return
+      if (JSON.stringify(form) === baselineFormFingerprintRef.current) return
+      saveFormDraft(editDraftKey, form)
+    }
+
+    window.addEventListener('pagehide', preserveEditDraft)
+    return () => window.removeEventListener('pagehide', preserveEditDraft)
+  }, [editDraftKey, form])
+
+  useEffect(() => {
     if (!canAccessEditRoute) {
       navigate('/unauthorized', { replace: true })
       return
@@ -572,6 +603,7 @@ export default function EditProject() {
     }
 
     setLoading(true)
+    formReadyRef.current = false
     setPageError('')
     setSuccessMessage('')
 
@@ -598,7 +630,7 @@ export default function EditProject() {
       return
     }
 
-    setForm({
+    const serverForm: ProjectForm = {
       project_name: data.project_name || '',
       description: data.description || '',
       status: data.status || 'Not Yet Started',
@@ -629,7 +661,16 @@ export default function EditProject() {
       target_physical_source: data.target_physical_source || 'auto',
       risk_level: data.risk_level || 'None',
       last_inspection_date: dateInputValue(data.last_inspection_date),
-    })
+    }
+
+    baselineFormFingerprintRef.current = JSON.stringify(serverForm)
+    const recoveredDraft = loadFormDraft<ProjectForm>(editDraftKey)
+    setForm(recoveredDraft ? { ...serverForm, ...recoveredDraft } : serverForm)
+    formReadyRef.current = true
+
+    if (recoveredDraft && JSON.stringify(recoveredDraft) !== baselineFormFingerprintRef.current) {
+      setSuccessMessage('Unsaved changes were recovered from this device.')
+    }
 
     setLoading(false)
   }
@@ -869,6 +910,9 @@ export default function EditProject() {
       return
     }
 
+    clearFormDraft(editDraftKey)
+    baselineFormFingerprintRef.current = JSON.stringify(form)
+    formReadyRef.current = false
     setSuccessMessage('Project details were updated successfully.')
 
     setTimeout(() => {
@@ -1513,7 +1557,7 @@ export default function EditProject() {
               <button
                 type="button"
                 className="edit-project-fab edit-project-fab-back"
-                onClick={() => navigate(`/projects/${id}`)}
+                onClick={smartBack}
                 aria-label="Back to project details"
                 title="Back to Project Details"
               >

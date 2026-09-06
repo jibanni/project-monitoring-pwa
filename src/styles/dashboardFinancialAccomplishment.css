@@ -1,0 +1,168 @@
+/* =========================================================
+   PMS10 DASHBOARD — DUAL PERFORMANCE DONUTS
+   Project Completion + Financial Accomplishment
+
+   Replaces the Financial Accomplishment text row with a second
+   donut gauge that mirrors the existing completion donut.
+   ========================================================= */
+
+.dashboard-performance-gauges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.dashboard-performance-gauge-wrap {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.dashboard-performance-gauge-label {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.dashboard-financial-gauge .dashboard-completion-center strong {
+  color: #c2410c !important;
+}
+
+.dashboard-financial-gauge .dashboard-completion-center span {
+  color: #64748b !important;
+}
+
+@media (min-width: 1280px) {
+  .dashboard-completion-grid {
+    grid-template-columns: minmax(500px, 0.95fr) minmax(0, 1.25fr) !important;
+    gap: 14px !important;
+    align-items: stretch !important;
+  }
+
+  .dashboard-performance-gauges {
+    height: 100% !important;
+  }
+
+  .dashboard-performance-gauge-wrap {
+    height: 100% !important;
+  }
+
+  .dashboard-completion-gauge {
+    width: 100% !important;
+    min-height: 240px !important;
+    height: 240px !important;
+    max-height: 240px !important;
+  }
+
+  .dashboard-completion-breakdown {
+    grid-template-rows: repeat(2, minmax(0, 1fr)) auto !important;
+    align-content: stretch !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .dashboard-completion-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .dashboard-performance-gauges {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-completion-gauge {
+    min-height: 220px !important;
+    height: 220px !important;
+    max-height: 220px !important;
+  }
+
+  .dashboard-completion-breakdown {
+    grid-template-rows: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .dashboard-performance-gauges {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-completion-gauge {
+    min-height: 220px;
+  }
+}
+
+
+/* =========================================================
+   PMS10 DASHBOARD — DONUT PERCENT + CAPTION TYPOGRAPHY TUNE
+   - Slightly smaller center percentages to prevent overflow.
+   - Financial percentage gets a slightly tighter maximum because
+     it may display decimals such as 100.00%.
+   - Scope/commentary text is italicized.
+   ========================================================= */
+
+.dashboard-performance-gauges
+  .dashboard-completion-center
+  strong {
+  max-width: 92% !important;
+
+  font-size: clamp(2.5rem, 3.4vw, 3.75rem) !important;
+  font-weight: 700 !important;
+
+  line-height: 0.95 !important;
+  letter-spacing: -0.055em !important;
+
+  white-space: nowrap !important;
+}
+
+/* Financial can contain more characters (e.g. 100.00%), so keep
+   a slightly lower maximum while preserving the same hierarchy. */
+.dashboard-financial-gauge
+  .dashboard-completion-center
+  strong {
+  font-size: clamp(2.4rem, 3.15vw, 3.4rem) !important;
+}
+
+/* Caption / commentary below the two gauges. */
+.dashboard-completion-note {
+  font-style: italic !important;
+}
+
+.dashboard-completion-note strong {
+  font-style: italic !important;
+}
+
+/* Medium desktop */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .dashboard-performance-gauges
+    .dashboard-completion-center
+    strong {
+    font-size: clamp(2.35rem, 4vw, 3.35rem) !important;
+  }
+
+  .dashboard-financial-gauge
+    .dashboard-completion-center
+    strong {
+    font-size: clamp(2.25rem, 3.7vw, 3.05rem) !important;
+  }
+}
+
+/* Mobile/tablet safety */
+@media (max-width: 767px) {
+  .dashboard-performance-gauges
+    .dashboard-completion-center
+    strong {
+    font-size: clamp(2.25rem, 13vw, 3.25rem) !important;
+  }
+
+  .dashboard-financial-gauge
+    .dashboard-completion-center
+    strong {
+    font-size: clamp(2.1rem, 11.5vw, 2.95rem) !important;
+  }
+}

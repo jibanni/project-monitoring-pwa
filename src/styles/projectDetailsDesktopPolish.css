@@ -1,0 +1,576 @@
+/* =========================================================
+   PMS10 PROJECT DETAILS — DESKTOP POLISH
+   Desktop only.
+   Mobile/tablet Project Details remains untouched.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Match Dashboard / Projects desktop workspace gutters. */
+  .app-shell.app-project-details-route .app-main,
+  .app-shell.app-project-details-route.app-scrolled .app-main {
+    width: 100% !important;
+    max-width: 1760px !important;
+    margin: 0 auto !important;
+    padding: 8px 12px 28px !important;
+  }
+
+  .app-project-details-route .pd-page {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 0 32px !important;
+    background: #f3f6fa !important;
+    overflow: visible !important;
+  }
+
+  .app-project-details-route .pd-page > .pd-hero.pd-unified-hero,
+  .app-project-details-route:not(.app-scrolled) .pd-page > .pd-hero.pd-unified-hero,
+  .app-project-details-route.app-scrolled .pd-page > .pd-hero.pd-unified-hero,
+  .pd-page:not(.is-pd-scrolled) > .pd-hero.pd-unified-hero,
+  .pd-page.is-pd-scrolled > .pd-hero.pd-unified-hero {
+    display: block !important;
+    position: sticky !important;
+    top: calc(var(--pms10-desktop-topbar-h, 96px) + 8px) !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 0 8px !important;
+    padding: 14px 18px 15px !important;
+    overflow: hidden !important;
+    border: 1px solid #dbe5f0 !important;
+    border-radius: 16px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025), 0 7px 18px rgba(15, 42, 72, 0.045) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    transition: none !important;
+    z-index: 920 !important;
+  }
+
+  .app-project-details-route .pd-page > .pd-hero.pd-unified-hero::before,
+  .app-project-details-route .pd-page > .pd-hero.pd-unified-hero::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .app-project-details-route.app-scrolled .pd-page > .pd-hero,
+  .app-project-details-route .pd-page.is-pd-scrolled > .pd-hero,
+  .pd-page.is-pd-scrolled > .pd-hero {
+    display: block !important;
+    position: sticky !important;
+    top: calc(var(--pms10-desktop-topbar-h, 96px) + 8px) !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 0 8px !important;
+    padding: 14px 18px 15px !important;
+    overflow: visible !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body > .pd-viewport-titlebar {
+    display: none !important;
+  }
+
+  .app-project-details-route .pd-page.is-pd-scrolled,
+  .app-project-details-route.app-scrolled .pd-page {
+    padding-top: 8px !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-content {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-eyebrow {
+    display: block !important;
+    margin: 0 0 4px !important;
+    padding: 0 !important;
+    color: #d99a00 !important;
+    font-size: 0.7rem !important;
+    font-weight: 900 !important;
+    line-height: 1.1 !important;
+    letter-spacing: 0.18em !important;
+    text-transform: uppercase !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-title {
+    display: block !important;
+    width: 100% !important;
+    max-width: 1180px !important;
+    margin: 0 !important;
+    color: #0b2d52 !important;
+    font-weight: 900 !important;
+    line-height: 1.02 !important;
+    letter-spacing: -0.045em !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-title.pd-unified-title-short {
+    font-size: clamp(1.85rem, 2.15vw, 2.45rem) !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-title.pd-unified-title-medium {
+    font-size: clamp(1.7rem, 2vw, 2.25rem) !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-title.pd-unified-title-long {
+    font-size: clamp(1.5rem, 1.8vw, 2rem) !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-title.pd-unified-title-extra-long {
+    font-size: clamp(1.3rem, 1.55vw, 1.75rem) !important;
+    line-height: 1.07 !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-location {
+    display: block !important;
+    margin: 6px 0 0 !important;
+    color: #64748b !important;
+    font-size: 0.84rem !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring {
+    all: unset !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    gap: 7px !important;
+    margin: 10px 0 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: inherit !important;
+    font-family: inherit !important;
+    white-space: normal !important;
+    overflow: visible !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring::before,
+  .app-project-details-route .pd-unified-hero-monitoring::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__separator {
+    display: none !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__value {
+    all: unset !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 28px !important;
+    height: auto !important;
+    padding: 5px 11px !important;
+    border: 1px solid transparent !important;
+    border-radius: 999px !important;
+    font-family: inherit !important;
+    font-size: 0.7rem !important;
+    font-weight: 850 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.01em !important;
+    white-space: nowrap !important;
+    box-shadow: none !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__status {
+    color: #0b4f8a !important;
+    background: #edf5ff !important;
+    border-color: #cfe4fb !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__variance[data-tone='positive'] {
+    color: #166534 !important;
+    background: #ecfdf3 !important;
+    border-color: #bbf7d0 !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__variance[data-tone='negative'] {
+    color: #b42318 !important;
+    background: #fff1f2 !important;
+    border-color: #fecdd3 !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__variance[data-tone='neutral'] {
+    color: #475569 !important;
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__risk[data-tone='none'] {
+    color: #166534 !important;
+    background: #ecfdf3 !important;
+    border-color: #bbf7d0 !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__risk[data-tone='low'] {
+    color: #854d0e !important;
+    background: #fefce8 !important;
+    border-color: #fde68a !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__risk[data-tone='moderate'] {
+    color: #9a3412 !important;
+    background: #fff7ed !important;
+    border-color: #fed7aa !important;
+  }
+
+  .app-project-details-route .pd-unified-hero-monitoring__risk[data-tone='high'] {
+    color: #b42318 !important;
+    background: #fff1f2 !important;
+    border-color: #fecdd3 !important;
+  }
+
+  .app-project-details-route .pd-summary-grid,
+  body .app-project-details-route .pd-page .pd-summary-grid {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 0 6px !important;
+    padding: 0 !important;
+    gap: 10px !important;
+  }
+
+  .app-project-details-route .pd-summary-card,
+  body .app-project-details-route .pd-page .pd-summary-card {
+    min-height: 88px !important;
+    padding: 12px 14px !important;
+    border-radius: 15px !important;
+  }
+
+  .app-project-details-route .pd-content-grid {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 0 18px !important;
+    gap: 10px !important;
+    align-items: start !important;
+  }
+
+  .app-project-details-route .pd-summary-grid + .pd-content-grid {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .app-project-details-route .pd-main-column,
+  .app-project-details-route .pd-side-column {
+    gap: 10px !important;
+  }
+
+  .app-project-details-route .pd-card {
+    padding: 12px !important;
+    border-radius: 16px !important;
+  }
+}
+
+/* =========================================================
+   PROJECT DETAILS RIGHT COLUMN ALIGNMENT
+   Photo Gallery and Latest Updates share the same edges/rhythm.
+   ========================================================= */
+@media (min-width: 1024px) {
+  .app-project-details-route .pd-side-column {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    gap: 8px !important;
+    align-content: start !important;
+  }
+
+  .app-project-details-route .pd-side-column > .pd-card,
+  .app-project-details-route .pd-side-column > .pd-history-pill-section {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-project-details-route .pd-history-pill-section {
+    margin-top: 0 !important;
+    padding: 0 !important;
+  }
+
+  .app-project-details-route .pd-history-pill {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-project-details-route .pd-photo-holder,
+  .app-project-details-route .pd-feature-photo-card {
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+  }
+}
+
+
+/* =========================================================
+   PROJECT DETAILS — RIGHT COLUMN TRUE EDGE ALIGNMENT
+   Photo itself and Latest Updates use the same desktop edges.
+   ========================================================= */
+@media (min-width: 1024px) {
+  .app-project-details-route .pd-side-column > .pd-card,
+  .app-project-details-route .pd-side-column > .pd-history-pill-section,
+  .app-project-details-route .pd-history-pill {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .app-project-details-route .pd-history-pill-section {
+    margin-top: 0 !important;
+  }
+
+  /* Photo Gallery header keeps card padding, while the actual photo expands
+     to the same visual left/right edges as the history pill below. */
+  .app-project-details-route .pd-side-column > .pd-card .pd-photo-holder {
+    width: calc(100% + 24px) !important;
+    max-width: none !important;
+    margin-left: -12px !important;
+    margin-right: -12px !important;
+    margin-bottom: -12px !important;
+  }
+
+  .app-project-details-route .pd-feature-photo-card {
+    width: 100% !important;
+    max-width: none !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+    border-radius: 14px 14px 16px 16px !important;
+  }
+
+  .app-project-details-route .pd-photo-expanded-panel {
+    margin: 0 12px 12px !important;
+  }
+}
+
+/* =========================================================
+   PROJECT DETAILS — DESKTOP COLUMN ALIGNMENT
+   Align Photo Gallery / Latest Updates directly beneath the
+   4th summary card (Last Inspection) on wide desktop screens.
+   Mobile/tablet layout remains untouched.
+   ========================================================= */
+@media (min-width: 1280px) {
+  .app-project-details-route .pd-summary-grid,
+  body .app-project-details-route .pd-page .pd-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .app-project-details-route .pd-content-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .app-project-details-route .pd-main-column {
+    grid-column: 1 / span 3 !important;
+    min-width: 0 !important;
+  }
+
+  .app-project-details-route .pd-side-column {
+    grid-column: 4 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .app-project-details-route .pd-side-column > .pd-card,
+  .app-project-details-route .pd-side-column > .pd-history-pill-section,
+  .app-project-details-route .pd-history-pill {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Keep the photo preview contained inside the same right-column edges. */
+  .app-project-details-route .pd-side-column > .pd-card .pd-photo-holder {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-project-details-route .pd-feature-photo-card,
+  .app-project-details-route .pd-photo-expanded-panel {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+
+/* =========================================================
+   PMS10 PROJECT DETAILS — SINGLE DESKTOP GRID REFERENCE
+   Root-cause fix:
+   Legacy Project Details CSS used different width references:
+   - summary grid: capped/centered independently
+   - content grid: separate 1.45fr / 0.72fr columns
+   - later density rules: another max-width
+   This final block forces both rows to use ONE width and ONE
+   column geometry, so Photo Gallery aligns exactly below
+   Last Inspection.
+   ========================================================= */
+
+@media (min-width: 1181px) {
+  .app-shell.app-project-details-route .pd-page,
+  .app-shell.app-project-details-route .pd-summary-grid,
+  .app-shell.app-project-details-route .pd-content-grid {
+    --pd-desktop-gap: 10px;
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Four KPI cards and the content area now share the exact
+     same four-column mathematical reference. */
+  body .app-shell.app-project-details-route .pd-page .pd-summary-grid,
+  .app-shell.app-project-details-route .pd-content-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    column-gap: var(--pd-desktop-gap) !important;
+  }
+
+  body .app-shell.app-project-details-route .pd-page .pd-summary-grid {
+    row-gap: var(--pd-desktop-gap) !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .app-shell.app-project-details-route .pd-content-grid {
+    row-gap: var(--pd-desktop-gap) !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .app-shell.app-project-details-route .pd-main-column {
+    grid-column: 1 / 4 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  .app-shell.app-project-details-route .pd-side-column {
+    grid-column: 4 / 5 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* The card and the history pill both inherit the exact width
+     of column 4; no independent max-width/margin may remain. */
+  .app-shell.app-project-details-route .pd-side-column > .pd-card,
+  .app-shell.app-project-details-route .pd-side-column > .pd-history-pill-section,
+  .app-shell.app-project-details-route .pd-side-column .pd-history-pill {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Keep the image inside the Photo Gallery card. Do not let
+     the image create a second width reference with +/- margins. */
+  .app-shell.app-project-details-route .pd-side-column .pd-photo-holder,
+  .app-shell.app-project-details-route .pd-side-column .pd-feature-photo-card,
+  .app-shell.app-project-details-route .pd-side-column .pd-photo-expanded-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-shell.app-project-details-route .pd-side-column .pd-photo-holder {
+    margin-bottom: 0 !important;
+  }
+
+  /* Ensure all four summary cards fill their grid cells equally. */
+  body .app-shell.app-project-details-route .pd-page .pd-summary-card {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* At narrower desktop widths, preserve the existing responsive
+   stacking instead of forcing an unusably narrow photo column. */
+@media (min-width: 1024px) and (max-width: 1180px) {
+  .app-shell.app-project-details-route .pd-summary-grid,
+  .app-shell.app-project-details-route .pd-content-grid {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .app-shell.app-project-details-route .pd-content-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-shell.app-project-details-route .pd-main-column,
+  .app-shell.app-project-details-route .pd-side-column {
+    grid-column: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+}

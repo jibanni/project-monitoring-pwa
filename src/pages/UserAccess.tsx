@@ -11,6 +11,7 @@ import {
 } from '../data/region10Directory'
 import '../styles/userManagement.css'
 import '../styles/pageHero.css'
+import '../styles/userAccessMultiLguPolish.css'
 
 type UserRole =
   | 'Admin'
@@ -321,7 +322,12 @@ export default function UserAccess() {
         city: normalizeLocationText(userRecord.city),
         municipality: normalizeLocationText(userRecord.municipality),
         is_active: userRecord.is_active !== false,
-        poAssignedLgus: uniqueSorted(poAssignments.map((assignment) => assignment.municipality)),
+        poAssignedLgus: uniqueSorted([
+          ...poAssignments.map((assignment) => assignment.municipality),
+          ...(role === 'MLGOO' && userRecord.municipality
+            ? [normalizeLocationText(userRecord.municipality)]
+            : []),
+        ]),
         roAssignedProvinces: canonicalRoProvinces,
       })
     } catch (err: any) {
@@ -349,7 +355,9 @@ export default function UserAccess() {
         }
 
         if (nextRole !== 'RO Engineer') next.roAssignedProvinces = []
-        if (nextRole !== 'PO Engineer') next.poAssignedLgus = []
+        if (nextRole !== 'PO Engineer' && nextRole !== 'MLGOO') {
+          next.poAssignedLgus = []
+        }
       }
 
       if (key === 'province') {
@@ -421,8 +429,11 @@ export default function UserAccess() {
       return
     }
 
-    if (form.role === 'MLGOO' && (!form.province || !form.municipality)) {
-      setError('Please select both province and LGU for the MLGOO.')
+    if (
+      form.role === 'MLGOO' &&
+      (!form.province || form.poAssignedLgus.length === 0)
+    ) {
+      setError('Please select a province and at least one LGU for the MLGOO.')
       return
     }
 
@@ -445,7 +456,10 @@ export default function UserAccess() {
         province: form.province || null,
         huc: form.huc || null,
         city: form.city || null,
-        municipality: form.municipality || null,
+        municipality:
+          form.role === 'MLGOO'
+            ? form.poAssignedLgus[0] || null
+            : form.municipality || null,
         is_active: form.is_active,
       }
 
@@ -470,7 +484,10 @@ export default function UserAccess() {
 
       if (deleteRoError) throw deleteRoError
 
-      if (form.role === 'PO Engineer' && form.province) {
+      if (
+        (form.role === 'PO Engineer' || form.role === 'MLGOO') &&
+        form.province
+      ) {
         const records = form.poAssignedLgus.map((municipality) => ({
           user_id: userId,
           province: form.province,
@@ -526,6 +543,27 @@ export default function UserAccess() {
     if (!form?.province) return []
     return uniqueSorted(getRegion10ComponentCitiesByProvince(form.province))
   }, [form?.province])
+
+  const selectedLguCount = form?.poAssignedLgus.length || 0
+
+  const allVisibleLgusSelected =
+    lguOptions.length > 0 &&
+    lguOptions.every((lgu) => form?.poAssignedLgus.includes(lgu))
+
+  function toggleAllVisibleLgus() {
+    setForm((current) => {
+      if (!current) return current
+
+      const allSelected =
+        lguOptions.length > 0 &&
+        lguOptions.every((lgu) => current.poAssignedLgus.includes(lgu))
+
+      return {
+        ...current,
+        poAssignedLgus: allSelected ? [] : [...lguOptions],
+      }
+    })
+  }
 
   if (loading) {
     return (
@@ -667,18 +705,33 @@ export default function UserAccess() {
           </label>
 
           {form.province ? (
-            <div className="user-access-checkbox-grid">
-              {lguOptions.map((lgu) => (
-                <label key={lgu} className="user-access-check-card">
-                  <input
-                    type="checkbox"
-                    checked={form.poAssignedLgus.includes(lgu)}
-                    onChange={() => togglePoLgu(lgu)}
-                  />
-                  <span>{lgu}</span>
-                </label>
-              ))}
-            </div>
+            <>
+              <div className="user-access-selection-toolbar">
+                <span>
+                  {selectedLguCount} of {lguOptions.length} LGUs selected
+                </span>
+                <button
+                  type="button"
+                  className="user-access-select-all-button"
+                  onClick={toggleAllVisibleLgus}
+                >
+                  {allVisibleLgusSelected ? 'Clear All LGUs' : 'Select All LGUs'}
+                </button>
+              </div>
+
+              <div className="user-access-checkbox-grid">
+                {lguOptions.map((lgu) => (
+                  <label key={lgu} className="user-access-check-card">
+                    <input
+                      type="checkbox"
+                      checked={form.poAssignedLgus.includes(lgu)}
+                      onChange={() => togglePoLgu(lgu)}
+                    />
+                    <span>{lgu}</span>
+                  </label>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="user-management-state small">Select a province first to show LGU options.</div>
           )}
@@ -765,35 +818,59 @@ export default function UserAccess() {
       {form.role === 'MLGOO' && (
         <section className="user-access-card">
           <h2>Municipality / LGU Assignment</h2>
-          <div className="user-access-grid">
-            <label>
-              <span>Province</span>
-              <select value={form.province} onChange={(event) => updateForm('province', event.target.value)}>
-                <option value="">SELECT PROVINCE</option>
-                {provinceOptions.map((province) => (
-                  <option key={province} value={province}>
-                    {uppercaseOptionLabel(province)}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <p>
+            Select one or more LGUs. The MLGOO will be able to view projects
+            under all selected LGUs.
+          </p>
 
-            <label>
-              <span>Municipality / LGU</span>
-              <select
-                value={form.municipality}
-                onChange={(event) => updateForm('municipality', event.target.value)}
-                disabled={!form.province}
-              >
-                <option value="">Select LGU</option>
+          <label className="user-access-field">
+            <span>Province</span>
+            <select
+              value={form.province}
+              onChange={(event) => updateForm('province', event.target.value)}
+            >
+              <option value="">SELECT PROVINCE</option>
+              {provinceOptions.map((province) => (
+                <option key={province} value={province}>
+                  {uppercaseOptionLabel(province)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {form.province ? (
+            <>
+              <div className="user-access-selection-toolbar">
+                <span>
+                  {selectedLguCount} of {lguOptions.length} LGUs selected
+                </span>
+                <button
+                  type="button"
+                  className="user-access-select-all-button"
+                  onClick={toggleAllVisibleLgus}
+                >
+                  {allVisibleLgusSelected ? 'Clear All LGUs' : 'Select All LGUs'}
+                </button>
+              </div>
+
+              <div className="user-access-checkbox-grid">
                 {lguOptions.map((lgu) => (
-                  <option key={lgu} value={lgu}>
-                    {lgu}
-                  </option>
+                  <label key={lgu} className="user-access-check-card">
+                    <input
+                      type="checkbox"
+                      checked={form.poAssignedLgus.includes(lgu)}
+                      onChange={() => togglePoLgu(lgu)}
+                    />
+                    <span>{lgu}</span>
+                  </label>
                 ))}
-              </select>
-            </label>
-          </div>
+              </div>
+            </>
+          ) : (
+            <div className="user-management-state small">
+              Select a province first to show LGU options.
+            </div>
+          )}
         </section>
       )}
 

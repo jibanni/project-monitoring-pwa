@@ -1,0 +1,406 @@
+/* =========================================================
+   PMS10 GLOBAL DESKTOP FILTER SYSTEM
+   Dashboard filter bar is the canonical visual reference.
+
+   Applies to:
+   - Dashboard
+   - Project Registry
+   - GIS Map
+   - Reports
+   - User Management
+
+   Desktop only >=1024px.
+   Existing mobile/tablet filter layouts remain unchanged.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* -------------------------------------------------------
+     ONE OUTER CARD
+     ------------------------------------------------------- */
+
+  body #root .dashboard-filter-panel,
+  body #root .pm-unified-filter-panel {
+    box-sizing: border-box !important;
+
+    width: 100% !important;
+    max-width: none !important;
+
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+
+    padding: 8px !important;
+
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    border-radius: 18px !important;
+
+    background: #ffffff !important;
+
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  /* -------------------------------------------------------
+     BAR
+     ------------------------------------------------------- */
+
+  body #root .dashboard-filter-bar,
+  body #root .pm-unified-filter-bar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+
+    align-items: center !important;
+
+    min-height: 44px !important;
+
+    gap: 8px !important;
+  }
+
+  body #root .dashboard-filter-summary,
+  body #root .pm-unified-filter-summary {
+    display: flex !important;
+    align-items: center !important;
+
+    min-width: 0 !important;
+
+    gap: 9px !important;
+  }
+
+  /* -------------------------------------------------------
+     FILTER ICON — same light-blue square as Dashboard
+     ------------------------------------------------------- */
+
+  body #root .dashboard-filter-summary-icon,
+  body #root .pm-unified-filter-icon,
+  body #root .projects-page .pm-unified-filter-icon {
+    display: grid !important;
+    place-items: center !important;
+
+    flex: 0 0 34px !important;
+
+    width: 34px !important;
+    min-width: 34px !important;
+    max-width: 34px !important;
+
+    height: 34px !important;
+    min-height: 34px !important;
+    max-height: 34px !important;
+
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 12px !important;
+
+    background: #eff6ff !important;
+
+    color: #0f4c81 !important;
+
+    box-shadow: none !important;
+  }
+
+  body #root .dashboard-filter-summary-icon svg,
+  body #root .pm-unified-filter-icon svg {
+    display: block !important;
+
+    width: 17px !important;
+    height: 17px !important;
+
+    margin: 0 !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 2.4 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+  }
+
+  /* -------------------------------------------------------
+     FILTER LABEL / SUMMARY
+     Uses the limited PMS10 typography system.
+     ------------------------------------------------------- */
+
+  body #root .dashboard-filter-summary-text,
+  body #root .pm-unified-filter-text {
+    min-width: 0 !important;
+  }
+
+  body #root .dashboard-filter-summary-text p,
+  body #root .pm-unified-filter-text p {
+    margin: 0 0 2px !important;
+
+    color: #64748b !important;
+
+    font-size: 12px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.05 !important;
+
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+  }
+
+  body #root .dashboard-filter-summary-text strong,
+  body #root .pm-unified-filter-text strong {
+    display: block !important;
+
+    max-width: 100% !important;
+
+    margin: 0 !important;
+
+    overflow: hidden !important;
+
+    color: #0f172a !important;
+
+    font-size: 14px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.15 !important;
+
+    letter-spacing: 0 !important;
+
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* -------------------------------------------------------
+     COUNT + FILTER BUTTON
+     ------------------------------------------------------- */
+
+  body #root .dashboard-filter-bar-actions,
+  body #root .pm-unified-filter-actions {
+    display: inline-flex !important;
+    align-items: center !important;
+
+    gap: 7px !important;
+  }
+
+  body #root .dashboard-filter-bar-actions > span,
+  body #root .pm-unified-filter-actions > span,
+  body #root .projects-page .pm-unified-filter-actions > span {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    min-height: 32px !important;
+    height: 32px !important;
+
+    padding: 0 10px !important;
+
+    border: 0 !important;
+    border-radius: 999px !important;
+
+    background: #eff6ff !important;
+
+    color: #0f4c81 !important;
+
+    font-size: 14px !important;
+    font-weight: 600 !important;
+
+    line-height: 1 !important;
+
+    letter-spacing: 0 !important;
+
+    white-space: nowrap !important;
+
+    box-shadow: none !important;
+  }
+
+  body #root .dashboard-filter-toggle,
+  body #root .pm-unified-filter-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    min-height: 36px !important;
+    height: 36px !important;
+
+    padding: 0 14px !important;
+
+    border: 0 !important;
+    border-radius: 12px !important;
+
+    background: #0f4c81 !important;
+
+    color: #ffffff !important;
+
+    font-size: 14px !important;
+    font-weight: 600 !important;
+
+    line-height: 1 !important;
+
+    letter-spacing: 0 !important;
+
+    cursor: pointer !important;
+
+    box-shadow: 0 7px 16px rgba(15, 76, 129, 0.13) !important;
+  }
+
+  body #root .dashboard-filter-panel.has-active-filters .dashboard-filter-toggle,
+  body #root .pm-unified-filter-panel.has-active-filters .pm-unified-filter-toggle {
+    background: #ff6b2c !important;
+
+    box-shadow: 0 7px 16px rgba(255, 107, 44, 0.14) !important;
+  }
+
+  /* -------------------------------------------------------
+     OPEN FILTER BODY
+     ------------------------------------------------------- */
+
+  body #root .pm-unified-filter-body[hidden] {
+    display: none !important;
+  }
+
+  body #root .pm-unified-filter-body,
+  body #root .dashboard-filter-panel.is-open .dashboard-filter-grid {
+    margin-top: 9px !important;
+    padding-top: 9px !important;
+
+    border-top: 1px solid rgba(148, 163, 184, 0.2) !important;
+  }
+
+  body #root .pm-unified-filter-body {
+    display: grid !important;
+    gap: 8px !important;
+  }
+
+  body #root .dashboard-filter-grid,
+  body #root .pm-unified-filter-grid {
+    gap: 8px !important;
+  }
+
+  /* -------------------------------------------------------
+     OPEN FILTER FORM CONTROLS
+     ------------------------------------------------------- */
+
+  body #root .pm-unified-filter-grid label,
+  body #root .user-management-filter-field label {
+    display: block !important;
+
+    margin: 0 0 4px !important;
+
+    color: #64748b !important;
+
+    font-size: 12px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.1 !important;
+
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
+  }
+
+  body #root .pm-unified-filter-grid input,
+  body #root .pm-unified-filter-grid select,
+  body #root .user-management-filter-field input,
+  body #root .user-management-filter-field select,
+  body #root .dashboard-filter-grid select {
+    box-sizing: border-box !important;
+
+    width: 100% !important;
+
+    min-height: 38px !important;
+    height: 38px !important;
+
+    padding: 0 11px !important;
+
+    border: 1px solid #dbe5f0 !important;
+    border-radius: 11px !important;
+
+    outline: none !important;
+
+    background: #ffffff !important;
+
+    color: #0f172a !important;
+
+    font-size: 14px !important;
+    font-weight: 400 !important;
+
+    line-height: 1.2 !important;
+
+    box-shadow: none !important;
+  }
+
+  body #root .pm-unified-filter-grid input:focus,
+  body #root .pm-unified-filter-grid select:focus,
+  body #root .user-management-filter-field input:focus,
+  body #root .user-management-filter-field select:focus,
+  body #root .dashboard-filter-grid select:focus {
+    border-color: #2563eb !important;
+
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.09) !important;
+  }
+
+  /* -------------------------------------------------------
+     USER MANAGEMENT
+     Same dashboard toolbar; expanded form is 3 fields + Reset.
+     ------------------------------------------------------- */
+
+  body #root .user-management-page .user-management-filter-card.pm-unified-filter-panel {
+    display: block !important;
+  }
+
+  body #root .user-management-filter-grid {
+    display: grid !important;
+
+    grid-template-columns:
+      minmax(280px, 1.7fr)
+      minmax(170px, 0.65fr)
+      minmax(170px, 0.65fr)
+      auto !important;
+
+    align-items: end !important;
+
+    gap: 8px !important;
+  }
+
+  body #root .user-management-filter-field {
+    min-width: 0 !important;
+  }
+
+  body #root .user-management-filter-reset {
+    min-width: 76px !important;
+
+    min-height: 38px !important;
+    height: 38px !important;
+
+    padding: 0 12px !important;
+
+    border: 1px solid #dbe5f0 !important;
+    border-radius: 11px !important;
+
+    background: #ffffff !important;
+
+    color: #0f4c81 !important;
+
+    font-size: 14px !important;
+    font-weight: 600 !important;
+
+    cursor: pointer !important;
+  }
+
+  body #root .user-management-filter-reset:disabled {
+    color: #94a3b8 !important;
+
+    background: #f8fafc !important;
+
+    cursor: default !important;
+  }
+
+  /* -------------------------------------------------------
+     PROJECT / GIS / REPORT VERTICAL RHYTHM
+     One consistent compact gap below the filter toolbar.
+     ------------------------------------------------------- */
+
+  body #root .projects-page,
+  body #root .pm-map-page,
+  body #root .reports-page {
+    row-gap: 10px !important;
+  }
+
+  body #root .projects-page .projects-filter-card,
+  body #root .pm-map-page .pm-map-filter-card,
+  body #root .reports-page .reports-filter-card {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+}
+
+/* Keep the established mobile layouts as their current source of truth. */

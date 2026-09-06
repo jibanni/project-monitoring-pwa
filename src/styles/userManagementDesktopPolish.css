@@ -1,0 +1,308 @@
+/* =========================================================
+   PMS10 USER MANAGEMENT — DESKTOP POLISH
+   Desktop only. Existing mobile/tablet User Management is untouched.
+   ========================================================= */
+
+.user-management-desktop-list {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .user-management-page {
+    gap: 10px !important;
+    padding: 10px 12px 32px !important;
+  }
+
+  /* Compact dashboard-like summary strip. */
+  .user-management-summary-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .user-management-summary-card {
+    min-height: 78px !important;
+    padding: 11px 13px !important;
+    border-radius: 15px !important;
+    box-shadow: 0 6px 18px rgba(15, 42, 72, 0.045) !important;
+  }
+
+  .user-management-summary-card span {
+    font-size: 0.68rem !important;
+    letter-spacing: 0.09em !important;
+  }
+
+  .user-management-summary-card strong {
+    margin-top: 7px !important;
+    font-size: clamp(1.65rem, 2vw, 2rem) !important;
+  }
+
+  /* Plain filter bar consistent with the rest of PMS10 desktop. */
+  .user-management-filter-card {
+    grid-template-columns: minmax(340px, 1.7fr) minmax(180px, 0.65fr) minmax(180px, 0.65fr) !important;
+    gap: 10px !important;
+    padding: 11px 13px !important;
+    border-radius: 16px !important;
+    box-shadow: 0 6px 18px rgba(15, 42, 72, 0.04) !important;
+  }
+
+  .user-management-filter-card label {
+    margin-bottom: 5px !important;
+    color: #64748b !important;
+    font-size: 0.66rem !important;
+    letter-spacing: 0.09em !important;
+  }
+
+  .user-management-filter-card input,
+  .user-management-filter-card select {
+    min-height: 40px !important;
+    border-radius: 10px !important;
+    background: #fbfdff !important;
+  }
+
+  .user-management-list-card {
+    overflow: hidden !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 22px rgba(15, 42, 72, 0.045) !important;
+  }
+
+  .user-management-list-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    min-height: 56px !important;
+    padding: 11px 15px !important;
+  }
+
+  .user-management-list-header h2 {
+    font-size: 1.06rem !important;
+  }
+
+  .user-management-list-header p {
+    margin-top: 2px !important;
+    font-size: 0.82rem !important;
+  }
+
+  /* Hide the legacy wide table on desktop. The new compact cards below
+     retain all the same role/access/approval/password functionality. */
+  .user-management-table-wrap {
+    display: none !important;
+  }
+
+  .user-management-desktop-list {
+    display: grid !important;
+    gap: 7px !important;
+    padding: 9px !important;
+    background: #f5f8fc !important;
+  }
+
+  .user-management-desktop-card {
+    display: grid !important;
+    grid-template-columns:
+      minmax(220px, 1.35fr)
+      minmax(145px, 0.72fr)
+      minmax(190px, 0.95fr)
+      minmax(130px, 0.62fr)
+      auto !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-width: 0 !important;
+    min-height: 82px !important;
+    padding: 11px 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.025) !important;
+  }
+
+  .user-management-desktop-card:hover {
+    border-color: #cbd9e8 !important;
+    box-shadow: 0 6px 16px rgba(15, 42, 72, 0.055) !important;
+  }
+
+  .user-management-desktop-person {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-width: 0 !important;
+  }
+
+  .user-management-desktop-card .user-management-avatar {
+    width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 40px !important;
+    border-radius: 12px !important;
+  }
+
+  .user-management-desktop-person-copy {
+    min-width: 0 !important;
+  }
+
+  .user-management-desktop-name-line {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+
+  .user-management-desktop-name-line strong {
+    min-width: 0 !important;
+    color: #0f172a !important;
+    font-size: 0.9rem !important;
+    font-weight: 850 !important;
+    line-height: 1.22 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .user-management-current-chip {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    min-height: 20px !important;
+    padding: 0 6px !important;
+    border-radius: 999px !important;
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    font-size: 0.6rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+  }
+
+  .user-management-desktop-email {
+    display: block !important;
+    margin-top: 3px !important;
+    color: #64748b !important;
+    font-size: 0.76rem !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .user-management-desktop-label {
+    display: block !important;
+    margin-bottom: 4px !important;
+    color: #64748b !important;
+    font-size: 0.61rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.09em !important;
+    text-transform: uppercase !important;
+  }
+
+  .user-management-desktop-role,
+  .user-management-desktop-access,
+  .user-management-desktop-state {
+    min-width: 0 !important;
+  }
+
+  .user-management-desktop-role .user-management-role-select {
+    min-height: 36px !important;
+    padding: 0 31px 0 10px !important;
+    border-radius: 9px !important;
+    font-size: 0.75rem !important;
+    font-weight: 750 !important;
+    background: #fbfdff !important;
+  }
+
+  .user-management-desktop-access strong {
+    display: block !important;
+    color: #334155 !important;
+    font-size: 0.76rem !important;
+    font-weight: 800 !important;
+    line-height: 1.25 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .user-management-aor-link {
+    display: inline-flex !important;
+    margin-top: 4px !important;
+    color: #0b5ca8 !important;
+    font-size: 0.7rem !important;
+    font-weight: 850 !important;
+    text-decoration: none !important;
+  }
+
+  .user-management-aor-link:hover {
+    text-decoration: underline !important;
+  }
+
+  .user-management-desktop-state {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 5px !important;
+  }
+
+  .user-management-desktop-state .user-management-status {
+    min-height: 24px !important;
+    padding: 0 8px !important;
+    font-size: 0.62rem !important;
+  }
+
+  .user-management-created-date {
+    color: #64748b !important;
+    font-size: 0.68rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .user-management-desktop-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(72px, auto)) !important;
+    gap: 6px !important;
+    justify-content: end !important;
+  }
+
+  .user-management-desktop-actions .user-management-button {
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    border-radius: 9px !important;
+    font-size: 0.7rem !important;
+    box-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  .user-management-desktop-actions .user-management-button.primary {
+    background: #0b5ca8 !important;
+  }
+
+  .user-management-desktop-actions .user-management-button.secondary {
+    border: 1px solid #dbe5ef !important;
+    background: #f8fafc !important;
+  }
+
+  /* Keep the refresh control available without obscuring row actions. */
+  .user-management-refresh-fab {
+    right: 18px !important;
+    bottom: 18px !important;
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+  }
+
+  .user-management-refresh-fab svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .user-management-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .user-management-desktop-card {
+    grid-template-columns: minmax(210px, 1.3fr) minmax(140px, 0.7fr) minmax(180px, 1fr) auto !important;
+  }
+
+  .user-management-desktop-state {
+    display: none !important;
+  }
+
+  .user-management-desktop-actions {
+    grid-template-columns: repeat(2, minmax(78px, auto)) !important;
+  }
+}

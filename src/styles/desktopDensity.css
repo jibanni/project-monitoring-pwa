@@ -1,0 +1,489 @@
+/* =========================================================
+   PMS10 GLOBAL DESKTOP DENSITY — PHASE 1.14
+   Compact PC spacing inspired by the Project Review Tracker.
+
+   HARD SAFETY RULE:
+   Everything in this file is desktop-only (>= 1024px).
+   Existing phone/tablet layout, mobile hero, bottom navbar,
+   touch targets, and mobile page spacing are not changed.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  :root {
+    --pms10-pc-gutter: 14px;
+    --pms10-pc-section-gap: 10px;
+    --pms10-pc-card-pad: 12px;
+    --pms10-pc-card-radius: 16px;
+    --pms10-pc-soft-shadow: 0 7px 20px rgba(15, 23, 42, 0.055);
+  }
+
+  /* -------------------------------------------------------
+     GLOBAL WORKSPACE
+     Keep every authenticated desktop route close to the
+     sidebar/header and avoid oversized page gutters.
+     ------------------------------------------------------- */
+  .app-shell .app-main {
+    width: 100% !important;
+    max-width: 1840px !important;
+    margin: 0 auto !important;
+    padding: 10px var(--pms10-pc-gutter) 26px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Main monitoring modules use the full workspace. */
+  .dashboard-page,
+  .projects-page,
+  .pm-map-page,
+  .reports-page,
+  .offline-sync-page,
+  .user-management-page {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Form/detail routes keep a readable max width but use less
+     dead space around the actual working content. */
+  .pd-page,
+  .pu-page,
+  .create-project-page,
+  .edit-project-page,
+  .subay-import-page,
+  .user-access-page {
+    box-sizing: border-box !important;
+  }
+
+  .create-project-page,
+  .edit-project-page,
+  .subay-import-page,
+  .user-access-page {
+    padding-top: 10px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* -------------------------------------------------------
+     SHARED FILTERS / TOOLBARS
+     ------------------------------------------------------- */
+  .dashboard-filter-panel,
+  .projects-filter-card,
+  .pm-map-filter-card,
+  .reports-filter-card,
+  .user-management-filter-card,
+  .pm-unified-filter-panel,
+  .pm-unified-filter-bar {
+    border-radius: var(--pms10-pc-card-radius) !important;
+    box-shadow: var(--pms10-pc-soft-shadow) !important;
+  }
+
+  .projects-filter-card,
+  .pm-map-filter-card,
+  .reports-filter-card,
+  .user-management-filter-card {
+    padding: 10px 12px !important;
+  }
+
+  .pm-unified-filter-bar,
+  .dashboard-filter-bar {
+    min-height: 42px !important;
+    gap: 8px !important;
+  }
+
+  .projects-filter-grid,
+  .pm-map-filter-grid,
+  .reports-filter-grid,
+  .dashboard-filter-grid,
+  .user-management-filter-card,
+  .pm-unified-filter-grid {
+    gap: 8px !important;
+  }
+
+  .projects-filter-grid label,
+  .pm-map-filter-grid label,
+  .reports-filter-grid label,
+  .dashboard-filter-grid label,
+  .user-management-filter-card label,
+  .pm-unified-filter-grid label {
+    gap: 4px !important;
+  }
+
+  .projects-filter-grid input,
+  .projects-filter-grid select,
+  .pm-map-filter-grid input,
+  .pm-map-filter-grid select,
+  .reports-filter-grid input,
+  .reports-filter-grid select,
+  .dashboard-filter-grid input,
+  .dashboard-filter-grid select,
+  .user-management-filter-card input,
+  .user-management-filter-card select,
+  .pm-unified-search-field,
+  .pm-unified-filter-grid input,
+  .pm-unified-filter-grid select {
+    min-height: 38px !important;
+  }
+
+  /* -------------------------------------------------------
+     SUMMARY / KPI GRIDS
+     ------------------------------------------------------- */
+  .dashboard-stat-grid,
+  .projects-summary-grid,
+  .pm-map-summary-grid,
+  .user-management-summary-grid,
+  .subay-import-summary-grid,
+  .subay-import-result-grid,
+  .pd-summary-grid,
+  .pu-summary-grid,
+  .edit-project-summary-grid {
+    gap: var(--pms10-pc-section-gap) !important;
+  }
+
+  .dashboard-stat-grid,
+  .projects-summary-grid,
+  .pm-map-summary-grid,
+  .user-management-summary-grid {
+    margin-top: var(--pms10-pc-section-gap) !important;
+  }
+
+  .projects-summary-card,
+  .pm-map-summary-card,
+  .user-management-summary-card,
+  .subay-import-summary-card,
+  .edit-project-summary-card,
+  .pd-summary-card,
+  .pu-summary-card {
+    border-radius: var(--pms10-pc-card-radius) !important;
+    padding: 12px 13px !important;
+    box-shadow: var(--pms10-pc-soft-shadow) !important;
+  }
+
+  /* -------------------------------------------------------
+     PRIMARY CONTENT CARDS
+     ------------------------------------------------------- */
+  .dashboard-chart-card,
+  .dashboard-list-card,
+  .projects-list-card,
+  .projects-drafts-card,
+  .pm-map-card,
+  .pm-map-list-card,
+  .pm-map-review-card,
+  .pm-map-selected-card,
+  .reports-table-card,
+  .offline-sync-panel,
+  .offline-sync-action-card,
+  .user-management-list-card,
+  .user-access-card,
+  .create-project-card,
+  .create-project-actions-card,
+  .edit-project-card,
+  .edit-project-progress-card,
+  .pd-card,
+  .pd-history-card,
+  .pu-form-card,
+  .pu-gps-card,
+  .subay-import-card,
+  .subay-import-upload-card {
+    border-radius: var(--pms10-pc-card-radius) !important;
+    box-shadow: var(--pms10-pc-soft-shadow) !important;
+  }
+
+  .projects-list-card,
+  .reports-table-card,
+  .user-management-list-card,
+  .offline-sync-panel,
+  .pm-map-list-card,
+  .pm-map-review-card {
+    margin-top: var(--pms10-pc-section-gap) !important;
+  }
+
+  /* Compact internal padding for common desktop work cards. */
+  .projects-list-header,
+  .pm-map-card-header,
+  .user-management-list-header,
+  .offline-sync-panel-header,
+  .create-project-card-header,
+  .pu-card-header,
+  .edit-project-section-header,
+  .pd-card-header {
+    padding-top: 11px !important;
+    padding-bottom: 9px !important;
+  }
+
+  /* -------------------------------------------------------
+     PAGE-LEVEL GRID RHYTHM
+     ------------------------------------------------------- */
+  .dashboard-main-grid,
+  .pm-map-workspace,
+  .offline-sync-workspace,
+  .pd-content-grid,
+  .pu-content-grid,
+  .create-project-grid,
+  .edit-project-grid,
+  .edit-project-progress-grid,
+  .user-access-grid,
+  .user-management-access-grid {
+    gap: 12px !important;
+  }
+
+  .dashboard-priority-section,
+  .dashboard-recent-section,
+  .dashboard-main-grid {
+    margin-top: 10px !important;
+  }
+
+  .pm-map-workspace,
+  .offline-sync-workspace {
+    margin-top: 10px !important;
+  }
+
+  /* -------------------------------------------------------
+     PROJECT REGISTRY
+     ------------------------------------------------------- */
+  .projects-summary-card {
+    min-height: 88px !important;
+  }
+
+  .projects-search-shell {
+    min-height: 40px !important;
+    border-radius: 12px !important;
+  }
+
+  .projects-list-header {
+    padding-left: 13px !important;
+    padding-right: 13px !important;
+  }
+
+  .project-list-row,
+  .project-row {
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+
+  .projects-compact-list {
+    gap: 6px !important;
+  }
+
+  /* -------------------------------------------------------
+     GIS MAP
+     Give the map more usable screen area by reducing chrome.
+     ------------------------------------------------------- */
+  .pm-map-filter-card {
+    margin-top: 10px !important;
+  }
+
+  .pm-map-main-card,
+  .pm-map-shell {
+    border-radius: var(--pms10-pc-card-radius) !important;
+  }
+
+  .pm-map-project-list,
+  .pm-map-review-list {
+    gap: 7px !important;
+  }
+
+  .pm-map-project-card,
+  .pm-map-review-item {
+    border-radius: 13px !important;
+    padding: 10px 11px !important;
+  }
+
+  /* -------------------------------------------------------
+     REPORTS
+     ------------------------------------------------------- */
+  .reports-filter-card {
+    margin-bottom: 10px !important;
+  }
+
+  .reports-table-header {
+    padding: 10px 12px !important;
+  }
+
+  .reports-table th,
+  .reports-table td {
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+
+  /* -------------------------------------------------------
+     OFFLINE SYNC
+     ------------------------------------------------------- */
+  .offline-sync-workspace {
+    gap: 10px !important;
+  }
+
+  .offline-sync-panel,
+  .offline-sync-action-card {
+    padding: 12px 13px !important;
+  }
+
+  .offline-sync-compact-groups,
+  .offline-sync-compact-list,
+  .offline-sync-list {
+    gap: 7px !important;
+  }
+
+  .offline-sync-compact-row,
+  .offline-sync-record-card {
+    border-radius: 13px !important;
+    padding: 10px 11px !important;
+  }
+
+  /* -------------------------------------------------------
+     USER MANAGEMENT
+     ------------------------------------------------------- */
+  .user-management-summary-card {
+    min-height: 82px !important;
+  }
+
+  .user-management-list-header {
+    padding: 11px 13px !important;
+  }
+
+  .user-management-table th,
+  .user-management-table td,
+  .user-management-table-wide th,
+  .user-management-table-wide td {
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+
+  /* -------------------------------------------------------
+     PROJECT DETAILS
+     Keep information dense without shrinking readable text.
+     ------------------------------------------------------- */
+  .pd-summary-grid,
+  .pd-content-grid {
+    max-width: 1320px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .pd-summary-grid {
+    padding-top: 12px !important;
+    padding-bottom: 10px !important;
+  }
+
+  .pd-content-grid {
+    padding-top: 10px !important;
+    padding-bottom: 20px !important;
+  }
+
+  .pd-card {
+    padding: 12px !important;
+  }
+
+  .pd-info-grid,
+  .pd-note-grid,
+  .pd-history-note-grid,
+  .pd-photo-grid {
+    gap: 9px !important;
+  }
+
+  /* -------------------------------------------------------
+     PROJECT UPDATE / MONITORING FORM
+     ------------------------------------------------------- */
+  .pu-summary-grid,
+  .pu-content-grid {
+    margin-top: 10px !important;
+  }
+
+  .pu-form-card,
+  .pu-gps-card,
+  .pu-empty-card {
+    padding: 12px 13px !important;
+  }
+
+  .pu-form-grid,
+  .pu-textarea-grid,
+  .pu-photo-grid {
+    gap: 10px !important;
+  }
+
+  .pu-field,
+  .pu-full-field {
+    gap: 5px !important;
+  }
+
+  /* -------------------------------------------------------
+     CREATE / EDIT PROJECT
+     ------------------------------------------------------- */
+  .create-project-card,
+  .create-project-actions-card,
+  .edit-project-card,
+  .edit-project-progress-card {
+    padding: 13px 14px !important;
+  }
+
+  .create-project-grid,
+  .edit-project-grid,
+  .edit-project-progress-grid {
+    gap: 10px 12px !important;
+  }
+
+  .create-project-actions,
+  .edit-project-action-group {
+    gap: 8px !important;
+  }
+
+  /* -------------------------------------------------------
+     SUBAY / SGLGIF IMPORT
+     ------------------------------------------------------- */
+  .subay-import-page {
+    max-width: 1600px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .subay-import-card,
+  .subay-import-upload-card {
+    padding: 12px 14px !important;
+  }
+
+  .subay-import-summary-grid,
+  .subay-import-result-grid {
+    margin-top: 10px !important;
+  }
+
+  .subay-import-table th,
+  .subay-import-table td {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  /* -------------------------------------------------------
+     MODALS / DIALOGS
+     Keep desktop dialogs compact, but leave mobile untouched.
+     ------------------------------------------------------- */
+  .dashboard-drilldown-modal,
+  .user-management-modal,
+  .user-management-access-modal,
+  .pd-history-modal,
+  .offline-sync-remove-dialog {
+    border-radius: 18px !important;
+  }
+
+  .dashboard-modal-header,
+  .user-management-modal-header,
+  .pd-history-modal-header {
+    padding: 13px 15px !important;
+  }
+
+  /* -------------------------------------------------------
+     LARGE DESKTOP
+     Wider screens get only a tiny gutter increase rather than
+     reverting to huge blank margins.
+     ------------------------------------------------------- */
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --pms10-pc-gutter: 16px;
+  }
+
+  .app-shell .app-main {
+    padding-bottom: 30px !important;
+  }
+}

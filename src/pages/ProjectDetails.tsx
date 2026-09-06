@@ -11,9 +11,11 @@ import { getPmsRiskLevel } from '../utils/projectStatus'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
 import { normalizeProgramName } from '../utils/program'
+import { readPageView, writePageView } from '../lib/pageViewMemory'
 import '../styles/projectDetails.css'
 import '../styles/projectDetailsUnifiedHero.css'
 import '../styles/pageHero.css'
+import '../styles/projectDetailsDesktopPolish.css'
 import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveImageUrl'
 import ActionMenu from '../components/ActionMenu'
 import AideMemoireGenerationDialog from '../components/AideMemoireGenerationDialog'
@@ -224,6 +226,10 @@ export default function ProjectDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
   const auth = useAuth() as any
+  const rememberedView = readPageView(`project-details:${id || 'unknown'}`, {
+    photosExpanded: false,
+    historyOpen: false,
+  })
   const { isAdmin } = auth
 
   const [project, setProject] = useState<any>(null)
@@ -232,8 +238,8 @@ export default function ProjectDetails() {
   const [photos, setPhotos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [dataSource, setDataSource] = useState('online')
-  const [photosExpanded, setPhotosExpanded] = useState(false)
-  const [historyOpen, setHistoryOpen] = useState(false)
+  const [photosExpanded, setPhotosExpanded] = useState(Boolean(rememberedView.photosExpanded))
+  const [historyOpen, setHistoryOpen] = useState(Boolean(rememberedView.historyOpen))
   const [portalReady, setPortalReady] = useState(false)
   const [isHeroCompact, setIsHeroCompact] = useState(false)
   const [accessDenied, setAccessDenied] = useState(false)
@@ -244,6 +250,13 @@ export default function ProjectDetails() {
   useEffect(() => {
     setPortalReady(true)
   }, [])
+
+  useEffect(() => {
+    writePageView(`project-details:${id || 'unknown'}`, {
+      photosExpanded,
+      historyOpen,
+    })
+  }, [id, photosExpanded, historyOpen])
 
   useEffect(() => {
     if (!historyOpen) return
@@ -793,6 +806,8 @@ export default function ProjectDetails() {
   }
 
   function goBackToProjects() {
+    // Explicit registry action: this button must always return to the
+    // Project Registry, regardless of the browser's previous page.
     navigate('/projects')
   }
 

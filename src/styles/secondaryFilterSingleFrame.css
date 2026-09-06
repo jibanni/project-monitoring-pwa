@@ -1,0 +1,395 @@
+/* =========================================================
+   PMS10 — GIS / REPORTS / USER MANAGEMENT FILTER CLEANUP
+   Desktop only (>=1024px)
+
+   Based on the approved Project Registry single-frame fix:
+   - keep ONE outer rounded filter card
+   - remove the extra visual frame from the inner filter bar
+
+   Also:
+   - add proper spacing below the GIS filter before the map
+   - tighten User Management workspace spacing to match the
+     compact Dashboard / Project Registry desktop rhythm
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* =======================================================
+     GIS MAP — SINGLE FRAME FILTER
+     ======================================================= */
+
+  body
+    #root
+    .pm-map-page
+    .pm-map-filter-card.pm-unified-filter-panel {
+    overflow: visible !important;
+
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  body
+    #root
+    .pm-map-page
+    .pm-map-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar {
+    width: 100% !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+    outline: 0 !important;
+
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+
+    min-height: 44px !important;
+
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  body
+    #root
+    .pm-map-page
+    .pm-map-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar::before,
+
+  body
+    #root
+    .pm-map-page
+    .pm-map-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  body
+    #root
+    .pm-map-page
+    .pm-map-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-summary,
+
+  body
+    #root
+    .pm-map-page
+    .pm-map-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-actions {
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  /* Consistent gap between the GIS filter and the map workspace. */
+  body #root .pm-map-page {
+    row-gap: 10px !important;
+    gap: 10px !important;
+  }
+
+  body
+    #root
+    .pm-map-page
+    .pm-map-filter-card.pm-unified-filter-panel
+    + * {
+    margin-top: 0 !important;
+  }
+
+
+  /* =======================================================
+     PROJECT MONITORING REPORTS — SINGLE FRAME FILTER
+     ======================================================= */
+
+  body
+    #root
+    .reports-page
+    .reports-filter-card.pm-unified-filter-panel {
+    overflow: visible !important;
+
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  body
+    #root
+    .reports-page
+    .reports-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar {
+    width: 100% !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+    outline: 0 !important;
+
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+
+    min-height: 44px !important;
+
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  body
+    #root
+    .reports-page
+    .reports-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar::before,
+
+  body
+    #root
+    .reports-page
+    .reports-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  body
+    #root
+    .reports-page
+    .reports-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-summary,
+
+  body
+    #root
+    .reports-page
+    .reports-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-actions {
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+
+  /* =======================================================
+     USER MANAGEMENT — SINGLE FRAME FILTER
+     ======================================================= */
+
+  body
+    #root
+    .user-management-page
+    .user-management-filter-card.pm-unified-filter-panel {
+    overflow: visible !important;
+
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  body
+    #root
+    .user-management-page
+    .user-management-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar {
+    width: 100% !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+    outline: 0 !important;
+
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+
+    min-height: 44px !important;
+
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  body
+    #root
+    .user-management-page
+    .user-management-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar::before,
+
+  body
+    #root
+    .user-management-page
+    .user-management-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  body
+    #root
+    .user-management-page
+    .user-management-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-summary,
+
+  body
+    #root
+    .user-management-page
+    .user-management-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-actions {
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+
+  /* =======================================================
+     USER MANAGEMENT — COMPACT PAGE SPACING
+     Generic desktop .app-main currently adds another large
+     22/28px layer around this page. Remove that extra layer
+     so User Management follows the compact desktop rhythm.
+     ======================================================= */
+
+  body
+    #root
+    .app-shell.app-users-route
+    .app-main {
+    width: 100% !important;
+    max-width: 1680px !important;
+
+    margin: 0 auto !important;
+
+    padding: 10px 16px 28px !important;
+  }
+
+  body
+    #root
+    .app-shell.app-users-route
+    .user-management-page {
+    width: 100% !important;
+    max-width: none !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    gap: 10px !important;
+    row-gap: 10px !important;
+  }
+
+  body
+    #root
+    .user-management-page
+    .user-management-summary-grid {
+    margin: 0 !important;
+    gap: 8px !important;
+  }
+
+  body
+    #root
+    .user-management-page
+    .user-management-filter-card.pm-unified-filter-panel {
+    margin: 0 !important;
+  }
+
+  body
+    #root
+    .user-management-page
+    .user-management-list-card {
+    margin: 0 !important;
+  }
+}
+
+
+/* Wide desktop uses the same slightly larger horizontal workspace
+   padding as Dashboard, without reintroducing the large vertical gap. */
+@media (min-width: 1440px) {
+  body
+    #root
+    .app-shell.app-users-route
+    .app-main {
+    padding: 12px 18px 30px !important;
+  }
+}
+
+
+/* =========================================================
+   PMS10 GIS — FILTER TO MAP GAP CORRECTION
+   Desktop only (>=1024px)
+
+   Root cause:
+   The previous GIS single-frame pass removed the filter card's
+   bottom margin, while .pm-map-workspace also had its margin
+   suppressed. That left the filter almost touching the map.
+
+   Keep exactly one spacing source:
+   FILTER CARD -> 10px bottom margin
+   MAP WORKSPACE -> 0px top margin
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  body
+    #root
+    .pm-map-page
+    .pm-map-filter-card.pm-unified-filter-panel {
+    margin-top: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 10px !important;
+    margin-left: 0 !important;
+  }
+
+  body
+    #root
+    .pm-map-page
+    .pm-map-workspace {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Do not let generic page/grid gap add a second vertical gap.
+     Horizontal gap inside the map workspace remains unchanged. */
+  body #root .pm-map-page {
+    row-gap: 0 !important;
+  }
+}

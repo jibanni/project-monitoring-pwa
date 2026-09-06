@@ -1,0 +1,517 @@
+/* =========================================================
+   PMS10 PROJECT REGISTRY — DESKTOP ROW POLISH
+   Desktop only. Mobile registry layout is preserved.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  .projects-page .project-list-row {
+    grid-template-columns:
+      minmax(0, 1.95fr)
+      auto
+      minmax(170px, 0.5fr)
+      auto !important;
+    gap: 10px !important;
+  }
+
+  /* Funding year + program gets a clear orange metadata treatment. */
+  .projects-page .project-row-program {
+    color: #f97316 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  /* Project title is the primary record identifier. */
+  .projects-page .project-list-row h3 {
+    color: #0b2d52 !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.22 !important;
+    letter-spacing: -0.015em !important;
+  }
+
+  .projects-page .project-row-location {
+    font-size: 14px !important;
+    font-weight: 400 !important;
+  }
+
+  /* Only Physical and Financial remain in the row. */
+  .projects-page .project-row-metrics {
+    grid-template-columns: repeat(2, minmax(76px, 1fr)) !important;
+    gap: 7px !important;
+    min-width: 170px !important;
+  }
+
+  .projects-page .project-row-metric {
+    padding: 8px 10px !important;
+  }
+
+  .projects-page .project-row-metric span {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .projects-page .project-row-metric strong {
+    margin-top: 3px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+  }
+}
+
+
+/* =========================================================
+   PMS10 PROJECT REGISTRY — RECORD TYPOGRAPHY REFINEMENT
+   Desktop only (>=1024px).
+
+   Purpose:
+   - Make project title the strongest text in each project row.
+   - Make Physical / Financial labels and values more compact.
+   - Explicitly outrank the global typography.css selectors.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Project title: larger + clearly bold. */
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-main
+    h3 {
+    color: #0b2d52 !important;
+
+    font-size: 18px !important;
+    font-weight: 700 !important;
+
+    line-height: 1.18 !important;
+    letter-spacing: -0.02em !important;
+
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Keep year/program subordinate but clearly visible in orange. */
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-program {
+    color: #f97316 !important;
+
+    font-size: 12px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.15 !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  /* Location remains secondary information. */
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-location {
+    margin-top: 5px !important;
+
+    color: #475569 !important;
+
+    font-size: 14px !important;
+    font-weight: 400 !important;
+
+    line-height: 1.2 !important;
+  }
+
+  /* Give the two metrics enough room for the full labels. */
+  body
+    #root
+    .projects-page
+    .project-row-metrics {
+    grid-template-columns: repeat(2, minmax(100px, 1fr)) !important;
+
+    min-width: 210px !important;
+    max-width: 230px !important;
+
+    gap: 7px !important;
+  }
+
+  /* Smaller, quieter metric cards. */
+  body
+    #root
+    .projects-page
+    .project-row-metric {
+    min-width: 0 !important;
+
+    padding: 7px 9px !important;
+
+    border-radius: 12px !important;
+  }
+
+  /* Physical / Financial labels. */
+  body
+    #root
+    .projects-page
+    .project-row-metric
+    > span {
+    display: block !important;
+
+    color: #64748b !important;
+
+    font-size: 10px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.1 !important;
+    letter-spacing: 0.05em !important;
+
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  /* 0%, 93%, etc. */
+  body
+    #root
+    .projects-page
+    .project-row-metric
+    > strong {
+    display: block !important;
+
+    margin-top: 4px !important;
+
+    color: #0b2d52 !important;
+
+    font-size: 13px !important;
+    font-weight: 600 !important;
+
+    line-height: 1.1 !important;
+    letter-spacing: 0 !important;
+
+    white-space: nowrap !important;
+  }
+}
+
+/* Slightly smaller title on narrower desktop screens to preserve actions. */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-main
+    h3 {
+    font-size: 17px !important;
+  }
+
+  body
+    #root
+    .projects-page
+    .project-row-metrics {
+    min-width: 196px !important;
+    max-width: 210px !important;
+
+    grid-template-columns: repeat(2, minmax(94px, 1fr)) !important;
+  }
+}
+
+
+/* =========================================================
+   PMS10 PROJECT REGISTRY — REMOVE METRICS + TITLE SIZE TUNE
+   Desktop only (>=1024px).
+
+   Changes:
+   - Hide Physical and Financial metric boxes.
+   - Reclaim their width for the project title/status/actions.
+   - Reduce project title size by 1.5px from the previous pass.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Remove Physical / Financial metric boxes from desktop rows. */
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-metrics {
+    display: none !important;
+  }
+
+  /* Reduce title size by 1.5px from 18px -> 16.5px. */
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-main
+    h3 {
+    font-size: 16.5px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Rebalance the row now that the metric column is gone. */
+  body
+    #root
+    .projects-page
+    .project-list-row {
+    grid-template-columns:
+      minmax(0, 1fr)
+      auto
+      auto !important;
+    column-gap: 12px !important;
+  }
+
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-main {
+    min-width: 0 !important;
+  }
+
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-status-stack {
+    justify-self: end !important;
+  }
+
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-actions {
+    justify-self: end !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1280px) {
+  /* Reduce 17px -> 15.5px on narrower desktop. */
+  body
+    #root
+    .projects-page
+    .project-list-row
+    .project-row-main
+    h3 {
+    font-size: 15.5px !important;
+  }
+}
+
+
+/* =========================================================
+   PMS10 PROJECT REGISTRY — PLAIN FILTER BAR + EVEN SPACING
+   Desktop only (>=1024px).
+
+   Changes:
+   - Retain only the outer filter card as the visual container.
+   - Remove decorative inner pill backgrounds from the filter icon
+     and result count.
+   - Keep the actual Filter button as the only filled control.
+   - Make the space below the filter match the compact space above.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Make the page section spacing consistent:
+     app-main already provides ~10px above the first section,
+     so use the same 10px between Filter and Project List. */
+  body
+    #root
+    .projects-page {
+    gap: 10px !important;
+  }
+
+  body
+    #root
+    .projects-page
+    .projects-filter-card.pm-unified-filter-panel {
+    margin: 0 !important;
+
+    padding: 8px 12px !important;
+
+    border-radius: 18px !important;
+
+    background: #ffffff !important;
+
+    box-shadow: 0 7px 20px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  /* Remove the inner blue rounded-square treatment from the icon. */
+  body
+    #root
+    .projects-page
+    .pm-unified-filter-icon {
+    width: 28px !important;
+    height: 28px !important;
+
+    min-width: 28px !important;
+    min-height: 28px !important;
+    flex-basis: 28px !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: transparent !important;
+
+    box-shadow: none !important;
+
+    color: #0f4c81 !important;
+  }
+
+  body
+    #root
+    .projects-page
+    .pm-unified-filter-icon
+    svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  /* Result count remains visible, but no longer sits in a pill. */
+  body
+    #root
+    .projects-page
+    .pm-unified-filter-actions
+    > span {
+    min-height: 0 !important;
+    height: auto !important;
+
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: transparent !important;
+
+    box-shadow: none !important;
+
+    color: #0f4c81 !important;
+
+    font-size: 14px !important;
+    font-weight: 600 !important;
+  }
+
+  /* Keep Filter as the only deliberate filled action control. */
+  body
+    #root
+    .projects-page
+    .pm-unified-filter-toggle {
+    min-height: 36px !important;
+    height: 36px !important;
+
+    padding: 0 14px !important;
+
+    border-radius: 12px !important;
+  }
+
+  /* Explicitly remove any additional spacing before the list card. */
+  body
+    #root
+    .projects-page
+    .projects-list-card {
+    margin-top: 0 !important;
+  }
+}
+
+
+/* =========================================================
+   PMS10 PROJECT REGISTRY — SINGLE-FRAME FILTER FIX
+   Desktop only (>=1024px).
+
+   Purpose:
+   Remove the extra inner frame/pill from the Project Registry
+   filter bar so only the OUTER filter card remains visible,
+   matching the single-frame structure of the Dashboard filter.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Outer card remains the only visible frame. */
+  body
+    #root
+    .projects-page
+    .projects-filter-card.pm-unified-filter-panel {
+    overflow: visible !important;
+  }
+
+  /* Remove the inner framed/pill treatment completely. */
+  body
+    #root
+    .projects-page
+    .projects-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar {
+    width: 100% !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+    outline: 0 !important;
+
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Remove any pseudo-element decoration that may render as
+     another rounded frame inside the outer filter card. */
+  body
+    #root
+    .projects-page
+    .projects-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar::before,
+
+  body
+    #root
+    .projects-page
+    .projects-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  /* The left summary and right actions must also stay visually
+     transparent so no nested container appears. */
+  body
+    #root
+    .projects-page
+    .projects-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-summary,
+
+  body
+    #root
+    .projects-page
+    .projects-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-actions {
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: transparent !important;
+    background-image: none !important;
+
+    box-shadow: none !important;
+
+    filter: none !important;
+  }
+
+  /* Keep the bar vertically centered inside the one outer card. */
+  body
+    #root
+    .projects-page
+    .projects-filter-card.pm-unified-filter-panel
+    .pm-unified-filter-bar {
+    min-height: 44px !important;
+
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+
+    align-items: center !important;
+
+    gap: 10px !important;
+  }
+}

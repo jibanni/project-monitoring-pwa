@@ -2596,3 +2596,346 @@
   border-color: #bbf7d0 !important;
 }
 /* PMS10 DASHBOARD RISK CHIP COLORS END */
+
+/* =========================================================
+   PMS10 DESKTOP COMPACT DASHBOARD — PHASE 1.13
+   Tightens outer gutters, vertical rhythm, card gaps, and card
+   padding to match the approved compact Project Review Tracker
+   density. Desktop only; all mobile rules remain unchanged.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  .dashboard-page {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-filter-panel {
+    padding: 8px !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  .dashboard-filter-bar {
+    min-height: 44px !important;
+    gap: 8px !important;
+  }
+
+  .dashboard-filter-summary {
+    gap: 9px !important;
+  }
+
+  .dashboard-filter-summary-icon {
+    width: 34px !important;
+    height: 34px !important;
+    flex-basis: 34px !important;
+    border-radius: 12px !important;
+  }
+
+  .dashboard-filter-summary-icon svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+
+  .dashboard-filter-summary-text p {
+    margin-bottom: 2px !important;
+    font-size: 0.6rem !important;
+  }
+
+  .dashboard-filter-summary-text strong {
+    font-size: 0.84rem !important;
+  }
+
+  .dashboard-filter-bar-actions {
+    gap: 7px !important;
+  }
+
+  .dashboard-filter-bar-actions > span {
+    min-height: 32px !important;
+    padding: 0 9px !important;
+    font-size: 0.69rem !important;
+  }
+
+  .dashboard-filter-toggle {
+    min-height: 36px !important;
+    border-radius: 12px !important;
+    padding: 0 13px !important;
+    font-size: 0.77rem !important;
+    box-shadow: 0 7px 16px rgba(15, 76, 129, 0.13) !important;
+  }
+
+  .dashboard-filter-panel.is-open .dashboard-filter-grid {
+    margin-top: 9px !important;
+  }
+
+  .dashboard-filter-grid {
+    gap: 8px !important;
+  }
+
+  .dashboard-filter-grid label {
+    gap: 4px !important;
+  }
+
+  .dashboard-filter-grid select,
+  .dashboard-filter-reset {
+    min-height: 38px !important;
+    border-radius: 11px !important;
+  }
+
+  .dashboard-stat-grid {
+    gap: 10px !important;
+    margin-top: 12px !important;
+  }
+
+  .dashboard-stat-card {
+    min-height: 100px !important;
+    padding: 12px 12px 11px !important;
+    border-top-width: 4px !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .dashboard-stat-card::after {
+    width: 72px !important;
+    height: 72px !important;
+    right: -24px !important;
+    bottom: -25px !important;
+  }
+
+  .dashboard-stat-card span {
+    font-size: 0.66rem !important;
+    letter-spacing: 0.11em !important;
+  }
+
+  .dashboard-stat-card strong {
+    margin-top: 8px !important;
+    font-size: 1.9rem !important;
+  }
+
+  .dashboard-stat-card small {
+    margin-top: 6px !important;
+    font-size: 0.69rem !important;
+  }
+
+  .dashboard-priority-section,
+  .dashboard-recent-section,
+  .dashboard-main-grid {
+    margin-top: 12px !important;
+  }
+
+  .dashboard-main-grid {
+    gap: 12px !important;
+  }
+
+  .dashboard-chart-card,
+  .dashboard-list-card {
+    border-radius: 20px !important;
+    box-shadow: 0 9px 26px rgba(15, 23, 42, 0.065) !important;
+  }
+
+  .dashboard-card-header {
+    gap: 10px !important;
+    padding: 15px 16px 8px !important;
+  }
+
+  .dashboard-card-header h2 {
+    font-size: 1rem !important;
+  }
+
+  .dashboard-card-kicker {
+    margin-bottom: 5px !important;
+    font-size: 0.68rem !important;
+  }
+
+  .dashboard-card-header > span {
+    padding: 6px 9px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .dashboard-card-header button {
+    padding: 7px 11px !important;
+    font-size: 0.76rem !important;
+  }
+
+  .dashboard-chart-area {
+    height: 190px !important;
+    padding: 0 9px 6px !important;
+  }
+
+  .dashboard-legend-list {
+    gap: 6px !important;
+    padding: 0 14px 14px !important;
+  }
+
+  .dashboard-legend-list button {
+    gap: 8px !important;
+    border-radius: 13px !important;
+    padding: 9px 10px !important;
+  }
+
+  .dashboard-legend-list span {
+    font-size: 0.82rem !important;
+  }
+
+  .dashboard-legend-list strong {
+    font-size: 0.84rem !important;
+  }
+
+  .dashboard-project-list {
+    gap: 8px !important;
+    padding: 0 14px 14px !important;
+  }
+
+  .dashboard-project-list button {
+    gap: 10px !important;
+    border-radius: 14px !important;
+    padding: 11px 12px !important;
+  }
+
+  .dashboard-project-list strong {
+    font-size: 0.88rem !important;
+  }
+
+  .dashboard-project-list span {
+    margin-top: 3px !important;
+    font-size: 0.78rem !important;
+  }
+
+  .dashboard-project-list em {
+    font-size: 0.76rem !important;
+  }
+
+  .dashboard-completion-grid,
+  .dashboard-completion-breakdown {
+    gap: 12px !important;
+  }
+
+  .dashboard-completion-breakdown-card,
+  .dashboard-completion-note {
+    border-radius: 16px !important;
+  }
+}
+
+/* =========================================================
+   PMS10 DASHBOARD COMPLETION PERFORMANCE DESKTOP CLEANUP
+   2026-09-06 — compact, balanced, less oversized.
+   Desktop only; mobile/tablet unchanged.
+   ========================================================= */
+@media (min-width: 1024px) {
+  .dashboard-completion-card {
+    overflow: hidden !important;
+  }
+
+  .dashboard-completion-card .dashboard-card-header {
+    padding-bottom: 6px !important;
+  }
+
+  .dashboard-completion-grid {
+    grid-template-columns: minmax(250px, 300px) minmax(0, 1fr) !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+    padding: 0 14px 14px !important;
+  }
+
+  .dashboard-completion-gauge {
+    width: 100% !important;
+    min-height: 188px !important;
+    height: 188px !important;
+    max-height: 188px !important;
+    align-self: start !important;
+    border-radius: 18px !important;
+    background: #f8fafc !important;
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08) !important;
+  }
+
+  .dashboard-completion-center {
+    padding: 14px !important;
+  }
+
+  .dashboard-completion-center strong {
+    font-size: clamp(2.7rem, 4.1vw, 3.75rem) !important;
+    letter-spacing: -0.07em !important;
+  }
+
+  .dashboard-completion-center span {
+    margin-top: 4px !important;
+    font-size: 0.66rem !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  .dashboard-completion-breakdown {
+    grid-template-rows: repeat(2, minmax(0, 1fr)) auto !important;
+    gap: 8px !important;
+  }
+
+  .dashboard-completion-breakdown-card {
+    min-height: 68px !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .dashboard-completion-breakdown-card i {
+    width: 9px !important;
+    height: 30px !important;
+  }
+
+  .dashboard-completion-breakdown-card span {
+    font-size: 0.66rem !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  .dashboard-completion-breakdown-card strong {
+    margin-top: 2px !important;
+    font-size: 0.84rem !important;
+    line-height: 1.18 !important;
+  }
+
+  .dashboard-completion-breakdown-card em {
+    font-size: 1.18rem !important;
+  }
+
+  .dashboard-completion-note {
+    padding: 9px 11px !important;
+    border-radius: 13px !important;
+    background: #eef5fc !important;
+    color: #4a6178 !important;
+    font-size: 0.73rem !important;
+    line-height: 1.38 !important;
+  }
+
+  .dashboard-completion-note strong {
+    color: #0b2d52 !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1180px) {
+  .dashboard-completion-grid {
+    grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) !important;
+  }
+}
+
+/* =========================================================
+   PMS10 DESKTOP DRILLDOWN WORKSPACE CENTERING
+   Center the drilldown inside the content workspace, not the whole viewport.
+   Mobile/tablet behavior remains unchanged.
+   ========================================================= */
+@media (min-width: 1024px) {
+  body .dashboard-modal-backdrop {
+    inset: var(--dashboard-modal-top-offset) 0 0 264px !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding: 14px 18px 18px !important;
+  }
+
+  body:has(.app-shell.app-sidebar-collapsed) .dashboard-modal-backdrop {
+    left: 78px !important;
+  }
+
+  body .dashboard-drilldown-modal {
+    width: min(1080px, calc(100% - 36px)) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}

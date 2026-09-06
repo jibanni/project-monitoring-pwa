@@ -155,6 +155,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [roEngineerProvinceAssignments, setRoEngineerProvinceAssignments] = useState<RoEngineerProvinceAssignment[]>([])
   const [loading, setLoading] = useState(true)
   const authRunRef = useRef(0)
+  const hydratedUserIdRef = useRef<string | null>(null)
+  const profileRef = useRef<UserProfile | null>(null)
 
   const loadCachedProfile = useCallback(async (userId: string) => {
     try {
@@ -169,6 +171,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       setProfile(offlineProfile)
+      profileRef.current = offlineProfile
       return offlineProfile
     } catch (error) {
       console.warn('Unable to load the cached user profile.', error)
@@ -269,6 +272,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         setProfile(onlineProfile)
+        profileRef.current = onlineProfile
 
         await offlineDb.user_profiles.put({
           ...onlineProfile,
@@ -290,15 +294,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const hydrateSession = useCallback(
     async (currentSession: Session | null) => {
       const runId = ++authRunRef.current
+      const nextUserId = currentSession?.user?.id || null
+      const canRefreshInBackground = Boolean(
+        nextUserId &&
+        hydratedUserIdRef.current === nextUserId &&
+        profileRef.current,
+      )
 
       setSession(currentSession)
       setUser(currentSession?.user ?? null)
-      setLoading(true)
+      if (!canRefreshInBackground) setLoading(true)
+      hydratedUserIdRef.current = nextUserId
 
       const currentUser = currentSession?.user ?? null
 
       if (!currentUser?.id) {
         setProfile(null)
+        profileRef.current = null
         setPoEngineerLguAssignments([])
         setRoEngineerProvinceAssignments([])
         if (runId === authRunRef.current) setLoading(false)
@@ -412,6 +424,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setSession(null)
     setUser(null)
     setProfile(null)
+    profileRef.current = null
+    hydratedUserIdRef.current = null
     setPoEngineerLguAssignments([])
     setRoEngineerProvinceAssignments([])
     setLoading(false)

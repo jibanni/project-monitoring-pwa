@@ -4060,3 +4060,176 @@ body .pd-page .pd-summary-card .pd-progress-track {
     animation: none;
   }
 }
+
+/* =========================================================
+   PMS10 PROJECT DETAILS DESKTOP CLEANUP — 2026-09-06
+   Removes the duplicate-banner feel, keeps project identity
+   compact, and makes the photo rail more proportional.
+   Desktop only; mobile/tablet unchanged.
+   ========================================================= */
+@media (min-width: 1024px) {
+  .app-project-details-route .app-main,
+  .app-project-details-route.app-scrolled .app-main {
+    padding-top: 0 !important;
+  }
+
+  .pd-page {
+    padding-top: 0 !important;
+    background: #f4f7fb !important;
+  }
+
+  .pd-page:not(.is-pd-scrolled) > .pd-hero.pd-unified-hero,
+  .app-project-details-route:not(.app-scrolled) .pd-page > .pd-hero.pd-unified-hero {
+    position: relative !important;
+    inset: auto !important;
+    width: min(calc(100% - 24px), 1320px) !important;
+    max-width: 1320px !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 12px auto 10px !important;
+    padding: 15px 18px 14px !important;
+    overflow: visible !important;
+    border: 1px solid #dbe5f1 !important;
+    border-left: 4px solid #174f86 !important;
+    border-radius: 18px !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+    background-image: none !important;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  .pd-page:not(.is-pd-scrolled) > .pd-hero.pd-unified-hero::before,
+  .pd-page:not(.is-pd-scrolled) > .pd-hero.pd-unified-hero::after,
+  .app-project-details-route:not(.app-scrolled) .pd-page > .pd-hero.pd-unified-hero::before,
+  .app-project-details-route:not(.app-scrolled) .pd-page > .pd-hero.pd-unified-hero::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .pd-unified-hero-content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  .pd-unified-hero-eyebrow {
+    margin-bottom: 5px !important;
+    color: #d89a00 !important;
+    font-size: 0.66rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.16em !important;
+  }
+
+  .pd-unified-hero-title,
+  .pd-unified-hero-title.pd-unified-title-short,
+  .pd-unified-hero-title.pd-unified-title-medium,
+  .pd-unified-hero-title.pd-unified-title-long,
+  .pd-unified-hero-title.pd-unified-title-extra-long {
+    color: #0b2d52 !important;
+    font-size: clamp(1.45rem, 2.2vw, 2.05rem) !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.035em !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+  }
+
+  .pd-unified-hero-location {
+    margin-top: 6px !important;
+    color: #5e6f84 !important;
+    font-size: 0.82rem !important;
+    font-weight: 750 !important;
+  }
+
+  .pd-unified-hero-monitoring {
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin-top: 8px !important;
+    padding: 6px 9px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 999px !important;
+    background: #f8fafc !important;
+    color: #334155 !important;
+    font-size: 0.72rem !important;
+    line-height: 1 !important;
+  }
+
+  .pd-unified-hero-monitoring > .pd-unified-hero-monitoring__separator {
+    color: #94a3b8 !important;
+  }
+
+  .pd-unified-hero-monitoring__status {
+    color: #0b2d52 !important;
+  }
+
+  .pd-unified-hero-monitoring__variance[data-tone='positive'],
+  .pd-unified-hero-monitoring__risk[data-tone='none'] {
+    color: #15803d !important;
+  }
+
+  .pd-unified-hero-monitoring__variance[data-tone='negative'],
+  .pd-unified-hero-monitoring__risk[data-tone='high'] {
+    color: #b91c1c !important;
+  }
+
+  .pd-unified-hero-monitoring__variance[data-tone='neutral'] {
+    color: #475569 !important;
+  }
+
+  .pd-unified-hero-monitoring__risk[data-tone='moderate'] {
+    color: #c2410c !important;
+  }
+
+  .pd-unified-hero-monitoring__risk[data-tone='low'] {
+    color: #a16207 !important;
+  }
+
+  .pd-page.is-pd-scrolled > .pd-hero.pd-unified-hero,
+  .app-project-details-route.app-scrolled .pd-page > .pd-hero.pd-unified-hero {
+    display: none !important;
+  }
+
+  body .pd-page .pd-summary-grid,
+  body .pd-page .pd-content-grid,
+  .pd-offline-banner {
+    width: min(calc(100% - 24px), 1320px) !important;
+    max-width: 1320px !important;
+  }
+
+  .pd-content-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(330px, 370px) !important;
+    gap: 12px !important;
+  }
+
+  .pd-main-column,
+  .pd-side-column {
+    gap: 12px !important;
+  }
+
+  .pd-card {
+    padding: 13px !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  .pd-section-header {
+    margin-bottom: 10px !important;
+  }
+
+  .pd-feature-photo-card {
+    min-height: 0 !important;
+    height: auto !important;
+    aspect-ratio: 4 / 3 !important;
+    border-radius: 15px !important;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09) !important;
+  }
+
+  .pd-feature-photo-overlay {
+    padding: 10px !important;
+  }
+
+  .pd-photo-expand-pill {
+    min-height: 30px !important;
+    padding: 5px 8px !important;
+    font-size: 0.7rem !important;
+  }
+}

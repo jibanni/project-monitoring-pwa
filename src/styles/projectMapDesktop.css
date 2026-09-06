@@ -1,0 +1,559 @@
+/* =========================================================
+   PMS10 GIS MAP — DESKTOP MAP-FIRST WORKSPACE
+   Phase 1.15
+
+   HARD SAFETY RULE:
+   Everything in this file is desktop-only (>= 1024px).
+   The current mobile/tablet GIS layout, order, map sizing,
+   filters, FAB placement, hero behavior, and bottom navbar
+   remain untouched.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  .pm-map-page {
+    --pm-map-desktop-panel-w: 330px;
+    --pm-map-desktop-gap: 10px;
+    --pm-map-desktop-h: clamp(620px, calc(100dvh - 205px), 840px);
+
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 0 14px !important;
+    overflow: visible !important;
+  }
+
+  /* The map is the page. Large KPI cards are unnecessary here;
+     the compact filter bar already shows displayed/filtered counts. */
+  .pm-map-page .pm-map-summary-grid {
+    display: none !important;
+  }
+
+  /* -------------------------------------------------------
+     COMPACT GIS TOOLBAR
+     ------------------------------------------------------- */
+  .pm-map-page .pm-map-filter-card {
+    position: relative !important;
+    z-index: 740 !important;
+    margin: 0 0 10px !important;
+    padding: 6px 8px !important;
+    border: 1px solid #dbe5f0 !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    box-shadow: 0 5px 14px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  .pm-map-page .pm-unified-filter-bar {
+    min-height: 44px !important;
+    gap: 10px !important;
+  }
+
+  .pm-map-page .pm-unified-filter-icon {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    border-radius: 11px !important;
+  }
+
+  .pm-map-page .pm-unified-filter-text p {
+    margin-bottom: 1px !important;
+    font-size: 0.66rem !important;
+    letter-spacing: 0.15em !important;
+  }
+
+  .pm-map-page .pm-unified-filter-text strong {
+    font-size: 0.9rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .pm-map-page .pm-unified-filter-actions {
+    gap: 7px !important;
+  }
+
+  .pm-map-page .pm-unified-filter-actions > span {
+    min-height: 34px !important;
+    padding: 0 11px !important;
+    border-radius: 999px !important;
+    color: #0b4b80 !important;
+    background: #edf5ff !important;
+    font-size: 0.78rem !important;
+    font-weight: 900 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  .pm-map-page .pm-unified-filter-toggle {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 14px !important;
+    border-radius: 11px !important;
+    font-size: 0.82rem !important;
+  }
+
+  /* On desktop filters behave like a popover so opening them does
+     not push the map down or reduce the map's working area. */
+  .pm-map-page .pm-unified-filter-body:not([hidden]) {
+    position: absolute !important;
+    top: calc(100% + 6px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 760 !important;
+    display: block !important;
+    padding: 12px !important;
+    border: 1px solid #dbe5f0 !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.99) !important;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16) !important;
+  }
+
+  .pm-map-page .pm-unified-search-field {
+    margin-bottom: 10px !important;
+  }
+
+  .pm-map-page .pm-unified-search-field input {
+    min-height: 38px !important;
+    height: 38px !important;
+    border-radius: 10px !important;
+  }
+
+  .pm-map-page .pm-map-filter-grid,
+  .pm-map-page .pm-unified-filter-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+  }
+
+  .pm-map-page .pm-map-filter-grid label,
+  .pm-map-page .pm-unified-filter-grid label {
+    gap: 4px !important;
+  }
+
+  .pm-map-page .pm-map-filter-grid label span,
+  .pm-map-page .pm-unified-filter-grid label span {
+    font-size: 0.7rem !important;
+  }
+
+  .pm-map-page .pm-map-filter-grid select,
+  .pm-map-page .pm-unified-filter-grid select {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 10px !important;
+    border-radius: 9px !important;
+    font-size: 0.78rem !important;
+  }
+
+  .pm-map-page .pm-map-clear-button,
+  .pm-map-page .pm-unified-clear {
+    grid-column: 1 / -1 !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    border-radius: 9px !important;
+    font-size: 0.78rem !important;
+  }
+
+  /* -------------------------------------------------------
+     MAP-FIRST WORKSPACE
+     ------------------------------------------------------- */
+  .pm-map-page .pm-map-workspace {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) var(--pm-map-desktop-panel-w) !important;
+    align-items: stretch !important;
+    gap: var(--pm-map-desktop-gap) !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .pm-map-page .pm-map-main-card {
+    position: relative !important;
+    min-width: 0 !important;
+    height: var(--pm-map-desktop-h) !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: 1px solid #cfdcea !important;
+    border-radius: 16px !important;
+    background: #dbeafe !important;
+    box-shadow: 0 7px 20px rgba(15, 23, 42, 0.07) !important;
+  }
+
+  /* Desktop map doesn't need a second title above the map; the page
+     header already says Project GIS Map and the toolbar gives counts. */
+  .pm-map-page .pm-map-main-card > .pm-map-card-header {
+    display: none !important;
+  }
+
+  .pm-map-page .pm-map-shell {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 15px !important;
+    box-shadow: none !important;
+  }
+
+  .pm-map-page .pm-leaflet-map,
+  .pm-map-page .pm-map-shell .leaflet-container {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    border-radius: inherit !important;
+  }
+
+  /* Risk legend becomes a map overlay instead of consuming vertical
+     space above the map. */
+  .pm-map-page .pm-map-main-card > .pm-map-legend {
+    position: absolute !important;
+    top: 14px !important;
+    left: 68px !important;
+    bottom: auto !important;
+    z-index: 520 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+    max-width: calc(100% - 28px) !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    border: 1px solid rgba(203, 213, 225, 0.82) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.93) !important;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.13) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  .pm-map-page .pm-map-main-card > .pm-map-legend span {
+    min-height: 26px !important;
+    padding: 4px 8px !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    font-size: 0.7rem !important;
+  }
+
+  .pm-map-page .pm-map-main-card > .pm-map-legend .pm-legend-dot {
+    width: 8px !important;
+    height: 8px !important;
+  }
+
+  /* -------------------------------------------------------
+     SUBORDINATE RECORDS PANEL
+     ------------------------------------------------------- */
+  .pm-map-page .pm-map-side-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    height: var(--pm-map-desktop-h) !important;
+    overflow: hidden !important;
+  }
+
+  .pm-map-page .pm-map-list-card {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    overflow: hidden !important;
+    border-radius: 16px !important;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  .pm-map-page .pm-map-list-card > .pm-map-card-header {
+    flex: 0 0 auto !important;
+    margin: 0 0 8px !important;
+    padding: 0 2px 8px !important;
+    border-bottom: 1px solid #e8eef5 !important;
+  }
+
+  .pm-map-page .pm-map-list-card .pm-map-card-header p,
+  .pm-map-page .pm-map-review-card .pm-map-card-header p {
+    margin-bottom: 2px !important;
+    font-size: 0.62rem !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  .pm-map-page .pm-map-list-card .pm-map-card-header h2,
+  .pm-map-page .pm-map-review-card .pm-map-card-header h2 {
+    font-size: 1rem !important;
+  }
+
+  .pm-map-page .pm-map-project-list {
+    display: grid !important;
+    flex: 1 1 auto !important;
+    grid-template-columns: 1fr !important;
+    align-content: start !important;
+    gap: 6px !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding-right: 3px !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    scrollbar-width: thin !important;
+  }
+
+  .pm-map-page .pm-map-project-card {
+    padding: 9px 10px !important;
+    border-radius: 11px !important;
+    background: #fbfdff !important;
+  }
+
+  .pm-map-page .pm-map-project-card > div:first-child span {
+    margin-bottom: 2px !important;
+    font-size: 0.59rem !important;
+  }
+
+  .pm-map-page .pm-map-project-card h3 {
+    margin-bottom: 3px !important;
+    font-size: 0.84rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .pm-map-page .pm-map-project-card p {
+    font-size: 0.72rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .pm-map-page .pm-map-project-meta {
+    gap: 4px !important;
+    margin: 7px 0 !important;
+  }
+
+  .pm-map-page .pm-map-project-meta > span {
+    min-height: 21px !important;
+    padding: 3px 6px !important;
+    font-size: 0.56rem !important;
+  }
+
+  .pm-map-page .pm-map-project-card dl {
+    gap: 4px !important;
+  }
+
+  .pm-map-page .pm-map-project-card dl div {
+    grid-template-columns: 68px minmax(0, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .pm-map-page .pm-map-project-card dt,
+  .pm-map-page .pm-map-project-card dd {
+    font-size: 0.68rem !important;
+  }
+
+  .pm-map-page .pm-map-project-actions {
+    gap: 6px !important;
+    margin-top: 8px !important;
+  }
+
+  .pm-map-page .pm-map-project-actions a {
+    min-height: 32px !important;
+    border-radius: 9px !important;
+    font-size: 0.72rem !important;
+  }
+
+  /* GPS review remains available, but is visually secondary. */
+  .pm-map-page .pm-map-review-card {
+    flex: 0 0 auto !important;
+    max-height: 176px !important;
+    margin: 0 !important;
+    padding: 9px 10px !important;
+    overflow: hidden !important;
+    border-radius: 16px !important;
+    box-shadow: 0 5px 15px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  .pm-map-page .pm-map-review-card > .pm-map-card-header {
+    margin: 0 0 6px !important;
+    padding: 0 1px 6px !important;
+  }
+
+  .pm-map-page .pm-map-review-list {
+    max-height: 108px !important;
+    gap: 5px !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+  }
+
+  .pm-map-page .pm-map-review-item {
+    padding: 7px 8px !important;
+    border-radius: 10px !important;
+  }
+
+  .pm-map-page .pm-map-review-item h3 {
+    font-size: 0.75rem !important;
+  }
+
+  .pm-map-page .pm-map-review-item p {
+    font-size: 0.66rem !important;
+  }
+
+  .pm-map-page .pm-map-review-item a {
+    min-width: 58px !important;
+    min-height: 29px !important;
+    border-radius: 8px !important;
+    font-size: 0.68rem !important;
+  }
+
+  /* -------------------------------------------------------
+     MAP CONTROLS
+     Keep the floating controls over the map rather than over
+     the records panel.
+     ------------------------------------------------------- */
+  .pm-map-floating-actions {
+    right: calc(var(--pm-map-desktop-panel-w) + 30px) !important;
+    bottom: 24px !important;
+    gap: 8px !important;
+  }
+
+  .pm-map-floating-actions .pm-map-fab,
+  .pm-map-fab {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+  }
+
+  .pm-map-fab svg {
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+  body:has(.pm-map-shell.is-map-fullscreen) .pm-map-floating-actions {
+    right: 20px !important;
+    bottom: 20px !important;
+  }
+
+  /* Selected-project map mode keeps its contextual card compact. */
+  .pm-map-page .pm-map-selected-card {
+    margin: 0 0 10px !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+  }
+}
+
+/* Slightly narrower desktop panels on smaller laptops. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .pm-map-page {
+    --pm-map-desktop-panel-w: 292px;
+    --pm-map-desktop-h: clamp(580px, calc(100dvh - 195px), 760px);
+  }
+
+  .pm-map-page .pm-map-filter-grid,
+  .pm-map-page .pm-unified-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .pm-map-floating-actions {
+    right: calc(var(--pm-map-desktop-panel-w) + 26px) !important;
+  }
+}
+
+/* =========================================================
+   PMS10 GIS DESKTOP POLISH — PHASE 1.17
+   1) GIS filter bar exactly follows Dashboard filter styling.
+   2) GIS FABs live inside the map, upper-right, stacked downward.
+   Desktop only; mobile FAB/filter behavior remains unchanged.
+   ========================================================= */
+@media (min-width: 1024px) {
+  /* Match the approved Dashboard filter card. */
+  .pm-map-page .pm-map-filter-card.pm-unified-filter-panel {
+    margin: 0 0 10px !important;
+    padding: 8px !important;
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    border-radius: 18px !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  .pm-map-page .pm-unified-filter-bar {
+    min-height: 44px !important;
+    gap: 8px !important;
+  }
+
+  .pm-map-page .pm-unified-filter-summary {
+    gap: 9px !important;
+  }
+
+  .pm-map-page .pm-unified-filter-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    flex-basis: 34px !important;
+    border-radius: 12px !important;
+  }
+
+  .pm-map-page .pm-unified-filter-text p {
+    margin-bottom: 2px !important;
+    font-size: 0.6rem !important;
+  }
+
+  .pm-map-page .pm-unified-filter-text strong {
+    font-size: 0.84rem !important;
+  }
+
+  .pm-map-page .pm-unified-filter-actions {
+    gap: 7px !important;
+  }
+
+  .pm-map-page .pm-unified-filter-actions > span {
+    min-height: 32px !important;
+    padding: 0 9px !important;
+    font-size: 0.69rem !important;
+  }
+
+  .pm-map-page .pm-unified-filter-toggle {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 13px !important;
+    border-radius: 12px !important;
+    font-size: 0.77rem !important;
+    box-shadow: 0 7px 16px rgba(15, 76, 129, 0.13) !important;
+  }
+
+  /* FAB stack is now a child of the desktop map card, so it can be
+     anchored reliably to the map instead of the viewport/sidebar. */
+  .pm-map-main-card > .pm-map-floating-actions {
+    position: absolute !important;
+    top: 14px !important;
+    right: 14px !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 900 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+    transform: none !important;
+    translate: none !important;
+    pointer-events: auto !important;
+  }
+
+  .pm-map-main-card > .pm-map-floating-actions .pm-map-fab {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .pm-map-main-card > .pm-map-floating-actions .pm-map-fab svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  /* Fullscreen still uses the body portal; keep the same vertical
+     upper-right stack there. */
+  body:has(.pm-map-shell.is-map-fullscreen) > .pm-map-floating-actions,
+  body:has(.pm-map-shell.is-map-fullscreen) .pm-map-floating-actions {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 2147483600 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+}

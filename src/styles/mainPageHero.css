@@ -251,3 +251,57 @@ body .user-management-page:not(.is-user-scrolled) > .user-management-hero {
   transform: none !important;
 }
 /* PMS10 PHASE 5.16 OVERRIDE END */
+
+/* =========================================================
+   PMS10 DESKTOP HERO REMOVAL — PHASE 1.7
+   Desktop only. The original mobile hero/header/navbar behavior
+   remains active below 1024px.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Main desktop modules use the clean fixed header from Layout instead. */
+  body .dashboard-page > .dashboard-hero,
+  body .projects-page > .projects-hero,
+  body .projects-page > .projects-registry-hero,
+  body .pm-map-page > .pm-map-hero,
+  body .reports-page > .reports-hero,
+  body .offline-sync-page > .offline-sync-hero,
+  body .user-management-page > .user-management-hero {
+    display: none !important;
+    position: static !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body .projects-page > .projects-hero-spacer {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Disable the old compact-hero compensation on desktop. */
+  body .dashboard-page.is-dashboard-scrolled,
+  body .pm-map-page.is-map-scrolled,
+  body .reports-page.is-reports-scrolled,
+  body .offline-sync-page.is-offline-scrolled,
+  body .user-management-page.is-user-scrolled {
+    padding-top: 0 !important;
+  }
+
+  /* mainPageHero.css previously gave the global header a white divider.
+     Restore the clean desktop shell divider after those legacy rules. */
+  body > .app-header,
+  body > .app-header.app-header-scrolled {
+    border: 0 !important;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.24) !important;
+    box-shadow: 0 5px 18px rgba(15, 23, 42, 0.045) !important;
+  }
+}

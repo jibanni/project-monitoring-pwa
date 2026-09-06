@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
@@ -45,6 +47,16 @@ type DriveFile = {
 }
 
 const DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
+const MAX_PHOTO_BYTES = 700 * 1024
+
+type AuthorizedUploader = {
+  userId: string
+  label: string
+  projectTitle: string
+  fundingYear: string
+  fundingSource: string
+  inspectionDate: string
+}
 
 function jsonResponse(payload: UploadResponse, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -66,6 +78,139 @@ function getRequiredEnv(name: string) {
   return value
 }
 
+function textKey(value: unknown) {
+  return textValue(value).toLowerCase().replace(/\s+/g, ' ')
+}
+
+function sameText(left: unknown, right: unknown) {
+  const leftKey = textKey(left)
+  const rightKey = textKey(right)
+  return Boolean(leftKey && rightKey && leftKey === rightKey)
+}
+
+function canonicalRole(value: unknown) {
+  const role = textKey(value)
+
+  if (role === 'admin') return 'Admin'
+  if (role === 'ro engineer' || role === 'ro engineers') return 'RO Engineer'
+  if (role === 'engineer' || role === 'po engineer' || role === 'po engineers') {
+    return 'PO Engineer'
+  }
+  if (role === 'peo' || role === 'project evaluation officer') return 'PEO'
+
+  return textValue(value)
+}
+
+async function authorizeUploader(
+  request: Request,
+  projectId: string,
+  updateId: string,
+): Promise<AuthorizedUploader> {
+  const authorization = request.headers.get('Authorization') || ''
+  const token = authorization.replace(/^Bearer\s+/i, '').trim()
+
+  if (!token) throw new Error('PMS10_AUTH_REQUIRED')
+
+  const supabaseUrl = getRequiredEnv('SUPABASE_URL')
+  const anonKey = getRequiredEnv('SUPABASE_ANON_KEY')
+  const serviceRoleKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const authClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  const userResult = await authClient.auth.getUser(token)
+  if (userResult.error || !userResult.data.user) throw new Error('PMS10_AUTH_REQUIRED')
+
+  const user = userResult.data.user
+  const [profileResult, projectResult, updateResult] = await Promise.all([
+    adminClient
+      .from('profiles')
+      .select('id, full_name, email, role, approved, is_active, province, municipality')
+      .eq('id', user.id)
+      .maybeSingle(),
+    adminClient
+      .from('projects')
+      .select('id, project_name, funding_year, funding_source, province, municipality')
+      .eq('id', projectId)
+      .maybeSingle(),
+    adminClient
+      .from('project_updates')
+      .select('id, project_id, inspection_date')
+      .eq('id', updateId)
+      .maybeSingle(),
+  ])
+
+  if (profileResult.error) throw profileResult.error
+  if (projectResult.error) throw projectResult.error
+  if (updateResult.error) throw updateResult.error
+
+  const profile = profileResult.data
+  const project = projectResult.data
+  const update = updateResult.data
+
+  if (!profile || profile.approved !== true || profile.is_active === false) {
+    throw new Error('PMS10_UPLOAD_FORBIDDEN')
+  }
+  if (!project || !update || textValue(update.project_id) !== projectId) {
+    throw new Error('PMS10_UPLOAD_FORBIDDEN')
+  }
+
+  const role = canonicalRole(profile.role)
+  let allowed = role === 'Admin'
+
+  if (role === 'RO Engineer') {
+    const assignmentResult = await adminClient
+      .from('ro_engineer_province_assignments')
+      .select('province')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+
+    if (assignmentResult.error) throw assignmentResult.error
+    const assignments = assignmentResult.data || []
+    allowed = assignments.length > 0
+      ? assignments.some((assignment) => sameText(assignment.province, project.province))
+      : sameText(profile.province, project.province)
+  }
+
+  if (role === 'PO Engineer') {
+    const assignmentResult = await adminClient
+      .from('po_engineer_lgu_assignments')
+      .select('province, municipality')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+
+    if (assignmentResult.error) throw assignmentResult.error
+    const assignments = assignmentResult.data || []
+    allowed = assignments.length > 0
+      ? assignments.some(
+          (assignment) =>
+            sameText(assignment.province, project.province) &&
+            sameText(assignment.municipality, project.municipality),
+        )
+      : sameText(profile.province, project.province) &&
+        sameText(profile.municipality, project.municipality)
+  }
+
+  if (role === 'PEO') {
+    allowed = sameText(profile.province, project.province)
+  }
+
+  if (!allowed) throw new Error('PMS10_UPLOAD_FORBIDDEN')
+
+  return {
+    userId: user.id,
+    label: textValue(profile.full_name) || textValue(profile.email) || textValue(user.email) || user.id,
+    projectTitle: textValue(project.project_name),
+    fundingYear: textValue(project.funding_year),
+    fundingSource: textValue(project.funding_source),
+    inspectionDate: textValue(update.inspection_date),
+  }
+}
+
 function textValue(value: unknown) {
   if (value === null || value === undefined) return ''
   return String(value).trim()
@@ -82,6 +227,12 @@ function sanitizeFileName(value: string) {
 
 function sanitizeDriveQueryValue(value: string) {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+}
+
+async function createPhotoKey(value: string) {
+  const bytes = new TextEncoder().encode(value)
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+  return `pms10-${Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('')}`
 }
 
 function normalizeDate(value: string) {
@@ -265,6 +416,29 @@ async function findFolderByName(params: {
   return data.files?.[0] || null
 }
 
+async function findFileByPhotoKey(params: {
+  accessToken: string
+  parentFolderId: string
+  photoKey: string
+}) {
+  const { accessToken, parentFolderId, photoKey } = params
+  const query = [
+    'trashed=false',
+    `'${sanitizeDriveQueryValue(parentFolderId)}' in parents`,
+    `appProperties has { key='photoKey' and value='${sanitizeDriveQueryValue(photoKey)}' }`,
+  ].join(' and ')
+  const fields = 'files(id,name,mimeType,size,webViewLink,webContentLink,thumbnailLink)'
+  const url =
+    'https://www.googleapis.com/drive/v3/files' +
+    `?q=${encodeURIComponent(query)}` +
+    `&fields=${encodeURIComponent(fields)}` +
+    '&supportsAllDrives=true' +
+    '&includeItemsFromAllDrives=true'
+  const data = await driveFetch<{ files: DriveFile[] }>(accessToken, url)
+
+  return data.files?.[0] || null
+}
+
 async function createFolder(params: {
   accessToken: string
   parentFolderId: string
@@ -351,6 +525,7 @@ async function uploadFileToGoogleDrive(params: {
   fundingYear: string
   fundingSource: string
   uploadedBy: string
+  photoKey: string
 }) {
   const {
     accessToken,
@@ -373,6 +548,7 @@ async function uploadFileToGoogleDrive(params: {
     fundingYear,
     fundingSource,
     uploadedBy,
+    photoKey,
   } = params
 
   const metadata = {
@@ -398,6 +574,7 @@ async function uploadFileToGoogleDrive(params: {
       fundingYear,
       fundingSource,
       uploadedBy,
+      photoKey,
       fundingYearFolderId,
       fundingSourceFolderId,
       projectFolderId,
@@ -521,22 +698,9 @@ Deno.serve(async (request) => {
 
     const file = fileField as File
 
+    const photoId = textValue(formData.get('photoId'))
     const projectId = textValue(formData.get('projectId'))
     const updateId = textValue(formData.get('updateId'))
-    const projectTitle = textValue(formData.get('projectTitle')) || 'Untitled Project'
-    const uploadedBy = textValue(formData.get('uploadedBy')) || 'PMS10 User'
-    const inspectionDate = normalizeDate(textValue(formData.get('inspectionDate')))
-
-    const fundingYear = normalizeFundingYear(
-      textValue(formData.get('fundingYear')),
-      inspectionDate,
-    )
-
-    const fundingSource = normalizeFundingSource(
-      textValue(formData.get('fundingSource')) ||
-        textValue(formData.get('fundingProgram')) ||
-        'Unspecified Program',
-    )
 
     if (!file.type.startsWith('image/')) {
       return jsonResponse(
@@ -548,6 +712,40 @@ Deno.serve(async (request) => {
         400,
       )
     }
+
+    if (!projectId || !updateId) {
+      return jsonResponse(
+        {
+          ok: false,
+          message: 'Missing project reference.',
+          error: 'Both projectId and updateId are required.',
+        },
+        400,
+      )
+    }
+
+    if (file.size > MAX_PHOTO_BYTES) {
+      return jsonResponse(
+        {
+          ok: false,
+          message: 'Photo is too large.',
+          error: 'Inspection photos must be compressed to 700 KB or less before upload.',
+        },
+        413,
+      )
+    }
+
+    const uploader = await authorizeUploader(request, projectId, updateId)
+    const uploadedBy = uploader.label
+    const projectTitle = uploader.projectTitle || 'Untitled Project'
+    const inspectionDate = normalizeDate(uploader.inspectionDate)
+    const fundingYear = normalizeFundingYear(uploader.fundingYear, inspectionDate)
+    const fundingSource = normalizeFundingSource(
+      uploader.fundingSource || 'Unspecified Program',
+    )
+    const photoKey = await createPhotoKey(
+      [projectId, updateId, photoId || `${file.name}:${file.size}`].join(':'),
+    )
 
     const accessToken = await getGoogleAccessToken()
 
@@ -594,6 +792,36 @@ Deno.serve(async (request) => {
       folderName: updateFolderName,
     })
 
+    const existingFile = await findFileByPhotoKey({
+      accessToken,
+      parentFolderId: updateFolder.id,
+      photoKey,
+    })
+
+    if (existingFile) {
+      return jsonResponse({
+        ok: true,
+        message: 'Existing Google Drive photo reused.',
+        file: {
+          ...existingFile,
+          previewUrl: getDrivePreviewUrl(existingFile.id),
+          directViewLink: getDriveDirectViewUrl(existingFile.id),
+          folderId: updateFolder.id,
+          folderName: updateFolderName,
+          fundingYearFolderId: fundingYearFolder.id,
+          fundingYearFolderName,
+          fundingSourceFolderId: fundingSourceFolder.id,
+          fundingSourceFolderName,
+          projectFolderId: projectFolder.id,
+          projectFolderName,
+          updatesFolderId: updatesFolder.id,
+          updatesFolderName,
+          updateFolderId: updateFolder.id,
+          updateFolderName,
+        },
+      })
+    }
+
     const timestamp = new Date()
       .toISOString()
       .replace(/[:.]/g, '-')
@@ -624,6 +852,7 @@ Deno.serve(async (request) => {
       fundingYear,
       fundingSource,
       uploadedBy,
+      photoKey,
     })
 
     return jsonResponse({
@@ -636,14 +865,24 @@ Deno.serve(async (request) => {
 
     const rawMessage =
       error instanceof Error ? error.message : 'Unexpected upload error.'
+    const status = rawMessage === 'PMS10_AUTH_REQUIRED'
+      ? 401
+      : rawMessage === 'PMS10_UPLOAD_FORBIDDEN'
+        ? 403
+        : 500
+    const publicMessage = rawMessage === 'PMS10_AUTH_REQUIRED'
+      ? 'Sign in to PMS10 before uploading photos.'
+      : rawMessage === 'PMS10_UPLOAD_FORBIDDEN'
+        ? 'Your current role or assigned area does not allow photo uploads for this project.'
+        : getReadableDriveError(rawMessage)
 
     return jsonResponse(
       {
         ok: false,
         message: 'Google Drive upload failed.',
-        error: getReadableDriveError(rawMessage),
+        error: publicMessage,
       },
-      500,
+      status,
     )
   }
 })

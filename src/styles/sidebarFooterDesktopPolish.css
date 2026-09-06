@@ -1,0 +1,109 @@
+/* =========================================================
+   PMS10 DESKTOP SIDEBAR FOOTER POLISH
+   Desktop only. Mobile navigation is untouched.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-footer {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    min-height: 58px !important;
+    padding: 9px 12px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.09) !important;
+    background: rgba(3, 24, 53, 0.13) !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-office {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0 !important;
+    padding: 0 !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-office-mark {
+    display: none !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-office-copy {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    display: block !important;
+    overflow: hidden !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-office-copy strong {
+    display: block !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-office-copy > span {
+    display: none !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-collapse-button {
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+    color: rgba(255, 255, 255, 0.76) !important;
+    box-shadow: none !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-collapse-button:hover {
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-collapse-button > span {
+    display: none !important;
+  }
+
+  .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-collapse-button svg {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+  }
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-footer {
+    min-height: 62px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 0 10px !important;
+  }
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-collapse-button {
+    width: 42px !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    border-radius: 11px !important;
+  }
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-collapse-button svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+}

@@ -1,0 +1,188 @@
+/* =========================================================
+   PMS10 USER ACCESS — DESKTOP POLISH + MULTI-LGU CONTROLS
+   Desktop only (>=1024px). Mobile/tablet remains unchanged.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Match the compact spacing used on the other PMS10 desktop pages. */
+  .app-shell .user-access-page {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 10px 16px 30px !important;
+    gap: 10px !important;
+  }
+
+  .user-access-hero {
+    gap: 8px !important;
+    padding: 16px 18px !important;
+    border-radius: 18px !important;
+    box-shadow: 0 10px 24px rgba(15, 48, 87, 0.11) !important;
+  }
+
+  .user-access-hero p {
+    margin-bottom: 4px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }
+
+  .user-access-hero h1 {
+    font-size: 28px !important;
+    font-weight: 700 !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .user-access-hero span {
+    max-width: none !important;
+    margin-top: 7px !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.35 !important;
+  }
+
+  .user-access-card {
+    padding: 16px 18px !important;
+    border-radius: 18px !important;
+    box-shadow: 0 7px 20px rgba(15, 23, 42, 0.045) !important;
+  }
+
+  .user-access-card h1,
+  .user-access-card h2 {
+    margin-bottom: 8px !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .user-access-card p {
+    margin-bottom: 10px !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.4 !important;
+  }
+
+  .user-access-user-card {
+    gap: 12px !important;
+  }
+
+  .user-access-user-card strong {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+  }
+
+  .user-access-user-card span {
+    margin-top: 2px !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+  }
+
+  .user-access-grid {
+    gap: 10px !important;
+  }
+
+  .user-access-grid label,
+  .user-access-field,
+  .user-access-readonly-field {
+    gap: 6px !important;
+  }
+
+  .user-access-grid select,
+  .user-access-field select,
+  .user-access-readonly-field > strong {
+    min-height: 44px !important;
+    border-radius: 13px !important;
+  }
+
+  .user-access-checkbox-grid {
+    gap: 8px !important;
+    margin-top: 10px !important;
+  }
+
+  .user-access-check-card {
+    min-height: 44px !important;
+    padding: 8px 10px !important;
+    border-radius: 13px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+  }
+
+  /* Select-all toolbar used by PO Engineer and MLGOO LGU assignment. */
+  .user-access-selection-toolbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+    padding: 8px 10px !important;
+    border: 1px solid #dbe5f0 !important;
+    border-radius: 13px !important;
+    background: #f8fafc !important;
+  }
+
+  .user-access-selection-toolbar span {
+    color: #64748b !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }
+
+  .user-access-select-all-button {
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    border: 1px solid #bfdbfe !important;
+    border-radius: 10px !important;
+    background: #eff6ff !important;
+    color: #0f4c81 !important;
+    font: inherit !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+  }
+
+  .user-access-select-all-button:hover {
+    background: #dbeafe !important;
+  }
+
+  /* Desktop does not have the mobile bottom navbar, so keep actions
+     closer to the viewport bottom instead of leaving an 88px gap. */
+  .user-access-actions {
+    bottom: 18px !important;
+    gap: 8px !important;
+    padding: 10px !important;
+    border-radius: 18px !important;
+  }
+
+  .user-access-actions .user-management-button {
+    min-height: 42px !important;
+  }
+}
+
+/* The multi-select controls themselves also work cleanly on mobile. */
+.user-access-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.user-access-selection-toolbar span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-access-select-all-button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 11px;
+  background: #eff6ff;
+  color: #0f4c81;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}

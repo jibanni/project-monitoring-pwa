@@ -254,3 +254,114 @@
     gap: 9px !important;
   }
 }
+
+/* =========================================================
+   PMS10 DESKTOP FILTER CONSISTENCY — PHASE 1.17
+   Match Project Registry, GIS Map, and Reports to the approved
+   plain Dashboard filter bar. Desktop only; mobile untouched.
+   ========================================================= */
+@media (min-width: 1024px) {
+  .pm-unified-filter-panel {
+    padding: 8px !important;
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    border-radius: 18px !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055) !important;
+  }
+
+  .pm-unified-filter-bar {
+    min-height: 44px !important;
+    gap: 8px !important;
+  }
+
+  .pm-unified-filter-summary {
+    gap: 9px !important;
+  }
+
+  .pm-unified-filter-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    flex-basis: 34px !important;
+    border-radius: 12px !important;
+    background: #eff6ff !important;
+    color: #0f4c81 !important;
+  }
+
+  .pm-unified-filter-icon svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+
+  .pm-unified-filter-text p {
+    margin-bottom: 2px !important;
+    color: #64748b !important;
+    font-size: 0.6rem !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .pm-unified-filter-text strong {
+    color: #0f172a !important;
+    font-size: 0.84rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .pm-unified-filter-actions {
+    gap: 7px !important;
+  }
+
+  .pm-unified-filter-actions > span {
+    min-height: 32px !important;
+    padding: 0 9px !important;
+    border-radius: 999px !important;
+    background: #eff6ff !important;
+    color: #0f4c81 !important;
+    font-size: 0.69rem !important;
+  }
+
+  .pm-unified-filter-toggle {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 13px !important;
+    border-radius: 12px !important;
+    background: #0f4c81 !important;
+    color: #ffffff !important;
+    font-size: 0.77rem !important;
+    box-shadow: 0 7px 16px rgba(15, 76, 129, 0.13) !important;
+  }
+
+  .pm-unified-filter-panel.has-active-filters .pm-unified-filter-toggle {
+    background: #ff6b2c !important;
+    box-shadow: 0 7px 16px rgba(255, 107, 44, 0.14) !important;
+  }
+
+  .pm-unified-filter-body {
+    gap: 8px !important;
+    margin-top: 9px !important;
+    padding-top: 9px !important;
+  }
+
+  .pm-unified-search-field input {
+    min-height: 38px !important;
+    height: 38px !important;
+    border-radius: 11px !important;
+    background: #ffffff !important;
+  }
+
+  .pm-unified-filter-grid {
+    gap: 8px !important;
+  }
+
+  .pm-unified-filter-grid label {
+    gap: 4px !important;
+  }
+
+  .pm-unified-filter-grid input,
+  .pm-unified-filter-grid select,
+  .pm-unified-clear {
+    min-height: 38px !important;
+    height: 38px !important;
+    border-radius: 11px !important;
+  }
+}

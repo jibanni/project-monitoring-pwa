@@ -31,6 +31,7 @@ type GoogleDriveUploadResponse = {
 
 type UploadProjectPhotoToDriveParams = {
   file: File
+  photoId: string
   projectId: string
   updateId: string
   projectTitle?: string
@@ -86,6 +87,7 @@ export function getDrivePhotoUrl(file: GoogleDriveUploadedFile) {
 
 export async function uploadProjectPhotoToDrive({
   file,
+  photoId,
   projectId,
   updateId,
   projectTitle = '',
@@ -97,6 +99,7 @@ export async function uploadProjectPhotoToDrive({
 }: UploadProjectPhotoToDriveParams) {
   const formData = new FormData()
   formData.append('file', file)
+  formData.append('photoId', photoId)
   formData.append('projectId', projectId)
   formData.append('updateId', updateId)
   formData.append('projectTitle', projectTitle)
@@ -124,4 +127,41 @@ export async function uploadProjectPhotoToDrive({
   }
 
   return data.file
+}
+
+export async function ensureProjectPhotoReference(params: {
+  projectId: string
+  projectUpdateId: string
+  photoUrl: string
+  caption: string
+}) {
+  const { projectId, projectUpdateId, photoUrl, caption } = params
+
+  const existingResult = await supabase
+    .from('project_photos')
+    .select('id')
+    .eq('project_update_id', projectUpdateId)
+    .eq('photo_url', photoUrl)
+    .limit(1)
+    .maybeSingle()
+
+  if (existingResult.error) throw existingResult.error
+  if (existingResult.data?.id) return existingResult.data
+
+  const insertResult = await supabase
+    .from('project_photos')
+    .insert([
+      {
+        project_id: projectId,
+        project_update_id: projectUpdateId,
+        photo_url: photoUrl,
+        caption,
+        uploaded_at: new Date().toISOString(),
+      },
+    ])
+    .select('id')
+    .single()
+
+  if (insertResult.error) throw insertResult.error
+  return insertResult.data
 }

@@ -329,3 +329,88 @@
   }
 }
 /* PMS10 PHASE 5.11 — KEYBOARD-VISIBLE ACTION FAB END */
+
+
+/* =========================================================
+   PMS10 DESKTOP ACTION MENU — FULL HEIGHT / NO INTERNAL SCROLL
+   Desktop only. Mobile action menu is untouched.
+   ========================================================= */
+@media (min-width: 1024px) {
+  .pms-action-menu {
+    --pms-action-launcher-size: 56px;
+    --pms-action-icon-size: 48px;
+    --pms-action-gap: 7px;
+
+    right: 18px !important;
+    bottom: 18px !important;
+    gap: 9px !important;
+  }
+
+  .pms-action-menu-panel {
+    width: min(340px, calc(100vw - 40px)) !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+    gap: var(--pms-action-gap) !important;
+    padding: 4px 2px 2px 8px !important;
+  }
+
+  .pms-action-menu-item {
+    min-height: var(--pms-action-icon-size) !important;
+    grid-template-columns: minmax(150px, auto) var(--pms-action-icon-size) !important;
+    gap: 9px !important;
+  }
+
+  .pms-action-menu-item-label {
+    min-width: 150px !important;
+    max-width: 260px !important;
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 7px 15px !important;
+    border-radius: 12px !important;
+    font-size: 0.9rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .pms-action-menu-item-icon {
+    width: var(--pms-action-icon-size) !important;
+    height: var(--pms-action-icon-size) !important;
+  }
+
+  .pms-action-menu-item-icon svg,
+  .pms-action-menu-launcher svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .pms-action-menu-launcher {
+    width: var(--pms-action-launcher-size) !important;
+    height: var(--pms-action-launcher-size) !important;
+    min-width: var(--pms-action-launcher-size) !important;
+    min-height: var(--pms-action-launcher-size) !important;
+  }
+}
+
+/* Very short desktop windows: compress further rather than scroll the menu. */
+@media (min-width: 1024px) and (max-height: 720px) {
+  .pms-action-menu {
+    --pms-action-launcher-size: 50px;
+    --pms-action-icon-size: 42px;
+    --pms-action-gap: 5px;
+    bottom: 12px !important;
+    gap: 6px !important;
+  }
+
+  .pms-action-menu-item-label {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 5px 12px !important;
+    font-size: 0.84rem !important;
+  }
+
+  .pms-action-menu-item-icon svg,
+  .pms-action-menu-launcher svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}

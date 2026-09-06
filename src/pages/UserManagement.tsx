@@ -3,8 +3,11 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useDesktopViewport } from '../hooks/useDesktopViewport'
+import { readPageView, writePageView } from '../lib/pageViewMemory'
 import '../styles/userManagement.css'
 import '../styles/pageHero.css'
+import '../styles/userManagementDesktopPolish.css'
 
 type UserRole =
   | 'Admin'
@@ -190,7 +193,7 @@ function getAorSummary(
     return assigned.length ? `Province/s: ${assigned.join(', ')}` : 'No province assigned'
   }
 
-  if (role === 'PO Engineer') {
+  if (role === 'PO Engineer' || role === 'MLGOO') {
     const assigned = poAssignments
       .filter((assignment) => assignment.user_id === user.id && assignment.is_active !== false)
       .map((assignment) => assignment.municipality)
@@ -206,6 +209,52 @@ function getAorSummary(
   return user.aor_level || getDefaultAorLevel(role)
 }
 
+
+function getCompactAorSummary(
+  user: ManagedUser,
+  poAssignments: PoEngineerLguAssignment[],
+  roAssignments: RoEngineerProvinceAssignment[],
+) {
+  const role = normalizeRole(user.role)
+
+  if (role === 'Admin' || role === 'RD' || role === 'ARD' || role === 'PDMU Chief') {
+    return 'Regional access'
+  }
+
+  if (role === 'RO Engineer') {
+    const provinces = Array.from(
+      new Set(
+        roAssignments
+          .filter((assignment) => assignment.user_id === user.id && assignment.is_active !== false)
+          .map((assignment) => textValue(assignment.province))
+          .filter(Boolean),
+      ),
+    )
+
+    if (!provinces.length) return 'No province assigned'
+    return `${provinces.length} ${provinces.length === 1 ? 'province' : 'provinces'} assigned`
+  }
+
+  if (role === 'PO Engineer') {
+    const assignments = poAssignments.filter(
+      (assignment) => assignment.user_id === user.id && assignment.is_active !== false,
+    )
+    const lgus = Array.from(new Set(assignments.map((assignment) => textValue(assignment.municipality)).filter(Boolean)))
+    const provinces = Array.from(new Set(assignments.map((assignment) => textValue(assignment.province)).filter(Boolean)))
+
+    if (!lgus.length) return 'No LGU assigned'
+
+    const provinceSuffix = provinces.length
+      ? ` · ${provinces.length} ${provinces.length === 1 ? 'province' : 'provinces'}`
+      : ''
+
+    return `${lgus.length} ${lgus.length === 1 ? 'LGU' : 'LGUs'} assigned${provinceSuffix}`
+  }
+
+  const detailed = getAorSummary(user, poAssignments, roAssignments)
+  return detailed || 'Assigned AOR'
+}
+
 function RefreshIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -215,8 +264,19 @@ function RefreshIcon() {
   )
 }
 
+function UserFilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 6h16" />
+      <path d="M7 12h10" />
+      <path d="M10 18h4" />
+    </svg>
+  )
+}
+
 export default function UserManagement() {
-  const { user, isAdmin } = useAuth()
+  const isDesktopViewport = useDesktopViewport()
+  const { user, isAdmin, refreshProfile } = useAuth()
 
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [poAssignments, setPoAssignments] = useState<PoEngineerLguAssignment[]>([])
@@ -226,12 +286,34 @@ export default function UserManagement() {
   const [portalReady, setPortalReady] = useState(false)
   const [isUserScrolled, setIsUserScrolled] = useState(false)
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const rememberedView = readPageView('users', {
+    searchTerm: '',
+    roleFilter: 'all' as RoleFilter,
+    statusFilter: 'all' as StatusFilter,
+    filtersOpen: false,
+    renameUserId: '',
+  })
+
+  const [searchTerm, setSearchTerm] = useState(rememberedView.searchTerm || '')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>(rememberedView.roleFilter || 'all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(rememberedView.statusFilter || 'all')
+  const [filtersOpen, setFiltersOpen] = useState(Boolean(rememberedView.filtersOpen))
 
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  const [renameUser, setRenameUser] = useState<ManagedUser | null>(null)
+  const [renameFullName, setRenameFullName] = useState('')
+
+  useEffect(() => {
+    writePageView('users', {
+      searchTerm,
+      roleFilter,
+      statusFilter,
+      filtersOpen,
+      renameUserId: renameUser?.id || '',
+    })
+  }, [searchTerm, roleFilter, statusFilter, filtersOpen, renameUser])
 
   const [passwordUser, setPasswordUser] = useState<ManagedUser | null>(null)
   const [newPassword, setNewPassword] = useState('')
@@ -246,6 +328,16 @@ export default function UserManagement() {
   useEffect(() => {
     loadUsers()
   }, [])
+
+  useEffect(() => {
+    if (renameUser || users.length === 0 || !rememberedView.renameUserId) return
+
+    const rememberedUser = users.find((entry) => entry.id === rememberedView.renameUserId)
+    if (!rememberedUser) return
+
+    setRenameUser(rememberedUser)
+    setRenameFullName(rememberedUser.full_name || '')
+  }, [users, renameUser, rememberedView.renameUserId])
 
   useEffect(() => {
     let ticking = false
@@ -389,6 +481,69 @@ export default function UserManagement() {
     }
   }
 
+  function openRenameModal(targetUser: ManagedUser) {
+    clearNotices()
+    setRenameUser(targetUser)
+    setRenameFullName(textValue(targetUser.full_name))
+  }
+
+  function closeRenameModal() {
+    setRenameUser(null)
+    setRenameFullName('')
+  }
+
+  async function handleRenameUser() {
+    clearNotices()
+    if (!renameUser) return
+
+    const nextFullName = renameFullName.replace(/\s+/g, ' ').trim()
+
+    if (nextFullName.length < 2) {
+      setError('User name must contain at least 2 characters.')
+      return
+    }
+
+    if (nextFullName.length > 120) {
+      setError('User name must not exceed 120 characters.')
+      return
+    }
+
+    if (nextFullName === textValue(renameUser.full_name)) {
+      closeRenameModal()
+      return
+    }
+
+    const actionKey = `rename-${renameUser.id}`
+
+    try {
+      setActionLoading(actionKey)
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ full_name: nextFullName })
+        .eq('id', renameUser.id)
+
+      if (updateError) throw updateError
+
+      setUsers((current) =>
+        current.map((item) =>
+          item.id === renameUser.id ? { ...item, full_name: nextFullName } : item,
+        ),
+      )
+
+      if (renameUser.id === user?.id) {
+        await refreshProfile()
+      }
+
+      setSuccess(`User renamed to ${nextFullName}.`)
+      closeRenameModal()
+    } catch (err: any) {
+      setError(err?.message || 'Unable to rename user.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   function openPasswordModal(targetUser: ManagedUser) {
     clearNotices()
     setPasswordUser(targetUser)
@@ -502,6 +657,19 @@ export default function UserManagement() {
     }
   }, [users])
 
+  const hasActiveUserFilters =
+    searchTerm.trim().length > 0 ||
+    roleFilter !== 'all' ||
+    statusFilter !== 'all'
+
+  const userFilterSummary = hasActiveUserFilters ? 'Filtered users' : 'All users'
+
+  const resetUserFilters = () => {
+    setSearchTerm('')
+    setRoleFilter('all')
+    setStatusFilter('all')
+  }
+
   const refreshFab = (
     <button
       type="button"
@@ -518,13 +686,15 @@ export default function UserManagement() {
   if (!isAdmin) {
     return (
       <div className={`user-management-page ${isUserScrolled ? 'is-user-scrolled' : ''}`}>
-        <section className="user-management-hero">
-          <div>
-            <p className="user-management-eyebrow">Administration</p>
-            <h1>User Management</h1>
-            <p>Please login using an administrator account to manage users.</p>
-          </div>
-        </section>
+        {!isDesktopViewport && (
+          <section className="user-management-hero">
+            <div>
+              <p className="user-management-eyebrow">Administration</p>
+              <h1>User Management</h1>
+              <p>Please login using an administrator account to manage users.</p>
+            </div>
+          </section>
+        )}
       </div>
     )
   }
@@ -532,16 +702,18 @@ export default function UserManagement() {
   return (
     <>
       <div className={`user-management-page ${isUserScrolled ? 'is-user-scrolled' : ''}`}>
-        <section className="user-management-hero">
-          <div>
-            <p className="user-management-eyebrow">Administration</p>
-            <h1>User Management</h1>
-            <p>
-              Approve accounts, assign roles, and open the Access / AOR page to tag
-              users by province, HUC, city, municipality, or LGU.
-            </p>
-          </div>
-        </section>
+        {!isDesktopViewport && (
+          <section className="user-management-hero">
+            <div>
+              <p className="user-management-eyebrow">Administration</p>
+              <h1>User Management</h1>
+              <p>
+                Approve accounts, assign roles, and open the Access / AOR page to tag
+                users by province, HUC, city, municipality, or LGU.
+              </p>
+            </div>
+          </section>
+        )}
 
         <section className="user-management-summary-grid">
           <article className="user-management-summary-card">
@@ -573,58 +745,180 @@ export default function UserManagement() {
         {error && <div className="user-management-alert error">{error}</div>}
         {success && <div className="user-management-alert success">{success}</div>}
 
-        <section className="user-management-filter-card">
-          <div>
-            <label htmlFor="user-search">Search Users</label>
-            <input
-              id="user-search"
-              type="search"
-              placeholder="Search name, email, role, or AOR"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-          </div>
+        {isDesktopViewport ? (
+          <section
+            className={`user-management-filter-card pm-unified-filter-panel ${
+              filtersOpen ? 'is-open' : ''
+            } ${hasActiveUserFilters ? 'has-active-filters' : ''}`}
+          >
+            <div className="pm-unified-filter-bar">
+              <div className="pm-unified-filter-summary">
+                <span className="pm-unified-filter-icon" aria-hidden="true">
+                  <UserFilterIcon />
+                </span>
 
-          <div>
-            <label htmlFor="role-filter">Role</label>
-            <select
-              id="role-filter"
-              value={
-                roleFilter === 'all'
-                  ? 'ALL'
-                  : ROLE_OPTIONS.find((roleOption) => roleOption.value === roleFilter)?.label ||
-                    roleFilter.toLocaleUpperCase('en-PH')
-              }
-              onChange={(event) => {
-                const selectedRole = event.target.value
-                setRoleFilter(selectedRole === 'ALL' ? 'all' : normalizeRole(selectedRole))
-              }}
-            >
-              <option value="ALL" label="ALL ROLES">
-                ALL ROLES
-              </option>
-              {ROLE_OPTIONS.map((role) => (
-                <option key={role.value} value={role.label} label={role.label}>
-                  {role.label}
+                <div className="pm-unified-filter-text">
+                  <p>User Filters</p>
+                  <strong>{userFilterSummary}</strong>
+                </div>
+              </div>
+
+              <div className="pm-unified-filter-actions">
+                <span>
+                  {filteredUsers.length} / {users.length}
+                </span>
+
+                <button
+                  type="button"
+                  className="pm-unified-filter-toggle"
+                  onClick={() => setFiltersOpen((current) => !current)}
+                  aria-expanded={filtersOpen}
+                >
+                  {filtersOpen ? 'Close' : 'Filter'}
+                </button>
+              </div>
+            </div>
+
+            <div className="pm-unified-filter-body" hidden={!filtersOpen}>
+              <div className="user-management-filter-grid pm-unified-filter-grid">
+                <div className="user-management-filter-field user-management-filter-search">
+                  <label htmlFor="user-search">Search Users</label>
+                  <input
+                    id="user-search"
+                    type="search"
+                    placeholder="Search name, email, role, or AOR"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
+                </div>
+
+                <div className="user-management-filter-field">
+                  <label htmlFor="role-filter">Role</label>
+                  <select
+                    id="role-filter"
+                    value={
+                      roleFilter === 'all'
+                        ? 'ALL'
+                        : ROLE_OPTIONS.find(
+                            (roleOption) => roleOption.value === roleFilter,
+                          )?.label || roleFilter.toLocaleUpperCase('en-PH')
+                    }
+                    onChange={(event) => {
+                      const selectedRole = event.target.value
+                      setRoleFilter(
+                        selectedRole === 'ALL'
+                          ? 'all'
+                          : normalizeRole(selectedRole),
+                      )
+                    }}
+                  >
+                    <option value="ALL" label="ALL ROLES">
+                      ALL ROLES
+                    </option>
+                    {ROLE_OPTIONS.map((role) => (
+                      <option
+                        key={role.value}
+                        value={role.label}
+                        label={role.label}
+                      >
+                        {role.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="user-management-filter-field">
+                  <label htmlFor="status-filter">Status</label>
+                  <select
+                    id="status-filter"
+                    value={statusFilter}
+                    onChange={(event) =>
+                      setStatusFilter(event.target.value as StatusFilter)
+                    }
+                  >
+                    <option value="all">All Status</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  className="user-management-filter-reset pm-unified-clear"
+                  onClick={resetUserFilters}
+                  disabled={!hasActiveUserFilters}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <section className="user-management-filter-card">
+            <div>
+              <label htmlFor="user-search">Search Users</label>
+              <input
+                id="user-search"
+                type="search"
+                placeholder="Search name, email, role, or AOR"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="role-filter">Role</label>
+              <select
+                id="role-filter"
+                value={
+                  roleFilter === 'all'
+                    ? 'ALL'
+                    : ROLE_OPTIONS.find(
+                        (roleOption) => roleOption.value === roleFilter,
+                      )?.label || roleFilter.toLocaleUpperCase('en-PH')
+                }
+                onChange={(event) => {
+                  const selectedRole = event.target.value
+                  setRoleFilter(
+                    selectedRole === 'ALL'
+                      ? 'all'
+                      : normalizeRole(selectedRole),
+                  )
+                }}
+              >
+                <option value="ALL" label="ALL ROLES">
+                  ALL ROLES
                 </option>
-              ))}
-            </select>
-          </div>
+                {ROLE_OPTIONS.map((role) => (
+                  <option
+                    key={role.value}
+                    value={role.label}
+                    label={role.label}
+                  >
+                    {role.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label htmlFor="status-filter">Status</label>
-            <select
-              id="status-filter"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-            >
-              <option value="all">All Status</option>
-              <option value="approved">Approved</option>
-              <option value="pending">Pending</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-        </section>
+            <div>
+              <label htmlFor="status-filter">Status</label>
+              <select
+                id="status-filter"
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(event.target.value as StatusFilter)
+                }
+              >
+                <option value="all">All Status</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </section>
+        )}
 
         <section className="user-management-list-card">
           <div className="user-management-list-header">
@@ -640,6 +934,123 @@ export default function UserManagement() {
             <div className="user-management-state">No users matched your current filters.</div>
           ) : (
             <>
+              <div className="user-management-desktop-list">
+                {filteredUsers.map((item) => {
+                  const isCurrentUser = item.id === user?.id
+                  const approved = item.approved === true
+                  const active = item.is_active !== false
+                  const role = normalizeRole(item.role)
+                  const aorSummary = getAorSummary(item, poAssignments, roAssignments)
+                  const compactAor = getCompactAorSummary(item, poAssignments, roAssignments)
+
+                  return (
+                    <article key={`desktop-${item.id}`} className="user-management-desktop-card">
+                      <div className="user-management-desktop-person">
+                        <div className="user-management-avatar">
+                          {getInitials(item.full_name, item.email)}
+                        </div>
+                        <div className="user-management-desktop-person-copy">
+                          <div className="user-management-desktop-name-line">
+                            <strong>{item.full_name || 'Unnamed User'}</strong>
+                            {isCurrentUser && (
+                              <span className="user-management-current-chip">You</span>
+                            )}
+                          </div>
+                          <span className="user-management-desktop-email">
+                            {item.email || 'No email'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="user-management-desktop-role">
+                        <span className="user-management-desktop-label">Role</span>
+                        <select
+                          className="user-management-role-select"
+                          value={roleLabel(role)}
+                          disabled={isCurrentUser || actionLoading === `role-${item.id}`}
+                          onChange={(event) =>
+                            updateUserRole(item, normalizeRole(event.target.value))
+                          }
+                        >
+                          {ROLE_OPTIONS.map((roleOption) => (
+                            <option
+                              key={roleOption.value}
+                              value={roleOption.label}
+                              label={roleOption.label}
+                            >
+                              {roleOption.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="user-management-desktop-access">
+                        <span className="user-management-desktop-label">Access / AOR</span>
+                        <strong title={aorSummary}>{compactAor}</strong>
+                        <Link
+                          className="user-management-aor-link"
+                          to={`/users/${item.id}/access`}
+                        >
+                          Manage access
+                        </Link>
+                      </div>
+
+                      <div className="user-management-desktop-state">
+                        <span
+                          className={`user-management-status ${
+                            approved && active ? 'approved' : 'pending'
+                          }`}
+                        >
+                          {approved && active ? 'Approved' : active ? 'Pending' : 'Inactive'}
+                        </span>
+                        <span className="user-management-created-date">
+                          Added {formatDate(item.created_at)}
+                        </span>
+                      </div>
+
+                      <div className="user-management-desktop-actions">
+                        <button
+                          type="button"
+                          className="user-management-button secondary"
+                          onClick={() => openRenameModal(item)}
+                          disabled={actionLoading === `rename-${item.id}`}
+                        >
+                          Rename
+                        </button>
+
+                        <button
+                          type="button"
+                          className="user-management-button primary"
+                          onClick={() => openPasswordModal(item)}
+                        >
+                          Password
+                        </button>
+
+                        {approved ? (
+                          <button
+                            type="button"
+                            className="user-management-button danger"
+                            disabled={isCurrentUser || actionLoading === `revoke-${item.id}`}
+                            onClick={() => updateApproval(item, false)}
+                          >
+                            Revoke
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="user-management-button success"
+                            disabled={actionLoading === `approve-${item.id}`}
+                            onClick={() => updateApproval(item, true)}
+                          >
+                            Approve
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+
               <div className="user-management-table-wrap">
                 <table className="user-management-table">
                   <thead>
@@ -709,6 +1120,15 @@ export default function UserManagement() {
                           <td>{formatDate(item.created_at)}</td>
                           <td>
                             <div className="user-management-actions">
+                              <button
+                                type="button"
+                                className="user-management-button secondary"
+                                onClick={() => openRenameModal(item)}
+                                disabled={actionLoading === `rename-${item.id}`}
+                              >
+                                Rename
+                              </button>
+
                               <Link
                                 className="user-management-button secondary user-management-access-open-btn user-management-button-link"
                                 to={`/users/${item.id}/access`}
@@ -813,6 +1233,15 @@ export default function UserManagement() {
                       </div>
 
                       <div className="user-management-mobile-actions">
+                        <button
+                          type="button"
+                          className="user-management-button secondary"
+                          onClick={() => openRenameModal(item)}
+                          disabled={actionLoading === `rename-${item.id}`}
+                        >
+                          Rename
+                        </button>
+
                         <Link
                           className="user-management-button secondary user-management-access-open-btn user-management-button-link"
                           to={`/users/${item.id}/access`}
@@ -858,6 +1287,84 @@ export default function UserManagement() {
       </div>
 
       {portalReady ? createPortal(refreshFab, document.body) : refreshFab}
+
+      {renameUser &&
+        createPortal(
+          <div className="user-management-modal-backdrop" role="presentation">
+            <div
+              className="user-management-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="rename-user-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="user-management-modal-header">
+                <div>
+                  <p>Admin User Tool</p>
+                  <h2 id="rename-user-modal-title">Rename User</h2>
+                </div>
+                <button
+                  type="button"
+                  className="user-management-modal-close"
+                  onClick={closeRenameModal}
+                  aria-label="Close rename user modal"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="user-management-password-user">
+                <div className="user-management-avatar">
+                  {getInitials(renameUser.full_name, renameUser.email)}
+                </div>
+                <div>
+                  <strong>{renameUser.full_name || 'Unnamed User'}</strong>
+                  <span>{renameUser.email || 'No email'}</span>
+                </div>
+              </div>
+
+              <div className="user-management-password-grid">
+                <label>
+                  <span>Full Name</span>
+                  <input
+                    type="text"
+                    value={renameFullName}
+                    onChange={(event) => setRenameFullName(event.target.value)}
+                    placeholder="Enter user's full name"
+                    maxLength={120}
+                    autoFocus
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') void handleRenameUser()
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div className="user-management-password-rules">
+                This changes the display name used by PMS10. The user's login email and password are not changed.
+              </div>
+
+              <div className="user-management-modal-actions">
+                <button
+                  type="button"
+                  className="user-management-button secondary"
+                  onClick={closeRenameModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="user-management-button primary"
+                  onClick={handleRenameUser}
+                  disabled={actionLoading === `rename-${renameUser.id}`}
+                >
+                  {actionLoading === `rename-${renameUser.id}` ? 'Saving...' : 'Save Name'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {passwordUser &&
         createPortal(

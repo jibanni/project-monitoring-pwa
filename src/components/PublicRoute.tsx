@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { getSafeReturnPath } from '../lib/navigation'
 import StartupSplash from './StartupSplash'
 
 type PublicRouteProps = {
@@ -8,12 +9,13 @@ type PublicRouteProps = {
 }
 
 export default function PublicRoute({ children }: PublicRouteProps) {
+  const location = useLocation()
   const { session, profile, loading } = useAuth()
 
   if (loading) return <StartupSplash />
 
   if (session && profile?.approved === true && profile?.is_active !== false) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={getSafeReturnPath(location.state)} replace />
   }
 
   if (session && profile?.approved === false) {
