@@ -193,13 +193,29 @@ function drawRegionalHeader(doc: any, assets: HeaderAssets) {
 
   if (assets.dilgDataUrl && assets.bagongDataUrl) {
     const dilgSize = 17
-    const bagongSize = 17
+    const bagongHeight = 22
+    const bagongAspectRatio = 499 / 520
+    const bagongWidth = bagongHeight * bagongAspectRatio
     const gap = 4
-    const groupWidth = dilgSize + gap + bagongSize
+
+    const logoRowHeight = Math.max(dilgSize, bagongHeight)
+    const groupWidth = dilgSize + gap + bagongWidth
     const x = (pageWidth - groupWidth) / 2
-    doc.addImage(assets.dilgDataUrl, 'PNG', x, y, dilgSize, dilgSize)
-    doc.addImage(assets.bagongDataUrl, 'PNG', x + dilgSize + gap, y, bagongSize, bagongSize)
-    y += 20
+
+    const dilgY = y + (logoRowHeight - dilgSize) / 2
+    const bagongY = y + (logoRowHeight - bagongHeight) / 2
+
+    doc.addImage(assets.dilgDataUrl, 'PNG', x, dilgY, dilgSize, dilgSize)
+    doc.addImage(
+      assets.bagongDataUrl,
+      'PNG',
+      x + dilgSize + gap,
+      bagongY,
+      bagongWidth,
+      bagongHeight,
+    )
+
+    y += logoRowHeight + 3
   } else {
     y += 2
   }
