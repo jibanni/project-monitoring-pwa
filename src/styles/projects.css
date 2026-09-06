@@ -2273,3 +2273,17 @@
   }
 }
 /* PMS10 MOBILE PROJECT REGISTRY HERO/FILTER RHYTHM END */
+
+
+/* =========================================================
+   PMS10 MOBILE PROJECT REGISTRY SPACING MATCH GIS V2
+   Mobile only. Pulls the Project Filters card upward so the
+   visible hero-to-filter gap matches the GIS hero-to-map gap.
+   Desktop/PC remains untouched.
+   ========================================================= */
+@media (max-width: 700px) {
+  .projects-page > .projects-filter-card.pm-unified-filter-panel {
+    margin-top: -14px !important;
+  }
+}
+/* PMS10 MOBILE PROJECT REGISTRY SPACING MATCH GIS V2 END */
