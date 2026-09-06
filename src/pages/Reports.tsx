@@ -1273,19 +1273,6 @@ export default function Reports() {
           </div>
         </section>
 
-        <section className="reports-products-card" aria-label="Report products">
-          <div>
-            <p>REGIONAL REPORTING</p>
-            <h2>Program Summary Report</h2>
-            <span>Use the PDF and Excel buttons to export the current AOR/filter scope, summarized per program.</span>
-          </div>
-          <div>
-            <p>PROJECT-LEVEL REPORTING</p>
-            <h2>Project Briefer</h2>
-            <span>Filter to find a project, then generate its executive briefer from the project row/card.</span>
-          </div>
-        </section>
-
         {hasActiveSearch && (
           <section className="reports-table-card">
             <div className="reports-table-header">

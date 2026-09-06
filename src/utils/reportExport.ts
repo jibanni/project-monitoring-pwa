@@ -1,6 +1,7 @@
 import { getDilgOfficeDirectoryEntry } from '../data/dilgOfficeDirectory'
 import { normalizeProgramName } from './program'
 import { getPmsRiskLevel } from './projectStatus'
+import { getContractExpirationInfo, getTargetPhysicalInfo } from './projectVariance'
 
 export type ReportExportProject = {
   id: string
@@ -20,6 +21,12 @@ export type ReportExportProject = {
   target_completion_date?: string | null
   contract_expiration_date?: string | null
   revised_contract_expiration_date?: string | null
+  has_contract_modification?: boolean | string | null
+  contract_modification_type?: string | null
+  revised_project_cost?: number | string | null
+  target_physical_accomplishment?: number | string | null
+  target_physical_as_of?: string | null
+  target_physical_source?: string | null
   barangay?: string | null
   municipality?: string | null
   province?: string | null
@@ -73,6 +80,7 @@ type HeaderAssets = {
 const DILG_LOGO_URL = '/aide-memoire-dilg-logo.png'
 const BAGONG_PILIPINAS_LOGO_URL = '/aide-memoire-bagong-pilipinas.png'
 const WEBSITE = 'www.region10.dilg.gov.ph'
+const FOLIO_FORMAT_MM: [number, number] = [215.9, 330.2]
 const regionalOffice = getDilgOfficeDirectoryEntry('REGIONAL OFFICE 10')
 
 function textValue(value: unknown, fallback = '') {
@@ -158,6 +166,51 @@ function riskBucket(value: string) {
   if (risk.includes('moderate') || risk.includes('medium')) return 'moderate'
   if (risk.includes('low')) return 'low'
   return 'none'
+}
+
+
+function projectSlippage(project: ReportExportProject) {
+  if (textValue(project.target_physical_accomplishment) === '') return '—'
+  return getTargetPhysicalInfo(project).compactLabel
+}
+
+function projectRiskRemark(project: ReportExportProject) {
+  const status = normalizeStatus(project.status)
+  const physical = toNumber(project.physical_accomplishment)
+
+  if (status === 'Completed' || physical >= 100) {
+    return 'Completed project — No Risk.'
+  }
+
+  const risk = projectRisk(project)
+  const bucket = riskBucket(risk)
+  const expiration = getContractExpirationInfo(project)
+  const hasTarget = textValue(project.target_physical_accomplishment) !== ''
+  const target = hasTarget ? getTargetPhysicalInfo(project) : null
+
+  if (expiration.isExpired && expiration.officialExpirationDate) {
+    const expiryLabel = formatDate(expiration.officialExpirationDate)
+    const basis = expiration.revisedExpirationDate ? 'Revised contract' : 'Contract'
+    return `${basis} expired on ${expiryLabel}; High Risk.`
+  }
+
+  if (target && target.variance < 0) {
+    return `${risk} — ${Math.abs(target.variance).toFixed(2)}% slippage against target.`
+  }
+
+  if (bucket === 'high' || bucket === 'moderate' || bucket === 'low') {
+    return `${risk}.`
+  }
+
+  if (target && target.variance > 0) {
+    return `Ahead of target by ${target.variance.toFixed(2)}%.`
+  }
+
+  if (target && target.variance === 0) {
+    return 'On track with target physical accomplishment.'
+  }
+
+  return '—'
 }
 
 function blobToDataUrl(blob: Blob) {
@@ -342,7 +395,7 @@ export async function generateProgramSummaryPdf(
     import('jspdf-autotable'),
   ])
   const assets = await loadHeaderAssets()
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: FOLIO_FORMAT_MM, compress: true })
   const pageWidth = doc.internal.pageSize.getWidth()
   const aggregates = buildProgramAggregates(projects)
   const headerBottom = drawRegionalHeader(doc, assets)
@@ -376,9 +429,11 @@ export async function generateProgramSummaryPdf(
     headerBottom + 22,
   )
 
+  const continuationTop = headerBottom + 4
+
   autoTable(doc, {
     startY: headerBottom + 27,
-    margin: { left: 10, right: 10, bottom: 15 },
+    margin: { left: 10, right: 10, top: continuationTop, bottom: 15 },
     head: [[
       'FY',
       'Program',
@@ -424,30 +479,31 @@ export async function generateProgramSummaryPdf(
     },
     alternateRowStyles: { fillColor: [246, 248, 251] },
     columnStyles: {
-      // Total width = 268 mm, matching the Project Details table below.
-      // Status/risk columns are deliberately wider so labels such as
-      // Completed, Suspended, and Terminated remain on one line.
+      // Folio landscape usable width: 310 mm.
       0: { cellWidth: 14, halign: 'center' },
-      1: { cellWidth: 34 },
-      2: { cellWidth: 13, halign: 'center' },
-      3: { cellWidth: 30, halign: 'right' },
-      4: { cellWidth: 18, halign: 'center' },
-      5: { cellWidth: 15, halign: 'center' },
-      6: { cellWidth: 18, halign: 'center' },
-      7: { cellWidth: 18, halign: 'center' },
-      8: { cellWidth: 18, halign: 'center' },
-      9: { cellWidth: 19, halign: 'center' },
-      10: { cellWidth: 19, halign: 'center' },
-      11: { cellWidth: 14, halign: 'center' },
-      12: { cellWidth: 11, halign: 'center' },
-      13: { cellWidth: 16, halign: 'center' },
-      14: { cellWidth: 11, halign: 'center' },
+      1: { cellWidth: 45 },
+      2: { cellWidth: 14, halign: 'center' },
+      3: { cellWidth: 34, halign: 'right' },
+      4: { cellWidth: 19, halign: 'center' },
+      5: { cellWidth: 17, halign: 'center' },
+      6: { cellWidth: 20, halign: 'center' },
+      7: { cellWidth: 20, halign: 'center' },
+      8: { cellWidth: 20, halign: 'center' },
+      9: { cellWidth: 22, halign: 'center' },
+      10: { cellWidth: 22, halign: 'center' },
+      11: { cellWidth: 15, halign: 'center' },
+      12: { cellWidth: 13, halign: 'center' },
+      13: { cellWidth: 18, halign: 'center' },
+      14: { cellWidth: 17, halign: 'center' },
+    },
+    willDrawPage: (data: any) => {
+      if (data.pageNumber > 1) drawRegionalHeader(doc, assets)
     },
   })
 
   const summaryTableEnd = Number((doc as any).lastAutoTable?.finalY || headerBottom + 60)
   let projectStartY = summaryTableEnd + 8
-  if (projectStartY > 155) {
+  if (projectStartY > 165) {
     doc.addPage()
     projectStartY = drawRegionalHeader(doc, assets)
   }
@@ -459,8 +515,20 @@ export async function generateProgramSummaryPdf(
 
   autoTable(doc, {
     startY: projectStartY + 3,
-    margin: { left: 10, right: 10, top: 50, bottom: 15 },
-    head: [['Project', 'Program', 'Province/HUC', 'LGU', 'Cost', 'Status', 'Risk', 'Physical', 'Financial']],
+    margin: { left: 10, right: 10, top: continuationTop, bottom: 15 },
+    head: [[
+      'Project',
+      'Program',
+      'Province/HUC',
+      'LGU',
+      'Cost',
+      'Status',
+      'Risk',
+      'Physical',
+      'Financial',
+      'Slippage',
+      'Remarks',
+    ]],
     body: projects.map((project) => [
       textValue(project.project_name, 'Untitled Project'),
       projectProgram(project),
@@ -471,22 +539,60 @@ export async function generateProgramSummaryPdf(
       projectRisk(project),
       formatPercent(project.physical_accomplishment),
       formatPercent(project.financial_accomplishment),
+      projectSlippage(project),
+      projectRiskRemark(project),
     ]),
-    styles: { fontSize: 6.1, cellPadding: 1.1, overflow: 'linebreak', valign: 'middle' },
-    headStyles: { fillColor: [13, 62, 111], textColor: 255, fontStyle: 'bold' },
+    styles: {
+      fontSize: 5.7,
+      cellPadding: 1,
+      overflow: 'linebreak',
+      valign: 'middle',
+    },
+    headStyles: {
+      fillColor: [13, 62, 111],
+      textColor: 255,
+      fontStyle: 'bold',
+      halign: 'center',
+      fontSize: 5.7,
+      cellPadding: 0.9,
+    },
     alternateRowStyles: { fillColor: [247, 249, 252] },
     columnStyles: {
-      0: { cellWidth: 70 },
-      1: { cellWidth: 38 },
-      2: { cellWidth: 28 },
-      3: { cellWidth: 28 },
+      // Total = 310 mm, matching the Folio landscape usable width.
+      0: { cellWidth: 60 },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 24 },
+      3: { cellWidth: 24 },
       4: { cellWidth: 28, halign: 'right' },
-      5: { cellWidth: 22 },
-      6: { cellWidth: 18 },
-      7: { cellWidth: 18, halign: 'center' },
-      8: { cellWidth: 18, halign: 'center' },
+      5: { cellWidth: 18 },
+      6: { cellWidth: 16, halign: 'center' },
+      7: { cellWidth: 16, halign: 'center' },
+      8: { cellWidth: 16, halign: 'center' },
+      9: { cellWidth: 16, halign: 'center' },
+      10: { cellWidth: 64 },
     },
-    didDrawPage: (data: any) => {
+    didParseCell: (data: any) => {
+      if (data.section !== 'body') return
+
+      const risk = String(data.row?.raw?.[6] ?? '')
+      const bucket = riskBucket(risk)
+
+      if (bucket === 'high') {
+        data.cell.styles.fillColor = [255, 225, 225]
+        data.cell.styles.textColor = [145, 20, 20]
+      } else if (bucket === 'moderate') {
+        data.cell.styles.fillColor = [255, 235, 210]
+        data.cell.styles.textColor = [145, 70, 0]
+      } else if (bucket === 'low') {
+        data.cell.styles.fillColor = [255, 248, 190]
+        data.cell.styles.textColor = [100, 80, 0]
+      }
+
+      if (data.column.index === 6 && bucket !== 'none') {
+        data.cell.styles.fontStyle = 'bold'
+      }
+    },
+    willDrawPage: (data: any) => {
       if (data.pageNumber > 1) drawRegionalHeader(doc, assets)
     },
   })
@@ -554,6 +660,8 @@ export async function exportProgramSummaryExcel(
     Risk: projectRisk(project),
     'Physical Accomplishment': toNumber(project.physical_accomplishment),
     'Financial Accomplishment': toNumber(project.financial_accomplishment),
+    Slippage: projectSlippage(project),
+    Remarks: projectRiskRemark(project),
     'Start Date': formatDate(project.start_date),
     'Target Completion': formatDate(project.target_completion_date),
   }))
@@ -629,7 +737,7 @@ export async function generateProjectBrieferPdf(
 ) {
   const { default: jsPDF } = await import('jspdf')
   const assets = await loadHeaderAssets()
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: FOLIO_FORMAT_MM, compress: true })
   const pageWidth = doc.internal.pageSize.getWidth()
   const latest = context.latestUpdate || null
   const headerBottom = drawRegionalHeader(doc, assets)
@@ -712,7 +820,8 @@ export async function generateProjectBrieferPdf(
 
   const addBrieferSection = (title: string, body: string) => {
     const sectionHeight = getSectionBoxHeight(doc, body)
-    if (y + sectionHeight > 278) {
+    const safeBottom = doc.internal.pageSize.getHeight() - 18
+    if (y + sectionHeight > safeBottom) {
       doc.addPage()
       y = drawRegionalHeader(doc, assets)
     }
