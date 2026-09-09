@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getSafeReturnPath } from '../lib/navigation'
 import '../styles/auth.css'
 
 type LoginState = 'idle' | 'loading' | 'success'
@@ -40,7 +39,6 @@ function getFriendlyLoginError(message: string) {
 
 export default function Login() {
   const navigate = useNavigate()
-  const location = useLocation()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -48,8 +46,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [loginState, setLoginState] = useState<LoginState>('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  const passwordResetComplete =
-    new URLSearchParams(location.search).get('password-reset') === 'success'
 
   const isLoading = loginState === 'loading'
 
@@ -128,7 +124,9 @@ export default function Login() {
 
       setLoginState('success')
 
-      navigate(getSafeReturnPath(location.state), { replace: true })
+      // After successful login, always start from Dashboard.
+      // Role/page restrictions are handled by ProtectedRoute and the AOR guards.
+      navigate('/dashboard', { replace: true })
     } catch (error) {
       console.error(error)
 
@@ -173,12 +171,6 @@ export default function Login() {
               <h2>Login</h2>
               <p>Use your approved DILG-PDMU account.</p>
             </div>
-
-            {passwordResetComplete && !errorMessage && (
-              <div className="auth-alert success" role="status">
-                Password updated successfully. Please log in with your new password.
-              </div>
-            )}
 
             {errorMessage && (
               <div className="auth-alert error" role="alert">
@@ -227,18 +219,20 @@ export default function Login() {
                 </div>
               </label>
 
-              <label className="auth-check">
-                <input
-                  type="checkbox"
-                  checked={rememberEmail}
-                  onChange={(event) => setRememberEmail(event.target.checked)}
-                  disabled={isLoading}
-                />
-                <span>Remember email</span>
-              </label>
+              <div className="auth-login-options">
+                <label className="auth-check">
+                  <input
+                    type="checkbox"
+                    checked={rememberEmail}
+                    onChange={(event) => setRememberEmail(event.target.checked)}
+                    disabled={isLoading}
+                  />
+                  <span>Remember email</span>
+                </label>
 
-              <div className="auth-desktop-recovery-link">
-                <Link to="/forgot-password">Forgot password?</Link>
+                <Link className="auth-forgot-link" to="/forgot-password">
+                  Forgot password?
+                </Link>
               </div>
 
               <button type="submit" className="auth-submit-btn" disabled={!canSubmit}>
