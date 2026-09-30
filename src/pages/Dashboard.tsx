@@ -18,7 +18,11 @@ import { useAuth } from '../context/AuthContext'
 import { useDesktopViewport } from '../hooks/useDesktopViewport'
 import { readPageView, removePageView, writePageView } from '../lib/pageViewMemory'
 import { filterProjectsByAor, type AorProjectLike } from '../utils/aorAccess'
-import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
+import {
+  getPmsPhysicalAccomplishment,
+  getPmsProjectStatus,
+  getPmsRiskLevel,
+} from '../utils/projectStatus'
 import { getOfficialProjectCost } from '../utils/projectVariance'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
 import MultiSelectFilter from '../components/MultiSelectFilter'
@@ -140,6 +144,18 @@ function formatPercent(value: unknown) {
   return `${new Intl.NumberFormat('en-PH', {
     maximumFractionDigits: 2,
   }).format(number)}%`
+}
+
+function truncateDashboardPercent(value: unknown) {
+  const clamped = Math.min(100, Math.max(0, asNumber(value)))
+
+  // Tiny epsilon only neutralizes floating-point representation noise.
+  // The displayed value is still truncated, never rounded up.
+  return Math.trunc((clamped + 1e-9) * 100) / 100
+}
+
+function formatPhysicalPercent(value: unknown) {
+  return `${truncateDashboardPercent(value).toFixed(2)}%`
 }
 
 function formatDate(value: unknown) {
@@ -309,13 +325,7 @@ function matchesDashboardFilter(value: string, filterValue: string) {
 }
 
 function getPhysicalProgress(project: ProjectRecord) {
-  return asNumber(
-    project.physical_accomplishment ??
-      project.physical_progress ??
-      project.physical_percentage ??
-      project.physical ??
-      project.actual_physical,
-  )
+  return clampDashboardPercent(getPmsPhysicalAccomplishment(project))
 }
 
 function clampDashboardPercent(value: unknown) {
@@ -712,8 +722,55 @@ export default function Dashboard() {
 
     const completionRate =
       visibleProjects.length > 0
-        ? Math.round((completedProjects.length / visibleProjects.length) * 100)
+        ? truncateDashboardPercent(
+            (completedProjects.length / visibleProjects.length) * 100,
+          )
         : 0
+
+    const physicalWeightBase = visibleProjects.reduce(
+      (sum, project) =>
+        sum +
+        Math.max(
+          0,
+          getOfficialProjectCost(
+            project as unknown as Parameters<typeof getOfficialProjectCost>[0],
+          ),
+        ),
+      0,
+    )
+
+    const weightedPhysicalAccomplishment = visibleProjects.reduce(
+      (sum, project) => {
+        const cost = Math.max(
+          0,
+          getOfficialProjectCost(
+            project as unknown as Parameters<typeof getOfficialProjectCost>[0],
+          ),
+        )
+
+        return sum + cost * (getPhysicalProgress(project) / 100)
+      },
+      0,
+    )
+
+    const simplePhysicalAverage =
+      visibleProjects.length > 0
+        ? visibleProjects.reduce(
+            (sum, project) => sum + getPhysicalProgress(project),
+            0,
+          ) / visibleProjects.length
+        : 0
+
+    const physicalAccomplishment = truncateDashboardPercent(
+      physicalWeightBase > 0
+        ? (weightedPhysicalAccomplishment / physicalWeightBase) * 100
+        : simplePhysicalAverage,
+    )
+
+    const physicalAccomplishmentMethod =
+      physicalWeightBase > 0
+        ? 'Cost-weighted across visible project costs'
+        : 'Average across visible projects'
 
     const financialWeightBase = visibleProjects.reduce(
       (sum, project) => sum + Math.max(0, getOfficialProjectCost(project as unknown as Parameters<typeof getOfficialProjectCost>[0])),
@@ -799,6 +856,8 @@ export default function Dashboard() {
       completionPendingProjects,
       completionRemainingCount,
       completionRate,
+      physicalAccomplishment,
+      physicalAccomplishmentMethod,
       financialAccomplishment,
       financialAccomplishmentMethod,
       financialPerformanceData,
@@ -1629,15 +1688,15 @@ export default function Dashboard() {
               </div>
 
               <span className="dashboard-completion-rate-pill">
-                {dashboardData.completionRate}% complete
+                {formatPhysicalPercent(dashboardData.completionRate)} complete
               </span>
 
               <div
                 className="dashboard-performance-summary-pill"
-                aria-label={`Physical completion ${dashboardData.completionRate} percent; financial accomplishment ${formatPercent(dashboardData.financialAccomplishment)}`}
+                aria-label={`Physical accomplishment ${formatPhysicalPercent(dashboardData.physicalAccomplishment)}; financial accomplishment ${formatPercent(dashboardData.financialAccomplishment)}`}
               >
                 <span className="dashboard-performance-summary-item is-physical">
-                  <strong>{dashboardData.completionRate}%</strong>
+                  <strong>{formatPhysicalPercent(dashboardData.physicalAccomplishment)}</strong>
                   <em>Physical</em>
                 </span>
                 <i aria-hidden="true" />
@@ -1707,7 +1766,7 @@ export default function Dashboard() {
 
                     <div className="dashboard-completion-center" aria-hidden="true">
                       <div>
-                        <strong>{dashboardData.completionRate}%</strong>
+                        <strong>{formatPhysicalPercent(dashboardData.completionRate)}</strong>
                         <span>Complete</span>
                       </div>
                     </div>

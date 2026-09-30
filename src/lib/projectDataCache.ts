@@ -22,7 +22,9 @@ type RefreshOptions = {
   force?: boolean
 }
 
-const PROJECT_CACHE_TTL_MS = 5 * 60 * 1000
+const PROJECT_CACHE_TTL_MS = 60 * 1000
+const PROJECT_REVALIDATE_MS = 30 * 1000
+const PROJECT_FETCH_PAGE_SIZE = 1000
 
 let snapshot: ProjectDataSnapshot = {
   projects: [],
@@ -102,13 +104,44 @@ async function requestProjectsFromNetwork() {
 
   networkRequest = (async (): Promise<SharedProjectRow[]> => {
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('updated_at', { ascending: false })
+      const allProjects: SharedProjectRow[] = []
+      let from = 0
 
-      if (error) throw error
-      return sortProjects((data || []) as SharedProjectRow[])
+      while (true) {
+        const to = from + PROJECT_FETCH_PAGE_SIZE - 1
+
+        // Supabase/PostgREST commonly caps a single response at 1,000 rows.
+        // Fetch deterministic ID-ordered pages so every device receives the
+        // complete project registry rather than a moving "latest 1,000" slice.
+        const { data, error } = await supabase
+          .from('projects')
+          .select('*')
+          .order('id', { ascending: true })
+          .range(from, to)
+
+        if (error) throw error
+
+        const page = (data || []) as SharedProjectRow[]
+        allProjects.push(...page)
+
+        if (page.length < PROJECT_FETCH_PAGE_SIZE) break
+        from += PROJECT_FETCH_PAGE_SIZE
+      }
+
+      // Defensive de-duplication by project ID.
+      const byId = new Map<string, SharedProjectRow>()
+
+      allProjects.forEach((project) => {
+        const id = String(project?.id || '').trim()
+        if (!id) return
+
+        const existing = byId.get(id)
+        if (!existing || getProjectTime(project) >= getProjectTime(existing)) {
+          byId.set(id, project)
+        }
+      })
+
+      return sortProjects(Array.from(byId.values()))
     } finally {
       networkRequest = null
     }
@@ -188,32 +221,27 @@ export function initializeSharedProjects() {
   if (initialLoadPromise) return initialLoadPromise
 
   initialLoadPromise = (async () => {
-    const cachedProjects = snapshot.projects.length > 0 ? snapshot.projects : await readDeviceCache()
-
-    if (cachedProjects.length > 0) {
-      publish({
-        projects: cachedProjects,
-        loading: false,
-        errorMessage: '',
-        source: snapshot.source === 'network' ? 'network' : 'device',
-      })
-
-      // Device data is immediately usable; refresh silently after first paint.
-      if (navigator.onLine) void refreshSharedProjects()
+    // While online, network data is authoritative. Avoid first publishing an
+    // old device snapshot that can make dashboard totals differ between devices.
+    if (navigator.onLine) {
+      await refreshSharedProjects({ force: true })
       return
     }
 
-    if (navigator.onLine) {
-      await refreshSharedProjects()
-    } else {
-      publish({
-        projects: [],
-        loading: false,
-        refreshing: false,
-        errorMessage: 'No cached projects are available on this device.',
-        source: 'empty',
-      })
-    }
+    const cachedProjects =
+      snapshot.projects.length > 0 ? snapshot.projects : await readDeviceCache()
+
+    publish({
+      projects: cachedProjects,
+      loading: false,
+      refreshing: false,
+      errorMessage:
+        cachedProjects.length > 0
+          ? ''
+          : 'No cached projects are available on this device.',
+      source: cachedProjects.length > 0 ? 'device' : 'empty',
+      loadedAt: snapshot.loadedAt,
+    })
   })()
 
   return initialLoadPromise
@@ -262,7 +290,45 @@ export function useSharedProjects<T = SharedProjectRow>() {
   const current = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   useEffect(() => {
-    void initializeSharedProjects()
+    let disposed = false
+
+    const refreshIfNeeded = () => {
+      if (disposed || !navigator.onLine) return
+
+      const age = Date.now() - snapshot.loadedAt
+      const needsRefresh =
+        snapshot.source !== 'network' ||
+        snapshot.loadedAt <= 0 ||
+        age >= PROJECT_REVALIDATE_MS
+
+      if (needsRefresh) {
+        void refreshSharedProjects({ force: true })
+      }
+    }
+
+    void initializeSharedProjects().then(refreshIfNeeded)
+
+    const handleFocus = () => refreshIfNeeded()
+    const handleOnline = () => {
+      void refreshSharedProjects({ force: true })
+    }
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refreshIfNeeded()
+    }
+    const handlePageShow = () => refreshIfNeeded()
+
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('pageshow', handlePageShow)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      disposed = true
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('pageshow', handlePageShow)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   const refreshProjects = useCallback(async () => {
@@ -275,6 +341,7 @@ export function useSharedProjects<T = SharedProjectRow>() {
     refreshing: current.refreshing,
     errorMessage: current.errorMessage,
     source: current.source,
+    loadedAt: current.loadedAt,
     refreshProjects,
   }
 }
