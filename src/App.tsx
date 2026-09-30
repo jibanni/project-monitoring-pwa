@@ -29,6 +29,7 @@ const EditProject = lazy(routeLoaders.editProject)
 const ProjectMap = lazy(routeLoaders.projectMap)
 const Reports = lazy(routeLoaders.reports)
 const UserManagement = lazy(routeLoaders.userManagement)
+const Advisories = lazy(routeLoaders.advisories)
 const UserAccess = lazy(routeLoaders.userAccess)
 const SubayImport = lazy(routeLoaders.subayImport)
 
@@ -232,6 +233,15 @@ function App() {
             <Route
               path="projects/:id/aide-memoire/pdf"
               element={<AideMemoirePdfViewer />}
+            />
+
+            <Route
+              path="advisories"
+              element={
+                <RoleProtectedPage allowedRoles={['Admin']}>
+                  <Advisories />
+                </RoleProtectedPage>
+              }
             />
 
             <Route

@@ -22,6 +22,7 @@ export const routeLoaders = {
   projectMap: () => import('../pages/ProjectMap'),
   reports: () => import('../pages/Reports'),
   userManagement: () => import('../pages/UserManagement'),
+  advisories: () => import('../pages/Advisories'),
   userAccess: () => import('../pages/UserAccess'),
   subayImport: () => import('../pages/SubayImport'),
 } satisfies Record<string, PageLoader>
@@ -58,6 +59,7 @@ function getRouteLoader(pathname: string): PageLoader | null {
   if (path === '/map') return routeLoaders.projectMap
   if (path === '/reports') return routeLoaders.reports
   if (/^\/users\/[^/]+\/access\/?$/.test(path)) return routeLoaders.userAccess
+  if (path === '/advisories') return routeLoaders.advisories
   if (path === '/users') return routeLoaders.userManagement
 
   return null

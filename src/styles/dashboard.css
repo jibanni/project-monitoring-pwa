@@ -2939,3 +2939,341 @@
     margin-right: auto !important;
   }
 }
+
+/* Dashboard filter control uniformity handled globally in unifiedFilters.css V4. */
+
+
+/* =========================================================
+   PMS10 FILTER / SEARCH / DROPDOWN UNIFORMITY — V4
+   Fixes the visible inconsistencies in Dashboard, Project Registry,
+   Reports, and GIS Map after the multi-select rollout.
+   ========================================================= */
+:root {
+  --pms10-filter-h: 40px;
+  --pms10-filter-radius: 10px;
+  --pms10-filter-border: #cbd5e1;
+  --pms10-filter-border-strong: #b9c8d8;
+  --pms10-filter-focus: #8fb3dd;
+  --pms10-filter-text: #0f172a;
+  --pms10-filter-muted: #64748b;
+  --pms10-filter-bg: #ffffff;
+}
+
+/* ---------- SEARCH FIELDS ---------- */
+body #root .pm-unified-search-field {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+body #root .pm-unified-search-field > svg,
+body #root .pm-unified-search-field svg {
+  position: absolute !important;
+  left: 13px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 2 !important;
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #64748b !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  pointer-events: none !important;
+}
+
+body #root .pm-unified-search-field input,
+body #root .pm-unified-search-field input[type='search'] {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: var(--pms10-filter-h) !important;
+  min-height: var(--pms10-filter-h) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 14px 0 38px !important;
+  border: 1px solid var(--pms10-filter-border) !important;
+  border-radius: var(--pms10-filter-radius) !important;
+  background: var(--pms10-filter-bg) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: var(--pms10-filter-text) !important;
+  font-family: inherit !important;
+  font-size: 0.86rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+body #root .pm-unified-search-field input::placeholder,
+body #root .pm-unified-search-field input[type='search']::placeholder {
+  color: #8ca0ba !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
+
+body #root .pm-unified-search-field input:focus,
+body #root .pm-unified-search-field input[type='search']:focus {
+  border-color: var(--pms10-filter-focus) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.09) !important;
+}
+
+body #root .pm-unified-search-field input::-webkit-search-decoration,
+body #root .pm-unified-search-field input::-webkit-search-cancel-button,
+body #root .pm-unified-search-field input::-webkit-search-results-button,
+body #root .pm-unified-search-field input::-webkit-search-results-decoration {
+  -webkit-appearance: none !important;
+}
+
+/* ---------- FILTER GRIDS / LABELS ---------- */
+body #root .dashboard-filter-grid,
+body #root .pm-unified-filter-grid,
+body #root .projects-filter-grid,
+body #root .reports-filter-grid,
+body #root .pm-map-filter-grid {
+  align-items: start !important;
+}
+
+body #root .dashboard-filter-grid > label,
+body #root .pm-unified-filter-grid > label,
+body #root .projects-filter-grid > label,
+body #root .reports-filter-grid > label,
+body #root .pm-map-filter-grid > label,
+body #root .dashboard-filter-grid > .pms-multi-filter,
+body #root .pm-unified-filter-grid > .pms-multi-filter,
+body #root .projects-filter-grid > .pms-multi-filter,
+body #root .reports-filter-grid > .pms-multi-filter,
+body #root .pm-map-filter-grid > .pms-multi-filter {
+  min-width: 0 !important;
+  margin: 0 !important;
+  align-self: stretch !important;
+  box-sizing: border-box !important;
+}
+
+body #root .dashboard-filter-grid > label,
+body #root .pm-unified-filter-grid > label,
+body #root .projects-filter-grid > label,
+body #root .reports-filter-grid > label,
+body #root .pm-map-filter-grid > label {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  color: var(--pms10-filter-muted) !important;
+  font-family: inherit !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  line-height: 1rem !important;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase !important;
+}
+
+body #root .dashboard-filter-grid > label > span,
+body #root .pm-unified-filter-grid > label > span,
+body #root .projects-filter-grid > label > span,
+body #root .reports-filter-grid > label > span,
+body #root .pm-map-filter-grid > label > span,
+body #root .pms-multi-filter-label {
+  display: block !important;
+  min-height: 1rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--pms10-filter-muted) !important;
+  font-family: inherit !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  line-height: 1rem !important;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase !important;
+}
+
+/* ---------- NATIVE SELECTS ---------- */
+body #root .dashboard-filter-grid select,
+body #root .pm-unified-filter-grid select,
+body #root .projects-filter-grid select,
+body #root .reports-filter-grid select,
+body #root .pm-map-filter-grid select {
+  width: 100% !important;
+  height: var(--pms10-filter-h) !important;
+  min-height: var(--pms10-filter-h) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 34px 0 12px !important;
+  border: 1px solid var(--pms10-filter-border) !important;
+  border-radius: var(--pms10-filter-radius) !important;
+  background-color: var(--pms10-filter-bg) !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #475569 50%),
+    linear-gradient(135deg, #475569 50%, transparent 50%) !important;
+  background-position:
+    calc(100% - 16px) calc(50% - 1px),
+    calc(100% - 12px) calc(50% - 1px) !important;
+  background-size: 4px 4px, 4px 4px !important;
+  background-repeat: no-repeat !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: var(--pms10-filter-text) !important;
+  font-family: inherit !important;
+  font-size: 0.86rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+}
+
+body #root .dashboard-filter-grid select:hover,
+body #root .pm-unified-filter-grid select:hover,
+body #root .projects-filter-grid select:hover,
+body #root .reports-filter-grid select:hover,
+body #root .pm-map-filter-grid select:hover {
+  border-color: var(--pms10-filter-border-strong) !important;
+}
+
+body #root .dashboard-filter-grid select:focus,
+body #root .pm-unified-filter-grid select:focus,
+body #root .projects-filter-grid select:focus,
+body #root .reports-filter-grid select:focus,
+body #root .pm-map-filter-grid select:focus {
+  border-color: var(--pms10-filter-focus) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.09) !important;
+}
+
+body #root .dashboard-filter-grid select::-ms-expand,
+body #root .pm-unified-filter-grid select::-ms-expand,
+body #root .projects-filter-grid select::-ms-expand,
+body #root .reports-filter-grid select::-ms-expand,
+body #root .pm-map-filter-grid select::-ms-expand {
+  display: none !important;
+}
+
+/* ---------- MULTI-SELECT PROGRAM / FY ---------- */
+body #root .dashboard-filter-grid > .pms-multi-filter,
+body #root .pm-unified-filter-grid > .pms-multi-filter,
+body #root .projects-filter-grid > .pms-multi-filter,
+body #root .reports-filter-grid > .pms-multi-filter,
+body #root .pm-map-filter-grid > .pms-multi-filter {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+}
+
+body #root .pms-multi-filter-trigger {
+  width: 100% !important;
+  height: var(--pms10-filter-h) !important;
+  min-height: var(--pms10-filter-h) !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 1px solid var(--pms10-filter-border) !important;
+  border-radius: var(--pms10-filter-radius) !important;
+  background: var(--pms10-filter-bg) !important;
+  box-shadow: none !important;
+  color: var(--pms10-filter-text) !important;
+  font-family: inherit !important;
+  font-size: 0.86rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  text-align: left !important;
+}
+
+body #root .pms-multi-filter-trigger:hover {
+  border-color: var(--pms10-filter-border-strong) !important;
+}
+
+body #root .pms-multi-filter-trigger:focus-visible,
+body #root .pms-multi-filter.is-open .pms-multi-filter-trigger {
+  outline: none !important;
+  border-color: var(--pms10-filter-focus) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.09) !important;
+}
+
+body #root .pms-multi-filter-trigger-text {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body #root .pms-multi-filter-chevron {
+  position: relative !important;
+  width: 12px !important;
+  height: 12px !important;
+  flex: 0 0 12px !important;
+  margin: 0 1px 0 6px !important;
+  color: #475569 !important;
+}
+
+body #root .pms-multi-filter-chevron::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 42% !important;
+  width: 6px !important;
+  height: 6px !important;
+  border-right: 1.6px solid currentColor !important;
+  border-bottom: 1.6px solid currentColor !important;
+  transform: translate(-50%, -50%) rotate(45deg) !important;
+  transition: transform 160ms ease, top 160ms ease !important;
+}
+
+body #root .pms-multi-filter.is-open .pms-multi-filter-chevron::before {
+  top: 58% !important;
+  transform: translate(-50%, -50%) rotate(225deg) !important;
+}
+
+/* ---------- RESET / CLEAR BUTTON ALIGNMENT ---------- */
+body #root .dashboard-filter-grid > .dashboard-filter-reset,
+body #root .dashboard-drilldown-filterbar > .dashboard-drilldown-filter-reset,
+body #root .pm-unified-filter-grid > .pm-unified-clear {
+  align-self: end !important;
+  min-height: var(--pms10-filter-h) !important;
+  height: var(--pms10-filter-h) !important;
+}
+
+/* Keep the map desktop popover consistent after its own overrides. */
+@media (min-width: 1024px) {
+  body #root .pm-map-page .pm-unified-search-field {
+    margin-bottom: 10px !important;
+  }
+
+  body #root .pm-map-page .pm-unified-search-field input[type='search'],
+  body #root .pm-map-page .pm-unified-filter-grid select,
+  body #root .pm-map-page .pms-multi-filter-trigger {
+    height: var(--pms10-filter-h) !important;
+    min-height: var(--pms10-filter-h) !important;
+    border-radius: var(--pms10-filter-radius) !important;
+  }
+}
+
+@media (max-width: 700px) {
+  body #root .pm-unified-search-field input[type='search'],
+  body #root .dashboard-filter-grid select,
+  body #root .pm-unified-filter-grid select,
+  body #root .pms-multi-filter-trigger {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+}
+

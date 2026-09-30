@@ -5,6 +5,7 @@ export type PmsNavigationSection =
   | 'reports'
   | 'sync'
   | 'users'
+  | 'advisories'
 
 const LAST_ROUTE_KEY = 'pms10:navigation:last-protected-route'
 const PREVIOUS_ROUTE_KEY = 'pms10:navigation:previous-protected-route'
@@ -53,6 +54,7 @@ export function getNavigationSection(pathname: string): PmsNavigationSection | n
   if (pathname === '/map' || pathname.startsWith('/map/')) return 'map'
   if (pathname === '/reports' || pathname.startsWith('/reports/')) return 'reports'
   if (pathname === '/offline-sync' || pathname.startsWith('/offline-sync/')) return 'sync'
+  if (pathname === '/advisories' || pathname.startsWith('/advisories/')) return 'advisories'
   if (pathname === '/users' || pathname.startsWith('/users/')) return 'users'
   return null
 }

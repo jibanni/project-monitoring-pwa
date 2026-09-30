@@ -1,0 +1,391 @@
+.advisories-page {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 20px 0 42px;
+  color: #172033;
+}
+
+.advisories-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 22px;
+  margin-bottom: 16px;
+}
+
+.advisories-eyebrow,
+.advisory-card-heading span:first-child {
+  color: #d89a00;
+  font-size: 0.69rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.advisories-intro h1 {
+  margin: 3px 0 3px;
+  color: #0b2d52;
+  font-size: clamp(1.8rem, 3vw, 2.45rem);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+
+.advisories-intro p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.advisories-live-summary {
+  min-width: 94px;
+  padding: 11px 14px;
+  border: 1px solid #dce7f0;
+  border-radius: 15px;
+  background: #fff;
+  text-align: center;
+}
+
+.advisories-live-summary strong {
+  display: block;
+  color: #155a93;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.advisories-live-summary span {
+  color: #718096;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.advisory-editor-card,
+.advisory-list-card {
+  margin-bottom: 16px;
+  padding: 18px;
+  border: 1px solid #dce6ef;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.055);
+}
+
+.advisory-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.advisory-card-heading h2 {
+  margin: 2px 0 0;
+  color: #172033;
+  font-size: 1.08rem;
+}
+
+.advisory-field {
+  display: grid;
+  gap: 6px;
+}
+
+.advisory-field > span,
+.advisory-switch-copy strong {
+  color: #42556b;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.advisory-field textarea,
+.advisory-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #ccd9e5;
+  border-radius: 11px;
+  background: #fbfdff;
+  color: #172033;
+  font: inherit;
+}
+
+.advisory-field textarea {
+  resize: vertical;
+  min-height: 88px;
+}
+
+.advisory-field textarea:focus,
+.advisory-field input:focus {
+  outline: 3px solid rgba(35, 75, 126, 0.12);
+  border-color: #7aa7cc;
+}
+
+.advisory-field small,
+.advisory-switch-copy small {
+  color: #8492a4;
+  font-size: 0.68rem;
+}
+
+.advisory-field-wide { margin-bottom: 14px; }
+
+.advisory-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.advisory-switch-field {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 13px;
+  border: 1px solid #dce6ef;
+  border-radius: 12px;
+  background: #f8fbfe;
+}
+
+.advisory-switch-copy { display: grid; gap: 3px; }
+.advisory-switch-field input { width: 21px; height: 21px; accent-color: #234b7e; }
+
+.advisory-preview {
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  margin-top: 16px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #103a70;
+}
+
+.advisory-preview-label {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  background: #9dc6f0;
+  color: #082f60;
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.advisory-preview-text {
+  padding: 8px 16px;
+  color: #edf5fc;
+  font-size: 0.78rem;
+}
+
+.advisory-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.advisory-primary-btn,
+.advisory-secondary-btn,
+.advisory-quiet-btn,
+.advisory-record-actions button {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.advisory-primary-btn {
+  border: 0;
+  background: #234b7e;
+  color: #fff;
+}
+
+.advisory-secondary-btn,
+.advisory-quiet-btn,
+.advisory-record-actions button {
+  border: 1px solid #d6e1ea;
+  background: #fff;
+  color: #42566a;
+}
+
+.advisory-quiet-btn { min-height: 34px; }
+
+.advisory-message {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.advisory-message.success { background: #ecf8f0; color: #247445; }
+.advisory-message.error { background: #fff0f0; color: #a43a3a; }
+
+.advisory-record-count {
+  color: #718096 !important;
+  font-size: 0.72rem !important;
+  font-weight: 750 !important;
+  letter-spacing: 0 !important;
+}
+
+.advisory-records { display: grid; gap: 10px; }
+
+.advisory-record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 13px 14px;
+  border: 1px solid #e0e8ef;
+  border-radius: 13px;
+  background: #fbfdff;
+}
+
+.advisory-record-topline,
+.advisory-record-meta,
+.advisory-record-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.advisory-record-topline { color: #8492a4; font-size: 0.68rem; }
+.advisory-record p { margin: 7px 0; color: #22364c; font-size: 0.84rem; line-height: 1.45; }
+.advisory-record-meta { color: #8492a4; font-size: 0.67rem; }
+.advisory-record-actions { align-content: center; justify-content: flex-end; }
+.advisory-record-actions button { min-height: 34px; padding: 0 10px; }
+.advisory-record-actions button.danger { color: #b13c3c; border-color: #efcccc; }
+
+.advisory-status {
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 850;
+}
+.advisory-status.live { background: #e8f7ed; color: #237142; }
+.advisory-status.scheduled { background: #eef5fd; color: #245f91; }
+.advisory-status.ended { background: #fff3e6; color: #9a5b17; }
+.advisory-status.muted { background: #eef1f4; color: #667281; }
+.advisory-empty-state { padding: 25px; text-align: center; color: #7c8999; }
+
+@media (max-width: 720px) {
+  .advisories-page { width: min(100% - 20px, 1180px); padding-top: 12px; }
+  .advisories-intro { align-items: center; }
+  .advisories-intro h1 { font-size: 1.75rem; }
+  .advisory-editor-card, .advisory-list-card { padding: 14px; border-radius: 15px; }
+  .advisory-form-grid { grid-template-columns: 1fr; }
+  .advisory-record { grid-template-columns: 1fr; }
+  .advisory-record-actions { justify-content: flex-start; }
+}
+
+
+/* PMS10 ADVISORY LINKS V3 */
+.advisory-link-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(250px, 0.85fr);
+  gap: 14px;
+  align-items: stretch;
+  margin-bottom: 14px;
+}
+
+.advisory-link-panel .advisory-field-wide {
+  margin-bottom: 0;
+}
+
+.advisory-link-switch {
+  min-height: 100%;
+}
+
+.advisory-link-switch.is-disabled {
+  opacity: 0.58;
+}
+
+.advisory-preview.is-linked .advisory-preview-text {
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.4);
+  text-underline-offset: 3px;
+}
+
+.advisory-preview-link-icon {
+  margin-left: 7px;
+  color: #b9dcff;
+  font-weight: 900;
+}
+
+.advisory-linked-badge {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #e8f3fd;
+  color: #1b669e;
+  font-size: 0.64rem;
+  font-weight: 850;
+}
+
+.advisory-record-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 3px 0 8px;
+  color: #7a8999;
+  font-size: 0.69rem;
+}
+
+.advisory-record-link a {
+  min-width: 0;
+  overflow: hidden;
+  color: #1d659b;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 820px) {
+  .advisory-link-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* PMS10 ADVISORIES FLUID DESKTOP WIDTH V3.4 */
+/*
+ * Desktop only:
+ * - retains the PMS10 sidebar
+ * - lets the Advisories page expand with the available main-content width
+ * - removes the old 1180px bottleneck on larger monitors
+ * - keeps comfortable left/right gutters
+ */
+@media (min-width: 1024px) {
+  .advisories-page {
+    width: calc(100% - 48px) !important;
+    max-width: 1680px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  .advisories-page {
+    width: calc(100% - 64px) !important;
+  }
+
+  .advisory-editor-card,
+  .advisory-list-card {
+    padding: 22px !important;
+  }
+
+  .advisory-form-grid {
+    gap: 16px !important;
+  }
+
+  .advisory-link-panel {
+    gap: 16px !important;
+  }
+}
+
+@media (min-width: 1920px) {
+  .advisories-page {
+    width: calc(100% - 80px) !important;
+  }
+}

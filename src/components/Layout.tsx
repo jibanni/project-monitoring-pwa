@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import AdvisoryTicker from './AdvisoryTicker'
 import { preloadRoute, scheduleRoutePreloads } from '../lib/routePreload'
 import { initializeSharedProjects, refreshSharedProjects } from '../lib/projectDataCache'
 import {
@@ -23,7 +24,7 @@ type LayoutProps = {
 }
 
 type AppIconProps = {
-  type: 'home' | 'projects' | 'create' | 'map' | 'reports' | 'sync' | 'users'
+  type: 'home' | 'projects' | 'create' | 'map' | 'reports' | 'sync' | 'advisories' | 'users'
 }
 
 type NavItem = {
@@ -72,6 +73,14 @@ const NAV_ITEMS: NavItem[] = [
     to: '/offline-sync',
     icon: 'sync',
     adminOrEngineerOnly: true,
+  },
+  {
+    key: 'advisories',
+    label: 'Advisories',
+    mobileLabel: 'Advisory',
+    to: '/advisories',
+    icon: 'advisories',
+    adminOnly: true,
   },
   {
     key: 'users',
@@ -158,6 +167,14 @@ function AppIcon({ type }: AppIconProps) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M6 3.5h9.2L19 7.3v13.2H6V3.5Zm8.4 1.8v3h3l-3-3ZM8 11h8v1.6H8V11Zm0 3.4h8V16H8v-1.6Zm0 3.4h5.5v1.6H8v-1.6Z" />
+      </svg>
+    )
+  }
+
+  if (type === 'advisories') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 10.2v3.6c0 .7.6 1.2 1.2 1.2H7l1.1 4h2.2l-1.1-4h1.2l7.7 3V6l-7.7 3H5.2C4.6 9 4 9.6 4 10.2Zm15-5.7h1.5v15H19v-15Z" />
       </svg>
     )
   }
@@ -255,6 +272,10 @@ function getDesktopPageMeta(pathname: string): DesktopPageMeta {
     return { eyebrow: 'Field Data', title: 'Offline Sync' }
   }
 
+  if (pathname.startsWith('/advisories')) {
+    return { eyebrow: 'System Communications', title: 'PMS10 Advisories' }
+  }
+
   if (pathname.startsWith('/users')) {
     return { eyebrow: 'Administration', title: 'User Management' }
   }
@@ -268,6 +289,7 @@ function isNavItemPath(item: NavItem, pathname: string) {
   if (item.key === 'map') return pathname === '/map' || pathname.startsWith('/map/')
   if (item.key === 'reports') return pathname === '/reports' || pathname.startsWith('/reports/')
   if (item.key === 'sync') return pathname === '/offline-sync' || pathname.startsWith('/offline-sync/')
+  if (item.key === 'advisories') return pathname === '/advisories' || pathname.startsWith('/advisories/')
   if (item.key === 'users') return pathname === '/users' || pathname.startsWith('/users/')
   return pathname === item.to
 }
@@ -277,6 +299,7 @@ function getNavSection(item: NavItem): PmsNavigationSection {
   if (item.key === 'map') return 'map'
   if (item.key === 'reports') return 'reports'
   if (item.key === 'sync') return 'sync'
+  if (item.key === 'advisories') return 'advisories'
   if (item.key === 'users') return 'users'
   return 'dashboard'
 }
@@ -626,6 +649,7 @@ export default function Layout({ children }: LayoutProps) {
     location.pathname === '/map' ? 'app-map-route' : '',
     location.pathname.startsWith('/reports') ? 'app-reports-route' : '',
     location.pathname.startsWith('/offline-sync') ? 'app-offline-sync-route' : '',
+    location.pathname.startsWith('/advisories') ? 'app-advisories-route' : '',
     location.pathname.startsWith('/users') ? 'app-users-route' : '',
     desktopSidebarCollapsed ? 'app-sidebar-collapsed' : '',
   ]
@@ -836,6 +860,8 @@ export default function Layout({ children }: LayoutProps) {
     </header>
   )
 
+  const appAdvisoryTicker = <AdvisoryTicker />
+
   const appMobileNav = (
     <nav
       className={`app-mobile-nav ${mobileKeyboardOpen ? 'is-keyboard-open' : ''}`.trim()}
@@ -900,6 +926,7 @@ export default function Layout({ children }: LayoutProps) {
     <>
       {appDesktopSidebar}
       {headerPortalReady ? createPortal(appHeader, document.body) : appHeader}
+      {headerPortalReady ? createPortal(appAdvisoryTicker, document.body) : appAdvisoryTicker}
 
       <div className={shellClassName} style={shellStyle}>
         <main className="app-main">{children || <Outlet />}</main>

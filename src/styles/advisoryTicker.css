@@ -1,0 +1,1244 @@
+/* =========================================================
+   PMS10 CONTINUOUS DESKTOP ADVISORY TICKER V4
+   White banner + blue text + light-blue ADVISORY label.
+   Continuous seamless loop with no long empty spaces.
+   Desktop/PC only.
+   ========================================================= */
+
+:root {
+  --pms10-advisory-h: 40px;
+  --pms10-advisory-white: #ffffff;
+  --pms10-advisory-blue: #174a83;
+  --pms10-advisory-blue-dark: #0f3b73;
+  --pms10-advisory-label-bg: #dcecff;
+  --pms10-advisory-border: #d6e2ef;
+  --pms10-advisory-dot: #e5a900;
+}
+
+/* ------------------------------
+   Mobile / tablet: hidden
+   ------------------------------ */
+@media (max-width: 1023px) {
+  .pms10-advisory-ticker {
+    display: none !important;
+  }
+
+  body.pms10-has-advisories #root .app-shell {
+    padding-top: var(--app-header-live-h, var(--app-header-h)) !important;
+  }
+}
+
+/* ------------------------------
+   Desktop / PC
+   ------------------------------ */
+@media (min-width: 1024px) {
+  body.pms10-has-advisories #root .app-shell {
+    padding-top:
+      calc(
+        var(--app-header-live-h, var(--app-header-h)) +
+        var(--pms10-advisory-h)
+      ) !important;
+  }
+
+  .pms10-advisory-ticker {
+    position: fixed;
+    top: var(--app-header-live-h, var(--app-header-h));
+    left: var(--app-sidebar-w, 264px);
+    right: 0;
+    z-index: 99980;
+
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: stretch;
+
+    height: var(--pms10-advisory-h);
+    overflow: hidden;
+
+    background: var(--pms10-advisory-white);
+    border-top: 1px solid var(--pms10-advisory-border);
+    border-bottom: 1px solid var(--pms10-advisory-border);
+    box-shadow: 0 3px 10px rgba(15, 58, 105, 0.08);
+
+    transition: left 180ms ease;
+  }
+
+  .pms10-advisory-label {
+    position: relative;
+    z-index: 3;
+
+    min-width: 118px;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0 18px;
+
+    background: var(--pms10-advisory-label-bg);
+    color: var(--pms10-advisory-blue-dark);
+
+    border-right: 1px solid #c8ddf3;
+
+    font-size: 0.72rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .pms10-advisory-viewport {
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+
+    background: var(--pms10-advisory-white);
+  }
+
+  /*
+   * IMPORTANT:
+   * The animation translates by the exact measured width of ONE advisory
+   * group. Since identical groups follow immediately after it, the reset is
+   * visually seamless and there is no long blank section.
+   */
+  .pms10-advisory-track {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+
+    width: max-content;
+    min-width: max-content;
+    height: 100%;
+
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+
+    animation-name: pms10-advisory-seamless-scroll;
+    animation-duration: var(--pms10-advisory-duration, 18s);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .pms10-advisory-group {
+    flex: 0 0 auto;
+
+    display: flex;
+    align-items: center;
+
+    width: max-content;
+    min-width: max-content;
+    height: 100%;
+
+    white-space: nowrap;
+  }
+
+  .pms10-advisory-item {
+    flex: 0 0 auto;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+
+    min-height: 100%;
+    padding: 0 28px 0 14px;
+
+    color: var(--pms10-advisory-blue);
+
+    font-size: 0.86rem;
+    font-weight: 750;
+    line-height: 1.15;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .pms10-advisory-dot {
+    flex: 0 0 6px;
+
+    width: 6px;
+    height: 6px;
+
+    border-radius: 999px;
+    background: var(--pms10-advisory-dot);
+  }
+
+  .pms10-advisory-message {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  .pms10-advisory-item.is-linked {
+    cursor: pointer;
+  }
+
+  .pms10-advisory-item.is-linked:hover,
+  .pms10-advisory-item.is-linked:focus-visible {
+    color: var(--pms10-advisory-blue-dark);
+    background: #f5f9fd;
+    outline: none;
+  }
+
+  .pms10-advisory-item.is-linked:hover .pms10-advisory-message,
+  .pms10-advisory-item.is-linked:focus-visible .pms10-advisory-message {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .pms10-advisory-link-icon {
+    margin-left: -2px;
+
+    color: #5f87b3;
+
+    font-size: 0.75em;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  /*
+   * Do NOT pause on hover.
+   * The user requested that the moving banner must not stop.
+   */
+  @keyframes pms10-advisory-seamless-scroll {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+
+    to {
+      transform:
+        translate3d(
+          calc(-1 * var(--pms10-advisory-shift, 600px)),
+          0,
+          0
+        );
+    }
+  }
+}
+
+/* Slightly more breathing room on very large displays without making gaps. */
+@media (min-width: 1600px) {
+  :root {
+    --pms10-advisory-h: 42px;
+  }
+
+  .pms10-advisory-label {
+    min-width: 124px;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .pms10-advisory-item {
+    padding-right: 32px;
+    font-size: 0.88rem;
+  }
+}
+
+/*
+ * Accessibility:
+ * Users who explicitly request reduced motion get a static horizontal strip.
+ * Normal desktop users still receive the uninterrupted moving banner.
+ */
+@media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .pms10-advisory-viewport {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .pms10-advisory-viewport::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pms10-advisory-track {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .pms10-advisory-group[aria-hidden="true"] {
+    display: none;
+  }
+}
+
+/* =========================================================
+   PMS10 ADVISORY BORDERLESS + SPACING POLISH V4.1
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /*
+   * Blend the ticker into the page background.
+   * Remove all visible lines/shadows around the strip.
+   */
+  .pms10-advisory-ticker {
+    background: #f5f8fc !important;
+    border: 0 !important;
+    border-top: 0 !important;
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .pms10-advisory-viewport {
+    background: #f5f8fc !important;
+    padding-left: 14px !important;
+    padding-right: 0 !important;
+  }
+
+  /*
+   * Keep the ADVISORY label as a light-blue block,
+   * but remove the divider/border so it feels integrated.
+   */
+  .pms10-advisory-label {
+    min-width: 122px !important;
+    padding: 0 20px !important;
+    background: #dcecff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+
+    color: #174a83 !important;
+    font-size: 0.72rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  /*
+   * Tighten spacing between messages while keeping them readable.
+   * The gold dot stays with each message as the visual separator.
+   */
+  .pms10-advisory-item {
+    gap: 9px !important;
+    padding-left: 8px !important;
+    padding-right: 22px !important;
+
+    font-size: 0.85rem !important;
+    line-height: 1 !important;
+  }
+
+  .pms10-advisory-dot {
+    width: 6px !important;
+    height: 6px !important;
+    flex-basis: 6px !important;
+    margin: 0 !important;
+  }
+
+  .pms10-advisory-message {
+    display: inline-block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  .pms10-advisory-link-icon {
+    margin-left: -1px !important;
+  }
+}
+
+@media (min-width: 1600px) {
+  .pms10-advisory-viewport {
+    padding-left: 16px !important;
+  }
+
+  .pms10-advisory-label {
+    min-width: 126px !important;
+    padding-left: 22px !important;
+    padding-right: 22px !important;
+  }
+
+  .pms10-advisory-item {
+    padding-right: 24px !important;
+    font-size: 0.87rem !important;
+  }
+}
+
+/* =========================================================
+   PMS10 ADVISORY BORDERLESS + SPACING POLISH V4.1
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /*
+   * Blend the ticker into the page background.
+   * Remove all visible lines/shadows around the strip.
+   */
+  .pms10-advisory-ticker {
+    background: #f5f8fc !important;
+    border: 0 !important;
+    border-top: 0 !important;
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .pms10-advisory-viewport {
+    background: #f5f8fc !important;
+    padding-left: 14px !important;
+    padding-right: 0 !important;
+  }
+
+  /*
+   * Keep the ADVISORY label as a light-blue block,
+   * but remove the divider/border so it feels integrated.
+   */
+  .pms10-advisory-label {
+    min-width: 122px !important;
+    padding: 0 20px !important;
+    background: #dcecff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+
+    color: #174a83 !important;
+    font-size: 0.72rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  /*
+   * Tighten spacing between messages while keeping them readable.
+   * The gold dot stays with each message as the visual separator.
+   */
+  .pms10-advisory-item {
+    gap: 9px !important;
+    padding-left: 8px !important;
+    padding-right: 22px !important;
+
+    font-size: 0.85rem !important;
+    line-height: 1 !important;
+  }
+
+  .pms10-advisory-dot {
+    width: 6px !important;
+    height: 6px !important;
+    flex-basis: 6px !important;
+    margin: 0 !important;
+  }
+
+  .pms10-advisory-message {
+    display: inline-block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  .pms10-advisory-link-icon {
+    margin-left: -1px !important;
+  }
+}
+
+@media (min-width: 1600px) {
+  .pms10-advisory-viewport {
+    padding-left: 16px !important;
+  }
+
+  .pms10-advisory-label {
+    min-width: 126px !important;
+    padding-left: 22px !important;
+    padding-right: 22px !important;
+  }
+
+  .pms10-advisory-item {
+    padding-right: 24px !important;
+    font-size: 0.87rem !important;
+  }
+}
+
+/* =========================================================
+   PMS10 ADVISORY WHITE HERO BACKGROUND V4.2
+   Matches the white hero/header background.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  .pms10-advisory-ticker {
+    background: #ffffff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .pms10-advisory-viewport {
+    background: #ffffff !important;
+  }
+
+  .pms10-advisory-track,
+  .pms10-advisory-group {
+    background: transparent !important;
+  }
+
+  .pms10-advisory-item {
+    background: transparent !important;
+  }
+
+  .pms10-advisory-item.is-linked:hover,
+  .pms10-advisory-item.is-linked:focus-visible {
+    background: rgba(23, 74, 131, 0.05) !important;
+  }
+
+  .pms10-advisory-label {
+    background: #dcecff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+}
+
+/* =========================================================
+   PMS10 ADVISORY + DESKTOP HERO SEAMLESS MERGE V4.3
+   Desktop only.
+   - makes the advisory look like part of the white hero/header
+   - removes the dividing line/shadow between hero and ticker
+   - reduces the global gap between ticker and first page card/pill
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  :root {
+    --pms10-advisory-h: 36px;
+  }
+
+  /* HERO + ADVISORY = ONE WHITE SURFACE */
+  body.pms10-has-advisories > .app-header,
+  body.pms10-has-advisories > .app-header.app-header-scrolled {
+    background: #ffffff !important;
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.pms10-has-advisories > .pms10-advisory-ticker {
+    top: var(--app-header-live-h, var(--pms10-desktop-topbar-h, 96px)) !important;
+    height: var(--pms10-advisory-h) !important;
+
+    background: #ffffff !important;
+    border: 0 !important;
+    border-top: 0 !important;
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.pms10-has-advisories
+    > .pms10-advisory-ticker
+    .pms10-advisory-viewport,
+  body.pms10-has-advisories
+    > .pms10-advisory-ticker
+    .pms10-advisory-track,
+  body.pms10-has-advisories
+    > .pms10-advisory-ticker
+    .pms10-advisory-group {
+    background: #ffffff !important;
+  }
+
+  /* Compact but readable ADVISORY badge */
+  body.pms10-has-advisories
+    > .pms10-advisory-ticker
+    .pms10-advisory-label {
+    min-width: 116px !important;
+    padding: 0 18px !important;
+
+    background: #dcecff !important;
+    color: #174a83 !important;
+
+    border: 0 !important;
+    box-shadow: none !important;
+
+    font-size: 0.70rem !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  /* Keep the ticker content vertically compact and close together. */
+  body.pms10-has-advisories
+    > .pms10-advisory-ticker
+    .pms10-advisory-viewport {
+    padding-left: 10px !important;
+    padding-right: 0 !important;
+  }
+
+  body.pms10-has-advisories
+    > .pms10-advisory-ticker
+    .pms10-advisory-item {
+    gap: 8px !important;
+    padding-left: 7px !important;
+    padding-right: 20px !important;
+
+    font-size: 0.84rem !important;
+    line-height: 1 !important;
+  }
+
+  /*
+   * GLOBAL PAGE SPACING:
+   * The advisory already consumes 36px below the desktop hero.
+   * Reduce the normal app-main top padding so the first page card/pill
+   * sits closer to the advisory on every protected desktop route.
+   */
+  body.pms10-has-advisories #root .app-shell .app-main,
+  body.pms10-has-advisories
+    #root
+    .app-shell.app-project-details-route
+    .app-main,
+  body.pms10-has-advisories
+    #root
+    .app-shell.app-project-details-route.app-scrolled
+    .app-main {
+    padding-top: 8px !important;
+  }
+
+  /* Remove accidental extra top margin on the first page wrapper. */
+  body.pms10-has-advisories #root .app-main > :first-child {
+    margin-top: 0 !important;
+  }
+
+  body.pms10-has-advisories #root .dashboard-page,
+  body.pms10-has-advisories #root .projects-page,
+  body.pms10-has-advisories #root .pm-map-page,
+  body.pms10-has-advisories #root .reports-page,
+  body.pms10-has-advisories #root .offline-sync-page,
+  body.pms10-has-advisories #root .user-management-page,
+  body.pms10-has-advisories #root .user-access-page,
+  body.pms10-has-advisories #root .subay-import-page,
+  body.pms10-has-advisories #root .create-project-page,
+  body.pms10-has-advisories #root .edit-project-page,
+  body.pms10-has-advisories #root .project-details-page,
+  body.pms10-has-advisories #root .pd-page,
+  body.pms10-has-advisories #root .pu-page,
+  body.pms10-has-advisories #root .advisories-page {
+    margin-top: 0 !important;
+  }
+}
+
+/* Keep mobile/tablet exactly as before. */
+@media (max-width: 1023px) {
+  body.pms10-has-advisories > .app-header {
+    box-shadow: revert;
+  }
+}
+
+/* =========================================================
+   PMS10 SYSTEM ADVISORY BADGE + RIGHT-FACING MEGAPHONE V4.4
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  .pms10-advisory-label {
+    min-width: auto !important;
+    width: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding-left: 14px !important;
+    padding-right: 16px !important;
+    background: #dcecff !important;
+    color: #174a83 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  .pms10-advisory-label-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 18px !important;
+    height: 18px !important;
+    flex: 0 0 18px !important;
+    font-size: 15px !important;
+    line-height: 1 !important;
+    transform: scaleX(-1) !important;
+    transform-origin: center !important;
+  }
+
+  .pms10-advisory-label-text {
+    display: inline-block !important;
+    color: #174a83 !important;
+    font-size: 0.68rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .pms10-advisory-label-icon,
+  .pms10-advisory-label-text {
+    display: none !important;
+  }
+}
+
+/* =========================================================
+   PMS10 SYSTEM ADVISORY CLEAN WHITE + HOVER PAUSE V4.5
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  .pms10-advisory-label {
+    min-width: auto !important;
+    width: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 0 14px 0 10px !important;
+    background: #ffffff !important;
+    color: #174a83 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  .pms10-advisory-label-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    flex: 0 0 24px !important;
+    border-radius: 999px !important;
+    background: #edf5ff !important;
+    color: #174a83 !important;
+    transform: none !important;
+  }
+
+  .pms10-advisory-label-svg {
+    display: block !important;
+    width: 15px !important;
+    height: 15px !important;
+    color: #174a83 !important;
+    transform: none !important;
+  }
+
+  .pms10-advisory-label-text {
+    display: inline-block !important;
+    color: #174a83 !important;
+    font-size: 0.66rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.10em !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+
+  .pms10-advisory-label::after {
+    content: "";
+    width: 1px;
+    height: 18px;
+    margin-left: 8px;
+    background: #dbe5f0;
+  }
+
+  /* Pause anywhere on the banner; resume when pointer leaves. */
+  .pms10-advisory-ticker:hover .pms10-advisory-track,
+  .pms10-advisory-ticker:focus-within .pms10-advisory-track {
+    animation-play-state: paused !important;
+  }
+}
+
+/* =========================================================
+   PMS10 SYSTEM ADVISORY PURE WHITE V4.6
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Entire SYSTEM ADVISORY area becomes white */
+  .pms10-advisory-label {
+    background: #ffffff !important;
+    color: #174a83 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Keep the megaphone clean and blue without a colored badge */
+  .pms10-advisory-label-icon {
+    background: transparent !important;
+    color: #174a83 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .pms10-advisory-label-svg {
+    color: #174a83 !important;
+  }
+
+  .pms10-advisory-label-text {
+    color: #174a83 !important;
+  }
+
+  /* Keep only a very subtle separator from the moving text */
+  .pms10-advisory-label::after {
+    background: #e6edf5 !important;
+  }
+}
+
+/* =========================================================
+   PMS10 SYSTEM ADVISORY PURE WHITE V4.6
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Entire SYSTEM ADVISORY area becomes white */
+  .pms10-advisory-label {
+    background: #ffffff !important;
+    color: #174a83 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Keep the megaphone clean and blue without a colored badge */
+  .pms10-advisory-label-icon {
+    background: transparent !important;
+    color: #174a83 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .pms10-advisory-label-svg {
+    color: #174a83 !important;
+  }
+
+  .pms10-advisory-label-text {
+    color: #174a83 !important;
+  }
+
+  /* Keep only a very subtle separator from the moving text */
+  .pms10-advisory-label::after {
+    background: #e6edf5 !important;
+  }
+}
+
+/* =========================================================
+   PMS10 SYSTEM ADVISORY WHITE + VERTICAL DIVIDER V4.7
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /*
+   * Fixed SYSTEM ADVISORY section:
+   * pure white, no blue block, no shadow, no surrounding border.
+   */
+  .pms10-advisory-label {
+    position: relative !important;
+
+    min-width: auto !important;
+    width: auto !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+
+    padding: 0 18px 0 14px !important;
+
+    background: #ffffff !important;
+    color: #174a83 !important;
+
+    border: 0 !important;
+    box-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  /*
+   * Remove any old pseudo-element styling first.
+   * Then use ONLY a vertical boundary line after SYSTEM ADVISORY.
+   */
+  .pms10-advisory-label::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .pms10-advisory-label::after {
+    content: "" !important;
+
+    display: block !important;
+    position: absolute !important;
+    top: 7px !important;
+    right: 0 !important;
+    bottom: 7px !important;
+
+    width: 1px !important;
+    height: auto !important;
+    margin: 0 !important;
+
+    background: #d7e1ec !important;
+    border: 0 !important;
+    opacity: 1 !important;
+  }
+
+  /*
+   * Megaphone remains blue on the same white surface.
+   */
+  .pms10-advisory-label-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    width: 20px !important;
+    height: 20px !important;
+    flex: 0 0 20px !important;
+
+    background: transparent !important;
+    color: #174a83 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .pms10-advisory-label-svg {
+    display: block !important;
+    width: 17px !important;
+    height: 17px !important;
+
+    color: #174a83 !important;
+    transform: none !important;
+  }
+
+  .pms10-advisory-label-text {
+    display: inline-block !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    color: #174a83 !important;
+
+    font-size: 0.67rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.115em !important;
+    text-transform: uppercase !important;
+
+    white-space: nowrap !important;
+  }
+
+  /*
+   * Moving side is also white so fixed and moving sections feel seamless.
+   * Add a small gap after the divider before the first moving message.
+   */
+  .pms10-advisory-ticker,
+  .pms10-advisory-viewport,
+  .pms10-advisory-track,
+  .pms10-advisory-group {
+    background: #ffffff !important;
+  }
+
+  .pms10-advisory-viewport {
+    padding-left: 12px !important;
+  }
+
+  /*
+   * Hover anywhere on the banner pauses the moving words.
+   * It resumes when the pointer leaves.
+   */
+  .pms10-advisory-ticker:hover .pms10-advisory-track,
+  .pms10-advisory-ticker:focus-within .pms10-advisory-track {
+    animation-play-state: paused !important;
+  }
+}
+
+/* =========================================================
+   PMS10 SYSTEM ADVISORY FINAL WHITE OVERRIDE V4.8
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  /* Entire advisory row stays pure white. */
+  .pms10-advisory-ticker,
+  .pms10-advisory-viewport,
+  .pms10-advisory-track,
+  .pms10-advisory-group {
+    background: #ffffff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Fixed SYSTEM ADVISORY section: pure white, no blue block. */
+  .pms10-advisory-label {
+    position: relative !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+
+    min-width: auto !important;
+    width: auto !important;
+
+    padding: 0 18px 0 14px !important;
+
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #174a83 !important;
+
+    border: 0 !important;
+    box-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  /* Remove any background on children. */
+  .pms10-advisory-label * {
+    background: transparent !important;
+  }
+
+  /* Blue megaphone on white. */
+  .pms10-advisory-label-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    width: 20px !important;
+    height: 20px !important;
+    flex: 0 0 20px !important;
+
+    background: transparent !important;
+    color: #174a83 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .pms10-advisory-label-svg {
+    display: block !important;
+    width: 17px !important;
+    height: 17px !important;
+
+    color: #174a83 !important;
+    transform: none !important;
+  }
+
+  .pms10-advisory-label-text {
+    display: inline-block !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    color: #174a83 !important;
+
+    font-size: 0.67rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.115em !important;
+    text-transform: uppercase !important;
+
+    white-space: nowrap !important;
+  }
+
+  /* Remove any previous pseudo-element decorations. */
+  .pms10-advisory-label::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  /* Single thin divider between label and moving words. */
+  .pms10-advisory-label::after {
+    content: "" !important;
+
+    position: absolute !important;
+    top: 7px !important;
+    right: 0 !important;
+    bottom: 7px !important;
+
+    width: 1px !important;
+    height: auto !important;
+    margin: 0 !important;
+
+    background: #d7e1ec !important;
+    border: 0 !important;
+    opacity: 1 !important;
+  }
+
+  /* Small space between divider and first moving message. */
+  .pms10-advisory-viewport {
+    padding-left: 10px !important;
+  }
+
+  /* Pause on hover/focus, resume automatically after mouse leaves. */
+  .pms10-advisory-ticker:hover .pms10-advisory-track,
+  .pms10-advisory-ticker:focus-within .pms10-advisory-track {
+    animation-play-state: paused !important;
+  }
+}
+
+/* =========================================================
+   PMS10 SYSTEM ADVISORY PURE WHITE V5.0
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  body.pms10-has-advisories .pms10-advisory-ticker,
+  body.pms10-has-advisories .pms10-advisory-viewport,
+  body.pms10-has-advisories .pms10-advisory-track,
+  body.pms10-has-advisories .pms10-advisory-group {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.pms10-has-advisories .pms10-advisory-label {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+
+    min-width: auto !important;
+    width: auto !important;
+    height: 100% !important;
+
+    padding: 0 18px 0 14px !important;
+
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+
+    color: #174a83 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+
+    white-space: nowrap !important;
+    isolation: isolate !important;
+  }
+
+  /* Children are transparent; the label itself remains white. */
+  body.pms10-has-advisories .pms10-advisory-label > * {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  body.pms10-has-advisories .pms10-advisory-label::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  body.pms10-has-advisories .pms10-advisory-label-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    width: 20px !important;
+    height: 20px !important;
+    flex: 0 0 20px !important;
+
+    color: #174a83 !important;
+    background: transparent !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+
+    transform: none !important;
+  }
+
+  body.pms10-has-advisories .pms10-advisory-label-svg {
+    display: block !important;
+    width: 17px !important;
+    height: 17px !important;
+    color: #174a83 !important;
+    fill: currentColor !important;
+    background: transparent !important;
+    transform: none !important;
+  }
+
+  body.pms10-has-advisories .pms10-advisory-label-text {
+    display: inline-block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+
+    color: #174a83 !important;
+    background: transparent !important;
+
+    font-size: 0.67rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.115em !important;
+    text-transform: uppercase !important;
+
+    white-space: nowrap !important;
+  }
+
+  /* Single vertical divider after SYSTEM ADVISORY. */
+  body.pms10-has-advisories .pms10-advisory-label::after {
+    content: "" !important;
+    position: absolute !important;
+    top: 7px !important;
+    right: 0 !important;
+    bottom: 7px !important;
+
+    width: 1px !important;
+    height: auto !important;
+    margin: 0 !important;
+
+    background: #d7e1ec !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+  }
+
+  body.pms10-has-advisories .pms10-advisory-viewport {
+    padding-left: 10px !important;
+    padding-right: 0 !important;
+  }
+
+  body.pms10-has-advisories .pms10-advisory-item,
+  body.pms10-has-advisories .pms10-advisory-message,
+  body.pms10-has-advisories .pms10-advisory-item.is-linked {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #174a83 !important;
+  }
+
+  body.pms10-has-advisories .pms10-advisory-ticker:hover .pms10-advisory-track,
+  body.pms10-has-advisories .pms10-advisory-ticker:focus-within .pms10-advisory-track {
+    animation-play-state: paused !important;
+  }
+}
+
+/* =========================================================
+   PMS10 SYSTEM ADVISORY HARD-WHITE OVERRIDE V5.1
+   Highest-specificity final override for the fixed label.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  > div.pms10-advisory-label {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  > div.pms10-advisory-label
+  > * {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  > div.pms10-advisory-label::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  > div.pms10-advisory-label::after {
+    content: "" !important;
+    position: absolute !important;
+    top: 7px !important;
+    right: 0 !important;
+    bottom: 7px !important;
+    width: 1px !important;
+    height: auto !important;
+    margin: 0 !important;
+    background: #d7e1ec !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker,
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  > div.pms10-advisory-viewport {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+  }
+}

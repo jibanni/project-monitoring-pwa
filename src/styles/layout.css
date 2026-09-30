@@ -4561,3 +4561,61 @@ body > .app-header.app-header-project-details.app-header-scrolled {
     color: #7a8799 !important;
   }
 }
+
+
+/* PMS10 DESKTOP PAGE TITLE DESCENDER FIX V1 */
+@media (min-width: 1024px) {
+  .app-desktop-page-context {
+    overflow: visible !important;
+    padding-top: 2px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .app-desktop-page-title {
+    display: block !important;
+    overflow: hidden !important;
+    padding-bottom: 0.14em !important;
+    line-height: 1.1 !important;
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+
+/* PMS10 DESKTOP HEADER TITLE POLISH V2 */
+@media (min-width: 1024px) {
+  .app-desktop-page-context {
+    overflow: visible !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    padding-top: 2px !important;
+    padding-bottom: 7px !important;
+  }
+
+  .app-desktop-page-eyebrow {
+    display: block !important;
+    overflow: visible !important;
+    color: #dfa400 !important;
+    font-size: 0.76rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.155em !important;
+    line-height: 1.15 !important;
+    padding: 0 !important;
+  }
+
+  .app-desktop-page-title {
+    display: block !important;
+    max-width: min(940px, 70vw) !important;
+    overflow: hidden !important;
+    color: #0b2d52 !important;
+    font-size: clamp(1.95rem, 2.35vw, 2.35rem) !important;
+    font-weight: 780 !important;
+    letter-spacing: -0.03em !important;
+    line-height: 1.12 !important;
+    padding: 0 0 0.14em !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
+  }
+}

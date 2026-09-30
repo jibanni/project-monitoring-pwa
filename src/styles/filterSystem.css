@@ -427,3 +427,64 @@
   }
 }
 /* PMS10 MOBILE DASHBOARD FILTER TITLE MATCH PROJECT FILTER END */
+
+
+/* PMS10 SOLID BLUE FILTER BUTTONS V2 */
+body #root .dashboard-filter-toggle,
+body #root .pm-unified-filter-toggle {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 72px !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 0 16px !important;
+  border: 0 !important;
+  border-radius: 15px !important;
+  background: #234b7e !important;
+  color: #ffffff !important;
+  font-family: inherit !important;
+  font-size: 0.82rem !important;
+  font-weight: 750 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.01em !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  box-shadow: 0 5px 12px rgba(35, 75, 126, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  transition: background-color 140ms ease, box-shadow 140ms ease, transform 120ms ease !important;
+}
+
+body #root .dashboard-filter-toggle:hover:not(:disabled),
+body #root .pm-unified-filter-toggle:hover:not(:disabled) {
+  background: #1c406d !important;
+  box-shadow: 0 7px 16px rgba(35, 75, 126, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+body #root .dashboard-filter-toggle:active:not(:disabled),
+body #root .pm-unified-filter-toggle:active:not(:disabled) {
+  transform: translateY(1px) !important;
+}
+
+body #root .dashboard-filter-toggle:focus-visible,
+body #root .pm-unified-filter-toggle:focus-visible {
+  outline: 3px solid rgba(35, 75, 126, 0.18) !important;
+  outline-offset: 2px !important;
+}
+
+body #root .dashboard-filter-panel.has-active-filters .dashboard-filter-toggle,
+body #root .pm-unified-filter-panel.has-active-filters .pm-unified-filter-toggle {
+  background: #234b7e !important;
+  box-shadow: 0 5px 12px rgba(35, 75, 126, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+@media (max-width: 900px) {
+  body #root .dashboard-filter-toggle,
+  body #root .pm-unified-filter-toggle {
+    min-width: 70px !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 0 15px !important;
+    border-radius: 15px !important;
+    font-size: 0.82rem !important;
+  }
+}
