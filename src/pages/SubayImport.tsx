@@ -23,6 +23,10 @@ type ExistingProject = {
   municipality?: string | null
   subaybayan_project_code?: string | null
   budget?: number | string | null
+  disbursement_amount?: number | string | null
+  financial_accomplishment?: number | string | null
+  revised_project_cost?: number | string | null
+  has_contract_modification?: boolean | string | null
 }
 
 type PreviewAction = 'create' | 'update_by_code' | 'link_manual' | 'invalid'
@@ -33,6 +37,11 @@ type PreviewRow = {
   actionLabel: string
   projectId?: string
   existingBudget?: number | string | null
+  existingDisbursementAmount?: number | string | null
+  existingFinancialAccomplishment?: number | string | null
+  existingRevisedProjectCost?: number | string | null
+  existingHasContractModification?: boolean | string | null
+  preserveExistingFinancial?: boolean
   issue?: string
 }
 
@@ -80,6 +89,18 @@ function formatCurrency(value: number | null | undefined) {
 
 function getImportCost(record: SubayImportRecord) {
   return record.budget || record.contractAmount || 0
+}
+
+function hasMaintainedFinancialData(project: ExistingProject) {
+  return (
+    Number(project.disbursement_amount || 0) > 0 ||
+    Number(project.financial_accomplishment || 0) > 0
+  )
+}
+
+function formatFinancialPercent(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '-'
+  return `${Number(value).toFixed(2)}%`
 }
 
 function formatDate(value: string | null) {
@@ -162,6 +183,11 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
         actionLabel: 'Update Existing',
         projectId: existingByCode.id,
         existingBudget: existingByCode.budget,
+        existingDisbursementAmount: existingByCode.disbursement_amount,
+        existingFinancialAccomplishment: existingByCode.financial_accomplishment,
+        existingRevisedProjectCost: existingByCode.revised_project_cost,
+        existingHasContractModification: existingByCode.has_contract_modification,
+        preserveExistingFinancial: hasMaintainedFinancialData(existingByCode),
       }
     }
 
@@ -175,6 +201,11 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
         actionLabel: 'Link Manual Record',
         projectId: manualMatch.id,
         existingBudget: manualMatch.budget,
+        existingDisbursementAmount: manualMatch.disbursement_amount,
+        existingFinancialAccomplishment: manualMatch.financial_accomplishment,
+        existingRevisedProjectCost: manualMatch.revised_project_cost,
+        existingHasContractModification: manualMatch.has_contract_modification,
+        preserveExistingFinancial: hasMaintainedFinancialData(manualMatch),
       }
     }
 
@@ -216,7 +247,7 @@ export default function SubayImport() {
   async function fetchExistingProjects() {
     const { data, error } = await supabase
       .from('projects')
-      .select('id, project_name, funding_year, funding_source, province, municipality, subaybayan_project_code, budget')
+      .select('id, project_name, funding_year, funding_source, province, municipality, subaybayan_project_code, budget, disbursement_amount, financial_accomplishment, revised_project_cost, has_contract_modification')
 
     if (error) throw error
 
@@ -273,7 +304,7 @@ export default function SubayImport() {
     }
 
     const confirmed = window.confirm(
-      'Proceed with the project masterlist import? Existing project master data with the same import code will be overwritten, but inspection updates and photos will be preserved.',
+      'Proceed with the project masterlist import? Existing project master data with the same import code will be updated. PMS10 disbursement/financial values already maintained by Engineers/Admins will be preserved; blank/zero values may be repaired from SubayBAYAN.',
     )
 
     if (!confirmed) return
@@ -299,6 +330,10 @@ export default function SubayImport() {
       const payload = projectPayloadFromSubayRecord(row.record, {
         isCreate: row.action === 'create',
         existingBudget: row.existingBudget,
+        existingDisbursementAmount: row.existingDisbursementAmount,
+        existingFinancialAccomplishment: row.existingFinancialAccomplishment,
+        existingRevisedProjectCost: row.existingRevisedProjectCost,
+        existingHasContractModification: row.existingHasContractModification,
       })
 
       try {
@@ -487,7 +522,8 @@ export default function SubayImport() {
               SubayBAYAN uses PROJECT CODE. SGLGIF uses a stable import code
               generated from its LGU reference code, year, LGU, and title. Only FY{' '}
               {SUBAY_MIN_FUNDING_YEAR} onwards will be included. Existing PMS10
-              inspection updates, photos, and Google Drive records are preserved.
+              inspection updates, photos, Google Drive records, and existing
+              maintained financial/disbursement values are preserved.
             </p>
           </div>
 
@@ -526,6 +562,7 @@ export default function SubayImport() {
                   <th>LGU</th>
                   <th>Program / FY</th>
                   <th>Cost</th>
+                  <th>Financial Source</th>
                   <th>Status</th>
                   <th>Intended Completion</th>
                   <th>Contract Expiration</th>
@@ -561,6 +598,30 @@ export default function SubayImport() {
                           {row.record.subayFormat === 'sglgif_portal' && (
                             <small>Enter manually after import</small>
                           )}
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      {row.preserveExistingFinancial ? (
+                        <>
+                          <strong>Preserve PMS10</strong>
+                          <small>
+                            {formatCurrency(Number(row.existingDisbursementAmount || 0)) || 'No amount'} ·{' '}
+                            {formatFinancialPercent(Number(row.existingFinancialAccomplishment || 0))}
+                          </small>
+                        </>
+                      ) : row.record.disbursementAmount !== null ? (
+                        <>
+                          <strong>Repair from SubayBAYAN</strong>
+                          <small>
+                            {formatCurrency(row.record.disbursementAmount) || 'Php 0.00'} ·{' '}
+                            {formatFinancialPercent(row.record.financialAccomplishment)}
+                          </small>
+                        </>
+                      ) : (
+                        <>
+                          <span>No source disbursement</span>
+                          <small>Existing value unchanged when applicable</small>
                         </>
                       )}
                     </td>

@@ -42,6 +42,7 @@ export type SubayImportRecord = {
   status: string
   physicalAccomplishment: number | null
   financialAccomplishment: number | null
+  disbursementAmount: number | null
   riskLevel: string
   implementingOffice: string
   contractor: string
@@ -93,6 +94,7 @@ type HeaderKey =
   | 'actualPhysicalAccomplishment'
   | 'slippage'
   | 'financialAccomplishment'
+  | 'disbursementAmount'
   | 'riskLevel'
   | 'remarks'
   | 'implementingOffice'
@@ -148,6 +150,7 @@ const FY_2024_BELOW_PROFILE: SubayFormatProfile = {
     contractExpirationDate: 43, // AR DATE OF EXPIRATION OF CONTRACT
     physicalAccomplishment: 60, // BI TOTAL ACCOMPLISHMENT
     revisedContractExpirationDate: 61, // BJ DATE, used as accomplishment date only when completed
+    disbursementAmount: 63, // BL DISBURSEMENTS - AMOUNT
   },
 }
 
@@ -186,6 +189,7 @@ const FY_2025_ABOVE_PROFILE: SubayFormatProfile = {
     contractAmount: 126, // DW CONTRACT AMOUNT
     ntpDate: 129, // DZ NTP
     contractExpirationDate: 130, // EA EXPIRATION DATE
+    disbursementAmount: 85, // CH DISBURSEMENT - TOTAL
   },
 }
 
@@ -308,6 +312,31 @@ function parsePercent(value: unknown) {
   if (parsed > 100) return 100
 
   return parsed
+}
+
+function parseNullableNumber(value: unknown) {
+  const rawValue = textValue(value)
+
+  if (!rawValue) return null
+
+  const parsed = parseNumber(value)
+
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function calculateFinancialAccomplishment(
+  disbursementAmount: number | null,
+  projectCost: number,
+) {
+  if (disbursementAmount === null || projectCost <= 0) return null
+
+  const percentage = (disbursementAmount / projectCost) * 100
+
+  if (!Number.isFinite(percentage)) return null
+  if (percentage < 0) return 0
+  if (percentage > 100) return 100
+
+  return percentage
 }
 
 function parseFundingYear(value: unknown) {
@@ -628,9 +657,37 @@ export function getSubayEnrollmentEligibility(record: SubayImportRecord) {
 
 export function projectPayloadFromSubayRecord(
   record: SubayImportRecord,
-  options: { isCreate?: boolean; existingBudget?: unknown } = {},
+  options: {
+    isCreate?: boolean
+    existingBudget?: unknown
+    existingDisbursementAmount?: unknown
+    existingFinancialAccomplishment?: unknown
+    existingRevisedProjectCost?: unknown
+    existingHasContractModification?: unknown
+  } = {},
 ) {
   const projectCost = record.budget || record.contractAmount || 0
+  const existingDisbursementAmount = parseNumber(options.existingDisbursementAmount)
+  const existingFinancialAccomplishment = parsePercent(options.existingFinancialAccomplishment)
+  const existingRevisedProjectCost = parseNumber(options.existingRevisedProjectCost)
+  const existingHasContractModification =
+    options.existingHasContractModification === true ||
+    textValue(options.existingHasContractModification).toLowerCase() === 'true'
+
+  const preserveExistingFinancial =
+    !options.isCreate &&
+    (existingDisbursementAmount > 0 || existingFinancialAccomplishment > 0)
+
+  const officialProjectCost =
+    existingHasContractModification && existingRevisedProjectCost > 0
+      ? existingRevisedProjectCost
+      : projectCost || parseNumber(options.existingBudget)
+
+  const sourceFinancialAccomplishment =
+    record.disbursementAmount !== null
+      ? calculateFinancialAccomplishment(record.disbursementAmount, officialProjectCost)
+      : record.financialAccomplishment
+
   const payload: Record<string, unknown> = {
     subaybayan_project_code: record.projectCode,
     project_name: toProjectTitleCase(record.projectTitle),
@@ -645,11 +702,31 @@ export function projectPayloadFromSubayRecord(
     municipality: record.municipality || null,
     province: record.province || null,
     physical_accomplishment: record.physicalAccomplishment,
-    financial_accomplishment: record.financialAccomplishment,
     risk_level: isSubayCompletedRecord(record.status, record.physicalAccomplishment)
       ? 'None'
       : record.riskLevel || 'None',
     updated_at: new Date().toISOString(),
+  }
+
+  /*
+   * Financial data precedence:
+   * 1. Existing PMS10 value maintained by an Engineer/Admin is preserved.
+   * 2. Otherwise, SubayBAYAN cumulative disbursement repairs the project.
+   * 3. SGLGIF keeps its existing completed-project financial behavior because
+   *    that extract has no disbursement column.
+   *
+   * This means re-importing a current SubayBAYAN masterlist repairs projects
+   * that still have blank/zero financial data without overwriting field-
+   * maintained disbursement values.
+   */
+  if (!preserveExistingFinancial) {
+    if (record.disbursementAmount !== null) {
+      payload.disbursement_amount = record.disbursementAmount
+    }
+
+    if (sourceFinancialAccomplishment !== null) {
+      payload.financial_accomplishment = sourceFinancialAccomplishment
+    }
   }
 
   if (projectCost > 0) {
@@ -728,6 +805,13 @@ function getRecordWarnings(record: Omit<SubayImportRecord, 'validationWarnings'>
     warnings.push('Physical accomplishment outside 0-100 range')
   }
 
+  if (
+    record.disbursementAmount !== null &&
+    record.disbursementAmount < 0
+  ) {
+    warnings.push('Negative disbursement amount')
+  }
+
   return warnings
 }
 
@@ -757,12 +841,18 @@ function parseRecordFromRow(
         ? 100
         : null
       : parsePercent(physicalValue)
+  const disbursementAmount =
+    profile.id === 'sglgif_portal'
+      ? null
+      : parseNullableNumber(getProfileCell(row, profile, 'disbursementAmount'))
+  const sourceProjectCost =
+    getBudget(row, profile) || parseNumber(getProfileCell(row, profile, 'contractAmount'))
   const financialAccomplishment =
     profile.id === 'sglgif_portal'
       ? isSglgifCompleted
         ? 100
         : null
-      : parsePercent(getProfileCell(row, profile, 'financialAccomplishment'))
+      : calculateFinancialAccomplishment(disbursementAmount, sourceProjectCost)
   const status = normalizeStatus(
     getProfileCell(row, profile, 'status'),
     getProfileCell(row, profile, 'physicalStatus'),
@@ -810,6 +900,7 @@ function parseRecordFromRow(
     status,
     physicalAccomplishment,
     financialAccomplishment,
+    disbursementAmount,
     riskLevel:
       profile.id === 'sglgif_portal'
         ? 'None'
