@@ -1,3 +1,8 @@
+import {
+  getCanonicalProjectLgu,
+  getCanonicalProjectProvinceOrHuc,
+} from '../data/region10Directory'
+
 export type AorProjectLike = {
   province?: unknown
   municipality?: unknown
@@ -109,20 +114,59 @@ function uniqueCleanValues(values: unknown[]) {
   return output
 }
 
-function projectMatchesProvince(project: AorProjectLike, province: unknown) {
-  return sameText(project.province, province)
+function getProjectLocationForAor(project: AorProjectLike) {
+  const lgu =
+    project.municipality ??
+    project.city ??
+    project.huc ??
+    ''
+
+  return {
+    provinceOrHuc: getCanonicalProjectProvinceOrHuc(project.province, lgu),
+    lgu: getCanonicalProjectLgu(project.province, lgu),
+  }
 }
 
-function projectMatchesMunicipality(project: AorProjectLike, municipality: unknown) {
-  return sameText(project.municipality, municipality)
+function projectMatchesProvince(project: AorProjectLike, province: unknown) {
+  const location = getProjectLocationForAor(project)
+
+  return (
+    sameText(location.provinceOrHuc, province) ||
+    sameText(project.province, province)
+  )
+}
+
+function projectMatchesMunicipality(
+  project: AorProjectLike,
+  municipality: unknown,
+) {
+  const location = getProjectLocationForAor(project)
+
+  return (
+    sameText(location.lgu, municipality) ||
+    sameText(project.municipality, municipality)
+  )
 }
 
 function projectMatchesCity(project: AorProjectLike, city: unknown) {
-  return sameText(project.municipality, city) || sameText(project.city, city)
+  const location = getProjectLocationForAor(project)
+
+  return (
+    sameText(location.lgu, city) ||
+    sameText(project.municipality, city) ||
+    sameText(project.city, city)
+  )
 }
 
 function projectMatchesHuc(project: AorProjectLike, huc: unknown) {
-  return sameText(project.municipality, huc) || sameText(project.huc, huc)
+  const location = getProjectLocationForAor(project)
+
+  return (
+    sameText(location.provinceOrHuc, huc) ||
+    sameText(location.lgu, huc) ||
+    sameText(project.municipality, huc) ||
+    sameText(project.huc, huc)
+  )
 }
 
 function getActivePoAssignments(auth: AorAuthLike | null | undefined) {
