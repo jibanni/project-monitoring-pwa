@@ -16,6 +16,7 @@ type MultiSelectFilterProps = {
   allLabel: string
   formatOptionLabel?: (value: string) => string
   className?: string
+  commitOnDone?: boolean
 }
 
 type MenuPlacement = {
@@ -39,13 +40,19 @@ export default function MultiSelectFilter({
   allLabel,
   formatOptionLabel = (value) => value,
   className = '',
+  commitOnDone = false,
 }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false)
   const [placement, setPlacement] = useState<MenuPlacement | null>(null)
+  const [draftValues, setDraftValues] = useState<string[]>(values)
 
   const rootRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) setDraftValues(values)
+  }, [open, values])
 
   const normalizedOptions = useMemo(
     () =>
@@ -59,16 +66,17 @@ export default function MultiSelectFilter({
     [options],
   )
 
-  const selectedSet = useMemo(() => new Set(values), [values])
+  const activeValues = commitOnDone && open ? draftValues : values
+  const selectedSet = useMemo(() => new Set(activeValues), [activeValues])
 
   const buttonText = useMemo(() => {
-    if (values.length === 0) return allLabel
-    if (values.length === 1) return formatOptionLabel(values[0])
-    if (values.length === 2) {
-      return values.map(formatOptionLabel).join(', ')
+    if (activeValues.length === 0) return allLabel
+    if (activeValues.length === 1) return formatOptionLabel(activeValues[0])
+    if (activeValues.length === 2) {
+      return activeValues.map(formatOptionLabel).join(', ')
     }
-    return `${values.length} selected`
-  }, [allLabel, formatOptionLabel, values])
+    return `${activeValues.length} selected`
+  }, [activeValues, allLabel, formatOptionLabel])
 
   function updatePlacement() {
     const trigger = triggerRef.current
@@ -148,12 +156,12 @@ export default function MultiSelectFilter({
         return
       }
 
-      setOpen(false)
+      closeWithoutCommit()
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        setOpen(false)
+        closeWithoutCommit()
         triggerRef.current?.focus()
       }
     }
@@ -179,13 +187,40 @@ export default function MultiSelectFilter({
     }
   }, [open])
 
-  function toggleValue(value: string) {
-    if (selectedSet.has(value)) {
-      onChange(values.filter((item) => item !== value))
+  function setSelection(nextValues: string[]) {
+    if (commitOnDone) {
+      setDraftValues(nextValues)
       return
     }
 
-    onChange([...values, value])
+    onChange(nextValues)
+  }
+
+  function toggleValue(value: string) {
+    if (selectedSet.has(value)) {
+      setSelection(activeValues.filter((item) => item !== value))
+      return
+    }
+
+    setSelection([...activeValues, value])
+  }
+
+  function closeWithoutCommit() {
+    if (commitOnDone) setDraftValues(values)
+    setOpen(false)
+  }
+
+  function applyAndClose() {
+    if (commitOnDone) onChange(draftValues)
+    setOpen(false)
+  }
+
+  function toggleMenu() {
+    setOpen((current) => {
+      const next = !current
+      if (next && commitOnDone) setDraftValues(values)
+      return next
+    })
   }
 
   const menu =
@@ -208,17 +243,17 @@ export default function MultiSelectFilter({
             <button
               type="button"
               className={`pms-multi-filter-option pms-multi-filter-all ${
-                values.length === 0 ? 'is-selected' : ''
+                activeValues.length === 0 ? 'is-selected' : ''
               }`}
-              onClick={() => onChange([])}
+              onClick={() => setSelection([])}
               role="option"
-              aria-selected={values.length === 0}
+              aria-selected={activeValues.length === 0}
             >
               <span
                 className="pms-multi-filter-check"
                 aria-hidden="true"
               >
-                {values.length === 0 ? '✓' : ''}
+                {activeValues.length === 0 ? '✓' : ''}
               </span>
               <span className="pms-multi-filter-option-text">
                 {allLabel}
@@ -256,11 +291,11 @@ export default function MultiSelectFilter({
 
             <div className="pms-multi-filter-footer">
               <span>
-                {values.length === 0
+                {activeValues.length === 0
                   ? 'All included'
-                  : `${values.length} selected`}
+                  : `${activeValues.length} selected`}
               </span>
-              <button type="button" onClick={() => setOpen(false)}>
+              <button type="button" onClick={applyAndClose}>
                 Done
               </button>
             </div>
@@ -283,7 +318,7 @@ export default function MultiSelectFilter({
           ref={triggerRef}
           type="button"
           className="pms-multi-filter-trigger"
-          onClick={() => setOpen((current) => !current)}
+          onClick={toggleMenu}
           aria-haspopup="listbox"
           aria-expanded={open}
         >

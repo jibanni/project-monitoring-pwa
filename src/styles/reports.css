@@ -1291,3 +1291,16 @@
   }
 }
 /* PMS10 REPORTS DESKTOP NO-HORIZONTAL-SCROLL TABLE END */
+
+
+/* PMS10_REPORTS_PERFORMANCE_PREVIEW_V1 */
+.reports-preview-limit {
+  margin: 10px 14px 14px;
+  padding: 9px 11px;
+  border: 1px solid #dbe5ef;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useSharedProjects } from '../lib/projectDataCache'
@@ -97,6 +97,8 @@ type LatestUpdateInfo = {
 
 type ProfileLookupMap = Record<string, ProfileLookupRow>
 type LatestUpdateMap = Record<string, LatestUpdateInfo>
+
+const REPORT_PREVIEW_LIMIT = 120
 
 function textValue(value: unknown) {
   if (value === null || value === undefined) return ''
@@ -627,6 +629,9 @@ export default function Reports() {
   const [riskFilter, setRiskFilter] = useState(rememberedView.riskFilter || '')
   const [generatingBrieferId, setGeneratingBrieferId] = useState<string | null>(null)
 
+  const deferredSearchTerm = useDeferredValue(searchTerm)
+  const normalizedDeferredSearchTerm = deferredSearchTerm.trim().toLowerCase()
+
   useEffect(() => {
     writePageView('reports', {
       showFilters,
@@ -851,84 +856,94 @@ export default function Reports() {
     risks,
   ])
 
-  const filteredProjects = useMemo(() => {
-    return aorProjects.filter((project) => {
-      const assignedPoEngineers = getAssignedPoEngineersForProject(
-        project,
-        poEngineerAssignments,
-        profileMap,
-      )
-      const latestUpdateDate = getLatestUpdateDate(project, latestUpdateMap)
-
-      const searchableText = [
-        project.project_name,
-        project.description,
-        project.barangay,
-        project.municipality,
+  const reportFilterIndex = useMemo(() => {
+    return aorProjects.map((project) => ({
+      project,
+      province: getCanonicalProjectProvinceOrHuc(
         project.province,
-        project.funding_source,
-        project.project_type,
-        project.status,
-        getReportRisk(project),
-        project.contractor,
-        project.implementing_office,
-        assignedPoEngineers,
-        latestUpdateDate,
-      ]
-        .map(textValue)
-        .join(' ')
-        .toLowerCase()
+        project.municipality,
+      ),
+      municipality: getCanonicalProjectLgu(
+        project.province,
+        project.municipality,
+      ),
+      program: normalizeProgramName(
+        project.funding_source || project.project_type,
+      ),
+      fundingYear: textValue(project.funding_year),
+      status: textValue(project.status),
+      risk: getReportRisk(project),
+    }))
+  }, [aorProjects])
 
-      const searchMatches = searchTerm.trim()
-        ? searchableText.includes(searchTerm.trim().toLowerCase())
-        : true
+  const filteredProjects = useMemo(() => {
+    return reportFilterIndex
+      .filter((entry) => {
+        const {
+          project,
+          province,
+          municipality,
+          program,
+          fundingYear,
+          status,
+          risk,
+        } = entry
 
-      const provinceMatches = provinceFilter
-        ? getCanonicalProjectProvinceOrHuc(
-            project.province,
-            project.municipality,
-          ) === provinceFilter
-        : true
+        const provinceMatches = provinceFilter ? province === provinceFilter : true
+        const municipalityMatches = municipalityFilter ? municipality === municipalityFilter : true
+        const programMatches = matchesMultiFilter(program, programFilters)
+        const fundingYearMatches = matchesMultiFilter(fundingYear, fundingYearFilters)
+        const statusMatches = statusFilter ? status === statusFilter : true
+        const riskMatches = riskFilter ? risk === riskFilter : true
 
-      const municipalityMatches = municipalityFilter
-        ? getCanonicalProjectLgu(project.province, project.municipality) ===
-          municipalityFilter
-        : true
+        if (
+          !provinceMatches ||
+          !municipalityMatches ||
+          !programMatches ||
+          !fundingYearMatches ||
+          !statusMatches ||
+          !riskMatches
+        ) {
+          return false
+        }
 
-      const programMatches = matchesMultiFilter(
-        normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)),
-        programFilters,
-      )
+        if (!normalizedDeferredSearchTerm) return true
 
-      const fundingYearMatches = matchesMultiFilter(
-        textValue(project.funding_year),
-        fundingYearFilters,
-      )
+        const assignedPoEngineers = getAssignedPoEngineersForProject(
+          project,
+          poEngineerAssignments,
+          profileMap,
+        )
+        const latestUpdateDate = getLatestUpdateDate(project, latestUpdateMap)
 
-      const statusMatches = statusFilter
-        ? textValue(project.status) === statusFilter
-        : true
+        const searchableText = [
+          project.project_name,
+          project.description,
+          project.barangay,
+          project.municipality,
+          project.province,
+          project.funding_source,
+          project.project_type,
+          project.status,
+          risk,
+          project.contractor,
+          project.implementing_office,
+          assignedPoEngineers,
+          latestUpdateDate,
+        ]
+          .map(textValue)
+          .join(' ')
+          .toLowerCase()
 
-      const riskMatches = riskFilter
-        ? getReportRisk(project) === riskFilter
-        : true
-
-      return (
-        searchMatches &&
-        provinceMatches &&
-        municipalityMatches &&
-        programMatches &&
-        fundingYearMatches &&
-        statusMatches &&
-        riskMatches
-      )
-    })
+        return searchableText.includes(normalizedDeferredSearchTerm)
+      })
+      .map((entry) => entry.project)
   }, [
-    aorProjects,
+    reportFilterIndex,
+    normalizedDeferredSearchTerm,
     poEngineerAssignments,
     profileMap,
     latestUpdateMap,
-    searchTerm,
     provinceFilter,
     municipalityFilter,
     programFilters,
@@ -936,6 +951,16 @@ export default function Reports() {
     statusFilter,
     riskFilter,
   ])
+
+  const previewProjects = useMemo(
+    () => filteredProjects.slice(0, REPORT_PREVIEW_LIMIT),
+    [filteredProjects],
+  )
+
+  const filteredEngineersSummary = useMemo(
+    () => getEngineersAssignedOfficeSummary(filteredProjects),
+    [filteredProjects],
+  )
 
   const activeFilterCount = [
     searchTerm,
@@ -1211,6 +1236,7 @@ export default function Reports() {
                 values={programFilters}
                 onChange={setProgramFilters}
                 allLabel="All Programs"
+                commitOnDone
               />
 
               <MultiSelectFilter
@@ -1220,6 +1246,7 @@ export default function Reports() {
                 onChange={setFundingYearFilters}
                 allLabel="All Funding Years"
                 formatOptionLabel={(year) => `FY ${year}`}
+                commitOnDone
               />
 
               <SingleSelectFilter
@@ -1284,7 +1311,7 @@ export default function Reports() {
                   Showing {filteredProjects.length} matched project/s.
                 </span>
                 <span>
-                  Program Summary Engineers: {getEngineersAssignedOfficeSummary(filteredProjects)}
+                  Program Summary Engineers: {filteredEngineersSummary}
                 </span>
               </div>
             </div>
@@ -1299,6 +1326,7 @@ export default function Reports() {
               </div>
             ) : (
               <>
+                {isDesktopViewport && (
                 <div className="reports-table-wrap">
                   <table className="reports-table">
                     <thead>
@@ -1315,7 +1343,7 @@ export default function Reports() {
                     </thead>
 
                     <tbody>
-                      {filteredProjects.map((project) => (
+                      {previewProjects.map((project) => (
                         <tr key={project.id}>
                           <td>
                             <strong>{textValue(project.project_name) || 'Untitled Project'}</strong>
@@ -1374,9 +1402,11 @@ export default function Reports() {
                     </tbody>
                   </table>
                 </div>
+                )}
 
+                {!isDesktopViewport && (
                 <div className="reports-mobile-list">
-                  {filteredProjects.map((project) => {
+                  {previewProjects.map((project) => {
                     const varianceInfo = getProjectVariance(project)
                     const latestUpdateDate = formatLongDate(
                       getLatestUpdateDate(project, latestUpdateMap),
@@ -1451,6 +1481,14 @@ export default function Reports() {
                     )
                   })}
                 </div>
+                )}
+
+                {filteredProjects.length > previewProjects.length && (
+                  <p className="reports-preview-limit">
+                    Previewing {previewProjects.length} of {filteredProjects.length} matched projects.
+                    PDF and Excel exports still include all {filteredProjects.length} matched projects.
+                  </p>
+                )}
               </>
             )}
           </section>
