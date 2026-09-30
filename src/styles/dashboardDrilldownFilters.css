@@ -420,3 +420,332 @@
     font-size: 0.82rem !important;
   }
 }
+
+/* PMS10_MOBILE_DRILLDOWN_FILTER_FIX_V10
+   Mobile-only portal-safe repair for Dashboard drilldown filters.
+   Desktop geometry is intentionally untouched. */
+@media (max-width: 767px) {
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-shell {
+    position: relative !important;
+    z-index: 12 !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-shell.is-collapsed {
+    height: 52px !important;
+    min-height: 52px !important;
+    max-height: 52px !important;
+    overflow: hidden !important;
+  }
+
+  body .dashboard-modal-backdrop
+    .dashboard-drilldown-filter-shell.is-collapsed
+    .dashboard-drilldown-filterbar {
+    display: none !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-heading {
+    width: 100% !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    margin: 0 !important;
+    padding: 7px 12px 7px 16px !important;
+    background: #f8fafc !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-heading-copy {
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-title {
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #334155 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.075em !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-status {
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #8190a5 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-toggle {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 76px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    margin: 0 !important;
+    padding: 0 13px !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    outline: 0 !important;
+    background: #1e4f86 !important;
+    color: #fff !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    box-shadow: 0 4px 12px rgba(30, 79, 134, 0.16) !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-toggle-icon {
+    position: relative !important;
+    width: 10px !important;
+    height: 7px !important;
+    flex: 0 0 10px !important;
+    display: block !important;
+    overflow: hidden !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-toggle-icon::before {
+    content: "" !important;
+    position: absolute !important;
+    left: 2px !important;
+    top: 0 !important;
+    width: 6px !important;
+    height: 6px !important;
+    border-right: 1.5px solid #fff !important;
+    border-bottom: 1.5px solid #fff !important;
+    transform: rotate(45deg) !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-toggle-icon.is-open::before {
+    top: 3px !important;
+    transform: rotate(225deg) !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-shell.is-open {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: end !important;
+    column-gap: 8px !important;
+    row-gap: 10px !important;
+    margin: 0 !important;
+    padding: 11px 12px 14px !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-search {
+    grid-column: 1 / -1 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    height: 59px !important;
+    display: grid !important;
+    grid-template-rows: 14px 40px !important;
+    row-gap: 5px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-search > span,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-multi-filter-label,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-single-filter-label {
+    height: 14px !important;
+    min-height: 14px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #64748b !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 14px !important;
+    letter-spacing: 0.035em !important;
+    text-transform: uppercase !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control {
+    position: relative !important;
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control > svg {
+    position: absolute !important;
+    left: 12px !important;
+    top: 50% !important;
+    z-index: 2 !important;
+    display: block !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    max-width: 16px !important;
+    max-height: 16px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: translateY(-50%) !important;
+    overflow: visible !important;
+    color: #64748b !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    pointer-events: none !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control > svg circle,
+  body .dashboard-modal-backdrop .pms-drilldown-search-control > svg path {
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control input[type="search"] {
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 12px 0 38px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    outline: 0 !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 40px !important;
+    box-shadow: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control input[type="search"]::placeholder {
+    color: #8ca0ba !important;
+    font-size: 13px !important;
+    opacity: 1 !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar > .pms-multi-filter,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar > .pms-single-filter {
+    min-width: 0 !important;
+    width: 100% !important;
+    height: 59px !important;
+    min-height: 59px !important;
+    display: grid !important;
+    grid-template-rows: 14px 40px !important;
+    row-gap: 5px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: end !important;
+    box-sizing: border-box !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-multi-filter-trigger,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-single-filter-trigger {
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    margin: 0 !important;
+    padding: 0 11px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    box-sizing: border-box !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-reset {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    margin: 0 !important;
+    padding: 0 14px !important;
+    border-radius: 10px !important;
+    align-self: end !important;
+    box-sizing: border-box !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-modal-body {
+    min-height: 0 !important;
+    margin-top: 0 !important;
+  }
+}
+
+@media (max-width: 430px) {
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-search,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-reset {
+    grid-column: auto !important;
+  }
+}

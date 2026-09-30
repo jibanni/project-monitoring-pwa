@@ -429,6 +429,12 @@ export default function Dashboard() {
     ),
   })
   const [showDrilldownFilters, setShowDrilldownFilters] = useState(false)
+  /* PMS10_MOBILE_DRILLDOWN_DEFAULT_COLLAPSED_V10 */
+  useEffect(() => {
+    if (drilldown) {
+      setShowDrilldownFilters(false)
+    }
+  }, [drilldown])
   const [isDashboardScrolled, setIsDashboardScrolled] = useState(false)
   const rememberedDashboardFilters = (rememberedView.filters || {}) as
     Partial<DashboardFilters> & { program?: unknown; year?: unknown }
@@ -538,6 +544,7 @@ export default function Dashboard() {
   function closeDrilldown() {
     if (!drilldown || isDrilldownClosing) return
 
+    setShowDrilldownFilters(false)
     setIsDrilldownClosing(true)
     rememberedDrilldownRef.current = null
     drilldownScrollTopRef.current = 0
