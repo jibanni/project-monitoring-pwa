@@ -610,15 +610,7 @@ export function getSubayEnrollmentEligibility(record: SubayImportRecord) {
       reason: `FY 2021 ${simplifiedStatus} project excluded by import rule`,
     }
   }
-
-  if (year === 2022) {
-    return {
-      eligible: false,
-      reason: 'FY 2022 excluded by import rule',
-    }
-  }
-
-  if (year && year >= 2023 && year <= 2026) {
+  if (year && year >= 2022 && year <= 2026) {
     return {
       eligible: true,
       reason: `FY ${year} project included`,

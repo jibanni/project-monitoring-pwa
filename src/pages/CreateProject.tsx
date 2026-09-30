@@ -110,7 +110,7 @@ const PROJECT_TYPE_OPTIONS = [
   'Other Infrastructure',
 ]
 
-const FUNDING_YEAR_OPTIONS = [2023, 2024, 2025, 2026, 2027, 2028]
+const FUNDING_YEAR_OPTIONS = [2022, 2023, 2024, 2025, 2026, 2027, 2028]
 
 const FUNDING_SOURCE_OPTIONS = [
   'RAPID Growth Project',

@@ -100,7 +100,7 @@ const emptyForm: ProjectForm = {
   last_inspection_date: '',
 }
 
-const fundingYearOptions = [2023, 2024, 2025, 2026, 2027, 2028]
+const fundingYearOptions = [2022, 2023, 2024, 2025, 2026, 2027, 2028]
 
 const FUNDING_SOURCE_OPTIONS = [
   'RAPID Growth Project',
