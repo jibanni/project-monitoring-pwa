@@ -21,6 +21,9 @@ import { filterProjectsByAor, type AorProjectLike } from '../utils/aorAccess'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
 import { getOfficialProjectCost } from '../utils/projectVariance'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
+import MultiSelectFilter from '../components/MultiSelectFilter'
+import SingleSelectFilter from '../components/SingleSelectFilter'
+import { matchesMultiFilter, normalizeMultiFilterValue } from '../utils/multiFilter'
 import {
   getCanonicalProjectLgu,
   getCanonicalProjectProvinceOrHuc,
@@ -28,6 +31,7 @@ import {
 import '../styles/dashboardDrilldownFilters.css'
 import '../styles/dashboardFinancialAccomplishment.css'
 
+import '../styles/filterUniformityV6.css'
 type ProjectRecord = SharedProjectRow & AorProjectLike & Record<string, any>
 
 type DrilldownState = {
@@ -38,8 +42,10 @@ type DrilldownState = {
 
 type DrilldownFilters = {
   search: string
-  program: string
-  year: string
+  programs: string[]
+  years: string[]
+  program?: string
+  year?: string
   province: string
   lgu: string
 }
@@ -54,8 +60,10 @@ type DashboardDrilldownMemory = {
 }
 
 type DashboardFilters = {
-  program: string
-  year: string
+  programs: string[]
+  years: string[]
+  program?: string
+  year?: string
   province: string
   lgu: string
 }
@@ -63,16 +71,16 @@ type DashboardFilters = {
 const ALL_FILTER_VALUE = '__ALL__'
 
 const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
-  program: ALL_FILTER_VALUE,
-  year: ALL_FILTER_VALUE,
+  programs: [],
+  years: [],
   province: ALL_FILTER_VALUE,
   lgu: ALL_FILTER_VALUE,
 }
 
 const DEFAULT_DRILLDOWN_FILTERS: DrilldownFilters = {
   search: '',
-  program: ALL_FILTER_VALUE,
-  year: ALL_FILTER_VALUE,
+  programs: [],
+  years: [],
   province: ALL_FILTER_VALUE,
   lgu: ALL_FILTER_VALUE,
 }
@@ -372,6 +380,15 @@ function getRiskColor(riskLevel: unknown, fallbackIndex = 0) {
   return CHART_COLORS[fallbackIndex % CHART_COLORS.length]
 }
 
+function FilterSearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="10.5" cy="10.5" r="5.75" />
+      <path d="m15 15 4.25 4.25" />
+    </svg>
+  )
+}
+
 export default function Dashboard() {
   const isDesktopViewport = useDesktopViewport()
   const navigate = useNavigate()
@@ -398,18 +415,34 @@ export default function Dashboard() {
   const [drilldownVisibleCount, setDrilldownVisibleCount] = useState(
     rememberedDrilldownRef.current?.visibleCount || DRILLDOWN_PAGE_SIZE,
   )
+  const rememberedDrilldownFilters = rememberedDrilldownRef.current?.filters as
+    | (Partial<DrilldownFilters> & { program?: unknown; year?: unknown })
+    | undefined
   const [drilldownFilters, setDrilldownFilters] = useState<DrilldownFilters>({
     ...DEFAULT_DRILLDOWN_FILTERS,
-    ...(rememberedDrilldownRef.current?.filters || {}),
+    ...(rememberedDrilldownFilters || {}),
+    programs: normalizeMultiFilterValue(
+      rememberedDrilldownFilters?.programs ?? rememberedDrilldownFilters?.program,
+    ),
+    years: normalizeMultiFilterValue(
+      rememberedDrilldownFilters?.years ?? rememberedDrilldownFilters?.year,
+    ),
   })
+  const [showDrilldownFilters, setShowDrilldownFilters] = useState(false)
   const [isDashboardScrolled, setIsDashboardScrolled] = useState(false)
+  const rememberedDashboardFilters = (rememberedView.filters || {}) as
+    Partial<DashboardFilters> & { program?: unknown; year?: unknown }
   const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>({
     ...DEFAULT_DASHBOARD_FILTERS,
-    ...(rememberedView.filters || {}),
+    ...rememberedDashboardFilters,
+    programs: normalizeMultiFilterValue(
+      rememberedDashboardFilters.programs ?? rememberedDashboardFilters.program,
+    ),
+    years: normalizeMultiFilterValue(
+      rememberedDashboardFilters.years ?? rememberedDashboardFilters.year,
+    ),
   })
-  const [showDashboardFilters, setShowDashboardFilters] = useState(
-    Boolean(rememberedView.showFilters),
-  )
+  const [showDashboardFilters, setShowDashboardFilters] = useState(false)
 
   useEffect(() => {
     writePageView('dashboard', {
@@ -492,6 +525,7 @@ export default function Dashboard() {
     writePageView('dashboard:drilldown', memory)
 
     setIsDrilldownClosing(false)
+    setShowDrilldownFilters(false)
     setDrilldownFilters(DEFAULT_DRILLDOWN_FILTERS)
     setDrilldownVisibleCount(DRILLDOWN_PAGE_SIZE)
     setDrilldown({
@@ -538,19 +572,22 @@ export default function Dashboard() {
   }, [aorProjects, dashboardFilters.province])
 
   const hasActiveDashboardFilters = useMemo(() => {
-    return Object.values(dashboardFilters).some(
-      (value) => value !== ALL_FILTER_VALUE,
+    return (
+      dashboardFilters.programs.length > 0 ||
+      dashboardFilters.years.length > 0 ||
+      dashboardFilters.province !== ALL_FILTER_VALUE ||
+      dashboardFilters.lgu !== ALL_FILTER_VALUE
     )
   }, [dashboardFilters])
 
   const visibleProjects = useMemo(() => {
     return aorProjects.filter((project) => {
       return (
-        matchesDashboardFilter(
+        matchesMultiFilter(
           getProgramFilterValue(project),
-          dashboardFilters.program,
+          dashboardFilters.programs,
         ) &&
-        matchesDashboardFilter(getYearFilterValue(project), dashboardFilters.year) &&
+        matchesMultiFilter(getYearFilterValue(project), dashboardFilters.years) &&
         matchesDashboardFilter(
           getProvinceFilterValue(project),
           dashboardFilters.province,
@@ -897,11 +934,11 @@ export default function Dashboard() {
 
       return (
         (!search || searchableText.includes(search)) &&
-        matchesDashboardFilter(
+        matchesMultiFilter(
           getProgramFilterValue(project),
-          drilldownFilters.program,
+          drilldownFilters.programs,
         ) &&
-        matchesDashboardFilter(getYearFilterValue(project), drilldownFilters.year) &&
+        matchesMultiFilter(getYearFilterValue(project), drilldownFilters.years) &&
         matchesDashboardFilter(
           getProvinceFilterValue(project),
           drilldownFilters.province,
@@ -914,8 +951,8 @@ export default function Dashboard() {
   const hasActiveDrilldownFilters = useMemo(() => {
     return (
       drilldownFilters.search.trim().length > 0 ||
-      drilldownFilters.program !== ALL_FILTER_VALUE ||
-      drilldownFilters.year !== ALL_FILTER_VALUE ||
+      drilldownFilters.programs.length > 0 ||
+      drilldownFilters.years.length > 0 ||
       drilldownFilters.province !== ALL_FILTER_VALUE ||
       drilldownFilters.lgu !== ALL_FILTER_VALUE
     )
@@ -1040,92 +1077,112 @@ export default function Dashboard() {
             </button>
           </header>
 
-          <div className="dashboard-drilldown-filterbar" aria-label="Drilldown filters">
+          <div
+            className={`dashboard-drilldown-filter-shell ${
+              showDrilldownFilters ? 'is-open' : 'is-collapsed'
+            }`}
+          >
+            <div className="dashboard-drilldown-filter-heading">
+              <div className="dashboard-drilldown-filter-heading-copy">
+                <span className="dashboard-drilldown-filter-title">Filters</span>
+                <span className="dashboard-drilldown-filter-status">
+                  {hasActiveDrilldownFilters
+                    ? `${formatCount(filteredDrilldownProjects.length)} of ${formatCount(drilldown.projects.length)} projects`
+                    : `${formatCount(drilldown.projects.length)} projects`}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="dashboard-drilldown-filter-toggle"
+                onClick={() => setShowDrilldownFilters((current) => !current)}
+                aria-expanded={showDrilldownFilters}
+                aria-controls="dashboard-drilldown-filter-fields"
+              >
+                <span>{showDrilldownFilters ? 'Hide' : 'Filter'}</span>
+                <span
+                  className={`dashboard-drilldown-filter-toggle-icon ${
+                    showDrilldownFilters ? 'is-open' : ''
+                  }`}
+                  aria-hidden="true"
+                >
+                  ⌄
+                </span>
+              </button>
+            </div>
+
+            {showDrilldownFilters ? (
+              <div
+                id="dashboard-drilldown-filter-fields"
+                className="dashboard-drilldown-filterbar"
+                aria-label="Drilldown filters"
+              >
             <label className="dashboard-drilldown-search">
               <span>Search</span>
-              <input
-                type="search"
-                value={drilldownFilters.search}
-                placeholder="Search project or location"
-                onChange={(event) =>
-                  updateDrilldownFilters({ search: event.target.value })
-                }
-              />
+              <div className="pms-drilldown-search-control">
+                <FilterSearchIcon />
+                <input
+                  type="search"
+                  value={drilldownFilters.search}
+                  placeholder="Search project or location"
+                  onChange={(event) =>
+                    updateDrilldownFilters({ search: event.target.value })
+                  }
+                />
+              </div>
             </label>
 
-            <label>
-              <span>Program</span>
-              <select
-                value={drilldownFilters.program}
-                onChange={(event) =>
-                  updateDrilldownFilters({ program: event.target.value })
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All Programs</option>
-                {drilldownFilterOptions.programs.map((program) => {
-                  const label = normalizeProgramName(program) || String(program)
-                  return (
-                    <option key={label} value={label}>
-                      {label}
-                    </option>
-                  )
-                })}
-              </select>
-            </label>
+            <MultiSelectFilter
+              label="Program"
+              options={drilldownFilterOptions.programs}
+              values={drilldownFilters.programs}
+              onChange={(programs) => updateDrilldownFilters({ programs })}
+              allLabel="All Programs"
+            />
 
-            <label>
-              <span>FY</span>
-              <select
-                value={drilldownFilters.year}
-                onChange={(event) =>
-                  updateDrilldownFilters({ year: event.target.value })
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All FY</option>
-                {drilldownFilterOptions.years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <MultiSelectFilter
+              label="FY"
+              options={drilldownFilterOptions.years}
+              values={drilldownFilters.years}
+              onChange={(years) => updateDrilldownFilters({ years })}
+              allLabel="All FY"
+            />
 
-            <label>
-              <span>Province/HUC</span>
-              <select
-                value={drilldownFilters.province}
-                onChange={(event) =>
-                  updateDrilldownFilters({
-                    province: event.target.value,
-                    lgu: ALL_FILTER_VALUE,
-                  })
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All Provinces/HUCs</option>
-                {drilldownFilterOptions.provinces.map((province) => (
-                  <option key={province} value={province}>
-                    {province}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SingleSelectFilter
+              label="Province/HUC"
+              value={drilldownFilters.province}
+              options={[
+                {
+                  value: ALL_FILTER_VALUE,
+                  label: 'All Provinces/HUCs',
+                },
+                ...drilldownFilterOptions.provinces.map((province) => ({
+                  value: province,
+                  label: province,
+                })),
+              ]}
+              onChange={(value) =>
+                updateDrilldownFilters({
+                  province: value,
+                  lgu: ALL_FILTER_VALUE,
+                })
+              }
+            />
 
-            <label>
-              <span>LGU</span>
-              <select
-                value={drilldownFilters.lgu}
-                onChange={(event) =>
-                  updateDrilldownFilters({ lgu: event.target.value })
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All LGUs</option>
-                {drilldownFilterOptions.lgus.map((lgu) => (
-                  <option key={lgu} value={lgu}>
-                    {lgu}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SingleSelectFilter
+              label="LGU"
+              value={drilldownFilters.lgu}
+              options={[
+                { value: ALL_FILTER_VALUE, label: 'All LGUs' },
+                ...drilldownFilterOptions.lgus.map((lgu) => ({
+                  value: lgu,
+                  label: lgu,
+                })),
+              ]}
+              onChange={(value) =>
+                updateDrilldownFilters({ lgu: value })
+              }
+            />
 
             <button
               type="button"
@@ -1135,6 +1192,8 @@ export default function Dashboard() {
             >
               Reset
             </button>
+              </div>
+            ) : null}
           </div>
 
           <div
@@ -1264,11 +1323,11 @@ export default function Dashboard() {
                 <p>Dashboard filters</p>
                 <strong>
                   {[
-                    dashboardFilters.program !== ALL_FILTER_VALUE
-                      ? dashboardFilters.program
+                    dashboardFilters.programs.length
+                      ? `Programs: ${dashboardFilters.programs.join(', ')}`
                       : '',
-                    dashboardFilters.year !== ALL_FILTER_VALUE
-                      ? dashboardFilters.year
+                    dashboardFilters.years.length
+                      ? `Funding Years: ${dashboardFilters.years.join(', ')}`
                       : '',
                     dashboardFilters.province !== ALL_FILTER_VALUE
                       ? dashboardFilters.province
@@ -1300,101 +1359,65 @@ export default function Dashboard() {
           </div>
 
           <div className="dashboard-filter-grid">
-            <label>
-              <span>Program</span>
-              <select
-                value={dashboardFilters.program}
-                onChange={(event) =>
-                  setDashboardFilters((current) => ({
-                    ...current,
-                    program: event.target.value,
-                  }))
-                }
-              >
-                <option
-                  value={ALL_FILTER_VALUE}
-                  label="All Programs"
-                  style={{ textTransform: 'none' }}
-                >
-                  All Programs
-                </option>
-                {filterOptions.programs.map((program) => {
-                  const programLabel = normalizeProgramName(program) || String(program)
+            <MultiSelectFilter
+              label="Program"
+              options={filterOptions.programs}
+              values={dashboardFilters.programs}
+              onChange={(programs) =>
+                setDashboardFilters((current) => ({ ...current, programs }))
+              }
+              allLabel="All Programs"
+            />
 
-                  return (
-                    <option
-                      key={programLabel}
-                      value={programLabel}
-                      label={programLabel}
-                      style={{ textTransform: 'none' }}
-                    >
-                      {programLabel}
-                    </option>
-                  )
-                })}
-              </select>
-            </label>
+            <MultiSelectFilter
+              label="Funding Year"
+              options={filterOptions.years}
+              values={dashboardFilters.years}
+              onChange={(years) =>
+                setDashboardFilters((current) => ({ ...current, years }))
+              }
+              allLabel="All Funding Years"
+            />
 
-            <label>
-              <span>Funding Year</span>
-              <select
-                value={dashboardFilters.year}
-                onChange={(event) =>
-                  setDashboardFilters((current) => ({
-                    ...current,
-                    year: event.target.value,
-                  }))
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All years</option>
-                {filterOptions.years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SingleSelectFilter
+              label="Province/HUC"
+              value={dashboardFilters.province}
+              options={[
+                {
+                  value: ALL_FILTER_VALUE,
+                  label: 'All Provinces/HUCs',
+                },
+                ...filterOptions.provinces.map((province) => ({
+                  value: province,
+                  label: province,
+                })),
+              ]}
+              onChange={(value) =>
+                setDashboardFilters((current) => ({
+                  ...current,
+                  province: value,
+                  lgu: ALL_FILTER_VALUE,
+                }))
+              }
+            />
 
-            <label>
-              <span>Province/HUC</span>
-              <select
-                value={dashboardFilters.province}
-                onChange={(event) =>
-                  setDashboardFilters((current) => ({
-                    ...current,
-                    province: event.target.value,
-                    lgu: ALL_FILTER_VALUE,
-                  }))
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All Provinces/HUCs</option>
-                {filterOptions.provinces.map((province) => (
-                  <option key={province} value={province}>
-                    {province}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span>LGU</span>
-              <select
-                value={dashboardFilters.lgu}
-                onChange={(event) =>
-                  setDashboardFilters((current) => ({
-                    ...current,
-                    lgu: event.target.value,
-                  }))
-                }
-              >
-                <option value={ALL_FILTER_VALUE}>All LGUs</option>
-                {filterOptions.lgus.map((lgu) => (
-                  <option key={lgu} value={lgu}>
-                    {lgu}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SingleSelectFilter
+              label="LGU"
+              value={dashboardFilters.lgu}
+              options={[
+                { value: ALL_FILTER_VALUE, label: 'All LGUs' },
+                ...filterOptions.lgus.map((lgu) => ({
+                  value: lgu,
+                  label: lgu,
+                })),
+              ]}
+              onChange={(value) =>
+                setDashboardFilters((current) => ({
+                  ...current,
+                  lgu: value,
+                }))
+              }
+            />
 
             <button
               type="button"

@@ -16,6 +16,9 @@ import { useSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import { useDesktopViewport } from '../hooks/useDesktopViewport'
 import ActionMenu from '../components/ActionMenu'
+import MultiSelectFilter from '../components/MultiSelectFilter'
+import SingleSelectFilter from '../components/SingleSelectFilter'
+import { matchesMultiFilter, normalizeMultiFilterValue } from '../utils/multiFilter'
 import { readPageView, writePageView } from '../lib/pageViewMemory'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
@@ -32,6 +35,7 @@ import '../styles/unifiedFilters.css'
 import '../styles/pageHero.css'
 import '../styles/projectMapDesktop.css'
 
+import '../styles/filterUniformityV6.css'
 const MINDANAO_BOUNDS = {
   minLat: 4,
   maxLat: 10.8,
@@ -55,8 +59,10 @@ type MapPageMemory = {
   searchTerm: string
   provinceFilter: string
   municipalityFilter: string
-  fundingYearFilter: string
-  programFilter: string
+  fundingYearFilters: string[]
+  programFilters: string[]
+  fundingYearFilter?: string
+  programFilter?: string
   statusFilter: string
   riskFilter: string
   selectedPopupProjectId: string
@@ -428,9 +434,9 @@ function getProjectMarkerColor(project: MapProject) {
 
 function SearchIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M10.8 18.1a7.3 7.3 0 1 1 0-14.6 7.3 7.3 0 0 1 0 14.6Z" />
-      <path d="m16.1 16.1 4.4 4.4" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="10.5" cy="10.5" r="5.75" />
+      <path d="m15 15 4.25 4.25" />
     </svg>
   )
 }
@@ -714,6 +720,8 @@ export default function ProjectMap() {
     searchTerm: '',
     provinceFilter: 'All',
     municipalityFilter: 'All',
+    fundingYearFilters: [],
+    programFilters: [],
     fundingYearFilter: 'All',
     programFilter: 'All',
     statusFilter: 'All',
@@ -727,7 +735,7 @@ export default function ProjectMap() {
 
   const [updateMap, setUpdateMap] = useState<Map<string, ProjectUpdateRecord[]>>(new Map())
   const [gpsErrorMessage, setGpsErrorMessage] = useState('')
-  const [showFilters, setShowFilters] = useState(Boolean(rememberedView.showFilters))
+  const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const [isMapScrolled, setIsMapScrolled] = useState(false)
   const [focusSignal, setFocusSignal] = useState(0)
@@ -742,8 +750,12 @@ export default function ProjectMap() {
   const [searchTerm, setSearchTerm] = useState(rememberedView.searchTerm || '')
   const [provinceFilter, setProvinceFilter] = useState(rememberedView.provinceFilter || 'All')
   const [municipalityFilter, setMunicipalityFilter] = useState(rememberedView.municipalityFilter || 'All')
-  const [fundingYearFilter, setFundingYearFilter] = useState(rememberedView.fundingYearFilter || 'All')
-  const [programFilter, setProgramFilter] = useState(rememberedView.programFilter || 'All')
+  const [fundingYearFilters, setFundingYearFilters] = useState<string[]>(
+    normalizeMultiFilterValue(rememberedView.fundingYearFilters ?? rememberedView.fundingYearFilter),
+  )
+  const [programFilters, setProgramFilters] = useState<string[]>(
+    normalizeMultiFilterValue(rememberedView.programFilters ?? rememberedView.programFilter),
+  )
   const [statusFilter, setStatusFilter] = useState(rememberedView.statusFilter || 'All')
   const [riskFilter, setRiskFilter] = useState(rememberedView.riskFilter || 'All')
 
@@ -755,8 +767,8 @@ export default function ProjectMap() {
       searchTerm,
       provinceFilter,
       municipalityFilter,
-      fundingYearFilter,
-      programFilter,
+      fundingYearFilters,
+      programFilters,
       statusFilter,
       riskFilter,
       selectedPopupProjectId,
@@ -768,8 +780,8 @@ export default function ProjectMap() {
     searchTerm,
     provinceFilter,
     municipalityFilter,
-    fundingYearFilter,
-    programFilter,
+    fundingYearFilters,
+    programFilters,
     statusFilter,
     riskFilter,
     selectedPopupProjectId,
@@ -891,8 +903,8 @@ export default function ProjectMap() {
     setSearchTerm('')
     setProvinceFilter('All')
     setMunicipalityFilter('All')
-    setFundingYearFilter('All')
-    setProgramFilter('All')
+    setFundingYearFilters([])
+    setProgramFilters([])
     setStatusFilter('All')
     setRiskFilter('All')
   }
@@ -938,8 +950,8 @@ export default function ProjectMap() {
     return {
       provinces: ['All', ...Array.from(provinces).sort()],
       municipalities: ['All', ...Array.from(municipalities).sort()],
-      fundingYears: ['All', ...Array.from(fundingYears).sort()],
-      programs: ['All', ...buildProgramFilterOptions(programs, false)],
+      fundingYears: Array.from(fundingYears).sort(),
+      programs: buildProgramFilterOptions(programs, false),
       statuses: ['All', ...Array.from(statuses).sort()],
       risks: ['All', ...Array.from(risks).sort()],
     }
@@ -988,10 +1000,14 @@ export default function ProjectMap() {
         municipalityFilter === 'All' ||
         getCanonicalProjectLgu(project.province, project.municipality) ===
           municipalityFilter
-      const matchesFundingYear =
-        fundingYearFilter === 'All' || projectFundingYear === fundingYearFilter
-      const matchesProgram =
-        programFilter === 'All' || normalizeProgramName(normalizeText(project.funding_source)) === programFilter
+      const matchesFundingYear = matchesMultiFilter(
+        projectFundingYear,
+        fundingYearFilters,
+      )
+      const matchesProgram = matchesMultiFilter(
+        normalizeProgramName(normalizeText(project.funding_source)),
+        programFilters,
+      )
       const matchesStatus =
         statusFilter === 'All' || normalizeText(project.status) === statusFilter
       const matchesRisk =
@@ -1014,8 +1030,8 @@ export default function ProjectMap() {
     searchTerm,
     provinceFilter,
     municipalityFilter,
-    fundingYearFilter,
-    programFilter,
+    fundingYearFilters,
+    programFilters,
     statusFilter,
     riskFilter,
   ])
@@ -1037,8 +1053,8 @@ export default function ProjectMap() {
     (searchTerm.trim() !== '' ||
     provinceFilter !== 'All' ||
     municipalityFilter !== 'All' ||
-    fundingYearFilter !== 'All' ||
-    programFilter !== 'All' ||
+    fundingYearFilters.length > 0 ||
+    programFilters.length > 0 ||
     statusFilter !== 'All' ||
     riskFilter !== 'All')
 
@@ -1046,8 +1062,8 @@ export default function ProjectMap() {
     searchTerm.trim(),
     provinceFilter !== 'All' ? provinceFilter : '',
     municipalityFilter !== 'All' ? municipalityFilter : '',
-    fundingYearFilter !== 'All' ? fundingYearFilter : '',
-    programFilter !== 'All' ? programFilter : '',
+    fundingYearFilters.length ? 'years' : '',
+    programFilters.length ? 'programs' : '',
     statusFilter !== 'All' ? statusFilter : '',
     riskFilter !== 'All' ? riskFilter : '',
   ].filter(Boolean).length
@@ -1223,8 +1239,12 @@ export default function ProjectMap() {
                   <strong>
                     {[
                       searchTerm.trim() ? `Search: ${searchTerm.trim()}` : '',
-                      programFilter !== 'All' ? programFilter : '',
-                      fundingYearFilter !== 'All' ? fundingYearFilter : '',
+                      programFilters.length
+                        ? `Programs: ${programFilters.join(', ')}`
+                        : '',
+                      fundingYearFilters.length
+                        ? `Funding Years: ${fundingYearFilters.join(', ')}`
+                        : '',
                       provinceFilter !== 'All' ? provinceFilter : '',
                       municipalityFilter !== 'All' ? municipalityFilter : '',
                       statusFilter !== 'All' ? statusFilter : '',
@@ -1265,92 +1285,67 @@ export default function ProjectMap() {
               </label>
 
               <div className="pm-map-filter-grid pm-unified-filter-grid">
-                <label>
-                  <span>Province/HUC</span>
-                  <select
-                    value={provinceFilter}
-                    onChange={(event) => {
-                      setProvinceFilter(event.target.value)
-                      setMunicipalityFilter('All')
-                    }}
-                  >
-                    {filterOptions.provinces.map((province) => (
-                      <option key={province} value={province}>
-                        {province === 'All' ? 'All Provinces/HUCs' : province}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <SingleSelectFilter
+                  label="Province/HUC"
+                  value={provinceFilter}
+                  options={filterOptions.provinces.map((province) => ({
+                    value: province,
+                    label:
+                      province === 'All'
+                        ? 'All Provinces/HUCs'
+                        : province,
+                  }))}
+                  onChange={(value) => {
+                    setProvinceFilter(value)
+                    setMunicipalityFilter('All')
+                  }}
+                />
 
-                <label>
-                  <span>Municipality / LGU</span>
-                  <select
-                    value={municipalityFilter}
-                    onChange={(event) => setMunicipalityFilter(event.target.value)}
-                  >
-                    {filterOptions.municipalities.map((municipality) => (
-                      <option key={municipality} value={municipality}>
-                        {municipality === 'All' ? 'All LGUs' : municipality}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <SingleSelectFilter
+                  label="Municipality / LGU"
+                  value={municipalityFilter}
+                  options={filterOptions.municipalities.map((municipality) => ({
+                    value: municipality,
+                    label: municipality === 'All' ? 'All LGUs' : municipality,
+                  }))}
+                  onChange={setMunicipalityFilter}
+                />
 
-                <label>
-                  <span>Funding Year</span>
-                  <select
-                    value={fundingYearFilter}
-                    onChange={(event) => setFundingYearFilter(event.target.value)}
-                  >
-                    {filterOptions.fundingYears.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <MultiSelectFilter
+                  label="Funding Year"
+                  options={filterOptions.fundingYears}
+                  values={fundingYearFilters}
+                  onChange={setFundingYearFilters}
+                  allLabel="All Funding Years"
+                />
 
-                <label>
-                  <span>Program</span>
-                  <select
-                    value={programFilter}
-                    onChange={(event) => setProgramFilter(event.target.value)}
-                  >
-                    {filterOptions.programs.map((program) => (
-                      <option key={program === 'All' ? 'All Programs' : String(program).toUpperCase()} value={program === 'All' ? 'All Programs' : String(program).toUpperCase()}>
-                        {program === 'All' ? 'All Programs' : String(program).toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <MultiSelectFilter
+                  label="Program"
+                  options={filterOptions.programs}
+                  values={programFilters}
+                  onChange={setProgramFilters}
+                  allLabel="All Programs"
+                />
 
-                <label>
-                  <span>Status</span>
-                  <select
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value)}
-                  >
-                    {filterOptions.statuses.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <SingleSelectFilter
+                  label="Status"
+                  value={statusFilter}
+                  options={filterOptions.statuses.map((status) => ({
+                    value: status,
+                    label: status,
+                  }))}
+                  onChange={setStatusFilter}
+                />
 
-                <label>
-                  <span>Risk</span>
-                  <select
-                    value={riskFilter}
-                    onChange={(event) => setRiskFilter(event.target.value)}
-                  >
-                    {filterOptions.risks.map((risk) => (
-                      <option key={risk} value={risk}>
-                        {risk}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <SingleSelectFilter
+                  label="Risk"
+                  value={riskFilter}
+                  options={filterOptions.risks.map((risk) => ({
+                    value: risk,
+                    label: risk,
+                  }))}
+                  onChange={setRiskFilter}
+                />
 
                 {activeMapFilterCount > 0 && (
                   <button
@@ -1462,7 +1457,7 @@ export default function ProjectMap() {
                   <FitMapToMarkers
                     projects={displayedProjects}
                     focusSignal={focusSignal}
-                    filterKey={`${selectedProjectId}-${searchTerm}-${provinceFilter}-${municipalityFilter}-${fundingYearFilter}-${programFilter}-${statusFilter}-${riskFilter}`}
+                    filterKey={`${selectedProjectId}-${searchTerm}-${provinceFilter}-${municipalityFilter}-${fundingYearFilters.join(',')}-${programFilters.join(',')}-${statusFilter}-${riskFilter}`}
                     preserveInitialView={Boolean(rememberedViewport) && !selectedProjectMode}
                   />
 

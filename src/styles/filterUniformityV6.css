@@ -1,0 +1,515 @@
+/* PMS10 FILTER SYSTEM — V7 visual normalization
+   This replaces the V6 stylesheet in-place so no page source needs changing.
+   Desktop geometry only. Existing mobile navigation/layout is preserved. */
+
+@media (min-width: 768px) {
+  :root {
+    --pms-filter-h: 40px;
+    --pms-filter-label-h: 14px;
+    --pms-filter-gap: 5px;
+    --pms-filter-radius: 10px;
+    --pms-filter-grid-gap: 8px;
+    --pms-filter-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* Force BOTH custom filter components onto identical two-row geometry. */
+  body #root .pms-multi-filter,
+  body #root .pms-single-filter {
+    display: grid !important;
+    grid-template-rows: var(--pms-filter-label-h) var(--pms-filter-h) !important;
+    row-gap: var(--pms-filter-gap) !important;
+    min-width: 0 !important;
+    height: calc(var(--pms-filter-label-h) + var(--pms-filter-gap) + var(--pms-filter-h)) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: end !important;
+    box-sizing: border-box !important;
+    font-family: var(--pms-filter-font-family) !important;
+  }
+
+  body #root .pms-multi-filter-label,
+  body #root .pms-single-filter-label {
+    display: block !important;
+    min-width: 0 !important;
+    height: var(--pms-filter-label-h) !important;
+    min-height: var(--pms-filter-label-h) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #64748b !important;
+    font-family: var(--pms-filter-font-family) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: var(--pms-filter-label-h) !important;
+    letter-spacing: .035em !important;
+    text-transform: uppercase !important;
+  }
+
+  body #root .pms-multi-filter-trigger,
+  body #root .pms-single-filter-trigger {
+    width: 100% !important;
+    height: var(--pms-filter-h) !important;
+    min-height: var(--pms-filter-h) !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 12px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: var(--pms-filter-radius) !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    font-family: var(--pms-filter-font-family) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    letter-spacing: 0 !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+  }
+
+  body #root .pms-multi-filter-trigger-text,
+  body #root .pms-single-filter-trigger-text {
+    color: #0f172a !important;
+    font-family: var(--pms-filter-font-family) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+  }
+
+  /* Exactly the same arrow box/shape for both components. */
+  body #root .pms-multi-filter-chevron,
+  body #root .pms-single-filter-chevron {
+    position: relative !important;
+    display: block !important;
+    width: 12px !important;
+    height: 8px !important;
+    flex: 0 0 12px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #475569 !important;
+    transform: none !important;
+  }
+
+  body #root .pms-multi-filter-chevron::before,
+  body #root .pms-single-filter-chevron::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 2px !important;
+    top: 0 !important;
+    width: 7px !important;
+    height: 7px !important;
+    border: 0 !important;
+    border-right: 1.6px solid currentColor !important;
+    border-bottom: 1.6px solid currentColor !important;
+    transform: rotate(45deg) !important;
+    transform-origin: center !important;
+  }
+
+  body #root .pms-multi-filter.is-open .pms-multi-filter-chevron::before,
+  body #root .pms-single-filter.is-open .pms-single-filter-chevron::before {
+    top: 3px !important;
+    transform: rotate(225deg) !important;
+  }
+
+  /* Same typography in BOTH kinds of opened menu. */
+  body .pms-multi-filter-menu,
+  body .pms-single-filter-menu,
+  body .pms-multi-filter-option,
+  body .pms-single-filter-option,
+  body .pms-multi-filter-footer {
+    font-family: var(--pms-filter-font-family) !important;
+  }
+
+  body .pms-multi-filter-option,
+  body .pms-single-filter-option {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1.25 !important;
+  }
+
+  /* Search bars — same font, height, radius and optical centering everywhere. */
+  body #root .pm-unified-search-field {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    height: var(--pms-filter-h) !important;
+    min-height: var(--pms-filter-h) !important;
+    margin: 0 0 10px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+  }
+
+  body #root .pm-unified-search-field > svg,
+  body #root .pm-unified-search-field svg,
+  body #root .pms-drilldown-search-control > svg {
+    position: absolute !important;
+    left: 12px !important;
+    top: 50% !important;
+    z-index: 2 !important;
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: translateY(-50%) !important;
+    color: #64748b !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    pointer-events: none !important;
+  }
+
+  body #root .pm-unified-search-field input[type='search'],
+  body #root .pms-drilldown-search-control input[type='search'] {
+    width: 100% !important;
+    height: var(--pms-filter-h) !important;
+    min-height: var(--pms-filter-h) !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 12px 0 38px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: var(--pms-filter-radius) !important;
+    outline: 0 !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    font-family: var(--pms-filter-font-family) !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 40px !important;
+    box-shadow: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+  }
+
+  body #root .pm-unified-search-field input[type='search']::placeholder,
+  body #root .pms-drilldown-search-control input[type='search']::placeholder {
+    color: #8ca0ba !important;
+    font-family: var(--pms-filter-font-family) !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    opacity: 1 !important;
+  }
+
+  body #root .pms-drilldown-search-control {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    height: var(--pms-filter-h) !important;
+    min-height: var(--pms-filter-h) !important;
+  }
+
+  /* Drilldown Search label uses the exact same label geometry as dropdowns. */
+  body #root .dashboard-drilldown-search {
+    display: grid !important;
+    grid-template-rows: var(--pms-filter-label-h) var(--pms-filter-h) !important;
+    row-gap: var(--pms-filter-gap) !important;
+    min-width: 0 !important;
+    height: calc(var(--pms-filter-label-h) + var(--pms-filter-gap) + var(--pms-filter-h)) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: end !important;
+    box-sizing: border-box !important;
+  }
+
+  body #root .dashboard-drilldown-search > span {
+    height: var(--pms-filter-label-h) !important;
+    min-height: var(--pms-filter-label-h) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #64748b !important;
+    font-family: var(--pms-filter-font-family) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: var(--pms-filter-label-h) !important;
+    letter-spacing: .035em !important;
+    text-transform: uppercase !important;
+  }
+
+  /* Reset/Clear buttons sit on the exact control baseline. */
+  body #root .dashboard-filter-reset,
+  body #root .dashboard-drilldown-filter-reset,
+  body #root .pm-unified-clear {
+    height: var(--pms-filter-h) !important;
+    min-height: var(--pms-filter-h) !important;
+    margin: 0 !important;
+    align-self: end !important;
+    box-sizing: border-box !important;
+    border-radius: var(--pms-filter-radius) !important;
+    font-family: var(--pms-filter-font-family) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+  }
+
+  /* ---------- GRID GEOMETRY ---------- */
+  body #root .dashboard-filter-grid,
+  body #root .projects-filter-grid,
+  body #root .reports-filter-grid,
+  body #root .pm-map-filter-grid,
+  body #root .dashboard-drilldown-filterbar {
+    align-items: end !important;
+    column-gap: var(--pms-filter-grid-gap) !important;
+    row-gap: 10px !important;
+  }
+
+  @media (min-width: 1200px) {
+    /* Dashboard: 4 equal filter fields + Reset. */
+    body #root .dashboard-filter-grid {
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr))
+        auto !important;
+    }
+
+    /* Registry / Reports / GIS: 6 equal filter fields. */
+    body #root .projects-filter-grid,
+    body #root .reports-filter-grid,
+    body #root .pm-map-filter-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    }
+
+    /* Drilldown: Search is slightly wider; remaining filters match. */
+    body #root .dashboard-drilldown-filterbar {
+      grid-template-columns:
+        minmax(240px, 1.35fr)
+        minmax(145px, .8fr)
+        minmax(120px, .65fr)
+        minmax(155px, .85fr)
+        minmax(145px, .8fr)
+        auto !important;
+    }
+  }
+}
+
+/* ========================================================================
+   PMS10 V8 — DASHBOARD DRILLDOWN PORTAL FIX
+   The drilldown modal is rendered with React createPortal() under document.body,
+   outside #root. The earlier V7 drilldown selectors were scoped to #root, so
+   those rules could not reach the modal. This section intentionally targets
+   the portal modal without #root.
+   ======================================================================== */
+
+@media (min-width: 768px) {
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    display: grid !important;
+    align-items: end !important;
+    column-gap: 8px !important;
+    row-gap: 10px !important;
+    margin: 0 !important;
+    padding: 12px 14px 14px !important;
+    overflow: visible !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-search,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar > .pms-multi-filter,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar > .pms-single-filter {
+    min-width: 0 !important;
+    width: 100% !important;
+    height: 59px !important;
+    min-height: 59px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-self: end !important;
+    box-sizing: border-box !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-search {
+    display: grid !important;
+    grid-template-rows: 14px 40px !important;
+    row-gap: 5px !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-search > span {
+    display: block !important;
+    width: 100% !important;
+    height: 14px !important;
+    min-height: 14px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #64748b !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 14px !important;
+    letter-spacing: .035em !important;
+    text-transform: uppercase !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control > svg {
+    position: absolute !important;
+    left: 12px !important;
+    top: 50% !important;
+    z-index: 2 !important;
+    display: block !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    max-width: 16px !important;
+    max-height: 16px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: translateY(-50%) !important;
+    overflow: visible !important;
+    color: #64748b !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    pointer-events: none !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control > svg circle,
+  body .dashboard-modal-backdrop .pms-drilldown-search-control > svg path {
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control input[type='search'] {
+    display: block !important;
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 12px 0 38px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    outline: 0 !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 40px !important;
+    box-shadow: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control input[type='search']::placeholder {
+    color: #8ca0ba !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    opacity: 1 !important;
+  }
+
+  body .dashboard-modal-backdrop .pms-drilldown-search-control input[type='search']:focus {
+    border-color: #82aede !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08) !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-multi-filter,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-single-filter {
+    display: grid !important;
+    grid-template-rows: 14px 40px !important;
+    row-gap: 5px !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-multi-filter-label,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-single-filter-label {
+    height: 14px !important;
+    min-height: 14px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #64748b !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 14px !important;
+    letter-spacing: .035em !important;
+    text-transform: uppercase !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-multi-filter-trigger,
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar .pms-single-filter-trigger {
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    margin: 0 !important;
+    padding: 0 12px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-reset {
+    height: 40px !important;
+    min-height: 40px !important;
+    align-self: end !important;
+    margin: 0 !important;
+    padding: 0 14px !important;
+    border-radius: 10px !important;
+    box-sizing: border-box !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-shell.is-open {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-shell.is-open + .dashboard-modal-body {
+    margin-top: 0 !important;
+  }
+}
+
+/* A full one-line drilldown filter bar fits comfortably at normal desktop
+   widths. This breakpoint is intentionally lower than 1200px because the
+   drilldown modal itself is narrower than the full application viewport. */
+@media (min-width: 900px) {
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar {
+    grid-template-columns:
+      minmax(220px, 1.35fr)
+      minmax(145px, .82fr)
+      minmax(120px, .66fr)
+      minmax(160px, .9fr)
+      minmax(145px, .82fr)
+      auto !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 899px) {
+  body .dashboard-modal-backdrop .dashboard-drilldown-filterbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body .dashboard-modal-backdrop .dashboard-drilldown-filter-reset {
+    justify-self: end !important;
+  }
+}
+

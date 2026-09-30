@@ -7,6 +7,9 @@ import { useDesktopViewport } from '../hooks/useDesktopViewport'
 import { readPageView, writePageView } from '../lib/pageViewMemory'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import { normalizeProgramName } from '../utils/program'
+import MultiSelectFilter from '../components/MultiSelectFilter'
+import SingleSelectFilter from '../components/SingleSelectFilter'
+import { matchesMultiFilter, normalizeMultiFilterValue, pruneMultiFilterValues } from '../utils/multiFilter'
 import { getPmsRiskLevel } from '../utils/projectStatus'
 import {
   exportProgramSummaryExcel,
@@ -28,6 +31,7 @@ import '../styles/reports.css'
 import '../styles/unifiedFilters.css'
 import '../styles/pageHero.css'
 
+import '../styles/filterUniformityV6.css'
 type ProjectRow = {
   id: string
   project_name: string | null
@@ -541,8 +545,8 @@ function getLatestUpdateDate(project: ProjectRow, latestUpdateMap: LatestUpdateM
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M10.8 18.1a7.3 7.3 0 1 1 0-14.6 7.3 7.3 0 0 1 0 14.6Z" />
-      <path d="m16.1 16.1 4.4 4.4" />
+      <circle cx="10.5" cy="10.5" r="5.75" />
+      <path d="m15 15 4.25 4.25" />
     </svg>
   )
 }
@@ -598,21 +602,27 @@ export default function Reports() {
     searchTerm: '',
     provinceFilter: '',
     municipalityFilter: '',
+    programFilters: [],
+    fundingYearFilters: [],
     programFilter: '',
     fundingYearFilter: '',
     statusFilter: '',
     riskFilter: '',
   })
 
-  const [showFilters, setShowFilters] = useState(Boolean(rememberedView.showFilters))
+  const [showFilters, setShowFilters] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const [isReportsScrolled, setIsReportsScrolled] = useState(false)
 
   const [searchTerm, setSearchTerm] = useState(rememberedView.searchTerm || '')
   const [provinceFilter, setProvinceFilter] = useState(rememberedView.provinceFilter || '')
   const [municipalityFilter, setMunicipalityFilter] = useState(rememberedView.municipalityFilter || '')
-  const [programFilter, setProgramFilter] = useState(rememberedView.programFilter || '')
-  const [fundingYearFilter, setFundingYearFilter] = useState(rememberedView.fundingYearFilter || '')
+  const [programFilters, setProgramFilters] = useState<string[]>(
+    normalizeMultiFilterValue(rememberedView.programFilters ?? rememberedView.programFilter),
+  )
+  const [fundingYearFilters, setFundingYearFilters] = useState<string[]>(
+    normalizeMultiFilterValue(rememberedView.fundingYearFilters ?? rememberedView.fundingYearFilter),
+  )
   const [statusFilter, setStatusFilter] = useState(rememberedView.statusFilter || '')
   const [riskFilter, setRiskFilter] = useState(rememberedView.riskFilter || '')
   const [generatingBrieferId, setGeneratingBrieferId] = useState<string | null>(null)
@@ -623,8 +633,8 @@ export default function Reports() {
       searchTerm,
       provinceFilter,
       municipalityFilter,
-      programFilter,
-      fundingYearFilter,
+      programFilters,
+      fundingYearFilters,
       statusFilter,
       riskFilter,
     })
@@ -633,8 +643,8 @@ export default function Reports() {
     searchTerm,
     provinceFilter,
     municipalityFilter,
-    programFilter,
-    fundingYearFilter,
+    programFilters,
+    fundingYearFilters,
     statusFilter,
     riskFilter,
   ])
@@ -748,8 +758,8 @@ export default function Reports() {
     setSearchTerm('')
     setProvinceFilter('')
     setMunicipalityFilter('')
-    setProgramFilter('')
-    setFundingYearFilter('')
+    setProgramFilters([])
+    setFundingYearFilters([])
     setStatusFilter('')
     setRiskFilter('')
   }
@@ -809,12 +819,14 @@ export default function Reports() {
       setMunicipalityFilter('')
     }
 
-    if (programFilter && !programs.includes(programFilter)) {
-      setProgramFilter('')
+    const nextProgramFilters = pruneMultiFilterValues(programFilters, programs)
+    if (nextProgramFilters.length !== programFilters.length) {
+      setProgramFilters(nextProgramFilters)
     }
 
-    if (fundingYearFilter && !fundingYears.includes(fundingYearFilter)) {
-      setFundingYearFilter('')
+    const nextFundingYearFilters = pruneMultiFilterValues(fundingYearFilters, fundingYears)
+    if (nextFundingYearFilters.length !== fundingYearFilters.length) {
+      setFundingYearFilters(nextFundingYearFilters)
     }
 
     if (statusFilter && !statuses.includes(statusFilter)) {
@@ -829,9 +841,9 @@ export default function Reports() {
     provinces,
     municipalityFilter,
     municipalities,
-    programFilter,
+    programFilters,
     programs,
-    fundingYearFilter,
+    fundingYearFilters,
     fundingYears,
     statusFilter,
     statuses,
@@ -883,13 +895,15 @@ export default function Reports() {
           municipalityFilter
         : true
 
-      const programMatches = programFilter
-        ? normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)) === programFilter
-        : true
+      const programMatches = matchesMultiFilter(
+        normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)),
+        programFilters,
+      )
 
-      const fundingYearMatches = fundingYearFilter
-        ? textValue(project.funding_year) === fundingYearFilter
-        : true
+      const fundingYearMatches = matchesMultiFilter(
+        textValue(project.funding_year),
+        fundingYearFilters,
+      )
 
       const statusMatches = statusFilter
         ? textValue(project.status) === statusFilter
@@ -917,8 +931,8 @@ export default function Reports() {
     searchTerm,
     provinceFilter,
     municipalityFilter,
-    programFilter,
-    fundingYearFilter,
+    programFilters,
+    fundingYearFilters,
     statusFilter,
     riskFilter,
   ])
@@ -927,8 +941,8 @@ export default function Reports() {
     searchTerm,
     provinceFilter,
     municipalityFilter,
-    programFilter,
-    fundingYearFilter,
+    programFilters.length ? 'programs' : '',
+    fundingYearFilters.length ? 'years' : '',
     statusFilter,
     riskFilter,
   ].filter(Boolean).length
@@ -938,8 +952,12 @@ export default function Reports() {
 
   function getReportFiltersLabel() {
     const labels = [
-      programFilter ? `Program: ${programFilter}` : 'Programs: All',
-      fundingYearFilter ? `Funding Year: FY ${fundingYearFilter}` : 'Funding Years: All',
+      programFilters.length
+        ? `Programs: ${programFilters.join(', ')}`
+        : 'Programs: All',
+      fundingYearFilters.length
+        ? `Funding Years: ${fundingYearFilters.map((year) => `FY ${year}`).join(', ')}`
+        : 'Funding Years: All',
       provinceFilter ? `Province/HUC: ${provinceFilter}` : '',
       municipalityFilter ? `LGU: ${municipalityFilter}` : '',
       statusFilter ? `Status: ${statusFilter}` : '',
@@ -1112,8 +1130,12 @@ export default function Reports() {
                 <strong>
                   {[
                     searchTerm.trim() ? `Search: ${searchTerm.trim()}` : '',
-                    programFilter,
-                    fundingYearFilter ? `FY ${fundingYearFilter}` : '',
+                    programFilters.length
+                      ? `Programs: ${programFilters.join(', ')}`
+                      : '',
+                    fundingYearFilters.length
+                      ? `FY: ${fundingYearFilters.join(', ')}`
+                      : '',
                     provinceFilter,
                     municipalityFilter,
                     statusFilter,
@@ -1154,107 +1176,77 @@ export default function Reports() {
             </label>
 
             <div className="reports-filter-grid pm-unified-filter-grid">
-              <label>
-                <span>Province/HUC</span>
-                <select
-                  value={provinceFilter}
-                  onChange={(event) => {
-                    setProvinceFilter(event.target.value)
-                    setMunicipalityFilter('')
-                  }}
-                >
-                  <option value="">Available Provinces/HUCs</option>
-                  {provinces.map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SingleSelectFilter
+                label="Province/HUC"
+                value={provinceFilter}
+                options={[
+                  { value: '', label: 'Available Provinces/HUCs' },
+                  ...provinces.map((province) => ({
+                    value: province,
+                    label: province,
+                  })),
+                ]}
+                onChange={(value) => {
+                  setProvinceFilter(value)
+                  setMunicipalityFilter('')
+                }}
+              />
 
-              <label>
-                <span>Municipality / LGU</span>
-                <select
-                  value={municipalityFilter}
-                  onChange={(event) => setMunicipalityFilter(event.target.value)}
-                >
-                  <option value="">Available LGUs</option>
-                  {municipalities.map((municipality) => (
-                    <option key={municipality} value={municipality}>
-                      {municipality}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SingleSelectFilter
+                label="Municipality / LGU"
+                value={municipalityFilter}
+                options={[
+                  { value: '', label: 'Available LGUs' },
+                  ...municipalities.map((municipality) => ({
+                    value: municipality,
+                    label: municipality,
+                  })),
+                ]}
+                onChange={setMunicipalityFilter}
+              />
 
-              <label>
-                <span>Program / Funding Source</span>
-                <select
-                  value={programFilter}
-                  onChange={(event) => setProgramFilter(event.target.value)}
-                >
-                  <option value="" label="All Programs" style={{ textTransform: 'none' }}>All Programs</option>
-                  {programs.map((program) => {
-                    const programLabel = normalizeProgramName(program) || String(program)
+              <MultiSelectFilter
+                label="Program / Funding Source"
+                options={programs}
+                values={programFilters}
+                onChange={setProgramFilters}
+                allLabel="All Programs"
+              />
 
-                    return (
-                      <option
-                        key={programLabel}
-                        value={programLabel}
-                        label={programLabel}
-                        style={{ textTransform: 'none' }}
-                      >
-                        {programLabel}
-                      </option>
-                    )
-                  })}
-                </select>
-              </label>
+              <MultiSelectFilter
+                label="Funding Year"
+                options={fundingYears}
+                values={fundingYearFilters}
+                onChange={setFundingYearFilters}
+                allLabel="All Funding Years"
+                formatOptionLabel={(year) => `FY ${year}`}
+              />
 
-              <label>
-                <span>Funding Year</span>
-                <select
-                  value={fundingYearFilter}
-                  onChange={(event) => setFundingYearFilter(event.target.value)}
-                >
-                  <option value="">All Funding Years</option>
-                  {fundingYears.map((year) => (
-                    <option key={year} value={year}>
-                      FY {year}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SingleSelectFilter
+                label="Status"
+                value={statusFilter}
+                options={[
+                  { value: '', label: 'All Status' },
+                  ...statuses.map((status) => ({
+                    value: status,
+                    label: status,
+                  })),
+                ]}
+                onChange={setStatusFilter}
+              />
 
-              <label>
-                <span>Status</span>
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                >
-                  <option value="">All Status</option>
-                  {statuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Risk Level</span>
-                <select
-                  value={riskFilter}
-                  onChange={(event) => setRiskFilter(event.target.value)}
-                >
-                  <option value="">All Risk Levels</option>
-                  {risks.map((risk) => (
-                    <option key={risk} value={risk}>
-                      {risk}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SingleSelectFilter
+                label="Risk Level"
+                value={riskFilter}
+                options={[
+                  { value: '', label: 'All Risk Levels' },
+                  ...risks.map((risk) => ({
+                    value: risk,
+                    label: risk,
+                  })),
+                ]}
+                onChange={setRiskFilter}
+              />
 
               {hasActiveSearch && (
                 <button
