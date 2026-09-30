@@ -1711,7 +1711,7 @@ export default function Dashboard() {
               <div className="dashboard-performance-gauges">
                 <div className="dashboard-performance-gauge-wrap">
                   <p className="dashboard-performance-gauge-label">
-                    Project Completion
+                    Physical Accomplishment
                   </p>
 
                   <div className="dashboard-completion-gauge dashboard-physical-gauge">

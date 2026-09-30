@@ -3277,3 +3277,82 @@ body #root .pm-unified-filter-grid > .pm-unified-clear {
   }
 }
 
+/* PMS10_PHYSICAL_FINANCIAL_UNIFORMITY_V2
+   Physical Accomplishment and Financial Accomplishment must use the
+   exact same value typography, label typography, and center geometry. */
+
+.dashboard-completion-center strong,
+.dashboard-performance-gauges .dashboard-completion-center strong,
+.dashboard-physical-gauge .dashboard-completion-center strong,
+.dashboard-financial-gauge .dashboard-completion-center strong {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+  font-size: clamp(3.35rem, 4.15vw, 4.75rem) !important;
+  font-weight: 900 !important;
+  line-height: 0.94 !important;
+  letter-spacing: -0.055em !important;
+  font-variant-numeric: tabular-nums lining-nums !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+}
+
+.dashboard-completion-center span,
+.dashboard-completion-center em,
+.dashboard-performance-gauges .dashboard-completion-center span,
+.dashboard-performance-gauges .dashboard-completion-center em,
+.dashboard-physical-gauge .dashboard-completion-center span,
+.dashboard-physical-gauge .dashboard-completion-center em,
+.dashboard-financial-gauge .dashboard-completion-center span,
+.dashboard-financial-gauge .dashboard-completion-center em {
+  display: block !important;
+  margin: 6px 0 0 !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+  font-size: 0.76rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  text-align: center !important;
+}
+
+.dashboard-completion-center,
+.dashboard-performance-gauges .dashboard-completion-center,
+.dashboard-physical-gauge .dashboard-completion-center,
+.dashboard-financial-gauge .dashboard-completion-center {
+  box-sizing: border-box !important;
+  text-align: center !important;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-completion-center strong,
+  .dashboard-performance-gauges .dashboard-completion-center strong,
+  .dashboard-physical-gauge .dashboard-completion-center strong,
+  .dashboard-financial-gauge .dashboard-completion-center strong {
+    font-size: clamp(3rem, 5vw, 4rem) !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard-completion-center strong,
+  .dashboard-performance-gauges .dashboard-completion-center strong,
+  .dashboard-physical-gauge .dashboard-completion-center strong,
+  .dashboard-financial-gauge .dashboard-completion-center strong {
+    font-size: clamp(2.65rem, 12vw, 3.65rem) !important;
+    letter-spacing: -0.05em !important;
+  }
+
+  .dashboard-completion-center span,
+  .dashboard-completion-center em,
+  .dashboard-performance-gauges .dashboard-completion-center span,
+  .dashboard-performance-gauges .dashboard-completion-center em,
+  .dashboard-physical-gauge .dashboard-completion-center span,
+  .dashboard-physical-gauge .dashboard-completion-center em,
+  .dashboard-financial-gauge .dashboard-completion-center span,
+  .dashboard-financial-gauge .dashboard-completion-center em {
+    font-size: 0.70rem !important;
+    letter-spacing: 0.13em !important;
+  }
+}
