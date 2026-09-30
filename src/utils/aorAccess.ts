@@ -181,6 +181,33 @@ function getActiveRoAssignments(auth: AorAuthLike | null | undefined) {
   )
 }
 
+function getPoEngineerViewProvinces(
+  auth: AorAuthLike | null | undefined,
+) {
+  const assignments = getActivePoAssignments(auth)
+
+  return uniqueCleanValues([
+    auth?.profile?.province,
+    ...assignments.map((assignment) => assignment.province),
+  ])
+}
+
+function canViewPoProvince(
+  project: AorProjectLike,
+  auth: AorAuthLike | null | undefined,
+) {
+  const provinces = getPoEngineerViewProvinces(auth)
+
+  if (provinces.length === 0) {
+    // Safe fallback for legacy profiles that do not yet have province metadata.
+    return canAccessPoLgu(project, auth as AorAuthLike)
+  }
+
+  return provinces.some((province) =>
+    projectMatchesProvince(project, province),
+  )
+}
+
 function hasRegionalView(role: string) {
   return role === 'Admin' || role === 'RD' || role === 'ARD' || role === 'PDMU Chief'
 }
@@ -290,7 +317,10 @@ export function canViewProject(project: AorProjectLike, auth: AorAuthLike | null
   }
 
   if (currentAuth.isPOEngineer || currentAuth.isEngineer || role === 'PO Engineer') {
-    return canAccessPoLgu(project, currentAuth)
+    // Province Office engineers need one consistent province-wide READ dataset
+    // for Dashboard / Registry / Reports / Map. Update rights remain restricted
+    // to assigned LGU/s in canUpdateProject().
+    return canViewPoProvince(project, currentAuth)
   }
 
   if (currentAuth.isPD || role === 'PD' || currentAuth.isPEO || role === 'PEO') {

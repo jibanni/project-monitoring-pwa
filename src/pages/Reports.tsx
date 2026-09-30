@@ -251,81 +251,11 @@ function reportProjectMatchesMunicipality(project: ProjectRow, municipality: unk
   )
 }
 
-function getStrictReportAorProjects(projects: ProjectRow[], auth: ReturnType<typeof useAuth>) {
-  const profile = auth.profile
-
-  if (!profile || profile.approved !== true || profile.is_active === false) return []
-
-  const role = getCanonicalReportRole(profile.role)
-
-  if (auth.isAdmin || role === 'Admin' || role === 'RD' || role === 'ARD' || role === 'PDMU Chief') {
-    return projects
-  }
-
-  if (auth.isROEngineer || role === 'RO Engineer') {
-    const assignments = (auth.roEngineerProvinceAssignments || []).filter(
-      (assignment) => assignment.is_active !== false,
-    )
-
-    if (assignments.length > 0) {
-      return projects.filter((project) =>
-        assignments.some((assignment) =>
-          reportProjectMatchesProvince(project, assignment.province),
-        ),
-      )
-    }
-
-    return projects.filter((project) =>
-      reportProjectMatchesProvince(project, profile.province),
-    )
-  }
-
-  if (auth.isPOEngineer || auth.isEngineer || role === 'PO Engineer') {
-    const assignments = (auth.poEngineerLguAssignments || []).filter(
-      (assignment) => assignment.is_active !== false,
-    )
-
-    if (assignments.length > 0) {
-      return projects.filter((project) =>
-        assignments.some(
-          (assignment) =>
-            reportProjectMatchesProvince(project, assignment.province) &&
-            reportProjectMatchesMunicipality(project, assignment.municipality),
-        ),
-      )
-    }
-
-    return projects.filter(
-      (project) =>
-        reportProjectMatchesProvince(project, profile.province) &&
-        reportProjectMatchesMunicipality(project, profile.municipality),
-    )
-  }
-
-  if (auth.isPD || auth.isPEO || role === 'PD' || role === 'PEO') {
-    return projects.filter((project) =>
-      reportProjectMatchesProvince(project, profile.province),
-    )
-  }
-
-  if (auth.isCD || role === 'CD') {
-    return projects.filter((project) =>
-      reportProjectMatchesMunicipality(project, profile.huc),
-    )
-  }
-
-  if (auth.isCLGOO || role === 'CLGOO') {
-    return projects.filter((project) =>
-      reportProjectMatchesMunicipality(project, profile.city),
-    )
-  }
-
-  if (auth.isMLGOO || role === 'MLGOO') {
-    return projects.filter((project) =>
-      reportProjectMatchesMunicipality(project, profile.municipality),
-    )
-  }
-
+function getStrictReportAorProjects(
+  projects: ProjectRow[],
+  auth: ReturnType<typeof useAuth>,
+) {
+  // Keep Reports on the exact same READ scope as Dashboard / Registry / Map.
   return filterProjectsByAor(projects, auth)
 }
 
@@ -416,30 +346,26 @@ function getReportMunicipalityOptions(
   if (!profile || profile.approved !== true || profile.is_active === false) return []
 
   if (auth.isPOEngineer || auth.isEngineer || role === 'PO Engineer') {
-    const assignments = getActiveReportPoAssignments(auth)
-    const assignedMunicipalities = uniqueSortedTextValues(
-      assignments
-        .filter((assignment) =>
-          provinceFilter
-            ? sameText(
-                canonicalizeRegion10ProvinceOrHuc(assignment.province),
-                provinceFilter,
-              )
-            : true,
-        )
-        .map((assignment) =>
-          canonicalizeRegion10Lgu(
-            assignment.municipality,
-            assignment.province,
-          ),
-        ),
+    const scopedProjects = aorProjects.filter((project) =>
+      provinceFilter
+        ? sameText(
+            getCanonicalProjectProvinceOrHuc(
+              project.province,
+              project.municipality,
+            ),
+            provinceFilter,
+          )
+        : true,
     )
 
-    return assignedMunicipalities.length > 0
-      ? assignedMunicipalities
-      : uniqueSortedTextValues([
-          canonicalizeRegion10Lgu(profile.municipality, profile.province),
-        ])
+    return uniqueSortedTextValues(
+      scopedProjects.map((project) =>
+        getCanonicalProjectLgu(
+          project.province,
+          project.municipality,
+        ),
+      ),
+    )
   }
 
   if (auth.isCD || role === 'CD') {
