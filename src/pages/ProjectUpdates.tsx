@@ -902,6 +902,8 @@ function getHeroTitleSizeClass(value?: string | null) {
   return 'pu-title-extra-long'
 }
 
+
+
 export default function ProjectUpdates() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -2869,7 +2871,7 @@ export default function ProjectUpdates() {
       if (hasContractModification && hasRevisedProjectCost && !revisedProjectCost.trim()) {
         return 'Please enter the revised project cost.'
       }
-      if (hasContractModification && !isSuspensionOrderSelected && !revisedContractExpirationDate.trim()) {
+      if ((hasContractModification && !isSuspensionOrderSelected && !revisedContractExpirationDate.trim())) {
         return 'Please enter the revised contract expiration date.'
       }
       if (requiresUpdateReason && !isNotYetStartedSelected && !notYetStartedReason.trim()) {
@@ -3048,7 +3050,7 @@ export default function ProjectUpdates() {
       return'Please enter the revised project cost.'
     }
 
-    if (hasContractModification && !revisedContractExpirationDate.trim()) {
+    if (hasContractModification && !isSuspensionOrderSelected && !revisedContractExpirationDate.trim()) {
       return'Please enter the revised contract expiration date.'
     }
 
@@ -4217,7 +4219,7 @@ export default function ProjectUpdates() {
                   <span>{contractInfo.warningMessage}</span>
                   <span>
                     {isSuspensionOrderSelected
-                      ? 'The project remains High Risk while the Suspension Order is active. A revised expiration date is not required for this update.'
+                      ? 'The project remains High Risk while the Suspension Order is active. A revised contract expiration date is not required while the Suspension Order is active unless an approved Time Extension is granted.'
                       : 'Risk is automatically classified as High until a valid revised expiration date is encoded.'}
                   </span>
                 </div>

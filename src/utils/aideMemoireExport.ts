@@ -1,6 +1,7 @@
 import { saveAs } from 'file-saver'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { deliverGeneratedFilesOnAndroid } from './nativeGeneratedFileDelivery'
 
 
 const textEncoder = new TextEncoder()
@@ -1337,15 +1338,30 @@ export async function generateAideMemoireFiles(
   if (format === 'docx' || format === 'both') {
     docxBlob = await buildDocxBlob(data)
     docxFileName = `${fileStem}.docx`
-    saveAs(docxBlob, docxFileName)
     generated.push('DOCX')
   }
 
   if (format === 'pdf' || format === 'both') {
     pdfBlob = await buildPdfBlob(data)
     pdfFileName = `${fileStem}.pdf`
-    saveAs(pdfBlob, pdfFileName)
     generated.push('PDF')
+  }
+
+  const generatedFiles = [
+    ...(docxBlob && docxFileName
+      ? [{ blob: docxBlob, fileName: docxFileName }]
+      : []),
+    ...(pdfBlob && pdfFileName
+      ? [{ blob: pdfBlob, fileName: pdfFileName }]
+      : []),
+  ]
+
+  const deliveredNatively = await deliverGeneratedFilesOnAndroid(generatedFiles)
+
+  if (!deliveredNatively) {
+    for (const file of generatedFiles) {
+      saveAs(file.blob, file.fileName)
+    }
   }
 
   return { generated, pdfBlob, pdfFileName, docxBlob, docxFileName }

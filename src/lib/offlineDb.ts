@@ -254,28 +254,47 @@ function stripLegacyBinaryFields(record: OfflineAideMemoire): OfflineAideMemoire
 
 export async function saveAideMemoireRecord(record: OfflineAideMemoire) {
   const createdAt = new Date().toISOString()
+
+  /*
+   * IMPORTANT:
+   * Blob.arrayBuffer() is a non-IndexedDB async API. Awaiting it from inside a
+   * Dexie transaction allows the browser/WebView to auto-commit the IndexedDB
+   * transaction while JavaScript is waiting, which produces
+   * Dexie.PrematureCommitError.
+   *
+   * Prepare every photo binary BEFORE opening the transaction. The transaction
+   * below then contains only Dexie/IndexedDB operations, so it stays atomic
+   * without relying on Dexie.waitFor().
+   */
   const existingAssets = await offlineDb.aide_memoire_photo_assets
     .where('aide_memoire_id')
     .equals(record.id)
     .toArray()
-  const existingAssetMap = new Map(existingAssets.map((asset) => [asset.photo_ref, asset]))
+
+  const existingAssetMap = new Map(
+    existingAssets.map((asset) => [asset.photo_ref, asset]),
+  )
   const assetsToWrite: OfflineAideMemoirePhotoAsset[] = []
 
   for (const photo of record.photos || []) {
     if (!photo.file_blob) continue
 
     const existing = existingAssetMap.get(photo.photo_ref)
-    const fileName = photo.file_name || `photo-${assetsToWrite.length + 1}.jpg`
-    const mimeType = photo.file_type || photo.file_blob.type || 'image/jpeg'
+    const fileName =
+      photo.file_name || `photo-${assetsToWrite.length + 1}.jpg`
+    const mimeType =
+      photo.file_type || photo.file_blob.type || 'image/jpeg'
 
     const binaryIsAlreadyStored = Boolean(
       existing &&
-      existing.file_name === fileName &&
-      existing.mime_type === mimeType &&
-      existing.data.byteLength === photo.file_blob.size,
+        existing.file_name === fileName &&
+        existing.mime_type === mimeType &&
+        existing.data.byteLength === photo.file_blob.size,
     )
 
     if (binaryIsAlreadyStored) continue
+
+    const data = await photo.file_blob.arrayBuffer()
 
     assetsToWrite.push({
       id: `${record.id}:${photo.photo_ref}`,
@@ -283,29 +302,42 @@ export async function saveAideMemoireRecord(record: OfflineAideMemoire) {
       project_id: record.project_id,
       update_ref: record.update_ref,
       photo_ref: photo.photo_ref,
-      photo_number: Number(photo.photo_number || assetsToWrite.length + 1),
+      photo_number: Number(
+        photo.photo_number || assetsToWrite.length + 1,
+      ),
       file_name: fileName,
       mime_type: mimeType,
-      data: await photo.file_blob.arrayBuffer(),
+      data,
       created_at: existing?.created_at || createdAt,
     })
   }
 
-  const expectedPhotoRefs = new Set((record.photos || []).map((photo) => photo.photo_ref))
+  const expectedPhotoRefs = new Set(
+    (record.photos || []).map((photo) => photo.photo_ref),
+  )
   const staleAssetIds = existingAssets
     .filter((asset) => !expectedPhotoRefs.has(asset.photo_ref))
     .map((asset) => asset.id)
 
-  if (staleAssetIds.length > 0) {
-    await offlineDb.aide_memoire_photo_assets.bulkDelete(staleAssetIds)
-  }
-  if (assetsToWrite.length > 0) {
-    await offlineDb.aide_memoire_photo_assets.bulkPut(assetsToWrite)
-  }
-
   const sanitized = stripLegacyBinaryFields(record)
-  await offlineDb.aide_memoires.put(sanitized)
-  return sanitized
+
+  return offlineDb.transaction(
+    'rw',
+    offlineDb.aide_memoires,
+    offlineDb.aide_memoire_photo_assets,
+    async () => {
+      if (staleAssetIds.length > 0) {
+        await offlineDb.aide_memoire_photo_assets.bulkDelete(staleAssetIds)
+      }
+
+      if (assetsToWrite.length > 0) {
+        await offlineDb.aide_memoire_photo_assets.bulkPut(assetsToWrite)
+      }
+
+      await offlineDb.aide_memoires.put(sanitized)
+      return sanitized
+    },
+  )
 }
 
 export async function getAideMemoirePhotoAssets(aideMemoireId: string) {

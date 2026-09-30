@@ -256,6 +256,98 @@ function IconCopy() {
   )
 }
 
+
+function pms10FinancialNumber(value: unknown) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0
+  }
+
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^0-9.-]/g, '')
+    const parsed = Number(cleaned)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  return 0
+}
+
+function pms10RecordNumber(
+  record: Record<string, unknown> | null | undefined,
+  keys: string[],
+) {
+  if (!record) return 0
+
+  for (const key of keys) {
+    const value = pms10FinancialNumber(record[key])
+    if (value > 0) return value
+  }
+
+  return 0
+}
+
+function resolveProjectFinancialAccomplishment(
+  projectValue: unknown,
+  updateValues: unknown[],
+) {
+  const projectRecord =
+    projectValue && typeof projectValue === 'object'
+      ? (projectValue as Record<string, unknown>)
+      : null
+
+  const latestUpdate =
+    Array.isArray(updateValues) &&
+    updateValues.length > 0 &&
+    updateValues[0] &&
+    typeof updateValues[0] === 'object'
+      ? (updateValues[0] as Record<string, unknown>)
+      : null
+
+  const projectCost = pms10RecordNumber(projectRecord, [
+    'revised_project_cost',
+    'revised_cost',
+    'contract_amount',
+    'contract_cost',
+    'budget',
+    'project_cost',
+  ])
+
+  const disbursement =
+    pms10RecordNumber(latestUpdate, [
+      'disbursement',
+      'total_disbursement',
+      'cumulative_disbursement',
+      'disbursement_amount',
+    ]) ||
+    pms10RecordNumber(projectRecord, [
+      'disbursement',
+      'total_disbursement',
+      'cumulative_disbursement',
+      'disbursement_amount',
+    ])
+
+  if (projectCost > 0 && disbursement > 0) {
+    const computed = (disbursement / projectCost) * 100
+
+    if (Number.isFinite(computed)) {
+      return Math.max(0, Math.min(100, computed))
+    }
+  }
+
+  const latestFinancial = pms10RecordNumber(latestUpdate, [
+    'financial_accomplishment',
+  ])
+
+  if (latestFinancial > 0) {
+    return Math.max(0, Math.min(100, latestFinancial))
+  }
+
+  const storedFinancial = pms10RecordNumber(projectRecord, [
+    'financial_accomplishment',
+  ])
+
+  return Math.max(0, Math.min(100, storedFinancial))
+}
+
 export default function ProjectDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -599,10 +691,16 @@ export default function ProjectDetails() {
     () => clampPercent(project?.physical_accomplishment),
     [project],
   )
+  const resolvedFinancialAccomplishment = useMemo(
+    () => resolveProjectFinancialAccomplishment(project, updates),
+    [project, updates],
+  )
+
+
 
   const financialProgress = useMemo(
-    () => clampPercent(project?.financial_accomplishment),
-    [project],
+    () => clampPercent(resolvedFinancialAccomplishment),
+    [resolvedFinancialAccomplishment],
   )
 
   const displayStatus = getProjectDisplayStatus(project)
@@ -939,7 +1037,7 @@ export default function ProjectDetails() {
 
         <article className="pd-summary-card">
           <span>Financial</span>
-          <strong>{formatPercent(project.financial_accomplishment)}</strong>
+          <strong>{formatPercent(resolvedFinancialAccomplishment)}</strong>
           <div className="pd-progress-track">
             <div
               className="pd-progress-fill pd-progress-fill-financial"

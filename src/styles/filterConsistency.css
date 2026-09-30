@@ -1,0 +1,363 @@
+/* ==========================================================================
+   PMS10 FILTER CONSISTENCY V4
+   Dashboard + Dashboard Drilldown + Projects + Reports + GIS Map
+   UI-only: one visual system for labels, search, selects, multi-selects.
+   ========================================================================== */
+
+:root {
+  --pms-f-control-h: 40px;
+  --pms-f-radius: 10px;
+  --pms-f-border: #cbd5e1;
+  --pms-f-border-hover: #9fb0c4;
+  --pms-f-focus: #7aa7d8;
+  --pms-f-text: #0f172a;
+  --pms-f-label: #64748b;
+  --pms-f-placeholder: #8da0b8;
+  --pms-f-arrow: #334155;
+  --pms-f-font-size: 0.86rem;
+  --pms-f-label-size: 0.70rem;
+  --pms-f-gap: 0.28rem;
+}
+
+/* ---------- common field labels ---------- */
+.dashboard-filter-grid > label,
+.dashboard-drilldown-filterbar > label,
+.pm-unified-filter-grid > label,
+.dashboard-filter-grid > .pms-multi-filter,
+.dashboard-drilldown-filterbar > .pms-multi-filter,
+.pm-unified-filter-grid > .pms-multi-filter {
+  min-width: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  align-self: start !important;
+}
+
+.dashboard-filter-grid > label,
+.dashboard-drilldown-filterbar > label,
+.pm-unified-filter-grid > label {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--pms-f-gap) !important;
+  color: var(--pms-f-label) !important;
+  font-family: inherit !important;
+  font-size: var(--pms-f-label-size) !important;
+  font-weight: 700 !important;
+  line-height: 1rem !important;
+  letter-spacing: 0.035em !important;
+  text-transform: uppercase !important;
+}
+
+.dashboard-filter-grid > label > span,
+.dashboard-drilldown-filterbar > label > span,
+.pm-unified-filter-grid > label > span,
+.pms-multi-filter-label {
+  display: block !important;
+  min-height: 1rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--pms-f-label) !important;
+  font-family: inherit !important;
+  font-size: var(--pms-f-label-size) !important;
+  font-weight: 700 !important;
+  line-height: 1rem !important;
+  letter-spacing: 0.035em !important;
+  text-transform: uppercase !important;
+}
+
+.dashboard-filter-grid > .pms-multi-filter,
+.dashboard-drilldown-filterbar > .pms-multi-filter,
+.pm-unified-filter-grid > .pms-multi-filter {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--pms-f-gap) !important;
+}
+
+/* ---------- select controls: same size + same arrow ---------- */
+.dashboard-filter-grid select,
+.dashboard-drilldown-filterbar select,
+.pm-unified-filter-grid select {
+  width: 100% !important;
+  height: var(--pms-f-control-h) !important;
+  min-height: var(--pms-f-control-h) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 2.35rem 0 0.78rem !important;
+  border: 1px solid var(--pms-f-border) !important;
+  border-radius: var(--pms-f-radius) !important;
+  outline: none !important;
+  background-color: #fff !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--pms-f-arrow) 50%),
+    linear-gradient(135deg, var(--pms-f-arrow) 50%, transparent 50%) !important;
+  background-position:
+    calc(100% - 15px) 50%,
+    calc(100% - 11px) 50% !important;
+  background-size: 4px 4px, 4px 4px !important;
+  background-repeat: no-repeat !important;
+  color: var(--pms-f-text) !important;
+  font-family: inherit !important;
+  font-size: var(--pms-f-font-size) !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  box-shadow: none !important;
+}
+
+.dashboard-filter-grid select:hover,
+.dashboard-drilldown-filterbar select:hover,
+.pm-unified-filter-grid select:hover {
+  border-color: var(--pms-f-border-hover) !important;
+}
+
+.dashboard-filter-grid select:focus,
+.dashboard-drilldown-filterbar select:focus,
+.pm-unified-filter-grid select:focus {
+  border-color: var(--pms-f-focus) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08) !important;
+}
+
+.dashboard-filter-grid select::-ms-expand,
+.dashboard-drilldown-filterbar select::-ms-expand,
+.pm-unified-filter-grid select::-ms-expand {
+  display: none !important;
+}
+
+/* ---------- Program / Funding Year multi-selects ---------- */
+.dashboard-filter-grid .pms-multi-filter-trigger,
+.dashboard-drilldown-filterbar .pms-multi-filter-trigger,
+.pm-unified-filter-grid .pms-multi-filter-trigger {
+  width: 100% !important;
+  height: var(--pms-f-control-h) !important;
+  min-height: var(--pms-f-control-h) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 0.78rem !important;
+  border: 1px solid var(--pms-f-border) !important;
+  border-radius: var(--pms-f-radius) !important;
+  background: #fff !important;
+  color: var(--pms-f-text) !important;
+  font-family: inherit !important;
+  font-size: var(--pms-f-font-size) !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+}
+
+.dashboard-filter-grid .pms-multi-filter-trigger:hover,
+.dashboard-drilldown-filterbar .pms-multi-filter-trigger:hover,
+.pm-unified-filter-grid .pms-multi-filter-trigger:hover {
+  border-color: var(--pms-f-border-hover) !important;
+}
+
+.dashboard-filter-grid .pms-multi-filter.is-open .pms-multi-filter-trigger,
+.dashboard-drilldown-filterbar .pms-multi-filter.is-open .pms-multi-filter-trigger,
+.pm-unified-filter-grid .pms-multi-filter.is-open .pms-multi-filter-trigger {
+  border-color: var(--pms-f-focus) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08) !important;
+}
+
+/* exactly one arrow geometry for Program/FY */
+.pms-multi-filter-chevron {
+  position: relative !important;
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 14px !important;
+  margin: 0 0.03rem 0 0 !important;
+  color: var(--pms-f-arrow) !important;
+}
+
+.pms-multi-filter-chevron::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 43% !important;
+  width: 6px !important;
+  height: 6px !important;
+  border-right: 1.5px solid currentColor !important;
+  border-bottom: 1.5px solid currentColor !important;
+  transform: translate(-50%, -50%) rotate(45deg) !important;
+  transform-origin: 50% 50% !important;
+}
+
+.pms-multi-filter.is-open .pms-multi-filter-chevron::before {
+  top: 57% !important;
+  transform: translate(-50%, -50%) rotate(225deg) !important;
+}
+
+/* ---------- unified search bar: Projects / Reports / GIS ---------- */
+.pm-unified-search-field {
+  position: relative !important;
+  width: 100% !important;
+  height: var(--pms-f-control-h) !important;
+  min-height: var(--pms-f-control-h) !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  margin: 0 0 0.62rem !important;
+  padding: 0 !important;
+  border: 1px solid var(--pms-f-border) !important;
+  border-radius: var(--pms-f-radius) !important;
+  background: #fff !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+}
+
+.pm-unified-search-field:focus-within {
+  border-color: var(--pms-f-focus) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08) !important;
+}
+
+/* center the icon and give text a guaranteed non-overlap inset */
+.pm-unified-search-field > svg,
+.pm-unified-search-field svg {
+  position: absolute !important;
+  left: 13px !important;
+  top: 50% !important;
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  margin: 0 !important;
+  transform: translateY(-50%) !important;
+  color: #64748b !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}
+
+.pm-unified-search-field input,
+.pm-unified-search-field input[type='search'],
+.pm-unified-search-field input[type='text'] {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 0.78rem 0 2.55rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  background: transparent !important;
+  color: var(--pms-f-text) !important;
+  font-family: inherit !important;
+  font-size: var(--pms-f-font-size) !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+.pm-unified-search-field input::placeholder {
+  color: var(--pms-f-placeholder) !important;
+  font-family: inherit !important;
+  font-size: var(--pms-f-font-size) !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
+
+.pm-unified-search-field input::-webkit-search-decoration,
+.pm-unified-search-field input::-webkit-search-cancel-button,
+.pm-unified-search-field input::-webkit-search-results-button,
+.pm-unified-search-field input::-webkit-search-results-decoration {
+  -webkit-appearance: none !important;
+}
+
+/* ---------- dashboard drilldown search ---------- */
+.dashboard-drilldown-search {
+  position: relative !important;
+}
+
+.dashboard-drilldown-search input[type='search'] {
+  width: 100% !important;
+  height: var(--pms-f-control-h) !important;
+  min-height: var(--pms-f-control-h) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 0.78rem !important;
+  border: 1px solid var(--pms-f-border) !important;
+  border-radius: var(--pms-f-radius) !important;
+  outline: none !important;
+  background: #fff !important;
+  color: var(--pms-f-text) !important;
+  font-family: inherit !important;
+  font-size: var(--pms-f-font-size) !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+.dashboard-drilldown-search input[type='search']::placeholder {
+  color: var(--pms-f-placeholder) !important;
+  opacity: 1 !important;
+}
+
+/* ---------- grid + reset alignment ---------- */
+.dashboard-filter-grid,
+.dashboard-drilldown-filterbar,
+.pm-unified-filter-grid {
+  align-items: start !important;
+}
+
+.dashboard-filter-reset,
+.pm-unified-clear {
+  height: var(--pms-f-control-h) !important;
+  min-height: var(--pms-f-control-h) !important;
+  align-self: end !important;
+  box-sizing: border-box !important;
+  border-radius: var(--pms-f-radius) !important;
+}
+
+/* GIS had older desktop overrides forcing 36/38px; neutralize them. */
+.pm-map-page .pm-unified-search-field,
+.pm-map-page .pm-unified-search-field input,
+.pm-map-page .pm-unified-filter-grid select,
+.pm-map-page .pm-unified-filter-grid .pms-multi-filter-trigger {
+  height: var(--pms-f-control-h) !important;
+  min-height: var(--pms-f-control-h) !important;
+}
+
+.pm-map-page .pm-unified-filter-grid select {
+  padding-left: 0.78rem !important;
+  padding-right: 2.35rem !important;
+  border-radius: var(--pms-f-radius) !important;
+  font-size: var(--pms-f-font-size) !important;
+}
+
+/* ---------- collapsed state must truly hide filter content ---------- */
+.dashboard-filter-panel:not(.is-open) .dashboard-filter-grid {
+  display: none !important;
+}
+
+.dashboard-drilldown-filter-shell.is-collapsed .dashboard-drilldown-filterbar {
+  display: none !important;
+}
+
+.pm-unified-filter-body[hidden] {
+  display: none !important;
+}
+
+/* ---------- mobile: keep same UI system, no nav/layout redesign ---------- */
+@media (max-width: 700px) {
+  :root {
+    --pms-f-control-h: 40px;
+  }
+
+  .pm-unified-search-field,
+  .dashboard-drilldown-search input[type='search'],
+  .dashboard-filter-grid select,
+  .dashboard-drilldown-filterbar select,
+  .pm-unified-filter-grid select,
+  .dashboard-filter-grid .pms-multi-filter-trigger,
+  .dashboard-drilldown-filterbar .pms-multi-filter-trigger,
+  .pm-unified-filter-grid .pms-multi-filter-trigger {
+    font-size: 0.84rem !important;
+  }
+}

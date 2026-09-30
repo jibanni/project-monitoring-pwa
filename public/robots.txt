@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Internal/authenticated PMS10 routes should not be crawled.
+Disallow: /dashboard
+Disallow: /projects
+Disallow: /map
+Disallow: /reports
+Disallow: /offline-sync
+Disallow: /users
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /pending-approval
+Disallow: /unauthorized
+
+Sitemap: https://dilg-pdmu-project-monitoring.vercel.app/sitemap.xml
