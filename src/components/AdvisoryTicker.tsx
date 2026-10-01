@@ -35,6 +35,152 @@ function isCurrentlyVisible(item: AdvisoryRecord, now = Date.now()) {
 }
 
 export default function AdvisoryTicker() {
+
+  /* PMS10_ADVISORY_SIDEBAR_RUNTIME_SYNC_V2
+     AdvisoryTicker is portaled to document.body, so it cannot inherit the
+     desktop shell/sidebar width automatically. Measure the visible sidebar
+     directly and align the ticker at runtime. */
+  useLayoutEffect(() => {
+    let sidebarObserver: ResizeObserver | null = null
+    let mutationObserver: MutationObserver | null = null
+    let frame = 0
+    let retryTimer = 0
+
+    function findVisibleSidebar() {
+      const candidates = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          [
+            '.app-desktop-sidebar',
+            '.app-sidebar',
+            '.desktop-sidebar',
+            '[class*="desktop-sidebar"]',
+            '[class*="app-sidebar"]',
+            '[class*="sidebar"]',
+            'aside',
+          ].join(','),
+        ),
+      )
+
+      const matches = candidates
+        .map((element) => {
+          const rect = element.getBoundingClientRect()
+          const style = window.getComputedStyle(element)
+          return { element, rect, style }
+        })
+        .filter(({ rect, style }) => {
+          if (style.display === 'none' || style.visibility === 'hidden') return false
+          if (rect.width < 48 || rect.width > 420) return false
+          if (rect.height < window.innerHeight * 0.5) return false
+          if (rect.left > 3 || rect.right < 48) return false
+          return true
+        })
+        .sort((a, b) => {
+          const aScore = a.rect.height + a.rect.width
+          const bScore = b.rect.height + b.rect.width
+          return bScore - aScore
+        })
+
+      return matches[0]?.element || null
+    }
+
+    function findTickerRoot() {
+      const candidates = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '[class*="advisory"], [class*="ticker"]',
+        ),
+      )
+
+      const matches = candidates
+        .filter((element) =>
+          /SYSTEM\s+ADVISORY/i.test(element.textContent || ''),
+        )
+        .map((element) => ({
+          element,
+          rect: element.getBoundingClientRect(),
+        }))
+        .filter(({ rect }) => rect.width > 200 && rect.height > 20)
+        .sort((a, b) => b.rect.width - a.rect.width)
+
+      return matches[0]?.element || null
+    }
+
+    function syncTickerToSidebar() {
+      const ticker = findTickerRoot()
+      if (!ticker) return
+
+      if (window.innerWidth <= 900) {
+        ticker.style.setProperty('left', '0px', 'important')
+        ticker.style.setProperty('right', '0px', 'important')
+        ticker.style.setProperty('width', '100%', 'important')
+        ticker.style.setProperty('max-width', '100%', 'important')
+        ticker.style.setProperty('margin-left', '0px', 'important')
+        ticker.style.setProperty('padding-left', '0px', 'important')
+        return
+      }
+
+      const sidebar = findVisibleSidebar()
+      const sidebarWidth = sidebar
+        ? Math.max(0, Math.round(sidebar.getBoundingClientRect().right))
+        : 0
+
+      ticker.style.setProperty('left', `${sidebarWidth}px`, 'important')
+      ticker.style.setProperty('right', '0px', 'important')
+      ticker.style.setProperty(
+        'width',
+        `calc(100vw - ${sidebarWidth}px)`,
+        'important',
+      )
+      ticker.style.setProperty('max-width', 'none', 'important')
+      ticker.style.setProperty('margin-left', '0px', 'important')
+      ticker.style.setProperty('padding-left', '0px', 'important')
+      ticker.style.setProperty('box-sizing', 'border-box', 'important')
+
+      if (sidebar && 'ResizeObserver' in window) {
+        if (!sidebarObserver) {
+          sidebarObserver = new ResizeObserver(() => {
+            window.cancelAnimationFrame(frame)
+            frame = window.requestAnimationFrame(syncTickerToSidebar)
+          })
+        }
+
+        sidebarObserver.disconnect()
+        sidebarObserver.observe(sidebar)
+      }
+    }
+
+    function scheduleSync() {
+      window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(syncTickerToSidebar)
+    }
+
+    scheduleSync()
+
+    retryTimer = window.setTimeout(() => {
+      syncTickerToSidebar()
+    }, 250)
+
+    window.addEventListener('resize', scheduleSync)
+    document.addEventListener('transitionend', scheduleSync, true)
+
+    mutationObserver = new MutationObserver(scheduleSync)
+    mutationObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: true,
+      subtree: true,
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(retryTimer)
+      sidebarObserver?.disconnect()
+      mutationObserver?.disconnect()
+      window.removeEventListener('resize', scheduleSync)
+      document.removeEventListener('transitionend', scheduleSync, true)
+    }
+  }, [])
+
+
   const [records, setRecords] = useState<AdvisoryRecord[]>([])
   const [clock, setClock] = useState(Date.now())
 
