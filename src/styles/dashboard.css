@@ -4631,3 +4631,78 @@ body #root .pm-unified-filter-grid > .pm-unified-clear {
   }
 }
 /* === PMS10 MOBILE STATUS + RISK CHART HOTFIX END === */
+
+/* === PMS10 MOBILE PIE DEFINITE-SIZE FIX START === */
+@media (max-width: 1023px) {
+
+  .dashboard-chart-row .dashboard-chart-area {
+    height: 150px !important;
+    min-height: 150px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /*
+   * Recharts Mobile/Safari fix:
+   * Do not use percentage dimensions here.
+   * ResponsiveContainer needs a definite measurable box.
+   */
+  .dashboard-chart-row
+  .dashboard-chart-area
+  > .recharts-responsive-container {
+    width: 120px !important;
+    min-width: 120px !important;
+    max-width: 120px !important;
+
+    height: 120px !important;
+    min-height: 120px !important;
+    max-height: 120px !important;
+
+    flex: 0 0 120px !important;
+    margin: 0 auto !important;
+
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    contain: none !important;
+    content-visibility: visible !important;
+    overflow: visible !important;
+  }
+
+  .dashboard-chart-row .recharts-wrapper {
+    width: 120px !important;
+    height: 120px !important;
+    min-width: 120px !important;
+    min-height: 120px !important;
+
+    visibility: visible !important;
+    opacity: 1 !important;
+    contain: none !important;
+    overflow: visible !important;
+  }
+
+  .dashboard-chart-row .recharts-surface {
+    width: 120px !important;
+    height: 120px !important;
+
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    contain: none !important;
+    overflow: visible !important;
+  }
+
+  .dashboard-chart-row .recharts-layer,
+  .dashboard-chart-row .recharts-pie,
+  .dashboard-chart-row .recharts-pie-sector,
+  .dashboard-chart-row path {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+/* === PMS10 MOBILE PIE DEFINITE-SIZE FIX END === */
