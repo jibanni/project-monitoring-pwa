@@ -126,7 +126,10 @@ export default function Login() {
 
       // After successful login, always start from Dashboard.
       // Role/page restrictions are handled by ProtectedRoute and the AOR guards.
-      navigate('/dashboard', { replace: true })
+      // PMS10_LOGIN_DEFAULT_EXECUTIVE_V2_1
+      // Successful login always starts in Executive View.
+      window.localStorage.setItem('pms10:dashboard-view', 'executive')
+      navigate('/dashboard?view=executive', { replace: true })
     } catch (error) {
       console.error(error)
 
