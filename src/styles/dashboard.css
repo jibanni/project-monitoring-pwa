@@ -4518,3 +4518,116 @@ body #root .pm-unified-filter-grid > .pm-unified-clear {
   }
 }
 /* PMS10_DETAILED_MOBILE_V113_END */
+
+/* === PMS10 MOBILE STATUS + RISK CHART HOTFIX START === */
+@media (max-width: 1023px) {
+
+  /* Keep Status and Risk cards side-by-side on mobile */
+  .dashboard-main-grid.dashboard-chart-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .dashboard-chart-row > .dashboard-chart-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 10px !important;
+    overflow: hidden !important;
+  }
+
+  /* Give Recharts a definite measurable box */
+  .dashboard-chart-row .dashboard-chart-area {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 150px !important;
+    min-height: 150px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    visibility: visible !important;
+  }
+
+  .dashboard-chart-row
+  .dashboard-chart-area
+  > .recharts-responsive-container {
+    display: block !important;
+    width: 100% !important;
+    min-width: 1px !important;
+    max-width: 100% !important;
+    height: 150px !important;
+    min-height: 150px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    contain: none !important;
+    content-visibility: visible !important;
+  }
+
+  /* iOS/Safari/Recharts rendering protection */
+  .dashboard-chart-row .recharts-wrapper,
+  .dashboard-chart-row .recharts-surface,
+  .dashboard-chart-row svg {
+    visibility: visible !important;
+    opacity: 1 !important;
+    contain: none !important;
+    content-visibility: visible !important;
+  }
+
+  /* Compact headers so both cards fit comfortably */
+  .dashboard-chart-row .dashboard-card-header {
+    display: block !important;
+    min-height: 76px !important;
+    margin: 0 !important;
+    padding: 5px 4px 8px !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-kicker {
+    margin: 0 0 4px !important;
+    font-size: 0.58rem !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-header h2 {
+    margin: 0 !important;
+    font-size: 0.76rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-header > span {
+    display: inline-flex !important;
+    margin-top: 7px !important;
+    padding: 5px 7px !important;
+    font-size: 0.58rem !important;
+  }
+
+  .dashboard-chart-row .dashboard-legend-list {
+    gap: 5px !important;
+    padding: 4px 0 2px !important;
+  }
+
+  .dashboard-chart-row .dashboard-legend-list button {
+    min-width: 0 !important;
+    border-radius: 10px !important;
+    gap: 5px !important;
+    padding: 7px 6px !important;
+  }
+
+  .dashboard-chart-row .dashboard-legend-list span,
+  .dashboard-chart-row .dashboard-legend-list strong {
+    font-size: 0.64rem !important;
+  }
+
+  .dashboard-chart-row .dashboard-legend-list span {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+}
+/* === PMS10 MOBILE STATUS + RISK CHART HOTFIX END === */
