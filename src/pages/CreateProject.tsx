@@ -42,6 +42,8 @@ type ProjectInsert = {
   project_type: string
   funding_source: string
   funding_year: number | null
+  nadai_date: string | null
+  nadai_amount: number | null
   implementing_office: string | null
   contractor: string | null
   budget: number
@@ -379,6 +381,8 @@ export default function CreateProject() {
   const [projectType, setProjectType] = useState('Road')
   const [fundingYear, setFundingYear] = useState(String(new Date().getFullYear()))
   const [fundingSource, setFundingSource] = useState('RAPID Growth Project')
+  const [nadaiDate, setNadaiDate] = useState('')
+  const [nadaiAmount, setNadaiAmount] = useState('')
   const [implementingOffice, setImplementingOffice] = useState('')
   const [contractor, setContractor] = useState('')
   const [projectCost, setProjectCost] = useState('')
@@ -720,6 +724,8 @@ export default function CreateProject() {
       project_type: projectType,
       funding_source: fundingSource,
       funding_year: Number(fundingYear),
+      nadai_date: nadaiDate || null,
+      nadai_amount: nadaiAmount.trim() ? toNumber(nadaiAmount) : null,
       implementing_office: cleanText(implementingOffice),
       contractor: cleanText(contractor),
       budget: toNumber(projectCost),
@@ -932,6 +938,28 @@ export default function CreateProject() {
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label>
+              NADAI Download Date
+              <input
+                type="date"
+                value={nadaiDate}
+                onChange={(event) => setNadaiDate(event.target.value)}
+              />
+              <small>Optional until the BTr NADAI is received.</small>
+            </label>
+
+            <label>
+              Amount in NADAI (₱)
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={nadaiAmount}
+                onChange={(event) => setNadaiAmount(event.target.value)}
+                placeholder="Optional"
+              />
             </label>
 
             <div className="create-project-progress-note">

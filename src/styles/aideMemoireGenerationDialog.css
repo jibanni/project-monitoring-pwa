@@ -349,3 +349,101 @@ body.am-direct-dialog-open {
     grid-row: auto;
   }
 }
+
+
+/* ============================================================
+   PMS10 V1.3 — AIDE MEMOIRE MODAL VISIBILITY HARDENING
+   Keep the dialog above every app header/nav and inside the
+   visible viewport on desktop and mobile.
+   ============================================================ */
+
+body.am-direct-dialog-open {
+  overflow: hidden !important;
+}
+
+.am-direct-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  isolation: isolate !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+  place-items: center !important;
+  padding:
+    max(10px, env(safe-area-inset-top))
+    max(10px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left)) !important;
+}
+
+.am-direct-dialog {
+  position: relative !important;
+  z-index: 2147483647 !important;
+  width: min(560px, 100%) !important;
+  max-height: calc(
+    100dvh
+    - max(10px, env(safe-area-inset-top))
+    - max(10px, env(safe-area-inset-bottom))
+    - 20px
+  ) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  margin: auto !important;
+}
+
+.am-direct-header {
+  top: 0 !important;
+  z-index: 10 !important;
+}
+
+.am-direct-actions {
+  bottom: 0 !important;
+  z-index: 10 !important;
+  padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  box-shadow: 0 -8px 18px rgba(15, 42, 72, 0.06) !important;
+}
+
+@media (max-width: 480px) {
+  .am-direct-backdrop {
+    place-items: center !important;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left)) !important;
+  }
+
+  .am-direct-dialog {
+    width: 100% !important;
+    max-height: calc(
+      100dvh
+      - max(8px, env(safe-area-inset-top))
+      - max(8px, env(safe-area-inset-bottom))
+      - 16px
+    ) !important;
+    border-radius: 18px !important;
+  }
+
+  .am-direct-header {
+    padding: 14px 14px 11px !important;
+  }
+
+  .am-direct-error,
+  .am-direct-success,
+  .am-direct-warning {
+    margin-inline: 14px !important;
+  }
+
+  .am-direct-summary {
+    margin-inline: 14px !important;
+  }
+
+  .am-direct-options {
+    margin-inline: 14px !important;
+  }
+
+  .am-direct-actions {
+    padding-inline: 14px !important;
+  }
+}

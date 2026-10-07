@@ -17,7 +17,7 @@ type DeadlineRiskInfo = {
   daysRemaining: number | null
 }
 
-const HIGH_RISK_STATUSES = ['terminated', 'cancelled', 'canceled', 'suspended']
+const HIGH_RISK_STATUSES = ['cancelled', 'canceled', 'suspended']
 const COMPLETED_STATUSES = ['completed', 'complete']
 
 function textValue(value: unknown) {
@@ -189,7 +189,7 @@ export function getDeadlineRiskInfo(
     return {
       level: 'High',
       basis: 'Status',
-      label: 'Critical status: project is suspended, terminated, or cancelled.',
+      label: 'High risk: project is suspended or cancelled.',
       effectiveDate: null,
       daysRemaining: null,
     }
@@ -216,16 +216,6 @@ export function getDeadlineRiskInfo(
       level: 'High',
       basis: effectiveDeadline.basis,
       label: `High risk: ${effectiveDeadline.label} already lapsed on ${dateLabel}.`,
-      effectiveDate: effectiveDeadline.date.toISOString().slice(0, 10),
-      daysRemaining,
-    }
-  }
-
-  if (!isTargetFallback && daysRemaining <= 30 && physical < 80) {
-    return {
-      level: 'High',
-      basis: effectiveDeadline.basis,
-      label: `High risk: ${effectiveDeadline.label} is within ${daysRemaining} day(s) and physical accomplishment is below 80%.`,
       effectiveDate: effectiveDeadline.date.toISOString().slice(0, 10),
       daysRemaining,
     }
@@ -273,11 +263,15 @@ export function getComputedRiskLevelWithDeadline(project: Record<string, any> | 
   const baseRisk = normalizeRisk(getComputedRiskLevel(project || {}))
   const deadlineInfo = getDeadlineRiskInfo(project)
 
-  // Canonical PMS10 display rule:
-  // critical status or an already-lapsed official expiration remains High Risk.
-  // A future deadline must not override the variance-based risk level. This
-  // keeps Project Registry, Project Details, Dashboard, Map, and Reports aligned.
-  if (deadlineInfo.basis === 'Status' || (deadlineInfo.daysRemaining ?? 0) < 0) {
+  // Canonical PMS10 High-Risk rule:
+  // 1) Suspended / Cancelled status is an automatic High Risk override.
+  // 2) Expired official contract/revised-contract expiry and
+  // 3) Negative slippage >= 15 percentage points are already handled by
+  //    getComputedRiskLevel(project) above.
+  //
+  // Target completion is only a fallback scheduling reference. A lapsed
+  // target completion date must NOT independently create a High Risk project.
+  if (deadlineInfo.basis === 'Status') {
     return 'High'
   }
 

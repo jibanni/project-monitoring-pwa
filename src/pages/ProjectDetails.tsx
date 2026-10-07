@@ -27,6 +27,11 @@ import '../styles/projectDetailsDesktopPolish.css'
 import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveImageUrl'
 import ActionMenu from '../components/ActionMenu'
 import AideMemoireGenerationDialog from '../components/AideMemoireGenerationDialog'
+import {
+  getLatestProjectAideMemoireDocument,
+  getProjectAideMemoireDocuments,
+  type CloudAideMemoireDocument,
+} from '../services/projectDocumentService'
 
 const PROJECT_UPDATE_HISTORY_LIMIT = 5
 
@@ -371,6 +376,7 @@ export default function ProjectDetails() {
   const [accessDenied, setAccessDenied] = useState(false)
   const [copiedSubayCode, setCopiedSubayCode] = useState(false)
   const [latestGeneratedAidePdf, setLatestGeneratedAidePdf] = useState<OfflineAideMemoireDocument | null>(null)
+  const [cloudAideDocuments, setCloudAideDocuments] = useState<CloudAideMemoireDocument[]>([])
   const [aideGenerationRequest, setAideGenerationRequest] = useState<{ updateRef: string; source: 'online' | 'offline' } | null>(null)
   const [generatingProjectBriefer, setGeneratingProjectBriefer] = useState(false)
 
@@ -452,6 +458,7 @@ export default function ProjectDetails() {
 
     function refreshDrafts() {
       void loadAideMemoireDrafts()
+      if (navigator.onLine) void loadCloudAideMemoireDocuments()
     }
 
     function handleVisibilityChange() {
@@ -521,6 +528,21 @@ export default function ProjectDetails() {
     }
   }
 
+  async function loadCloudAideMemoireDocuments() {
+    if (!id || !navigator.onLine) {
+      if (!navigator.onLine) setCloudAideDocuments([])
+      return
+    }
+
+    try {
+      const documents = await getProjectAideMemoireDocuments(id, 20)
+      setCloudAideDocuments(documents)
+    } catch (error) {
+      console.error('Unable to load cloud Aide Memoire documents.', error)
+      setCloudAideDocuments([])
+    }
+  }
+
   async function loadOfflineData() {
     if (!id) return
 
@@ -551,6 +573,7 @@ export default function ProjectDetails() {
         .slice(0, PROJECT_UPDATE_HISTORY_LIMIT),
     )
     setPhotos([])
+    setCloudAideDocuments([])
     setDataSource('offline')
   }
 
@@ -623,6 +646,7 @@ export default function ProjectDetails() {
       setUpdates(updatesResult.data || [])
       setPhotos(latestPhotos)
       setDataSource('online')
+      await loadCloudAideMemoireDocuments()
 
       await offlineDb.projects.put({
         id: onlineProject.id,
@@ -905,16 +929,65 @@ export default function ProjectDetails() {
     navigate(`/projects/${id}/updates`)
   }
 
-  function openLatestGeneratedAidePdf() {
-    if (!id || !latestGeneratedAidePdf) return
+  const latestCloudAidePdf = useMemo(
+    () =>
+      cloudAideDocuments.find(
+        (document) =>
+          String(document.document_format || '').toLowerCase() === 'pdf' &&
+          Boolean(document.file_url),
+      ) || null,
+    [cloudAideDocuments],
+  )
 
-    const params = new URLSearchParams({
-      documentId: latestGeneratedAidePdf.id,
-      from: 'details',
-      returnTo: `/projects/${id}`,
-    })
+  function openCloudAideMemoire(document: CloudAideMemoireDocument) {
+    const url = String(document.file_url || '').trim()
+    if (!url) return
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
 
-    navigate(`/projects/${id}/aide-memoire/pdf?${params.toString()}`)
+  async function openLatestGeneratedAidePdf() {
+    if (!id) return
+
+    /*
+     * Online source of truth: always ask Supabase for the newest synced PDF
+     * at the moment the user presses "Latest Aide Memoire". This keeps
+     * multiple devices on the same document instead of preferring each
+     * device's own IndexedDB copy.
+     */
+    if (navigator.onLine) {
+      try {
+        const latestCloud = await getLatestProjectAideMemoireDocument(id, 'pdf')
+
+        if (latestCloud?.file_url) {
+          setCloudAideDocuments((current) => {
+            const withoutLatest = current.filter((item) => item.id !== latestCloud.id)
+            return [latestCloud, ...withoutLatest]
+          })
+          openCloudAideMemoire(latestCloud)
+          return
+        }
+      } catch (error) {
+        console.warn('Unable to resolve the latest cloud Aide Memoire. Falling back to this device.', error)
+      }
+    }
+
+    /* Offline / cloud-unavailable fallback: retain the existing local-first
+       behavior so field users can still open the most recent PDF cached on
+       the current device. */
+    if (latestGeneratedAidePdf) {
+      const params = new URLSearchParams({
+        documentId: latestGeneratedAidePdf.id,
+        from: 'details',
+        returnTo: `/projects/${id}`,
+      })
+
+      navigate(`/projects/${id}/aide-memoire/pdf?${params.toString()}`)
+      return
+    }
+
+    if (latestCloudAidePdf) {
+      openCloudAideMemoire(latestCloudAidePdf)
+    }
   }
 
   function goToMap() {
@@ -1347,6 +1420,76 @@ export default function ProjectDetails() {
               </div>
             )}
           </section>
+          <section className="pd-card pd-aide-cloud-card">
+            <div className="pd-section-header">
+              <div>
+                <p className="pd-section-eyebrow">Documents</p>
+                <h2>Aide Memoire Files</h2>
+              </div>
+
+              <span className="pd-section-chip">
+                {dataSource === 'online'
+                  ? `${cloudAideDocuments.length} file${cloudAideDocuments.length === 1 ? '' : 's'}`
+                  : latestGeneratedAidePdf
+                    ? '1 local'
+                    : 'Offline'}
+              </span>
+            </div>
+
+            {dataSource === 'offline' ? (
+              latestGeneratedAidePdf ? (
+                <button
+                  type="button"
+                  className="pd-aide-file-row is-local"
+                  onClick={openLatestGeneratedAidePdf}
+                >
+                  <span className="pd-aide-file-format">PDF</span>
+                  <span className="pd-aide-file-copy">
+                    <strong>{latestGeneratedAidePdf.file_name || 'Latest Aide Memoire'}</strong>
+                    <small>Available offline on this device</small>
+                  </span>
+                  <span className="pd-aide-file-open">Open</span>
+                </button>
+              ) : (
+                <div className="pd-empty-inline">
+                  Cloud Aide Memoire files will appear here when the device is online.
+                </div>
+              )
+            ) : cloudAideDocuments.length === 0 ? (
+              <div className="pd-empty-inline">
+                No cloud-synced Aide Memoire has been generated for this project yet.
+              </div>
+            ) : (
+              <div className="pd-aide-file-list">
+                {cloudAideDocuments.slice(0, 8).map((document) => (
+                  <button
+                    type="button"
+                    className="pd-aide-file-row"
+                    key={document.id}
+                    onClick={() => openCloudAideMemoire(document)}
+                    disabled={!document.file_url}
+                  >
+                    <span className="pd-aide-file-format">
+                      {String(document.document_format || 'FILE').toUpperCase()}
+                    </span>
+
+                    <span className="pd-aide-file-copy">
+                      <strong>{getDisplayValue(document.file_name, 'Aide Memoire')}</strong>
+                      <small>
+                        {formatDate(document.generated_at || document.uploaded_at)}
+                        {document.generated_by_name
+                          ? ` · ${document.generated_by_name}`
+                          : ''}
+                      </small>
+                    </span>
+
+                    <span className="pd-aide-file-open">Open</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="pd-history-pill-section" aria-label="Update history">
             <button
               type="button"
@@ -1530,7 +1673,10 @@ export default function ProjectDetails() {
           source={aideGenerationRequest.source}
           returnTo={`/projects/${id}`}
           onClose={() => setAideGenerationRequest(null)}
-          onGenerated={loadAideMemoireDrafts}
+          onGenerated={async () => {
+            await loadAideMemoireDrafts()
+            if (navigator.onLine) await loadCloudAideMemoireDocuments()
+          }}
         />
       )}
 
@@ -1559,8 +1705,8 @@ export default function ProjectDetails() {
             label: 'Latest Aide Memoire',
             icon: <IconPdf />,
             tone: 'document',
-            hidden: !latestGeneratedAidePdf,
-            onSelect: openLatestGeneratedAidePdf,
+            hidden: !latestGeneratedAidePdf && !latestCloudAidePdf,
+            onSelect: () => void openLatestGeneratedAidePdf(),
           },
           {
             id: 'map',

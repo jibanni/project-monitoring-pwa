@@ -1,7 +1,10 @@
 import { supabase } from '../lib/supabase'
 import {
+  getPendingAideMemoireDocuments,
+  markAideMemoireDocumentSync,
   offlineDb,
   type OfflineAideMemoire,
+  type OfflineAideMemoireDocument,
   type OfflineProjectPhoto,
   type OfflineProjectUpdate,
 } from '../lib/offlineDb'
@@ -18,11 +21,14 @@ import {
 } from '../utils/imageCompression'
 import { recordSuccessfulSync } from '../lib/appDiagnostics'
 import { canUpdateProject, getCanonicalRole } from '../utils/aorAccess'
+import { uploadAideMemoireDocumentToDrive } from './projectDocumentService'
 
 type SyncResult = {
   success: boolean
   syncedCount: number
   syncedPhotoCount: number
+  syncedDocumentCount: number
+  failedDocumentCount: number
   failedCount: number
   message: string
 }
@@ -420,6 +426,172 @@ function aideMemoireMatchesUpdate(
     references.has(snapshotUpdateId) ||
     (sameInspectionDate && record.update_source === 'offline')
   )
+}
+
+
+async function relinkAideMemoireRecordsForSyncedUpdate(
+  update: OfflineProjectUpdate,
+  onlineProjectUpdateId: string,
+) {
+  const [records, documents] = await Promise.all([
+    offlineDb.aide_memoires.toArray(),
+    offlineDb.aide_memoire_documents.toArray(),
+  ])
+
+  const linkedRecords = records.filter((record) =>
+    aideMemoireMatchesUpdate(record, update),
+  )
+  if (linkedRecords.length === 0) return
+
+  const linkedIds = new Set(linkedRecords.map((record) => record.id))
+  const linkedDocuments = documents.filter((document) =>
+    linkedIds.has(document.aide_memoire_id),
+  )
+
+  await offlineDb.transaction(
+    'rw',
+    offlineDb.aide_memoires,
+    offlineDb.aide_memoire_documents,
+    async () => {
+      for (const record of linkedRecords) {
+        await offlineDb.aide_memoires.put({
+          ...record,
+          update_ref: onlineProjectUpdateId,
+          update_source: 'online',
+          sync_status: 'pending',
+          synced: false,
+          updated_at: new Date().toISOString(),
+        })
+      }
+
+      for (const document of linkedDocuments) {
+        await offlineDb.aide_memoire_documents.put({
+          ...document,
+          update_ref: onlineProjectUpdateId,
+          sync_status:
+            String(document.sync_status || '').toLowerCase() === 'synced'
+              ? 'synced'
+              : 'pending',
+          sync_error: '',
+        })
+      }
+    },
+  )
+}
+
+async function markAideMemoireRecordSyncedIfComplete(aideMemoireId: string) {
+  const [record, documents] = await Promise.all([
+    offlineDb.aide_memoires.get(aideMemoireId),
+    offlineDb.aide_memoire_documents
+      .where('aide_memoire_id')
+      .equals(aideMemoireId)
+      .toArray(),
+  ])
+
+  if (!record || documents.length === 0) return
+
+  const allSynced = documents.every(
+    (document) => String(document.sync_status || '').toLowerCase() === 'synced',
+  )
+
+  if (!allSynced) return
+
+  await offlineDb.aide_memoires.put({
+    ...record,
+    sync_status: 'synced',
+    synced: true,
+    updated_at: new Date().toISOString(),
+  })
+}
+
+async function syncOneAideMemoireDocument(
+  document: OfflineAideMemoireDocument,
+) {
+  const aideRecord = await offlineDb.aide_memoires.get(
+    document.aide_memoire_id,
+  )
+
+  /*
+   * A document tied to an unsynced offline inspection cannot be uploaded yet
+   * because Google Drive / Supabase registration requires the real online
+   * project_update UUID. relinkAideMemoireRecordsForSyncedUpdate() changes
+   * the record to update_source=online as soon as the parent update syncs.
+   */
+  if (aideRecord?.update_source === 'offline') {
+    return { synced: false, skipped: true }
+  }
+
+  await markAideMemoireDocumentSync(document.id, {
+    sync_status: 'syncing',
+    sync_error: '',
+  })
+
+  try {
+    const uploaded = await uploadAideMemoireDocumentToDrive({
+      document: {
+        ...document,
+        update_ref: aideRecord?.update_ref || document.update_ref,
+      },
+      updateId: aideRecord?.update_ref || document.update_ref,
+    })
+
+    await markAideMemoireDocumentSync(document.id, {
+      update_ref: aideRecord?.update_ref || document.update_ref,
+      sync_status: 'synced',
+      sync_error: '',
+      cloud_document_id: uploaded.document?.id,
+      cloud_url:
+        uploaded.document?.file_url ||
+        uploaded.file.webViewLink ||
+        uploaded.file.directViewLink ||
+        '',
+      drive_file_id:
+        uploaded.document?.drive_file_id || uploaded.file.id,
+      drive_folder_id:
+        uploaded.document?.drive_folder_id ||
+        String(uploaded.file.folderId || ''),
+      storage_path:
+        uploaded.document?.storage_path ||
+        String(uploaded.file.storagePath || ''),
+      synced_at:
+        uploaded.document?.synced_at || new Date().toISOString(),
+    })
+
+    await markAideMemoireRecordSyncedIfComplete(document.aide_memoire_id)
+
+    return { synced: true, skipped: false }
+  } catch (error: any) {
+    await markAideMemoireDocumentSync(document.id, {
+      sync_status: 'failed',
+      sync_error:
+        error?.message ||
+        'Aide Memoire cloud upload failed and will retry later.',
+    })
+
+    console.error('Unable to sync Aide Memoire document:', error)
+    return { synced: false, skipped: false }
+  }
+}
+
+export async function syncPendingAideMemoireDocuments() {
+  const pendingDocuments = await getPendingAideMemoireDocuments()
+  let syncedDocumentCount = 0
+  let failedDocumentCount = 0
+  let skippedDocumentCount = 0
+
+  for (const document of pendingDocuments) {
+    const result = await syncOneAideMemoireDocument(document)
+
+    if (result.synced) syncedDocumentCount += 1
+    else if (result.skipped) skippedDocumentCount += 1
+    else failedDocumentCount += 1
+  }
+
+  return {
+    syncedDocumentCount,
+    failedDocumentCount,
+    skippedDocumentCount,
+  }
 }
 
 function isOrphanedSyncError(error: unknown) {
@@ -1006,15 +1178,21 @@ export async function removePendingOfflineUpdate(update: OfflineProjectUpdate) {
 
 export async function syncOfflineUpdates(): Promise<SyncResult> {
   await repairLegacyOfflineQueue()
-  const pendingUpdates = await getPendingOfflineUpdates()
 
-  if (pendingUpdates.length === 0) {
+  const [pendingUpdates, pendingDocuments] = await Promise.all([
+    getPendingOfflineUpdates(),
+    getPendingAideMemoireDocuments(),
+  ])
+
+  if (pendingUpdates.length === 0 && pendingDocuments.length === 0) {
     return {
       success: true,
       syncedCount: 0,
       syncedPhotoCount: 0,
+      syncedDocumentCount: 0,
+      failedDocumentCount: 0,
       failedCount: 0,
-      message: 'No pending offline updates.',
+      message: 'No pending offline updates or Aide Memoire files.',
     }
   }
 
@@ -1039,6 +1217,11 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
 
       const onlineProjectUpdateId = await createOrReuseOnlineUpdate(update)
 
+      await relinkAideMemoireRecordsForSyncedUpdate(
+        update,
+        onlineProjectUpdateId,
+      )
+
       const projectResult = await supabase
         .from('projects')
         .update(buildProjectPatch(update))
@@ -1049,7 +1232,6 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
           sync_status: 'failed',
           error: projectResult.error.message,
         })
-
         throw projectResult.error
       }
 
@@ -1090,13 +1272,30 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
     }
   }
 
+  /*
+   * Always attempt generated-document sync after project updates. This also
+   * covers Aide Memoires generated for already-online inspections while the
+   * device temporarily had no internet connection.
+   */
+  const documentSync = await syncPendingAideMemoireDocuments()
+
   if (failedCount > 0) {
     throw new Error(
-      `${syncedCount} update(s) synced, but ${failedCount} update(s) failed. Please review failed records and try again.`,
+      `${syncedCount} update(s) synced, but ${failedCount} update(s) failed. ` +
+        `${documentSync.syncedDocumentCount} Aide Memoire file(s) synced. ` +
+        'Please review failed records and try again.',
     )
   }
 
-  const successMessage = `${syncedCount} offline update(s) and ${syncedPhotoCount} offline photo(s) synced successfully.`
+  const documentNote =
+    documentSync.failedDocumentCount > 0
+      ? ` ${documentSync.failedDocumentCount} Aide Memoire file(s) remain queued for retry.`
+      : ''
+
+  const successMessage =
+    `${syncedCount} offline update(s), ${syncedPhotoCount} offline photo(s), and ` +
+    `${documentSync.syncedDocumentCount} Aide Memoire file(s) synced successfully.` +
+    documentNote
 
   recordSuccessfulSync({
     syncedUpdates: syncedCount,
@@ -1105,9 +1304,11 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
   })
 
   return {
-    success: true,
+    success: documentSync.failedDocumentCount === 0,
     syncedCount,
     syncedPhotoCount,
+    syncedDocumentCount: documentSync.syncedDocumentCount,
+    failedDocumentCount: documentSync.failedDocumentCount,
     failedCount,
     message: successMessage,
   }

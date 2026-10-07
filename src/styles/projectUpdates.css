@@ -8287,20 +8287,20 @@ body > .pu-update-fab-drawer.is-closed .pu-update-fab-stack {
   -webkit-line-clamp: 2 !important;
 }
 
-.pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-short {
+.pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-length-1 {
   font-size: clamp(1.78rem, 6.6vw, 2.2rem) !important;
 }
 
-.pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-medium {
+.pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-length-2 {
   font-size: clamp(1.5rem, 5.7vw, 1.9rem) !important;
 }
 
-.pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-long {
+.pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-length-3 {
   font-size: clamp(1.28rem, 4.8vw, 1.62rem) !important;
   letter-spacing: -0.025em !important;
 }
 
-.pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-extra-long {
+.pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-length-4 {
   font-size: clamp(1.08rem, 4.05vw, 1.38rem) !important;
   line-height: 1.06 !important;
   letter-spacing: -0.018em !important;
@@ -8384,19 +8384,19 @@ body > .pu-update-fab-drawer.is-closed .pu-update-fab-stack {
     padding-bottom: 0.74rem !important;
   }
 
-  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-short {
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-length-1 {
     font-size: clamp(1.6rem, 7vw, 1.9rem) !important;
   }
 
-  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-medium {
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-length-2 {
     font-size: clamp(1.38rem, 6vw, 1.7rem) !important;
   }
 
-  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-long {
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-length-3 {
     font-size: clamp(1.17rem, 5.1vw, 1.45rem) !important;
   }
 
-  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-extra-long {
+  .pu-page:not(.is-pu-scrolled) .pu-update-hero-card .pu-update-hero-title.pu-title-length-4 {
     font-size: clamp(1rem, 4.35vw, 1.22rem) !important;
   }
 

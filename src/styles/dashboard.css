@@ -3356,3 +3356,1165 @@ body #root .pm-unified-filter-grid > .pm-unified-clear {
     letter-spacing: 0.13em !important;
   }
 }
+
+/* ============================================================
+   PMS10 V25.53 - CLEAN DETAILED DASHBOARD VISUALS
+   Desktop only. Mobile chart presentation remains unchanged.
+   ============================================================ */
+
+@media (min-width: 1180px) {
+  .dashboard-stat-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
+    gap: 14px !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    margin-top: 16px !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card,
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(-n + 5),
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(n + 6) {
+    grid-column: auto !important;
+    grid-row: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 108px !important;
+    min-height: 108px !important;
+    margin: 0 !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1179px) {
+  .dashboard-stat-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card,
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(-n + 5),
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(n + 6) {
+    grid-column: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-main-grid.dashboard-chart-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+    align-items: stretch !important;
+  }
+
+  .dashboard-chart-row .dashboard-chart-card {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    min-height: 430px !important;
+    padding: 22px 24px 24px !important;
+    border: 1px solid #e0e8f0 !important;
+    border-radius: 20px !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 24px rgba(23, 49, 79, .055) !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-header {
+    min-height: 54px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-kicker {
+    margin-bottom: 5px !important;
+    font-size: 11px !important;
+    font-weight: 850 !important;
+    letter-spacing: .12em !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-header h2 {
+    margin: 0 !important;
+    color: #17253a !important;
+    font-size: 19px !important;
+    font-weight: 820 !important;
+    letter-spacing: -.018em !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-header > span {
+    min-height: 31px !important;
+    padding: 7px 12px !important;
+    border-radius: 999px !important;
+    background: #f1f6fb !important;
+    color: #285b94 !important;
+    font-size: 11.5px !important;
+    font-weight: 850 !important;
+    line-height: 1 !important;
+  }
+
+  /* ---------- Desktop Portfolio Status bars ---------- */
+  .dashboard-status-bars {
+    display: grid !important;
+    gap: 9px !important;
+  }
+
+  .dashboard-status-bar-row {
+    display: grid !important;
+    grid-template-columns: 10px minmax(0, 1fr) auto !important;
+    grid-template-rows: auto 8px !important;
+    align-items: center !important;
+    column-gap: 10px !important;
+    row-gap: 8px !important;
+    width: 100% !important;
+    min-height: 49px !important;
+    margin: 0 !important;
+    padding: 9px 11px 10px !important;
+    border: 1px solid #e8eef4 !important;
+    border-radius: 12px !important;
+    background: #f9fbfd !important;
+    color: inherit !important;
+    text-align: left !important;
+    cursor: pointer !important;
+    transition: background-color 150ms ease, border-color 150ms ease !important;
+  }
+
+  .dashboard-status-bar-row:hover {
+    background: #f5f8fb !important;
+    border-color: #d9e4ee !important;
+  }
+
+  .dashboard-status-bar-dot {
+    width: 9px !important;
+    height: 9px !important;
+    border-radius: 50% !important;
+  }
+
+  .dashboard-status-bar-label {
+    min-width: 0 !important;
+    color: #25364c !important;
+    font-size: 12.5px !important;
+    font-weight: 800 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dashboard-status-bar-values {
+    display: inline-flex !important;
+    align-items: baseline !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
+  }
+
+  .dashboard-status-bar-values strong {
+    color: #17253a !important;
+    font-size: 12.5px !important;
+    font-weight: 900 !important;
+  }
+
+  .dashboard-status-bar-values em {
+    color: #8190a2 !important;
+    font-size: 10.5px !important;
+    font-style: normal !important;
+    font-weight: 750 !important;
+  }
+
+  .dashboard-status-bar-track {
+    grid-column: 2 / -1 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 8px !important;
+    overflow: hidden !important;
+    border-radius: 999px !important;
+    background: #e8eef4 !important;
+  }
+
+  .dashboard-status-bar-track > b {
+    display: block !important;
+    height: 100% !important;
+    border-radius: inherit !important;
+    transition: width 300ms cubic-bezier(.2, .8, .2, 1) !important;
+  }
+
+  /* ---------- Desktop High Risk Drivers ---------- */
+  .dashboard-risk-drivers {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 320px !important;
+  }
+
+  .dashboard-risk-summary {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .dashboard-risk-summary > div {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    min-height: 74px !important;
+    padding: 12px 14px !important;
+    border: 1px solid #f0e1e1 !important;
+    border-radius: 13px !important;
+    background: #fffafa !important;
+  }
+
+  .dashboard-risk-summary strong {
+    color: #dc2626 !important;
+    font-size: 25px !important;
+    font-weight: 900 !important;
+    letter-spacing: -.03em !important;
+    line-height: 1 !important;
+  }
+
+  .dashboard-risk-summary span {
+    margin-top: 6px !important;
+    color: #7b8898 !important;
+    font-size: 10.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: .03em !important;
+    text-transform: uppercase !important;
+  }
+
+  .dashboard-risk-driver-list {
+    display: grid !important;
+    gap: 9px !important;
+  }
+
+  .dashboard-risk-driver-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto 8px !important;
+    gap: 8px 12px !important;
+    width: 100% !important;
+    min-height: 57px !important;
+    padding: 10px 12px 11px !important;
+    border: 1px solid #e8eef4 !important;
+    border-radius: 12px !important;
+    background: #f9fbfd !important;
+    text-align: left !important;
+    cursor: pointer !important;
+    transition: background-color 150ms ease, border-color 150ms ease !important;
+  }
+
+  .dashboard-risk-driver-row:hover {
+    background: #f5f8fb !important;
+    border-color: #d9e4ee !important;
+  }
+
+  .dashboard-risk-driver-label {
+    color: #25364c !important;
+    font-size: 12.5px !important;
+    font-weight: 820 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dashboard-risk-driver-values {
+    display: inline-flex !important;
+    align-items: baseline !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
+  }
+
+  .dashboard-risk-driver-values strong {
+    color: #17253a !important;
+    font-size: 12.5px !important;
+    font-weight: 900 !important;
+  }
+
+  .dashboard-risk-driver-values em {
+    color: #8190a2 !important;
+    font-size: 10.5px !important;
+    font-style: normal !important;
+    font-weight: 750 !important;
+  }
+
+  .dashboard-risk-driver-track {
+    grid-column: 1 / -1 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 8px !important;
+    overflow: hidden !important;
+    border-radius: 999px !important;
+    background: #eceff3 !important;
+  }
+
+  .dashboard-risk-driver-track > b {
+    display: block !important;
+    height: 100% !important;
+    border-radius: inherit !important;
+    background: #ef4444 !important;
+    transition: width 300ms cubic-bezier(.2, .8, .2, 1) !important;
+  }
+
+  .dashboard-risk-driver-row.critical-status .dashboard-risk-driver-track > b {
+    background: #b91c1c !important;
+  }
+
+  .dashboard-risk-driver-row.slippage .dashboard-risk-driver-track > b {
+    background: #f97316 !important;
+  }
+
+  .dashboard-risk-driver-note {
+    margin: 11px 2px 0 !important;
+    color: #8190a2 !important;
+    font-size: 10.5px !important;
+    font-style: italic !important;
+    font-weight: 650 !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V25.54 - PIE STATUS + UNIFIED SPACING
+   Desktop Detailed Dashboard only.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  .dashboard-page {
+    --pms-detailed-gap: 18px;
+  }
+
+  /* One consistent vertical rhythm:
+     Filter -> KPI row -> chart row */
+  .dashboard-filter-panel {
+    margin-bottom: 0 !important;
+  }
+
+  .dashboard-stat-grid {
+    gap: var(--pms-detailed-gap) !important;
+    margin-top: var(--pms-detailed-gap) !important;
+    margin-bottom: 0 !important;
+  }
+
+  .dashboard-main-grid.dashboard-chart-row {
+    gap: var(--pms-detailed-gap) !important;
+    margin-top: var(--pms-detailed-gap) !important;
+  }
+
+  /* Keep all four KPI cards visually identical. */
+  .dashboard-stat-grid .dashboard-stat-card {
+    height: 108px !important;
+    min-height: 108px !important;
+    padding: 16px 18px 15px !important;
+  }
+
+  /* Both graph cards use the same outer and inner spacing. */
+  .dashboard-chart-row .dashboard-chart-card {
+    min-height: 420px !important;
+    padding: 20px !important;
+    border-radius: 20px !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-header {
+    min-height: 52px !important;
+    margin: 0 0 12px !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-header > span {
+    min-height: 30px !important;
+    padding: 6px 11px !important;
+  }
+
+  /* ---------- Portfolio Status pie ---------- */
+  .dashboard-status-card .dashboard-status-pie-area {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 225px !important;
+    min-height: 225px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-status-card
+    .dashboard-status-pie-area
+    > .recharts-responsive-container {
+    width: min(100%, 330px) !important;
+    height: 100% !important;
+    margin-inline: auto !important;
+  }
+
+  .dashboard-status-card .dashboard-status-legend {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin: 8px 0 0 !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-status-card .dashboard-status-legend button {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 7px 10px !important;
+    border: 1px solid #e8eef4 !important;
+    border-radius: 10px !important;
+    background: #f8fafc !important;
+    box-shadow: none !important;
+  }
+
+  .dashboard-status-card .dashboard-status-legend button:hover {
+    transform: none !important;
+    background: #f3f7fb !important;
+    box-shadow: none !important;
+  }
+
+  .dashboard-status-card .dashboard-status-legend i {
+    width: 9px !important;
+    height: 9px !important;
+  }
+
+  .dashboard-status-card .dashboard-status-legend span,
+  .dashboard-status-card .dashboard-status-legend strong {
+    font-size: 11.5px !important;
+    line-height: 1 !important;
+  }
+
+  /* ---------- High Risk Drivers ---------- */
+  .dashboard-risk-card .dashboard-risk-drivers {
+    min-height: 300px !important;
+    justify-content: flex-start !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-summary {
+    gap: 8px !important;
+    margin: 0 0 10px !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-summary > div {
+    min-height: 66px !important;
+    padding: 10px 12px !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-driver-list {
+    gap: 7px !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-driver-row {
+    min-height: 50px !important;
+    padding: 8px 10px 9px !important;
+    gap: 7px 10px !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-driver-note {
+    margin: 9px 2px 0 !important;
+  }
+}
+
+@media (min-width: 1180px) {
+  .dashboard-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card,
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(-n + 5),
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(n + 6) {
+    grid-column: auto !important;
+    width: 100% !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1179px) {
+  .dashboard-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V25.55 - EXACT DETAILED DASHBOARD SPACING RHYTHM
+   Uses one 16px rhythm for the desktop Detailed Dashboard.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  .dashboard-page {
+    --pms-detailed-space: 16px;
+  }
+
+  /*
+    Make the three main desktop blocks use the exact same width
+    and the exact same vertical spacing:
+      Filters
+      KPI row
+      Graph row
+  */
+  .dashboard-page > .dashboard-filter-panel,
+  .dashboard-page > .dashboard-stat-grid,
+  .dashboard-page > .dashboard-main-grid.dashboard-chart-row {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .dashboard-page > .dashboard-filter-panel {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .dashboard-page > .dashboard-stat-grid {
+    display: grid !important;
+    gap: var(--pms-detailed-space) !important;
+    margin-top: var(--pms-detailed-space) !important;
+    margin-bottom: 0 !important;
+  }
+
+  .dashboard-page > .dashboard-main-grid.dashboard-chart-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: var(--pms-detailed-space) !important;
+    margin-top: var(--pms-detailed-space) !important;
+    margin-bottom: 0 !important;
+    align-items: stretch !important;
+  }
+
+  /* Four KPI cards: same height and same internal padding. */
+  .dashboard-stat-grid .dashboard-stat-card {
+    box-sizing: border-box !important;
+    height: 108px !important;
+    min-height: 108px !important;
+    margin: 0 !important;
+    padding: 16px !important;
+  }
+
+  /*
+    Both lower cards now use the same outer padding, header spacing,
+    and content start position.
+  */
+  .dashboard-chart-row .dashboard-chart-card {
+    box-sizing: border-box !important;
+    height: auto !important;
+    min-height: 440px !important;
+    margin: 0 !important;
+    padding: 18px !important;
+    border-radius: 20px !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-header {
+    box-sizing: border-box !important;
+    min-height: 52px !important;
+    margin: 0 0 var(--pms-detailed-space) !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-chart-row .dashboard-card-header > span {
+    min-height: 30px !important;
+    padding: 6px 11px !important;
+  }
+
+  /* ---------- Status card ---------- */
+  .dashboard-status-card .dashboard-status-pie-area {
+    box-sizing: border-box !important;
+    height: 210px !important;
+    min-height: 210px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-status-card
+    .dashboard-status-pie-area
+    > .recharts-responsive-container {
+    width: min(100%, 310px) !important;
+    height: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  .dashboard-status-card .dashboard-status-legend {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin: var(--pms-detailed-space) 0 0 !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-status-card .dashboard-status-legend button {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 7px 10px !important;
+    margin: 0 !important;
+  }
+
+  /* ---------- Risk card ---------- */
+  .dashboard-risk-card .dashboard-risk-drivers {
+    box-sizing: border-box !important;
+    min-height: 300px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-summary {
+    gap: 8px !important;
+    margin: 0 0 var(--pms-detailed-space) !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-summary > div {
+    min-height: 66px !important;
+    padding: 10px 12px !important;
+    margin: 0 !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-driver-list {
+    display: grid !important;
+    gap: 6px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-driver-row {
+    min-height: 50px !important;
+    margin: 0 !important;
+    padding: 8px 10px 9px !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-driver-note {
+    margin: var(--pms-detailed-space) 2px 0 !important;
+  }
+}
+
+@media (min-width: 1180px) {
+  .dashboard-page > .dashboard-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card,
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(-n + 5),
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(n + 6) {
+    grid-column: auto !important;
+    width: 100% !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1179px) {
+  .dashboard-page > .dashboard-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V25.56 - SINGLE GAP SYSTEM
+   Match all desktop Detailed Dashboard spacing to the same
+   top-gap rhythm: 16px everywhere.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  .dashboard-page {
+    --pms-dashboard-gap: 16px;
+
+    /* Let the parent/layout keep the existing outer top gutter.
+       Internally, every direct dashboard section now uses one gap. */
+    display: flex !important;
+    flex-direction: column !important;
+    gap: var(--pms-dashboard-gap) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Remove old accumulated vertical margins so flex-gap is authoritative. */
+  .dashboard-page > .dashboard-filter-panel,
+  .dashboard-page > .dashboard-stat-grid,
+  .dashboard-page > .dashboard-main-grid,
+  .dashboard-page > .dashboard-priority-section,
+  .dashboard-page > .dashboard-recent-section {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  /* Horizontal gaps use the exact same 16px value. */
+  .dashboard-page > .dashboard-stat-grid {
+    gap: var(--pms-dashboard-gap) !important;
+  }
+
+  .dashboard-page > .dashboard-main-grid.dashboard-chart-row {
+    gap: var(--pms-dashboard-gap) !important;
+  }
+
+  /* Any nested two-column dashboard grids should follow the same rhythm. */
+  .dashboard-priority-section,
+  .dashboard-completion-section,
+  .dashboard-recent-section {
+    gap: var(--pms-dashboard-gap) !important;
+  }
+
+  /* Remove legacy section margins that could visually double the spacing. */
+  .dashboard-main-grid,
+  .dashboard-priority-section,
+  .dashboard-recent-section,
+  .dashboard-completion-section {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Keep lower chart cards flush with the same row gap. */
+  .dashboard-chart-row .dashboard-chart-card {
+    margin: 0 !important;
+  }
+
+  /* Consistent internal chart rhythm as well. */
+  .dashboard-chart-row .dashboard-card-header {
+    margin-bottom: var(--pms-dashboard-gap) !important;
+  }
+
+  .dashboard-status-card .dashboard-status-legend {
+    margin-top: var(--pms-dashboard-gap) !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-summary {
+    margin-bottom: var(--pms-dashboard-gap) !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-driver-note {
+    margin-top: var(--pms-dashboard-gap) !important;
+  }
+}
+
+/* Four KPIs remain one row on normal desktops. */
+@media (min-width: 1180px) {
+  .dashboard-page > .dashboard-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card,
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(-n + 5),
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(n + 6) {
+    grid-column: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+}
+
+/* Narrow desktop/tablet landscape uses the same 16px gap in 2 x 2. */
+@media (min-width: 1024px) and (max-width: 1179px) {
+  .dashboard-page > .dashboard-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V25.57 - COMPACT GAP CORRECTION
+   Corrects V25.56 which made the section gaps look larger.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  .dashboard-page {
+    --pms-dashboard-gap: 12px !important;
+
+    /*
+      V25.56 changed the whole Dashboard page into a flex column.
+      That made its gap combine visually with some existing section
+      padding/spacing. Return the page to normal block flow and control
+      each section gap directly.
+    */
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* Filter stays at the existing top gutter. */
+  .dashboard-page > .dashboard-filter-panel {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* KPI row starts exactly 12px below the filter. */
+  .dashboard-page > .dashboard-stat-grid {
+    display: grid !important;
+    width: 100% !important;
+    gap: var(--pms-dashboard-gap) !important;
+    margin: var(--pms-dashboard-gap) 0 0 !important;
+  }
+
+  /* Graph row starts exactly 12px below the KPI row. */
+  .dashboard-page > .dashboard-main-grid.dashboard-chart-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+    gap: var(--pms-dashboard-gap) !important;
+    margin: var(--pms-dashboard-gap) 0 0 !important;
+  }
+
+  /* Every following Detailed Dashboard section uses the same 12px gap. */
+  .dashboard-page > .dashboard-priority-section,
+  .dashboard-page > .dashboard-completion-section,
+  .dashboard-page > .dashboard-recent-section,
+  .dashboard-page > .dashboard-main-grid:not(.dashboard-chart-row) {
+    width: 100% !important;
+    margin: var(--pms-dashboard-gap) 0 0 !important;
+  }
+
+  /* Equal horizontal spacing between the four KPI cards. */
+  .dashboard-stat-grid .dashboard-stat-card {
+    margin: 0 !important;
+  }
+
+  /* Equal horizontal spacing between Status and Risk cards. */
+  .dashboard-chart-row .dashboard-chart-card {
+    margin: 0 !important;
+  }
+
+  /* Slightly tighter internal graph spacing to match the compact outer rhythm. */
+  .dashboard-chart-row .dashboard-card-header {
+    margin-bottom: 12px !important;
+  }
+
+  .dashboard-status-card .dashboard-status-legend {
+    margin-top: 12px !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-summary {
+    margin-bottom: 12px !important;
+  }
+
+  .dashboard-risk-card .dashboard-risk-driver-note {
+    margin-top: 12px !important;
+  }
+}
+
+@media (min-width: 1180px) {
+  .dashboard-page > .dashboard-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-stat-grid .dashboard-stat-card,
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(-n + 5),
+  .dashboard-stat-grid .dashboard-stat-card:nth-child(n + 6) {
+    grid-column: auto !important;
+    width: 100% !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1179px) {
+  .dashboard-page > .dashboard-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V25.58 - PERFORMANCE REPLACES HIGH-RISK GRAPH
+   Desktop Detailed Dashboard.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  /*
+    High Risk remains an important KPI at the top.
+    The second chart card is now used for the two accomplishment
+    measures instead of repeating risk information.
+  */
+  .dashboard-performance-card {
+    min-height: 440px !important;
+    padding: 18px !important;
+  }
+
+  .dashboard-dual-performance {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    min-height: 322px !important;
+    align-items: stretch !important;
+  }
+
+  .dashboard-dual-performance-item {
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    min-width: 0 !important;
+    min-height: 322px !important;
+    padding: 14px 12px 12px !important;
+    border: 1px solid #e4eaf1 !important;
+    border-radius: 16px !important;
+    background: #f9fbfd !important;
+  }
+
+  .dashboard-dual-performance-heading {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-height: 34px !important;
+    gap: 10px !important;
+    padding: 0 2px !important;
+  }
+
+  .dashboard-dual-performance-heading span {
+    color: #64748b !important;
+    font-size: 11px !important;
+    font-weight: 850 !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase !important;
+  }
+
+  .dashboard-dual-performance-heading strong {
+    font-size: 13px !important;
+    font-weight: 900 !important;
+  }
+
+  .dashboard-dual-performance-item.is-physical
+    .dashboard-dual-performance-heading strong {
+    color: #16804c !important;
+  }
+
+  .dashboard-dual-performance-item.is-financial
+    .dashboard-dual-performance-heading strong {
+    color: #4867ac !important;
+  }
+
+  .dashboard-dual-performance-gauge {
+    position: relative !important;
+    width: min(100%, 220px) !important;
+    height: 220px !important;
+    margin: 4px auto 2px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .dashboard-dual-performance-center {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    pointer-events: none !important;
+  }
+
+  .dashboard-dual-performance-center strong {
+    color: #123a71 !important;
+    font-size: clamp(1.65rem, 2vw, 2.15rem) !important;
+    font-weight: 900 !important;
+    letter-spacing: -.035em !important;
+    line-height: 1 !important;
+  }
+
+  .dashboard-dual-performance-item.is-physical
+    .dashboard-dual-performance-center strong {
+    color: #16804c !important;
+  }
+
+  .dashboard-dual-performance-item.is-financial
+    .dashboard-dual-performance-center strong {
+    color: #4867ac !important;
+  }
+
+  .dashboard-dual-performance-center span {
+    margin-top: 7px !important;
+    color: #738398 !important;
+    font-size: 10px !important;
+    font-weight: 850 !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase !important;
+  }
+
+  .dashboard-dual-performance-item > p {
+    margin: auto 0 0 !important;
+    color: #8a99aa !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    line-height: 1.25 !important;
+  }
+
+  /* Same outer height and top/bottom rhythm as Portfolio Status. */
+  .dashboard-status-card,
+  .dashboard-performance-card {
+    min-height: 440px !important;
+  }
+
+  /* Keep the row gap equal to the compact dashboard rhythm. */
+  .dashboard-page > .dashboard-main-grid.dashboard-chart-row {
+    gap: 12px !important;
+    margin-top: 12px !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1220px) {
+  .dashboard-dual-performance-gauge {
+    width: min(100%, 185px) !important;
+    height: 185px !important;
+  }
+
+  .dashboard-dual-performance-item {
+    min-height: 290px !important;
+  }
+
+  .dashboard-dual-performance {
+    min-height: 290px !important;
+  }
+}
+
+/* PMS10_DETAILED_MOBILE_V113_START */
+/*
+ * PMS10 Detailed Dashboard mobile refresh — V1.13
+ * Scope: detailed Dashboard classes only. ExecutiveDashboard styles are intentionally
+ * not targeted here. Existing mobile header/navigation/hero behavior is preserved.
+ */
+@media (max-width: 768px) {
+  /* Prevent the new desktop cards/graphs from introducing sideways scrolling. */
+  .dashboard-page,
+  .dashboard-content,
+  .dashboard-main,
+  .dashboard-main-grid,
+  .dashboard-chart-row,
+  .dashboard-chart-grid {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Keep the existing mobile card arrangement, but make the refreshed KPI cards fit. */
+  .dashboard-summary-grid,
+  .dashboard-stats-grid,
+  .dashboard-kpi-grid {
+    gap: 10px !important;
+  }
+
+  .dashboard-summary-card,
+  .dashboard-stat-card,
+  .dashboard-kpi-card {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    padding: 12px 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .dashboard-summary-card .value,
+  .dashboard-stat-card .value,
+  .dashboard-kpi-card .value,
+  .dashboard-summary-value,
+  .dashboard-stat-value,
+  .dashboard-kpi-value {
+    font-size: clamp(1.28rem, 7vw, 1.72rem) !important;
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .dashboard-summary-card .label,
+  .dashboard-stat-card .label,
+  .dashboard-kpi-card .label,
+  .dashboard-summary-label,
+  .dashboard-stat-label,
+  .dashboard-kpi-label {
+    font-size: 0.74rem !important;
+    line-height: 1.22 !important;
+  }
+
+  /* Updated graphs: stack cleanly and stay full-width without changing their data. */
+  .dashboard-main-grid,
+  .dashboard-chart-row,
+  .dashboard-chart-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .dashboard-chart-card,
+  .dashboard-graph-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 14px !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-card-header,
+  .dashboard-chart-header {
+    gap: 6px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .dashboard-card-header h2,
+  .dashboard-card-header h3,
+  .dashboard-chart-header h2,
+  .dashboard-chart-header h3 {
+    font-size: 0.98rem !important;
+    line-height: 1.22 !important;
+  }
+
+  .dashboard-chart-area,
+  .dashboard-chart-wrap,
+  .dashboard-graph-wrap {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Recharts safety for the refreshed pie + province/HUC graph. */
+  .dashboard-chart-card .recharts-responsive-container,
+  .dashboard-chart-card .recharts-wrapper,
+  .dashboard-graph-card .recharts-responsive-container,
+  .dashboard-graph-card .recharts-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .dashboard-chart-card .recharts-surface,
+  .dashboard-graph-card .recharts-surface {
+    max-width: 100% !important;
+  }
+
+  /* Compact legends so the status pie does not force the neighboring/new graph wider. */
+  .dashboard-chart-card .recharts-legend-wrapper,
+  .dashboard-graph-card .recharts-legend-wrapper {
+    max-width: 100% !important;
+    font-size: 0.72rem !important;
+  }
+
+  .dashboard-chart-card .recharts-default-legend,
+  .dashboard-graph-card .recharts-default-legend {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 4px 8px !important;
+    margin: 0 !important;
+    padding: 0 2px !important;
+  }
+
+  .dashboard-chart-card .recharts-legend-item,
+  .dashboard-graph-card .recharts-legend-item {
+    margin-right: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* New province/HUC rows must be allowed to shrink instead of creating horizontal scroll. */
+  .dashboard-chart-card [class*='province'],
+  .dashboard-chart-card [class*='area-row'],
+  .dashboard-chart-card [class*='status-row'],
+  .dashboard-graph-card [class*='province'],
+  .dashboard-graph-card [class*='area-row'],
+  .dashboard-graph-card [class*='status-row'] {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .dashboard-chart-card [class*='bar-track'],
+  .dashboard-chart-card [class*='bar-wrap'],
+  .dashboard-graph-card [class*='bar-track'],
+  .dashboard-graph-card [class*='bar-wrap'] {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .dashboard-summary-card,
+  .dashboard-stat-card,
+  .dashboard-kpi-card {
+    padding: 11px 10px !important;
+  }
+
+  .dashboard-chart-card,
+  .dashboard-graph-card {
+    padding: 12px !important;
+  }
+}
+/* PMS10_DETAILED_MOBILE_V113_END */

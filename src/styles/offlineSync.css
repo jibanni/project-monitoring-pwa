@@ -1300,3 +1300,14 @@
     justify-self: start;
   }
 }
+
+/* PMS10 Aide Memoire queue count */
+.offline-sync-compact-counts {
+  grid-template-columns: repeat(4, minmax(58px, 1fr));
+}
+
+@media (max-width: 820px) {
+  .offline-sync-compact-counts {
+    grid-template-columns: repeat(2, minmax(58px, 1fr));
+  }
+}

@@ -10,7 +10,7 @@ import {
   projectPayloadFromSubayRecord,
   SUBAY_MIN_FUNDING_YEAR,
 } from '../services/subayImportService'
-import type { SubayImportIssue, SubayImportRecord } from '../services/subayImportService'
+import type { SubayImportIssue, SubayImportRecord, SubaySourceRow } from '../services/subayImportService'
 import '../styles/subayImport.css'
 import '../styles/pageHero.css'
 
@@ -225,6 +225,7 @@ export default function SubayImport() {
 
   const [fileName, setFileName] = useState('')
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([])
+  const [sourceRows, setSourceRows] = useState<SubaySourceRow[]>([])
   const [issues, setIssues] = useState<SubayImportIssue[]>([])
   const [detectedSheets, setDetectedSheets] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -261,6 +262,7 @@ export default function SubayImport() {
     setSuccessMessage('')
     setImportResult(null)
     setPreviewRows([])
+    setSourceRows([])
     setIssues([])
     setDetectedSheets([])
 
@@ -281,10 +283,17 @@ export default function SubayImport() {
 
       setIssues(parseResult.issues)
       setDetectedSheets(parseResult.detectedSheets)
+      setSourceRows(parseResult.sourceRows)
       setPreviewRows(buildPreviewRows(parseResult.records, existingProjects))
 
       if (parseResult.records.length === 0) {
-        setErrorMessage(`No FY ${SUBAY_MIN_FUNDING_YEAR} onwards project rows were found in the uploaded file.`)
+        if (parseResult.sourceRows.length > 0) {
+          setSuccessMessage(
+            `No FY ${SUBAY_MIN_FUNDING_YEAR} onwards projects were found for the active list. ${parseResult.sourceRows.length.toLocaleString()} genuine project source rows can still be archived for future use.`,
+          )
+        } else {
+          setErrorMessage('No nonblank rows were found in a supported sheet.')
+        }
       }
     } catch (error: any) {
       console.error(error)
@@ -298,13 +307,13 @@ export default function SubayImport() {
   }
 
   async function handleConfirmImport() {
-    if (stats.importable === 0) {
-      setErrorMessage('There are no valid rows to import.')
+    if (stats.importable === 0 && sourceRows.length === 0) {
+      setErrorMessage('There are no valid project rows or source rows to keep.')
       return
     }
 
     const confirmed = window.confirm(
-      'Proceed with the project masterlist import? Existing project master data with the same import code will be updated. PMS10 disbursement/financial values already maintained by Engineers/Admins will be preserved; blank/zero values may be repaired from SubayBAYAN.',
+      'Proceed with the project masterlist import? PMS10 will first keep a read-only copy of every genuine project row, including columns it does not currently use. Spreadsheet headers, logo/caption rows, and decorative rows are ignored. Existing project master data with the same import code will be updated. PMS10 disbursement/financial values already maintained by Engineers/Admins will be preserved; blank/zero values may be repaired from SubayBAYAN.',
     )
 
     if (!confirmed) return
@@ -312,6 +321,50 @@ export default function SubayImport() {
     setImporting(true)
     setErrorMessage('')
     setSuccessMessage('')
+
+    const sourceRowsToKeep = sourceRows
+    let sourceBatchId = ''
+
+    try {
+      const { data: batch, error: batchError } = await supabase
+        .from('subay_import_batches')
+        .insert({
+          source_file_name: fileName || 'SubayBAYAN extract',
+          imported_by: auth?.user?.id || null,
+          expected_row_count: sourceRowsToKeep.length,
+        })
+        .select('id')
+        .single()
+
+      if (batchError || !batch?.id) {
+        throw batchError || new Error('Unable to create the source archive batch.')
+      }
+
+      sourceBatchId = batch.id
+
+      for (let offset = 0; offset < sourceRowsToKeep.length; offset += 100) {
+        const chunk = sourceRowsToKeep.slice(offset, offset + 100).map((row) => ({
+          batch_id: sourceBatchId,
+          project_code: row.projectCode,
+          source_format: row.sourceFormat,
+          source_format_label: row.sourceFormatLabel,
+          source_sheet_name: row.sheetName,
+          source_row_number: row.rowNumber,
+          source_data: row.sourceData,
+        }))
+        const { error: archiveError } = await supabase
+          .from('subay_import_source_rows')
+          .insert(chunk)
+
+        if (archiveError) throw archiveError
+      }
+    } catch (error: any) {
+      setImporting(false)
+      setErrorMessage(
+        `PMS10 could not preserve the uploaded source rows, so project import was stopped before changing project records. ${error?.message || ''}`.trim(),
+      )
+      return
+    }
 
     const result: ImportResult = {
       created: 0,
@@ -372,16 +425,23 @@ export default function SubayImport() {
 
     if (result.errors.length > 0) {
       setErrorMessage(
-        `Import completed with ${result.errors.length} row error(s). Review the result summary below.`,
+        `Source rows are safely archived. Project import completed with ${result.errors.length} row error(s). Review the result summary below.`,
+      )
+    } else if (stats.importable === 0) {
+      setSuccessMessage(
+        `${sourceRowsToKeep.length.toLocaleString()} genuine project source rows were archived. No project rows were eligible for the active PMS10 list.`,
       )
     } else {
-      setSuccessMessage('Project masterlist import completed successfully.')
+      setSuccessMessage(
+        `Project masterlist import completed. ${sourceRowsToKeep.length.toLocaleString()} genuine project source rows were kept for future PMS10 fields.`,
+      )
     }
   }
 
   function resetImport() {
     setFileName('')
     setPreviewRows([])
+    setSourceRows([])
     setIssues([])
     setDetectedSheets([])
     setErrorMessage('')
@@ -418,7 +478,10 @@ export default function SubayImport() {
             keeps the two SubayBAYAN formats and also detects the SGLGIF Portal
             projects extraction. SGLGIF import codes use the format
             SGLGIF-FY-########## and do not include the project title. Existing
-            records are matched without duplicating inspection history.
+            records are matched without duplicating inspection history. The
+            original values from every nonblank row are also kept for future
+            PMS10 improvements, including fields that are not currently used.
+            The archive is append-only and available to approved Admins.
           </p>
         </div>
 
@@ -469,7 +532,7 @@ export default function SubayImport() {
 
       <section className="subay-import-summary-grid" aria-label="Import preview summary">
         <article className="subay-import-summary-card">
-          <span>Total Rows</span>
+          <span>Total Projects</span>
           <strong>{stats.total}</strong>
         </article>
         <article className="subay-import-summary-card green">
@@ -498,7 +561,7 @@ export default function SubayImport() {
 
       {issues.length > 0 && (
         <section className="subay-import-card subay-import-issues-card">
-          <h2>Warnings / Skipped Rows</h2>
+          <h2>Warnings / Incomplete / Skipped Rows</h2>
           <div className="subay-import-issues-list">
             {issues.slice(0, 12).map((issue, index) => (
               <div key={`${issue.sheetName}-${issue.rowNumber}-${index}`}>
@@ -508,6 +571,10 @@ export default function SubayImport() {
               </div>
             ))}
           </div>
+          <p className="subay-import-muted">
+            Warning/incomplete rows are still importable unless the message explicitly says
+            “Skipped row”. Admin can complete missing master data after enrollment.
+          </p>
           {issues.length > 12 && (
             <p className="subay-import-muted">Showing first 12 of {issues.length} warnings.</p>
           )}
@@ -523,7 +590,12 @@ export default function SubayImport() {
               generated from its LGU reference code, year, LGU, and title. Only FY{' '}
               {SUBAY_MIN_FUNDING_YEAR} onwards will be included. Existing PMS10
               inspection updates, photos, Google Drive records, and existing
-              maintained financial/disbursement values are preserved.
+              maintained financial/disbursement values are preserved. Only
+              genuine project rows are counted and archived with their original
+              columns; spreadsheet headers, logo/caption rows, and decorative
+              rows are ignored. A dedicated “Date of NADAI” is used as the
+              download date; other NADAI indicators stay in the source archive
+              until their meaning is confirmed.
             </p>
           </div>
 
@@ -535,9 +607,13 @@ export default function SubayImport() {
               type="button"
               className="subay-import-primary-btn"
               onClick={handleConfirmImport}
-              disabled={loading || importing || stats.importable === 0}
+              disabled={loading || importing || sourceRows.length === 0}
             >
-              {importing ? 'Importing...' : `Confirm Import (${stats.importable})`}
+              {importing
+                ? 'Importing...'
+                : stats.importable === 0
+                  ? `Keep Source Rows (${sourceRows.length})`
+                  : `Confirm Import (${stats.importable})`}
             </button>
           </div>
         </div>
@@ -549,7 +625,9 @@ export default function SubayImport() {
           </div>
         ) : previewRows.length === 0 ? (
           <div className="subay-import-empty">
-            Upload a supported SubayBAYAN or SGLGIF masterlist to preview projects before import.
+            {sourceRows.length > 0
+              ? `No project rows qualify for the active FY ${SUBAY_MIN_FUNDING_YEAR}+ list. The ${sourceRows.length.toLocaleString()} source rows can still be archived above.`
+              : 'Upload a supported SubayBAYAN or SGLGIF masterlist to preview projects before import.'}
           </div>
         ) : (
           <div className="subay-import-table-wrap">

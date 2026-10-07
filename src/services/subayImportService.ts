@@ -1,4 +1,9 @@
 import * as XLSX from 'xlsx'
+import {
+  REGION10_PROVINCE_NAMES,
+  canonicalizeRegion10ProvinceOrHuc,
+  isRegion10Huc,
+} from '../data/region10Directory'
 import { toProjectTitleCase } from '../utils/projectTitleCase'
 import { normalizeProgramName } from '../utils/program'
 
@@ -52,10 +57,28 @@ export type SubayImportRecord = {
   targetCompletionDate: string | null
   contractExpirationDate: string | null
   revisedContractExpirationDate: string | null
+  nadaiDate: string | null
+  sourceData: {
+    formatId: SubayFormatId
+    formatLabel: string
+    sheetName: string
+    sourceRowNumber: number
+    headerRows: string[][]
+    values: string[]
+  }
   sourceSummary: string
   subayFormat: SubayFormatId
   subayFormatLabel: string
   validationWarnings: string[]
+}
+
+export type SubaySourceRow = {
+  projectCode: string | null
+  sourceFormat: SubayFormatId
+  sourceFormatLabel: string
+  sheetName: string
+  rowNumber: number
+  sourceData: SubayImportRecord['sourceData']
 }
 
 export type SubayImportIssue = {
@@ -66,6 +89,7 @@ export type SubayImportIssue = {
 
 export type SubayParseResult = {
   records: SubayImportRecord[]
+  sourceRows: SubaySourceRow[]
   issues: SubayImportIssue[]
   detectedSheets: string[]
   detectedFormat: SubayDetectedFormat | null
@@ -106,6 +130,7 @@ type HeaderKey =
   | 'targetCompletionDate'
   | 'contractExpirationDate'
   | 'revisedContractExpirationDate'
+  | 'nadaiDate'
 
 type SubayFormatProfile = {
   id: SubayFormatId
@@ -151,6 +176,7 @@ const FY_2024_BELOW_PROFILE: SubayFormatProfile = {
     physicalAccomplishment: 60, // BI TOTAL ACCOMPLISHMENT
     revisedContractExpirationDate: 61, // BJ DATE, used as accomplishment date only when completed
     disbursementAmount: 63, // BL DISBURSEMENTS - AMOUNT
+    nadaiDate: 67, // BP Date of NADAI
   },
 }
 
@@ -175,6 +201,7 @@ const FY_2025_ABOVE_PROFILE: SubayFormatProfile = {
     fundingYear: 10, // K FUNDING YEAR
     status: 18, // S APPROVAL STATUS
     physicalStatus: 19, // T PHYSICAL STATUS
+    nadaiDate: 20, // U HAS NADAI? e.g. "Yes - July 17, 2025 at 09:33 AM"
     budget: 42, // AQ TOTAL PROGRAM / PROJECT COST
     targetPhysicalAccomplishment: 86, // CI TARGET OWPA TO DATE (%)
     actualPhysicalAccomplishment: 87, // CJ ACTUAL OWPA TO DATE (%)
@@ -409,6 +436,97 @@ function firstDate(...values: unknown[]) {
   return null
 }
 
+function toLocalIsoDate(date: Date) {
+  if (Number.isNaN(date.getTime())) return null
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function parseNadaiDate(value: unknown) {
+  const raw = textValue(value).trim()
+  if (!raw) return null
+
+  // Explicit negative HAS NADAI? values must never become a date.
+  if (/^no\b/i.test(raw)) return null
+
+  /*
+    FY2025+ SubayBAYAN normally stores NADAI as:
+      "Yes - July 17, 2025 at 09:33 AM"
+
+    Be deliberately tolerant because exported workbooks can contain:
+    - different dash characters
+    - extra spaces
+    - line breaks converted to spaces
+    - optional punctuation after YES
+    - different time text
+    - the same date without the time suffix
+  */
+  const normalized = raw
+    .replace(/[‐‑‒–—−]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (/^yes\b/i.test(normalized)) {
+    const afterYes = normalized
+      .replace(/^yes\b\s*[-:]?\s*/i, '')
+      .replace(/\s+at\s+.+$/i, '')
+      .trim()
+
+    const dateCandidates = [
+      // July 17, 2025
+      afterYes.match(/\b([A-Za-z]{3,9}\s+\d{1,2},\s*\d{4})\b/i)?.[1],
+      // 17 July 2025
+      afterYes.match(/\b(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\b/i)?.[1],
+      // 2025-07-17
+      afterYes.match(/\b(\d{4}-\d{1,2}-\d{1,2})\b/)?.[1],
+      // 07/17/2025 or 7/17/2025
+      afterYes.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/)?.[1],
+      afterYes,
+    ].filter((candidate): candidate is string => Boolean(candidate))
+
+    for (const candidate of dateCandidates) {
+      const parsed = new Date(candidate)
+      const iso = toLocalIsoDate(parsed)
+      if (iso) return iso
+    }
+
+    return null
+  }
+
+  // Keep supporting true date cells / Excel serial dates used by older exports.
+  return normalizeDate(value)
+}
+
+function findNadaiDateInRow(row: unknown[], profile: SubayFormatProfile) {
+  // First use the expected profile column.
+  const expectedValue = getProfileCell(row, profile, 'nadaiDate')
+  const expectedDate = parseNadaiDate(expectedValue)
+
+  if (expectedDate) return expectedDate
+
+  /*
+    FY2025+ exports sometimes shift columns when the portal extraction changes.
+    If column U does not parse, scan the row for the distinctive
+    "Yes - <date> at <time>" NADAI value instead of treating the project as
+    having no NADAI date.
+  */
+  if (profile.id === 'fy2025_above') {
+    for (const cell of row) {
+      const raw = textValue(cell)
+      if (!/^yes\b/i.test(raw) || !/\b(?:19|20)\d{2}\b/.test(raw)) continue
+
+      const parsed = parseNadaiDate(cell)
+      if (parsed) return parsed
+    }
+  }
+
+  return null
+}
+
 function rowText(row: unknown[]) {
   return row.map(normalizeHeader).join(' | ')
 }
@@ -480,6 +598,49 @@ function detectSheetFormat(rows: unknown[][]): SubayDetectedFormat | null {
 
 function profileById(id: SubayFormatId) {
   return FORMAT_PROFILES.find((profile) => profile.id === id) || null
+}
+
+function isHeaderLikeProjectValue(value: unknown) {
+  const normalized = normalizeHeader(value)
+
+  return [
+    'PROJECT CODE',
+    'PROJECT TITLE',
+    'LGU REFERENCE CODE',
+    'PROJECT OWNER',
+    'FUNDING YEAR',
+    'PROGRAM',
+  ].includes(normalized)
+}
+
+function isTrueProjectSourceRow(
+  row: unknown[],
+  profile: SubayFormatProfile,
+) {
+  const fundingYear = parseFundingYear(getProfileCell(row, profile, 'fundingYear'))
+  const rawTitle = textValue(getProfileCell(row, profile, 'projectTitle'))
+
+  if (!fundingYear || !rawTitle || isHeaderLikeProjectValue(rawTitle)) {
+    return false
+  }
+
+  if (profile.id === 'sglgif_portal') {
+    const projectCode = buildSglgifProjectCode(row, profile, fundingYear)
+    return Boolean(projectCode)
+  }
+
+  const rawProjectCode = normalizeProjectCode(
+    getProfileCell(row, profile, 'projectCode'),
+  )
+
+  if (!rawProjectCode || isHeaderLikeProjectValue(rawProjectCode)) {
+    return false
+  }
+
+  // Real SubayBAYAN project codes contain numeric project identifiers.
+  // This prevents repeated table headings, report captions, logos and
+  // decorative text from being counted as projects.
+  return /\d/.test(rawProjectCode)
 }
 
 function normalizeStatus(statusValue: unknown, physicalStatusValue: unknown, physicalAccomplishmentValue: unknown) {
@@ -610,9 +771,31 @@ export function getSimplifiedImportStatus(record: SubayImportRecord) {
   return 'Under Procurement'
 }
 
+function getFy2021ImportStatusMatch(record: SubayImportRecord) {
+  const normalized = textValue(record.status)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const allowed =
+    normalized.includes('ongoing') ||
+    normalized.includes('on going') ||
+    normalized.includes('bid evaluation') ||
+    normalized.includes('bid opening') ||
+    normalized.includes('ded preparation') ||
+    normalized.includes('not yet started') ||
+    normalized.includes('not started') ||
+    normalized.includes('no implementation')
+
+  return {
+    allowed,
+    normalized,
+  }
+}
+
 export function getSubayEnrollmentEligibility(record: SubayImportRecord) {
   const year = record.fundingYear
-  const simplifiedStatus = getSimplifiedImportStatus(record)
 
   if (record.subayFormat === 'sglgif_portal') {
     return {
@@ -626,23 +809,48 @@ export function getSubayEnrollmentEligibility(record: SubayImportRecord) {
     }
   }
 
+  /*
+    Historical SubayBAYAN enrollment rule requested for PMS10:
+
+    FY 2021:
+      Include only projects whose implementation/status falls under:
+      - Ongoing
+      - Bid Evaluation / Bid Opening
+      - DED Preparation
+      - Not Yet Started
+
+    FY 2022:
+      Include all projects.
+
+    FY 2023:
+      Include all projects.
+
+    FY 2024:
+      Include all projects.
+
+    FY 2025-2026:
+      Preserve the current PMS10 behavior: include all projects.
+  */
   if (year === 2021) {
-    if (simplifiedStatus === 'Ongoing') {
+    const statusMatch = getFy2021ImportStatusMatch(record)
+
+    if (statusMatch.allowed) {
       return {
         eligible: true,
-        reason: 'FY 2021 ongoing project included',
+        reason: `FY 2021 project included based on status: ${record.status || 'Ongoing'}`,
       }
     }
 
     return {
       eligible: false,
-      reason: `FY 2021 ${simplifiedStatus} project excluded by import rule`,
+      reason: `FY 2021 project excluded because status is outside the allowed historical categories: ${record.status || 'blank status'}`,
     }
   }
+
   if (year && year >= 2022 && year <= 2026) {
     return {
       eligible: true,
-      reason: `FY ${year} project included`,
+      reason: `FY ${year} all-project import rule`,
     }
   }
 
@@ -746,6 +954,11 @@ export function projectPayloadFromSubayRecord(
   if (record.startDate) payload.start_date = record.startDate
   if (record.targetCompletionDate) payload.target_completion_date = record.targetCompletionDate
   if (record.contractExpirationDate) payload.contract_expiration_date = record.contractExpirationDate
+  // FY2024-and-below provides a direct Date of NADAI field.
+  // FY2025+ provides "HAS NADAI?" text; parseNadaiDate extracts the embedded
+  // date only for affirmative values. The exact source cell remains preserved
+  // in sourceData / subay_import_source_rows.
+  if (record.nadaiDate) payload.nadai_date = record.nadaiDate
   if (record.revisedContractExpirationDate && record.status === 'Completed') {
     payload.revised_contract_expiration_date = record.revisedContractExpirationDate
   }
@@ -782,6 +995,32 @@ function getBudget(row: unknown[], profile: SubayFormatProfile) {
   return 0
 }
 
+function resolveImportedMunicipality(
+  provinceValue: unknown,
+  municipalityValue: unknown,
+) {
+  const municipality = textValue(municipalityValue).trim()
+  if (municipality) return municipality
+
+  const province = canonicalizeRegion10ProvinceOrHuc(provinceValue)
+  if (!province) return ''
+
+  // A blank city/municipality on a provincial project means the implementing
+  // LGU is the Provincial LGU. Use the exact PMS10 Region 10 directory label.
+  const isProvince = REGION10_PROVINCE_NAMES.some(
+    (item) => item.toLowerCase() === province.toLowerCase(),
+  )
+
+  if (isProvince) return `PLGU ${province}`
+
+  // HUC records do not have a PLGU. If the extraction identifies the HUC in
+  // the province/location field but leaves city/municipality blank, retain the
+  // HUC itself as the LGU.
+  if (isRegion10Huc(province)) return province
+
+  return ''
+}
+
 function getRecordWarnings(record: Omit<SubayImportRecord, 'validationWarnings'>) {
   const warnings: string[] = []
 
@@ -789,14 +1028,34 @@ function getRecordWarnings(record: Omit<SubayImportRecord, 'validationWarnings'>
   if (!record.projectTitle) warnings.push('Missing project title')
   if (!record.fundingYear) warnings.push('Missing funding year')
   if (!record.fundingSource) warnings.push('Missing program/funding source')
-  if (!record.province) warnings.push('Missing province')
-  if (!record.municipality) warnings.push('Missing city/municipality')
+  if (!record.province) {
+    warnings.push('Missing province — record will still be enrolled for Admin completion')
+  }
+  if (!record.municipality) {
+    warnings.push('Missing city/municipality — record will still be enrolled for Admin completion')
+  }
+
+  const normalizedTitle = textValue(record.projectTitle)
+    .toLowerCase()
+    .replace(/[<>[\\]{}()]/g, ' ')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (normalizedTitle.includes('please insert project title')) {
+    warnings.push(
+      'Placeholder project title — record will be enrolled but excluded from aggregate performance computations until updated',
+    )
+  }
+
   if (
     record.subayFormat !== 'sglgif_portal' &&
     !record.budget &&
     !record.contractAmount
   ) {
-    warnings.push('Missing project cost/contract amount')
+    warnings.push(
+      'Missing project cost/contract amount — record will be enrolled but excluded from aggregate performance computations until updated',
+    )
   }
   if (
     record.physicalAccomplishment !== null &&
@@ -815,11 +1074,39 @@ function getRecordWarnings(record: Omit<SubayImportRecord, 'validationWarnings'>
   return warnings
 }
 
+function createSourceDataSnapshot(
+  row: unknown[],
+  rowNumber: number,
+  sheetName: string,
+  profile: SubayFormatProfile,
+  headerRows: unknown[][],
+): SubayImportRecord['sourceData'] {
+  const sourceColumnCount = Math.max(row.length, ...headerRows.map((header) => header.length))
+  const sourceValues = Array.from({ length: sourceColumnCount }, (_, index) => {
+    const value = row[index]
+    if (value === null || value === undefined) return ''
+    if (value instanceof Date) return value.toISOString()
+    return String(value)
+  })
+
+  return {
+    formatId: profile.id,
+    formatLabel: profile.label,
+    sheetName,
+    sourceRowNumber: rowNumber,
+    headerRows: headerRows.map((header) =>
+      Array.from({ length: sourceColumnCount }, (_, index) => textValue(header[index])),
+    ),
+    values: sourceValues,
+  }
+}
+
 function parseRecordFromRow(
   row: unknown[],
   rowNumber: number,
   sheetName: string,
   profile: SubayFormatProfile,
+  sourceData: SubayImportRecord['sourceData'],
 ): SubayImportRecord | null {
   const rawTitle = textValue(getProfileCell(row, profile, 'projectTitle'))
 
@@ -880,6 +1167,13 @@ function parseRecordFromRow(
     getProfileCell(row, profile, 'contractExpirationDate'),
   )
   const ntpDate = firstDate(getProfileCell(row, profile, 'ntpDate'))
+  const nadaiDate = findNadaiDateInRow(row, profile)
+  const importedProvince = textValue(getProfileCell(row, profile, 'province'))
+  const province = canonicalizeRegion10ProvinceOrHuc(importedProvince)
+  const municipality = resolveImportedMunicipality(
+    province,
+    getProfileCell(row, profile, 'municipality'),
+  )
 
   const baseRecord = {
     rowNumber,
@@ -887,8 +1181,8 @@ function parseRecordFromRow(
     projectCode,
     projectTitle,
     region: textValue(getProfileCell(row, profile, 'region')),
-    province: textValue(getProfileCell(row, profile, 'province')),
-    municipality: textValue(getProfileCell(row, profile, 'municipality')),
+    province,
+    municipality,
     barangay: textValue(getProfileCell(row, profile, 'barangay')),
     description: firstNonEmpty(
       getProfileCell(row, profile, 'description'),
@@ -923,6 +1217,8 @@ function parseRecordFromRow(
       profile.id === 'fy2024_below' && status === 'Completed'
         ? firstDate(getProfileCell(row, profile, 'revisedContractExpirationDate'))
         : null,
+    nadaiDate,
+    sourceData,
     sourceSummary: `${profile.label} · ${sheetName} row ${rowNumber}`,
     subayFormat: profile.id,
     subayFormatLabel: profile.label,
@@ -942,6 +1238,7 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
   })
 
   const records: SubayImportRecord[] = []
+  const sourceRows: SubaySourceRow[] = []
   const issues: SubayImportIssue[] = []
   const detectedSheets: string[] = []
   const seenCodes = new Set<string>()
@@ -989,18 +1286,32 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
 
     const headerIndex = detectedFormat.headerRowNumber - 1
     const dataStartIndex = headerIndex + profile.dataStartOffset
+    const sourceHeaderRows = rows.slice(Math.max(0, headerIndex - 1), headerIndex + 1)
 
     rows.slice(dataStartIndex).forEach((row, rowOffset) => {
       const rowNumber = dataStartIndex + rowOffset + 1
-      const record = parseRecordFromRow(row, rowNumber, sheetName, profile)
+      if (row.every((value) => !textValue(value))) return
 
+      // Do not count/report/archive visual headers, merged report captions,
+      // logos, spacer text, or repeated table headings as projects.
+      if (!isTrueProjectSourceRow(row, profile)) return
+
+      const sourceData = createSourceDataSnapshot(
+        row,
+        rowNumber,
+        sheetName,
+        profile,
+        sourceHeaderRows,
+      )
+
+      const record = parseRecordFromRow(row, rowNumber, sheetName, profile, sourceData)
       if (!record) return
 
       if (!record.projectCode || !record.projectTitle) {
         issues.push({
           sheetName,
           rowNumber,
-          message: 'Skipped row because PROJECT CODE or PROJECT TITLE is missing.',
+          message: 'Skipped project row because PROJECT CODE or PROJECT TITLE is missing.',
         })
         return
       }
@@ -1009,16 +1320,28 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
         issues.push({
           sheetName,
           rowNumber,
-          message: 'Skipped row because FUNDING YEAR is missing.',
+          message: 'Skipped project row because FUNDING YEAR is missing.',
         })
         return
       }
+
+      // Preserve the complete original cells only for genuine project rows.
+      // This keeps unused project fields available for future PMS10 features
+      // without polluting the archive with headers/logo/decorative rows.
+      sourceRows.push({
+        projectCode: record.projectCode || null,
+        sourceFormat: profile.id,
+        sourceFormatLabel: profile.label,
+        sheetName,
+        rowNumber,
+        sourceData,
+      })
 
       if (record.fundingYear < SUBAY_MIN_FUNDING_YEAR) {
         issues.push({
           sheetName,
           rowNumber,
-          message: `Skipped row because funding year ${record.fundingYear} is below FY ${SUBAY_MIN_FUNDING_YEAR}.`,
+          message: `Skipped project row because funding year ${record.fundingYear} is below FY ${SUBAY_MIN_FUNDING_YEAR}.`,
         })
         return
       }
@@ -1068,6 +1391,7 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
 
   return {
     records,
+    sourceRows,
     issues,
     detectedSheets,
     detectedFormat: primaryDetectedFormat,

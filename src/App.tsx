@@ -10,6 +10,7 @@ import { hasPasswordRecoveryIntent } from './lib/supabase'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import PublicRoute from './components/PublicRoute'
+import StartupSplash from './components/StartupSplash'
 
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
@@ -41,12 +42,7 @@ type RoleProtectedPageProps = {
 }
 
 function PageLoader() {
-  return (
-    <div className="app-page-loader" role="status" aria-live="polite">
-      <div className="app-page-loader-spinner" />
-      <p>Loading page...</p>
-    </div>
-  )
+  return <StartupSplash message="Loading PMS10…" />
 }
 
 

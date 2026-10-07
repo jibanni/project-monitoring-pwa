@@ -33,6 +33,8 @@ type ProjectForm = {
   project_type: string
   funding_source: string
   funding_year: string
+  nadai_date: string
+  nadai_amount: string
   implementing_office: string
   contractor: string
   budget: string
@@ -74,6 +76,8 @@ const emptyForm: ProjectForm = {
   project_type: '',
   funding_source: '',
   funding_year: '',
+  nadai_date: '',
+  nadai_amount: '',
   implementing_office: '',
   contractor: '',
   budget: '',
@@ -637,6 +641,8 @@ export default function EditProject() {
       project_type: data.project_type || '',
       funding_source: data.funding_source || '',
       funding_year: numberInputValue(data.funding_year),
+      nadai_date: dateInputValue(data.nadai_date),
+      nadai_amount: numberInputValue(data.nadai_amount),
       implementing_office: data.implementing_office || '',
       contractor: data.contractor || '',
       budget: numberInputValue(data.budget),
@@ -864,6 +870,8 @@ export default function EditProject() {
       project_type: cleanText(form.project_type),
       funding_source: cleanText(form.funding_source),
       funding_year: cleanText(form.funding_year) ? Number(form.funding_year) : null,
+      nadai_date: cleanText(form.nadai_date),
+      nadai_amount: toNullableNumber(form.nadai_amount),
       implementing_office: cleanText(form.implementing_office),
       contractor: cleanText(form.contractor),
       budget: toNullableNumber(form.budget),
@@ -1156,6 +1164,27 @@ export default function EditProject() {
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label className="edit-project-field">
+              <span>NADAI Download Date</span>
+              <input
+                type="date"
+                value={form.nadai_date}
+                onChange={(event) => updateField('nadai_date', event.target.value)}
+              />
+            </label>
+
+            <label className="edit-project-field">
+              <span>Amount in NADAI (₱)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.nadai_amount}
+                onChange={(event) => updateField('nadai_amount', event.target.value)}
+                placeholder="Optional"
+              />
             </label>
 
             <label className="edit-project-field">

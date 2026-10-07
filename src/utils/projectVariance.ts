@@ -3,6 +3,10 @@ type ProjectLike = {
   target_physical_accomplishment?: number | string | null
   target_physical_as_of?: string | null
   target_physical_source?: string | null
+  slippage?: number | string | null
+  variance?: number | string | null
+  physical_variance?: number | string | null
+  schedule_variance?: number | string | null
   start_date?: string | null
   target_completion_date?: string | null
   last_inspection_date?: string | null
@@ -222,6 +226,37 @@ export function isContractExpired(project?: ProjectLike | null, referenceDate?: 
   return getContractExpirationInfo(project, referenceDate).isExpired
 }
 
+export function getProjectSlippageVariance(
+  project?: ProjectLike | null,
+  referenceDate?: string | null,
+): number {
+  if (!project) return 0
+
+  /*
+    Import-aware PMS10 rule:
+    Prefer the explicit imported slippage/variance value when one is available.
+    SubayBAYAN extraction includes CL SLIPPAGE, so we should not discard it.
+
+    If no explicit variance exists, fall back to:
+      Actual Physical - Target Physical
+  */
+  const explicitCandidates = [
+    project.slippage,
+    project.variance,
+    project.physical_variance,
+    project.schedule_variance,
+  ]
+
+  for (const candidate of explicitCandidates) {
+    if (!hasValue(candidate)) continue
+
+    const parsed = roundVariance(candidate)
+    if (Number.isFinite(parsed)) return parsed
+  }
+
+  return getTargetPhysicalInfo(project, referenceDate).variance
+}
+
 export function getRiskLevelFromVariance(
   value: unknown,
 ): 'None' | 'Low' | 'Moderate' | 'High' {
@@ -229,9 +264,13 @@ export function getRiskLevelFromVariance(
 
   if (!Number.isFinite(variance) || variance >= 0) return 'None'
   if (variance >= -5) return 'Low'
-  if (variance > -10) return 'Moderate'
 
-  return 'High'
+  // PMS10 High-Risk rule:
+  // A project becomes High Risk from negative slippage only when it is
+  // 15 percentage points or more behind its encoded target.
+  if (variance <= -15) return 'High'
+
+  return 'Moderate'
 }
 
 export function getComputedRiskLevel(
@@ -247,7 +286,7 @@ export function getComputedRiskLevel(
 
   if (getContractExpirationInfo(project, referenceDate).isExpired) return 'High'
 
-  return getRiskLevelFromVariance(getTargetPhysicalInfo(project, referenceDate).variance)
+  return getRiskLevelFromVariance(getProjectSlippageVariance(project, referenceDate))
 }
 
 /*

@@ -24,6 +24,7 @@ import {
   getPmsRiskLevel,
 } from '../utils/projectStatus'
 import { getOfficialProjectCost } from '../utils/projectVariance'
+import { isProjectEligibleForAggregatePerformance } from '../utils/projectMetricEligibility'
 import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
 import MultiSelectFilter from '../components/MultiSelectFilter'
 import SingleSelectFilter from '../components/SingleSelectFilter'
@@ -36,6 +37,11 @@ import '../styles/dashboardDrilldownFilters.css'
 import '../styles/dashboardFinancialAccomplishment.css'
 
 import '../styles/filterUniformityV6.css'
+import ExecutiveDashboard from '../components/ExecutiveDashboard'
+import StartupSplash from '../components/StartupSplash'
+import ProvinceStatusChart from '../components/ProvinceStatusChart'
+import '../styles/executiveDashboard.css'
+
 type ProjectRecord = SharedProjectRow & AorProjectLike & Record<string, any>
 
 type DrilldownState = {
@@ -360,23 +366,139 @@ function getUpdatedTime(project: ProjectRecord) {
 function getStatusColor(status: unknown, fallbackIndex = 0) {
   const normalized = normalizeForCompare(status)
 
-  if (normalized.includes('ongoing') || normalized.includes('progress')) {
+  // Keep Detailed View status colors consistent with Executive View.
+  if (normalized.includes('complete') || normalized.includes('finished')) {
     return '#16a34a'
   }
 
-  if (normalized.includes('complete') || normalized.includes('finished')) {
-    return '#2563eb'
-  }
-
-  if (normalized.includes('not') || normalized.includes('pending')) {
-    return '#64748b'
-  }
-
-  if (normalized.includes('cancel') || normalized.includes('terminate')) {
+  if (normalized.includes('suspend') || normalized.includes('cancel')) {
     return '#ef4444'
   }
 
+  if (normalized.includes('terminate')) {
+    return '#991b1b'
+  }
+
+  if (
+    normalized.includes('not yet started') ||
+    normalized.includes('not started') ||
+    normalized.includes('no implementation')
+  ) {
+    return '#64748b'
+  }
+
+  if (
+    normalized.includes('under procurement') ||
+    normalized.includes('procurement') ||
+    normalized.includes('bid evaluation') ||
+    normalized.includes('bid opening')
+  ) {
+    return '#f97316'
+  }
+
+  if (normalized.includes('ongoing') || normalized.includes('progress')) {
+    return '#2563eb'
+  }
+
   return CHART_COLORS[fallbackIndex % CHART_COLORS.length]
+}
+
+
+function projectMatchesDesktopStatus(project: ProjectRecord, statusName: string) {
+  const status = getStatus(project)
+
+  if (statusName === 'Suspended / Cancelled') {
+    return status === 'Suspended' || status === 'Cancelled'
+  }
+
+  return status === statusName
+}
+
+type DetailedHighRiskReasonKey = 'expired' | 'critical-status' | 'slippage'
+
+function detailedRiskNumber(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+
+  const parsed = Number(String(value).replace(/,/g, '').replace(/%/g, '').trim())
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function detailedProjectIsComplete(project: ProjectRecord) {
+  const status = getStatus(project)
+  return status === 'Completed' || getPhysicalProgress(project) >= 100
+}
+
+function detailedProjectSlippage(project: ProjectRecord) {
+  const importedCandidates = [
+    project.slippage,
+    project.variance,
+    project.physical_variance,
+    project.schedule_variance,
+  ]
+
+  for (const candidate of importedCandidates) {
+    const parsed = detailedRiskNumber(candidate)
+    if (parsed !== null) return parsed
+  }
+
+  const target = detailedRiskNumber(
+    project.target_physical_accomplishment ??
+      project.target_physical ??
+      project.planned_physical_accomplishment,
+  )
+
+  if (target === null) return null
+  return getPhysicalProgress(project) - target
+}
+
+function detailedContractDeadline(project: ProjectRecord) {
+  const candidates = [
+    project.revised_completion_date,
+    project.extended_completion_date,
+    project.contract_completion_date,
+    project.contract_expiry_date,
+  ]
+
+  for (const candidate of candidates) {
+    const text = safeText(candidate, '')
+    if (!text) continue
+
+    const date = new Date(text)
+    if (!Number.isNaN(date.getTime())) return date
+  }
+
+  return null
+}
+
+function getDetailedHighRiskReasons(
+  project: ProjectRecord,
+  referenceDate = new Date(),
+): DetailedHighRiskReasonKey[] {
+  if (detailedProjectIsComplete(project)) return []
+
+  const reasons: DetailedHighRiskReasonKey[] = []
+  const status = getStatus(project)
+
+  if (status === 'Suspended' || status === 'Cancelled') {
+    reasons.push('critical-status')
+  }
+
+  const slippage = detailedProjectSlippage(project)
+  if (slippage !== null && slippage <= -15) {
+    reasons.push('slippage')
+  }
+
+  const deadline = detailedContractDeadline(project)
+  if (deadline) {
+    const deadlineEnd = new Date(deadline)
+    deadlineEnd.setHours(23, 59, 59, 999)
+
+    if (deadlineEnd.getTime() < referenceDate.getTime()) {
+      reasons.push('expired')
+    }
+  }
+
+  return reasons
 }
 
 function getRiskColor(riskLevel: unknown, fallbackIndex = 0) {
@@ -399,9 +521,153 @@ function FilterSearchIcon() {
   )
 }
 
+// PMS10_EXECUTIVE_DASHBOARD_V2
+function canUseExecutiveDashboard(auth: any) {
+  if (
+    Boolean(auth?.isAdmin) ||
+    Boolean(auth?.isViewer) ||
+    Boolean(auth?.isROEngineer) ||
+    Boolean(auth?.isPOEngineer) ||
+    Boolean(auth?.isEngineer)
+  ) {
+    return true
+  }
+
+  const role = String(
+    auth?.profile?.role ?? auth?.user?.user_metadata?.role ?? '',
+  )
+    .trim()
+    .toLowerCase()
+
+  return new Set([
+    'admin',
+    'viewer',
+    'rd',
+    'regional director',
+    'ard',
+    'assistant regional director',
+    'pd',
+    'provincial director',
+    'cd',
+    'city director',
+    'mlgoo',
+    'clgoo',
+    'peo',
+    'project evaluation officer',
+    'ch',
+    'chief',
+    'pdmu chief',
+    'pdmu chief/head',
+    'pdmu head',
+    'ro engineer',
+    'ro engineers',
+    'po engineer',
+    'po engineers',
+    'engineer',
+  ]).has(role)
+}
+
 export default function Dashboard() {
+  const executiveAuth = useAuth()
+  const hasExecutiveDashboard = canUseExecutiveDashboard(executiveAuth)
+  const initialDashboardView: 'executive' | 'detailed' =
+    new URLSearchParams(window.location.search).get('view') === 'detailed'
+      ? 'detailed'
+      : 'executive'
+
+  const [dashboardView, setDashboardView] = useState<'executive' | 'detailed'>(
+    initialDashboardView,
+  )
+  const [viewTransitionPhase, setViewTransitionPhase] = useState<'idle' | 'leaving' | 'entering'>('idle')
+  const [viewTransitionDirection, setViewTransitionDirection] = useState<'forward' | 'backward'>('forward')
+
+  const switchDashboardView = (nextView: 'executive' | 'detailed') => {
+    if (nextView === dashboardView || viewTransitionPhase !== 'idle') return
+
+    setViewTransitionDirection(nextView === 'detailed' ? 'forward' : 'backward')
+    setViewTransitionPhase('leaving')
+
+    // One obvious page slide, but transform-only for smooth GPU rendering.
+    // Timings intentionally match the CSS animations below.
+    window.setTimeout(() => {
+      setDashboardView(nextView)
+      setViewTransitionPhase('entering')
+
+      window.setTimeout(() => {
+        setViewTransitionPhase('idle')
+      }, 520)
+    }, 420)
+  }
+
+  const visualDashboardView: 'executive' | 'detailed' =
+    viewTransitionPhase === 'idle'
+      ? dashboardView
+      : viewTransitionDirection === 'forward'
+        ? 'detailed'
+        : 'executive'
+
+  useEffect(() => {
+    window.localStorage.setItem('pms10:dashboard-view', visualDashboardView)
+    window.dispatchEvent(
+      new CustomEvent('pms10:dashboard-view-state', {
+        detail: { view: visualDashboardView },
+      }),
+    )
+  }, [visualDashboardView])
+
+  useEffect(() => {
+    const handleFloatingViewRequest = (event: Event) => {
+      const nextView = (
+        event as CustomEvent<{ view?: 'executive' | 'detailed' }>
+      ).detail?.view
+
+      if (nextView !== 'executive' && nextView !== 'detailed') return
+
+      switchDashboardView(nextView)
+    }
+
+    window.addEventListener(
+      'pms10:dashboard-view-request',
+      handleFloatingViewRequest as EventListener,
+    )
+
+    return () => {
+      window.removeEventListener(
+        'pms10:dashboard-view-request',
+        handleFloatingViewRequest as EventListener,
+      )
+    }
+  }, [dashboardView, viewTransitionPhase])
+
+  /*
+    PMS10 dashboard entry behavior:
+    - Direct website/dashboard opening: Executive View by default.
+    - Dashboard workspace button from Projects/Map/Reports/etc.: Detailed View.
+    - Executive/Detailed switch remains available while on Dashboard.
+    - The temporary navigation query is consumed after entry.
+  */
+
   const isDesktopViewport = useDesktopViewport()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const requestedView = params.get('view')
+
+    if (requestedView !== 'executive' && requestedView !== 'detailed') return
+
+    params.delete('view')
+    const nextSearch = params.toString()
+
+    navigate(
+      {
+        pathname: '/dashboard',
+        search: nextSearch ? `?${nextSearch}` : '',
+      },
+      { replace: true },
+    )
+  }, [navigate])
+
   const auth = useAuth()
   const modalCloseTimerRef = useRef<number | null>(null)
   const modalBodyRef = useRef<HTMLDivElement | null>(null)
@@ -665,6 +931,10 @@ export default function Dashboard() {
   }, [drilldown, drilldownVisibleCount, drilldownFilters])
 
   const dashboardData = useMemo(() => {
+    const performanceProjects = visibleProjects.filter(
+      isProjectEligibleForAggregatePerformance,
+    )
+
     const underProcurementProjects = visibleProjects.filter(
       (project) => getStatus(project) === 'Under Procurement',
     )
@@ -727,7 +997,7 @@ export default function Dashboard() {
           )
         : 0
 
-    const physicalWeightBase = visibleProjects.reduce(
+    const physicalWeightBase = performanceProjects.reduce(
       (sum, project) =>
         sum +
         Math.max(
@@ -739,7 +1009,7 @@ export default function Dashboard() {
       0,
     )
 
-    const weightedPhysicalAccomplishment = visibleProjects.reduce(
+    const weightedPhysicalAccomplishment = performanceProjects.reduce(
       (sum, project) => {
         const cost = Math.max(
           0,
@@ -753,31 +1023,23 @@ export default function Dashboard() {
       0,
     )
 
-    const simplePhysicalAverage =
-      visibleProjects.length > 0
-        ? visibleProjects.reduce(
-            (sum, project) => sum + getPhysicalProgress(project),
-            0,
-          ) / visibleProjects.length
-        : 0
-
     const physicalAccomplishment = truncateDashboardPercent(
       physicalWeightBase > 0
         ? (weightedPhysicalAccomplishment / physicalWeightBase) * 100
-        : simplePhysicalAverage,
+        : 0,
     )
 
     const physicalAccomplishmentMethod =
       physicalWeightBase > 0
-        ? 'Cost-weighted across visible project costs'
-        : 'Average across visible projects'
+        ? 'Cost-weighted across eligible project costs'
+        : 'No eligible project cost available'
 
-    const financialWeightBase = visibleProjects.reduce(
+    const financialWeightBase = performanceProjects.reduce(
       (sum, project) => sum + Math.max(0, getOfficialProjectCost(project as unknown as Parameters<typeof getOfficialProjectCost>[0])),
       0,
     )
 
-    const weightedFinancialAccomplishment = visibleProjects.reduce(
+    const weightedFinancialAccomplishment = performanceProjects.reduce(
       (sum, project) => {
         const cost = Math.max(0, getOfficialProjectCost(project as unknown as Parameters<typeof getOfficialProjectCost>[0]))
 
@@ -786,23 +1048,26 @@ export default function Dashboard() {
       0,
     )
 
-    const simpleFinancialAverage =
-      visibleProjects.length > 0
-        ? visibleProjects.reduce(
-            (sum, project) => sum + getFinancialProgress(project),
-            0,
-          ) / visibleProjects.length
-        : 0
-
     const financialAccomplishment =
       financialWeightBase > 0
         ? (weightedFinancialAccomplishment / financialWeightBase) * 100
-        : simpleFinancialAverage
+        : 0
 
     const financialAccomplishmentMethod =
       financialWeightBase > 0
-        ? 'Cost-weighted across visible project costs'
-        : 'Average across visible projects'
+        ? 'Cost-weighted across eligible project costs'
+        : 'No eligible project cost available'
+
+    const physicalPerformanceData = [
+      {
+        name: 'Physical Accomplishment',
+        value: physicalAccomplishment,
+      },
+      {
+        name: 'Remaining',
+        value: Math.max(0, 100 - physicalAccomplishment),
+      },
+    ]
 
     const financialPerformanceData = [
       {
@@ -836,11 +1101,60 @@ export default function Dashboard() {
       { name: 'High', count: highRiskProjects.length },
     ].filter((item) => item.count > 0)
 
+    const riskExposureData = [
+      { name: 'High Risk', count: highRiskProjects.length },
+      {
+        name: 'Other Projects',
+        count: Math.max(visibleProjects.length - highRiskProjects.length, 0),
+      },
+    ].filter((item) => item.count > 0)
+
+
+    const desktopStatusData = [
+      { name: 'Completed', count: completedProjects.length },
+      { name: 'Under Procurement', count: underProcurementProjects.length },
+      { name: 'Ongoing', count: ongoingProjects.length },
+      { name: 'Not Yet Started', count: notStartedProjects.length },
+      {
+        name: 'Suspended / Cancelled',
+        count: suspendedProjects.length + cancelledProjects.length,
+      },
+      { name: 'Terminated', count: terminatedProjects.length },
+    ].filter((item) => item.count > 0)
+
+    const highRiskReasonData = [
+      {
+        key: 'expired' as const,
+        name: 'Expired Contract',
+        count: highRiskProjects.filter((project) =>
+          getDetailedHighRiskReasons(project).includes('expired'),
+        ).length,
+      },
+      {
+        key: 'critical-status' as const,
+        name: 'Suspended / Cancelled',
+        count: highRiskProjects.filter((project) =>
+          getDetailedHighRiskReasons(project).includes('critical-status'),
+        ).length,
+      },
+      {
+        key: 'slippage' as const,
+        name: 'Negative Slippage ≥ 15%',
+        count: highRiskProjects.filter((project) =>
+          getDetailedHighRiskReasons(project).includes('slippage'),
+        ).length,
+      },
+    ]
+
     const latestProjects = [...visibleProjects]
       .sort((a, b) => getUpdatedTime(b) - getUpdatedTime(a))
       .slice(0, 5)
 
     return {
+      provinceStatusProjects: visibleProjects.map((project) => ({
+        area: getProvinceFilterValue(project) || 'Unassigned',
+        status: getStatus(project),
+      })),
       totalProjects: visibleProjects.length,
       underProcurementProjects,
       notStartedProjects,
@@ -860,10 +1174,14 @@ export default function Dashboard() {
       physicalAccomplishmentMethod,
       financialAccomplishment,
       financialAccomplishmentMethod,
+      physicalPerformanceData,
       financialPerformanceData,
       completionData,
       statusData,
+      desktopStatusData,
       riskData,
+      riskExposureData,
+      highRiskReasonData,
       latestProjects,
     }
   }, [visibleProjects])
@@ -957,6 +1275,53 @@ export default function Dashboard() {
       className: 'high-risk',
       title: 'High Risk Projects',
       subtitle: 'Projects requiring close monitoring and follow-through.',
+      records: dashboardData.highRiskProjects,
+    },
+  ]
+
+  const desktopStatCards = [
+    {
+      key: 'total',
+      label: 'Total Projects',
+      value: dashboardData.totalProjects,
+      displayValue: formatCount(dashboardData.totalProjects),
+      helper: 'Projects in current scope',
+      className: 'total desktop-summary',
+      title: 'All Projects',
+      subtitle: 'Complete list of projects in the current dashboard scope.',
+      records: visibleProjects,
+    },
+    {
+      key: 'physical',
+      label: 'Physical Accomplishment',
+      value: dashboardData.physicalAccomplishment,
+      displayValue: formatPhysicalPercent(dashboardData.physicalAccomplishment),
+      helper: 'Cost-weighted performance',
+      className: 'physical-summary desktop-summary',
+      title: 'Physical Accomplishment Scope',
+      subtitle: 'Projects contributing to the current physical accomplishment view.',
+      records: visibleProjects,
+    },
+    {
+      key: 'financial',
+      label: 'Financial Accomplishment',
+      value: dashboardData.financialAccomplishment,
+      displayValue: formatPercent(dashboardData.financialAccomplishment),
+      helper: 'Cost-weighted performance',
+      className: 'financial-summary desktop-summary',
+      title: 'Financial Accomplishment Scope',
+      subtitle: 'Projects contributing to the current financial accomplishment view.',
+      records: visibleProjects,
+    },
+    {
+      key: 'high-risk',
+      label: 'High Risk',
+      value: dashboardData.highRiskProjects.length,
+      displayValue: formatCount(dashboardData.highRiskProjects.length),
+      helper: 'Requires close monitoring',
+      className: 'high-risk desktop-summary',
+      title: 'High Risk Projects',
+      subtitle: 'Projects currently classified as High Risk.',
       records: dashboardData.highRiskProjects,
     },
   ]
@@ -1317,18 +1682,7 @@ export default function Dashboard() {
   }
 
   if (loading) {
-    return (
-      <main className="dashboard-page">
-        <div className="dashboard-loading-card">
-          <span className="dashboard-loader" />
-
-          <div>
-            <h2>Loading dashboard</h2>
-            <p>Please wait while project records are being prepared.</p>
-          </div>
-        </div>
-      </main>
-    )
+    return <StartupSplash message="Loading dashboard…" />
   }
 
   if (errorMessage) {
@@ -1347,8 +1701,23 @@ export default function Dashboard() {
     )
   }
 
+  if (hasExecutiveDashboard && isDesktopViewport && dashboardView === 'executive') {
+    return (
+      <>
+        <div className={`pms-dashboard-view-stage is-executive ${viewTransitionPhase} ${viewTransitionDirection}`}>
+          <ExecutiveDashboard
+            projects={aorProjects}
+            onOpenDetailed={() => switchDashboardView('detailed')}
+          />
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
+      <div className={`pms-dashboard-view-stage is-detailed ${viewTransitionPhase} ${viewTransitionDirection}`}>
+      <>
       <main
         className={`dashboard-page ${
           isDashboardScrolled ? 'is-dashboard-scrolled' : ''
@@ -1497,7 +1866,7 @@ export default function Dashboard() {
         </section>
 
         <section className="dashboard-stat-grid" aria-label="Dashboard summary cards">
-          {statCards.map((card) => (
+          {(isDesktopViewport ? desktopStatCards : statCards).map((card) => (
             <button
               type="button"
               key={card.key}
@@ -1507,188 +1876,295 @@ export default function Dashboard() {
               }
             >
               <span>{card.label}</span>
-              <strong>{formatCount(card.value)}</strong>
+              <strong>
+                {'displayValue' in card
+                  ? String(card.displayValue)
+                  : formatCount(card.value)}
+              </strong>
               <small>{card.helper}</small>
             </button>
           ))}
         </section>
 
         <section className="dashboard-main-grid dashboard-chart-row">
-          <article className="dashboard-chart-card">
+          <article className="dashboard-chart-card dashboard-status-card">
             <div className="dashboard-card-header">
               <div>
                 <p className="dashboard-card-kicker">Status</p>
-                <h2>Projects by Status</h2>
+                <h2>{isDesktopViewport ? 'Portfolio Status' : 'Projects by Status'}</h2>
               </div>
 
               <span>{formatCount(dashboardData.totalProjects)} total</span>
             </div>
 
-            <div className="dashboard-chart-area">
-              {dashboardData.statusData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={dashboardData.statusData}
-                      dataKey="count"
-                      nameKey="name"
-                      innerRadius="52%"
-                      outerRadius="78%"
-                      paddingAngle={2}
-                      cursor="pointer"
-                      onClick={(entry: any) => {
-                        const name = safeText(entry?.name, '')
-                        const selected = visibleProjects.filter((project) => getStatus(project) === name)
-
-                        openDrilldown(
-                          `${name} Projects`,
-                          `Projects currently categorized as ${name} using the simplified PMS10 status rule.`,
-                          selected,
-                        )
-                      }}
-                    >
-                      {dashboardData.statusData.map((entry, index) => (
-                        <Cell
-                          key={entry.name}
-                          fill={getStatusColor(entry.name, index)}
-                        />
-                      ))}
-                    </Pie>
-
-                    <Tooltip
-                      formatter={(value) => [
-                        formatCount(asNumber(value)),
-                        'Projects',
-                      ]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="dashboard-empty-state compact">
-                  <strong>No status data</strong>
-                  <p>No project status records available.</p>
-                </div>
-              )}
-            </div>
-
-            <div className="dashboard-legend-list">
-              {dashboardData.statusData.map((item, index) => (
-                <button
-                  type="button"
-                  key={item.name}
-                  onClick={() =>
-                    openDrilldown(
-                      `${item.name} Projects`,
-                      `Projects currently categorized as ${item.name}.`,
-                      visibleProjects.filter(
-                        (project) => getStatus(project) === item.name,
-                      ),
-                    )
-                  }
+            {isDesktopViewport ? (
+              <>
+                <div
+                  className="dashboard-chart-area dashboard-status-pie-area"
+                  aria-label="Portfolio status pie chart"
                 >
-                  <i style={{ backgroundColor: getStatusColor(item.name, index) }} />
-                  <span>{item.name}</span>
-                  <strong>{formatCount(item.count)}</strong>
-                </button>
-              ))}
-            </div>
+                  {dashboardData.desktopStatusData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={dashboardData.desktopStatusData}
+                          dataKey="count"
+                          nameKey="name"
+                          innerRadius={0}
+                          outerRadius="82%"
+                          paddingAngle={1}
+                          stroke="#ffffff"
+                          strokeWidth={2}
+                          cursor="pointer"
+                          onClick={(entry: any) => {
+                            const name = safeText(entry?.name, '')
+                            const selected = visibleProjects.filter((project) =>
+                              projectMatchesDesktopStatus(project, name),
+                            )
+
+                            openDrilldown(
+                              `${name} Projects`,
+                              `Projects currently categorized as ${name}.`,
+                              selected,
+                            )
+                          }}
+                        >
+                          {dashboardData.desktopStatusData.map((entry, index) => (
+                            <Cell
+                              key={entry.name}
+                              fill={getStatusColor(entry.name, index)}
+                            />
+                          ))}
+                        </Pie>
+
+                        <Tooltip
+                          formatter={(value) => [
+                            formatCount(asNumber(value)),
+                            'Projects',
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="dashboard-empty-state compact">
+                      <strong>No status data</strong>
+                      <p>No project status records available.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="dashboard-legend-list dashboard-status-legend">
+                  {dashboardData.desktopStatusData.map((item, index) => (
+                    <button
+                      type="button"
+                      key={item.name}
+                      onClick={() =>
+                        openDrilldown(
+                          `${item.name} Projects`,
+                          `Projects currently categorized as ${item.name}.`,
+                          visibleProjects.filter((project) =>
+                            projectMatchesDesktopStatus(project, item.name),
+                          ),
+                        )
+                      }
+                    >
+                      <i
+                        style={{
+                          backgroundColor: getStatusColor(item.name, index),
+                        }}
+                      />
+                      <span>{item.name}</span>
+                      <strong>{formatCount(item.count)}</strong>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="dashboard-chart-area">
+                  {dashboardData.statusData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={dashboardData.statusData}
+                          dataKey="count"
+                          nameKey="name"
+                          innerRadius="56%"
+                          outerRadius="84%"
+                          paddingAngle={2}
+                          cursor="pointer"
+                          onClick={(entry: any) => {
+                            const name = safeText(entry?.name, '')
+                            const selected = visibleProjects.filter(
+                              (project) => getStatus(project) === name,
+                            )
+
+                            openDrilldown(
+                              `${name} Projects`,
+                              `Projects currently categorized as ${name} using the simplified PMS10 status rule.`,
+                              selected,
+                            )
+                          }}
+                        >
+                          {dashboardData.statusData.map((entry, index) => (
+                            <Cell
+                              key={entry.name}
+                              fill={getStatusColor(entry.name, index)}
+                            />
+                          ))}
+                        </Pie>
+
+                        <Tooltip
+                          formatter={(value) => [
+                            formatCount(asNumber(value)),
+                            'Projects',
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="dashboard-empty-state compact">
+                      <strong>No status data</strong>
+                      <p>No project status records available.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="dashboard-legend-list">
+                  {dashboardData.statusData.map((item, index) => (
+                    <button
+                      type="button"
+                      key={item.name}
+                      onClick={() =>
+                        openDrilldown(
+                          `${item.name} Projects`,
+                          `Projects currently categorized as ${item.name}.`,
+                          visibleProjects.filter(
+                            (project) => getStatus(project) === item.name,
+                          ),
+                        )
+                      }
+                    >
+                      <i style={{ backgroundColor: getStatusColor(item.name, index) }} />
+                      <span>{item.name}</span>
+                      <strong>{formatCount(item.count)}</strong>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </article>
 
-          <article className="dashboard-chart-card">
+          <article className="dashboard-chart-card dashboard-performance-card">
             <div className="dashboard-card-header">
               <div>
-                <p className="dashboard-card-kicker">Risk</p>
-                <h2>Projects by Risk Level</h2>
+                <p className="dashboard-card-kicker">
+                  {isDesktopViewport ? 'Geographic Overview' : 'Risk'}
+                </p>
+                <h2>
+                  {isDesktopViewport
+                    ? 'Project Status by Province / HUC'
+                    : 'Projects by Risk Level'}
+                </h2>
               </div>
 
               <span>
-                {formatCount(dashboardData.highRiskProjects.length)} high
+                {isDesktopViewport
+                  ? `${formatCount(visibleProjects.length)} projects`
+                  : `${formatCount(dashboardData.highRiskProjects.length)} high`}
               </span>
             </div>
 
-            <div className="dashboard-chart-area">
-              {dashboardData.riskData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={dashboardData.riskData}
-                      dataKey="count"
-                      nameKey="name"
-                      innerRadius="52%"
-                      outerRadius="78%"
-                      paddingAngle={2}
-                      cursor="pointer"
-                      onClick={(entry: any) => {
-                        const name = safeText(entry?.name, '')
-                        const selected = visibleProjects.filter(
-                          (project) => getRiskLevel(project) === name,
-                        )
+            {isDesktopViewport ? (
+              <ProvinceStatusChart projects={dashboardData.provinceStatusProjects} />
+            ) : (
+              <>
+                <div className="dashboard-chart-area">
+                  {dashboardData.riskData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={dashboardData.riskData}
+                          dataKey="count"
+                          nameKey="name"
+                          innerRadius="56%"
+                          outerRadius="84%"
+                          paddingAngle={2}
+                          cursor="pointer"
+                          onClick={(entry: any) => {
+                            const name = safeText(entry?.name, '')
+                            const selected = visibleProjects.filter(
+                              (project) => getRiskLevel(project) === name,
+                            )
 
-                        openDrilldown(
-                          `${name} Risk Projects`,
-                          `Projects currently tagged as ${name} risk.`,
-                          selected,
-                        )
-                      }}
-                    >
-                      {dashboardData.riskData.map((entry, index) => (
-                        <Cell
-                          key={entry.name}
-                          fill={getRiskColor(entry.name, index)}
+                            openDrilldown(
+                              `${name} Risk Projects`,
+                              `Projects currently tagged as ${name} risk.`,
+                              selected,
+                            )
+                          }}
+                        >
+                          {dashboardData.riskData.map((entry, index) => (
+                            <Cell
+                              key={entry.name}
+                              fill={getRiskColor(entry.name, index)}
+                            />
+                          ))}
+                        </Pie>
+
+                        <Tooltip
+                          formatter={(value) => [
+                            formatCount(asNumber(value)),
+                            'Projects',
+                          ]}
                         />
-                      ))}
-                    </Pie>
-
-                    <Tooltip
-                      formatter={(value) => [
-                        formatCount(asNumber(value)),
-                        'Projects',
-                      ]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="dashboard-empty-state compact">
-                  <strong>No risk data</strong>
-                  <p>No risk level records available.</p>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="dashboard-empty-state compact">
+                      <strong>No risk data</strong>
+                      <p>No risk level records available.</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="dashboard-legend-list">
-              {dashboardData.riskData.map((item, index) => (
-                <button
-                  type="button"
-                  key={item.name}
-                  onClick={() =>
-                    openDrilldown(
-                      `${item.name} Risk Projects`,
-                      `Projects currently tagged as ${item.name} risk.`,
-                      visibleProjects.filter(
-                        (project) => getRiskLevel(project) === item.name,
-                      ),
-                    )
-                  }
-                >
-                  <i style={{ backgroundColor: getRiskColor(item.name, index) }} />
-                  <span>{item.name}</span>
-                  <strong>{formatCount(item.count)}</strong>
-                </button>
-              ))}
-            </div>
+                <div className="dashboard-legend-list">
+                  {dashboardData.riskData.map((item, index) => (
+                    <button
+                      type="button"
+                      key={item.name}
+                      onClick={() =>
+                        openDrilldown(
+                          `${item.name} Risk Projects`,
+                          `Projects currently tagged as ${item.name} risk.`,
+                          visibleProjects.filter(
+                            (project) => getRiskLevel(project) === item.name,
+                          ),
+                        )
+                      }
+                    >
+                      <i style={{ backgroundColor: getRiskColor(item.name, index) }} />
+                      <span>{item.name}</span>
+                      <strong>{formatCount(item.count)}</strong>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </article>
         </section>
 
+        {!isDesktopViewport ? (
         <section className="dashboard-priority-section dashboard-completion-section">
           <article className="dashboard-list-card dashboard-completion-card">
             <div className="dashboard-card-header">
               <div>
-                <p className="dashboard-card-kicker">Completion Rate</p>
-                <h2>Completion Performance</h2>
+                <p className="dashboard-card-kicker">Overall Accomplishment</p>
+                <h2>Physical & Financial Performance</h2>
               </div>
 
               <span className="dashboard-completion-rate-pill">
-                {formatPhysicalPercent(dashboardData.completionRate)} complete
+                {formatPhysicalPercent(dashboardData.physicalAccomplishment)} physical
               </span>
 
               <div
@@ -1715,68 +2191,49 @@ export default function Dashboard() {
                   </p>
 
                   <div className="dashboard-completion-gauge dashboard-physical-gauge">
-                {dashboardData.totalProjects > 0 ? (
-                  <>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={dashboardData.completionData}
-                          dataKey="count"
-                          nameKey="name"
-                          innerRadius="70%"
-                          outerRadius="92%"
-                          startAngle={90}
-                          endAngle={-270}
-                          paddingAngle={dashboardData.completionData.length > 1 ? 2 : 0}
-                          cursor="pointer"
-                          onClick={(entry: any) => {
-                            const name = safeText(entry?.name, '')
-                            const selected =
-                              name === 'Completed'
-                                ? dashboardData.completedProjects
-                                : dashboardData.completionPendingProjects
+                    {dashboardData.totalProjects > 0 ? (
+                      <>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={dashboardData.physicalPerformanceData}
+                              dataKey="value"
+                              nameKey="name"
+                              innerRadius="70%"
+                              outerRadius="92%"
+                              startAngle={90}
+                              endAngle={-270}
+                              paddingAngle={2}
+                            >
+                              {dashboardData.physicalPerformanceData.map((entry) => (
+                                <Cell
+                                  key={entry.name}
+                                  fill={
+                                    entry.name === 'Physical Accomplishment'
+                                      ? '#16a34a'
+                                      : '#e2e8f0'
+                                  }
+                                />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
 
-                            openDrilldown(
-                              name === 'Completed'
-                                ? 'Completed Projects'
-                                : 'Remaining Projects',
-                              name === 'Completed'
-                                ? 'Projects counted as completed under the current dashboard filter.'
-                                : 'Projects not yet counted as completed under the current dashboard filter.',
-                              selected,
-                            )
-                          }}
-                        >
-                          {dashboardData.completionData.map((entry) => (
-                            <Cell
-                              key={entry.name}
-                              fill={entry.name === 'Completed' ? '#16a34a' : '#e2e8f0'}
-                            />
-                          ))}
-                        </Pie>
-
-                        <Tooltip
-                          formatter={(value) => [
-                            formatCount(asNumber(value)),
-                            'Projects',
-                          ]}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-
-                    <div className="dashboard-completion-center" aria-hidden="true">
-                      <div>
-                        <strong>{formatPhysicalPercent(dashboardData.completionRate)}</strong>
-                        <span>Complete</span>
+                        <div className="dashboard-completion-center" aria-hidden="true">
+                          <div>
+                            <strong>
+                              {formatPhysicalPercent(dashboardData.physicalAccomplishment)}
+                            </strong>
+                            <span>Physical</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="dashboard-empty-state compact">
+                        <strong>No physical data</strong>
+                        <p>No project records match the current dashboard filters.</p>
                       </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="dashboard-empty-state compact">
-                    <strong>No completion data</strong>
-                    <p>No project records match the current dashboard filters.</p>
-                  </div>
-                )}
+                    )}
                   </div>
                 </div>
 
@@ -1873,15 +2330,17 @@ export default function Dashboard() {
                 </button>
 
                 <div className="dashboard-completion-note">
-                  <strong>Scope:</strong> Both gauges use the currently visible dashboard
-                  records. Financial accomplishment is cost-weighted across visible project
-                  costs, and both gauges change when you filter by program, funding year,
-                  province, or LGU.
+                  <strong>Scope:</strong> Physical and financial accomplishment use the same
+                  cost-weighted dashboard methodology as Executive View and respond to the
+                  current program, funding year, province, and LGU filters. The Completed
+                  and Remaining cards at right are project counts and are shown separately.
                 </div>
               </div>
             </div>
           </article>
         </section>
+
+        ) : null}
 
         <section className="dashboard-recent-section">
           <article className="dashboard-list-card">
@@ -1939,6 +2398,8 @@ export default function Dashboard() {
       </main>
 
       {renderModal()}
+      </>
+      </div>
     </>
   )
 }

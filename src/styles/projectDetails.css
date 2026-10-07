@@ -4233,3 +4233,108 @@ body .pd-page .pd-summary-card .pd-progress-track {
     font-size: 0.7rem !important;
   }
 }
+
+/* ============================================================
+   PMS10 Aide Memoire Cloud Library
+   ============================================================ */
+
+.pd-aide-cloud-card {
+  overflow: hidden;
+}
+
+.pd-aide-file-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pd-aide-file-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.pd-aide-file-row:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.pd-aide-file-row:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.pd-aide-file-row.is-local {
+  margin-top: 2px;
+}
+
+.pd-aide-file-format {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: 9px;
+  background: #eaf2fb;
+  color: #174f86;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.pd-aide-file-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.pd-aide-file-copy strong {
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-aide-file-copy small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-aide-file-open {
+  color: #174f86;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+@media (max-width: 767px) {
+  .pd-aide-file-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pd-aide-file-open {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

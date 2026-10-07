@@ -20,6 +20,14 @@ export type GoogleDriveUploadedFile = {
   projectFolderName?: string
   updateFolderId?: string
   updateFolderName?: string
+  provinceFolderId?: string
+  provinceFolderName?: string
+  lguFolderId?: string
+  lguFolderName?: string
+  assetFolderId?: string
+  assetFolderName?: string
+  storagePath?: string
+  downloadUrl?: string
 }
 
 type GoogleDriveUploadResponse = {
@@ -99,6 +107,8 @@ export async function uploadProjectPhotoToDrive({
 }: UploadProjectPhotoToDriveParams) {
   const formData = new FormData()
   formData.append('file', file)
+  formData.append('fileKind', 'photo')
+  formData.append('assetId', photoId)
   formData.append('photoId', photoId)
   formData.append('projectId', projectId)
   formData.append('updateId', updateId)
@@ -110,7 +120,7 @@ export async function uploadProjectPhotoToDrive({
   formData.append('uploadedBy', uploadedBy)
 
   const { data, error } = await supabase.functions.invoke<GoogleDriveUploadResponse>(
-    'upload-project-photo-to-drive',
+    'upload-project-file-to-drive',
     {
       body: formData,
     },

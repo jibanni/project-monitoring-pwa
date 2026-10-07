@@ -4619,3 +4619,755 @@ body > .app-header.app-header-project-details.app-header-scrolled {
     -webkit-font-smoothing: antialiased;
   }
 }
+
+/* =========================================================
+   PMS10 V25.35 — DESKTOP PROFILE MOVED INTO SIDEBAR
+   Mobile header profile remains unchanged.
+   ========================================================= */
+
+@media (min-width: 1024px) {
+  body > .app-header .app-user-area,
+  body > .app-header.app-header-scrolled .app-user-area {
+    display: none !important;
+  }
+
+  body > .app-header .app-header-inner,
+  body > .app-header.app-header-scrolled .app-header-inner {
+    grid-template-columns: minmax(0, 1fr) minmax(390px, 430px) !important;
+  }
+
+  .app-sidebar-user-panel {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 34px;
+    align-items: center;
+    gap: 9px;
+    margin: 0 12px 10px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, .11);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .07);
+  }
+
+  .app-sidebar-user-avatar {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .12);
+    color: #ffffff;
+    font-size: .72rem;
+    font-weight: 950;
+    letter-spacing: .04em;
+  }
+
+  .app-sidebar-user-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .app-sidebar-user-copy strong {
+    overflow: hidden;
+    color: #ffffff;
+    font-size: .76rem;
+    font-weight: 850;
+    line-height: 1.15;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .app-sidebar-user-copy span {
+    overflow: hidden;
+    color: rgba(219, 234, 254, .68);
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .07em;
+    line-height: 1.1;
+    text-transform: uppercase;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .app-sidebar-user-logout {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(251, 113, 133, .22);
+    border-radius: 10px;
+    background: rgba(190, 24, 93, .16);
+    color: #fecdd3;
+    cursor: pointer;
+  }
+
+  .app-sidebar-user-logout:hover {
+    border-color: rgba(251, 113, 133, .38);
+    background: rgba(190, 24, 93, .28);
+    color: #ffffff;
+  }
+
+  .app-sidebar-user-logout svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+  }
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-user-panel {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 7px;
+    margin-inline: 9px;
+    padding: 8px 0;
+  }
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-user-copy {
+    display: none !important;
+  }
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-user-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-user-logout {
+    width: 34px;
+    height: 32px;
+  }
+}
+
+/* ============================================================
+   PMS10 V25.36 — FLAT SIDEBAR USER IDENTITY
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  .app-sidebar-user-panel {
+    margin: 2px 14px 12px !important;
+    padding: 8px 2px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .app-sidebar-user-panel::before,
+  .app-sidebar-user-panel::after {
+    display: none !important;
+  }
+
+  .app-sidebar-user-avatar {
+    border-color: rgba(255, 255, 255, .18) !important;
+    background: rgba(255, 255, 255, .10) !important;
+    box-shadow: none !important;
+  }
+
+  .app-sidebar-user-logout {
+    border-color: rgba(251, 113, 133, .16) !important;
+    background: rgba(190, 24, 93, .10) !important;
+    box-shadow: none !important;
+  }
+
+  .app-desktop-sidebar.is-collapsed .app-sidebar-user-panel {
+    margin-inline: 8px !important;
+    padding: 7px 0 !important;
+  }
+}
+
+
+/* PMS10 V25.37 — keep desktop sidebar identity completely flat */
+@media (min-width: 1024px) {
+  .app-sidebar-user-panel,
+  .app-desktop-sidebar.is-collapsed .app-sidebar-user-panel {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V1.5 — LIVE DESKTOP SIDEBAR PARITY
+   Match the current Live PMS10 sidebar on desktop.
+   Mobile/tablet navigation remains untouched.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  /* Live sidebar does not carry the Development-only account block. */
+  html body #root .app-desktop-sidebar .app-sidebar-user-panel {
+    display: none !important;
+  }
+
+  /* Restore the account controls to the desktop top header, as in Live. */
+  body > .app-header .app-user-area,
+  body > .app-header.app-header-scrolled .app-user-area {
+    display: flex !important;
+  }
+
+  body > .app-header .app-header-inner,
+  body > .app-header.app-header-scrolled .app-header-inner {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 20px !important;
+  }
+
+  /* Match Live brand sizing and guarantee the full subtitle is visible. */
+  html body #root .app-desktop-sidebar .app-sidebar-brand {
+    gap: 10px !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-brand-copy {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-brand-copy strong {
+    font-size: 17px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+    line-height: 1.05 !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-brand-copy span {
+    display: block !important;
+    max-width: none !important;
+    overflow: visible !important;
+    color: rgba(255, 255, 255, 0.72) !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
+    line-height: 1.2 !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  /* Live navigation typography. */
+  html body #root .app-desktop-sidebar .app-sidebar-section-label {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.10em !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-link-label {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Keep long admin labels readable instead of clipping early. */
+  html body #root .app-desktop-sidebar:not(.is-collapsed) .app-sidebar-link-label {
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V1.6 — COMPACT SIDEBAR IDENTITY
+   Keep the Live sidebar typography from V1.5, but move the signed-in
+   identity back into the sidebar so it cannot collide with the
+   Dashboard view switcher.
+   Desktop only. Mobile is untouched.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  /* Header identity must stay out of the switcher's fixed top-right zone. */
+  body > .app-header .app-user-area,
+  body > .app-header.app-header-scrolled .app-user-area {
+    display: none !important;
+  }
+
+  /* Restore the existing sidebar account component, but keep it very small. */
+  html body #root .app-desktop-sidebar .app-sidebar-user-panel {
+    display: grid !important;
+    grid-template-columns: 30px minmax(0, 1fr) 28px !important;
+    align-items: center !important;
+    gap: 7px !important;
+    margin: 0 13px 7px !important;
+    padding: 5px 1px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-user-avatar {
+    width: 30px !important;
+    height: 30px !important;
+    border: 1px solid rgba(255, 255, 255, .16) !important;
+    background: rgba(255, 255, 255, .10) !important;
+    color: #ffffff !important;
+    font-size: .58rem !important;
+    font-weight: 900 !important;
+    letter-spacing: .03em !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-user-copy {
+    min-width: 0 !important;
+    gap: 1px !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-user-copy strong {
+    display: block !important;
+    overflow: hidden !important;
+    color: #ffffff !important;
+    font-size: .66rem !important;
+    font-weight: 700 !important;
+    line-height: 1.12 !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-user-copy span {
+    display: block !important;
+    overflow: hidden !important;
+    color: rgba(219, 234, 254, .66) !important;
+    font-size: .50rem !important;
+    font-weight: 700 !important;
+    letter-spacing: .07em !important;
+    line-height: 1.08 !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-user-logout {
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(251, 113, 133, .16) !important;
+    background: rgba(190, 24, 93, .10) !important;
+    color: #fecdd3 !important;
+  }
+
+  html body #root .app-desktop-sidebar .app-sidebar-user-logout svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  html body #root .app-desktop-sidebar.is-collapsed .app-sidebar-user-panel {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    justify-items: center !important;
+    gap: 5px !important;
+    margin: 0 8px 7px !important;
+    padding: 5px 0 !important;
+  }
+
+  html body #root .app-desktop-sidebar.is-collapsed .app-sidebar-user-copy {
+    display: none !important;
+  }
+
+  html body #root .app-desktop-sidebar.is-collapsed .app-sidebar-user-avatar {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  html body #root .app-desktop-sidebar.is-collapsed .app-sidebar-user-logout {
+    width: 27px !important;
+    height: 27px !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V1.7 — GLOBAL DASHBOARD VIEW SWITCHER
+   Persistent across all protected desktop tabs.
+   Light outer frame + visible inner pill for the inactive option.
+   ============================================================ */
+
+.app-global-dashboard-switch {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  body > .app-global-dashboard-switch {
+    position: fixed !important;
+    top: 15px !important;
+    right: 18px !important;
+    z-index: 2147483641 !important;
+    width: 190px !important;
+    height: 34px !important;
+    pointer-events: auto !important;
+    transform: translateZ(0) !important;
+  }
+
+  body > .app-global-dashboard-switch .app-global-dashboard-switch-inner {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 34px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 3px !important;
+
+    /* Lighter frame than V1.6. */
+    border: 1px solid #dce6f0 !important;
+    border-radius: 999px !important;
+    background: rgba(248, 251, 254, .94) !important;
+    box-shadow:
+      0 3px 10px rgba(15, 23, 42, .06),
+      0 0 0 1px rgba(255, 255, 255, .84) inset !important;
+
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+  }
+
+  body > .app-global-dashboard-switch button {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 28px !important;
+    min-width: 0 !important;
+    padding: 0 8px !important;
+    border-radius: 999px !important;
+    font-family: inherit !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    letter-spacing: .005em !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    transition:
+      background 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease,
+      box-shadow 180ms ease,
+      transform 160ms ease !important;
+  }
+
+  /* Active side: noticeable but not overly dark/heavy. */
+  body > .app-global-dashboard-switch button.active {
+    border: 1px solid #1e5d9b !important;
+    background: #15558f !important;
+    color: #ffffff !important;
+    box-shadow:
+      0 2px 7px rgba(21, 85, 143, .18),
+      0 0 0 1px rgba(255, 255, 255, .08) inset !important;
+  }
+
+  /*
+    Inactive/"disabled-looking" side now has its own inner pill.
+    It remains clickable; this is a secondary visual state, not disabled.
+  */
+  body > .app-global-dashboard-switch button.inactive {
+    border: 1px solid #d9e3ed !important;
+    background: #eef3f8 !important;
+    color: #667990 !important;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, .03) inset,
+      0 1px 2px rgba(255, 255, 255, .75) !important;
+  }
+
+  body > .app-global-dashboard-switch button.inactive:hover {
+    border-color: #c9d7e5 !important;
+    background: #e7eef6 !important;
+    color: #415b77 !important;
+  }
+
+  body > .app-global-dashboard-switch button:active {
+    transform: scale(.985) !important;
+  }
+
+  body > .app-global-dashboard-switch button:focus-visible {
+    outline: 2px solid rgba(37, 99, 235, .38) !important;
+    outline-offset: 2px !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1280px) {
+  body > .app-global-dashboard-switch {
+    right: 16px !important;
+    width: 184px !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V1.7.1 — GLOBAL SWITCHER VISIBILITY HOTFIX
+   The switcher must remain visible even if React has not yet moved
+   it into document.body, and above the full-screen Executive shell.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  .app-global-dashboard-switch,
+  body > .app-global-dashboard-switch {
+    display: block !important;
+    position: fixed !important;
+    top: 15px !important;
+    right: 18px !important;
+    z-index: 2147483647 !important;
+    width: 190px !important;
+    height: 34px !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: translateZ(0) !important;
+  }
+
+  .app-global-dashboard-switch .app-global-dashboard-switch-inner,
+  body > .app-global-dashboard-switch .app-global-dashboard-switch-inner {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 34px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 3px !important;
+    border: 1px solid #dce6f0 !important;
+    border-radius: 999px !important;
+    background: rgba(248, 251, 254, .96) !important;
+    box-shadow:
+      0 3px 10px rgba(15, 23, 42, .06),
+      0 0 0 1px rgba(255, 255, 255, .9) inset !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+  }
+
+  .app-global-dashboard-switch button,
+  body > .app-global-dashboard-switch button {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 28px !important;
+    min-width: 0 !important;
+    padding: 0 8px !important;
+    border-radius: 999px !important;
+    font-family: inherit !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    letter-spacing: .005em !important;
+    white-space: nowrap !important;
+  }
+
+  .app-global-dashboard-switch button.active,
+  body > .app-global-dashboard-switch button.active {
+    border: 1px solid #2a66a1 !important;
+    background: #2a66a1 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 7px rgba(42, 102, 161, .16) !important;
+  }
+
+  .app-global-dashboard-switch button.inactive,
+  body > .app-global-dashboard-switch button.inactive {
+    border: 1px solid #d9e3ed !important;
+    background: #eef3f8 !important;
+    color: #667990 !important;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, .025) inset,
+      0 1px 2px rgba(255, 255, 255, .8) !important;
+  }
+
+  .app-global-dashboard-switch button:disabled,
+  body > .app-global-dashboard-switch button:disabled {
+    cursor: not-allowed !important;
+    opacity: .62 !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1280px) {
+  .app-global-dashboard-switch,
+  body > .app-global-dashboard-switch {
+    right: 16px !important;
+    width: 184px !important;
+  }
+}
+
+/* ============================================================
+   PMS10 V1.7.2 — SHARED TWO-PILL SWITCHER VISUAL
+   Layout switcher (other tabs) and Dashboard's proven body-portal
+   switcher use the same light, compact visual language.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  body > .app-global-dashboard-switch,
+  body > .dashboard-fixed-view-switch {
+    position: fixed !important;
+    top: 15px !important;
+    right: 18px !important;
+    z-index: 2147483647 !important;
+    width: 190px !important;
+    height: 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: translateZ(0) !important;
+  }
+
+  body > .app-global-dashboard-switch .app-global-dashboard-switch-inner,
+  body > .dashboard-fixed-view-switch .dashboard-mode-switch {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 34px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 3px !important;
+    border: 1px solid #e0e8f0 !important;
+    border-radius: 999px !important;
+    background: rgba(250, 252, 254, .96) !important;
+    box-shadow:
+      0 2px 8px rgba(15, 23, 42, .055),
+      inset 0 0 0 1px rgba(255, 255, 255, .88) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+  }
+
+  body > .dashboard-fixed-view-switch .dashboard-mode-switch-indicator {
+    display: none !important;
+  }
+
+  body > .app-global-dashboard-switch button,
+  body > .dashboard-fixed-view-switch button {
+    position: relative !important;
+    z-index: 1 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 28px !important;
+    min-width: 0 !important;
+    min-height: 28px !important;
+    padding: 0 8px !important;
+    border-radius: 999px !important;
+    font-family: inherit !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    letter-spacing: .005em !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    transition:
+      background 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease,
+      box-shadow 180ms ease !important;
+  }
+
+  body > .app-global-dashboard-switch button.active,
+  body > .dashboard-fixed-view-switch button.active {
+    border: 1px solid #2d68a3 !important;
+    background: #2d68a3 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(45, 104, 163, .16) !important;
+  }
+
+  body > .app-global-dashboard-switch button.inactive,
+  body > .app-global-dashboard-switch button:not(.active),
+  body > .dashboard-fixed-view-switch button:not(.active) {
+    border: 1px solid #dde6ee !important;
+    background: #eef3f7 !important;
+    color: #687b91 !important;
+    box-shadow:
+      inset 0 1px 2px rgba(15, 23, 42, .025),
+      0 1px 1px rgba(255, 255, 255, .82) !important;
+  }
+
+  body > .dashboard-fixed-view-switch button:disabled {
+    opacity: 1 !important;
+  }
+}
+
+/* PMS10 V1.10: one desktop slider, above the header and below popup interactions. */
+.pms10-floating-view-switch { display: none !important; }
+@media (min-width: 1024px) {
+  body > .dashboard-fixed-view-switch,
+  body > .app-global-dashboard-switch,
+  .dashboard-fixed-view-switch,
+  .app-global-dashboard-switch { display: none !important; }
+
+  body > .pms10-floating-view-switch {
+    position: fixed !important;
+    top: 20px !important;
+    right: 16px !important;
+    left: auto !important;
+    bottom: auto !important;
+    z-index: 2147483610 !important;
+    display: block !important;
+    width: 80px !important;
+    height: 34px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    isolation: isolate;
+  }
+  body > .pms10-floating-view-switch .pms10-floating-view-switch__track {
+    position: relative;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    height: 100%;
+    gap: 0;
+    padding: 3px;
+    border: 0;
+    border-radius: 999px;
+    background: #f3f8f5;
+    box-shadow: inset 0 0 0 1px #cbded3, 0 3px 12px #143a261a;
+  }
+  body > .pms10-floating-view-switch .pms10-floating-view-switch__thumb {
+    position: absolute;
+    inset: 3px auto 3px 3px;
+    width: calc((100% - 6px) / 2);
+    border-radius: 999px;
+    background: #16834b;
+    box-shadow: 0 2px 5px #14532d26;
+    transform: translateX(0);
+    transition: transform 220ms cubic-bezier(.22, 1, .36, 1);
+    pointer-events: none;
+  }
+  body > .pms10-floating-view-switch[data-view='detailed'] .pms10-floating-view-switch__thumb {
+    transform: translateX(100%);
+  }
+  body > .pms10-floating-view-switch button {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    box-shadow: none;
+    color: #526b5c;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0;
+    cursor: pointer;
+  }
+  body > .pms10-floating-view-switch button.is-active { color: #fff; }
+  body > .pms10-floating-view-switch button:focus-visible {
+    outline: 2px solid #064e3b;
+    outline-offset: 2px;
+  }
+  body > .pms10-floating-view-switch button:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* Popup scrims and blur effects must not leave a clickable slider above them. */
+  body:has([aria-modal='true']:not([hidden]), dialog[open],
+    .dashboard-modal-backdrop, .exec19-drilldown-backdrop,
+    .pms-action-menu.is-open, .pms-multi-filter-menu, .pms-single-filter-menu,
+    .startup-splash, .pu-update-fab-scrim) > .pms10-floating-view-switch,
+  body.pms-startup-splash-active > .pms10-floating-view-switch,
+  body.am-direct-dialog-open > .pms10-floating-view-switch {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pms10-floating-view-switch__thumb { transition: none !important; }
+}

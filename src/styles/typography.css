@@ -19,12 +19,12 @@
     sans-serif;
 
   /* Limited PMS10 type scale */
-  --pms-type-xs: 12px;
-  --pms-type-sm: 14px;
-  --pms-type-md: 16px;
-  --pms-type-lg: 20px;
-  --pms-type-page-mobile: 28px;
-  --pms-type-page: 32px;
+  --pms-type-xs: 13px;
+  --pms-type-sm: 15px;
+  --pms-type-md: 17px;
+  --pms-type-lg: 22px;
+  --pms-type-page-mobile: 30px;
+  --pms-type-page: 34px;
 
   /* Only three UI weights */
   --pms-weight-regular: 400;
@@ -139,7 +139,7 @@ body,
 #root input,
 #root select,
 #root textarea {
-  font-size: var(--pms-type-sm) !important;
+  font-size: 16px !important;
   font-weight: var(--pms-weight-regular) !important;
   line-height: var(--pms-leading-normal) !important;
   font-style: normal !important;
@@ -443,6 +443,12 @@ body,
   #root .pd-summary-card > .pd-date-value {
     font-size: var(--pms-type-md) !important;
   }
+}
+
+/* A clear keyboard focus indicator for links, controls, and custom actions. */
+#root :focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
 }
 
 /* ---------------------------------------------------------

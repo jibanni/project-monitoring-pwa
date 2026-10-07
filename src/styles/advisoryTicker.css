@@ -1242,3 +1242,158 @@
     background-image: none !important;
   }
 }
+
+/* PMS10_MOBILE_ADVISORY_V113_START */
+/*
+ * Show the existing advisory banner on phones. No duplicate component is created.
+ * The "System Advisory" title text is removed in AdvisoryTicker.tsx by this patch.
+ */
+@media (max-width: 768px) {
+  .pms10-advisory-ticker {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .advisory-ticker,
+  .advisory-ticker-shell,
+  .advisory-ticker-container,
+  .advisory-banner {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Hide title/label wrappers when present; keep icon/message/banner visible. */
+  .advisory-ticker-label,
+  .advisory-label,
+  .advisory-ticker-title,
+  .advisory-title {
+    display: none !important;
+  }
+
+  .advisory-ticker-message,
+  .advisory-message,
+  .advisory-ticker-content,
+  .advisory-content {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+}
+/* PMS10_MOBILE_ADVISORY_V113_END */
+
+/* PMS10_DESKTOP_SYSTEM_ADVISORY_WORD_FIX_V2_START */
+@media (min-width: 1024px) {
+  html body.pms10-has-advisories > section.pms10-advisory-ticker {
+    display: grid !important;
+    grid-template-columns: 184px minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  > .pms10-advisory-label {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+
+    width: 184px !important;
+    min-width: 184px !important;
+    max-width: 184px !important;
+    height: 100% !important;
+    padding: 0 16px !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+
+    background: #ffffff !important;
+    color: #174a83 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  .pms10-advisory-label-icon {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+    background: transparent !important;
+    color: #174a83 !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  .pms10-advisory-label-svg {
+    display: block !important;
+    width: 17px !important;
+    height: 17px !important;
+    color: #174a83 !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  .pms10-advisory-label-text {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 0 0 auto !important;
+
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+
+    color: #174a83 !important;
+    background: transparent !important;
+    font-size: 0.67rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.105em !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  > .pms10-advisory-label::after {
+    content: "" !important;
+    position: absolute !important;
+    top: 7px !important;
+    right: 0 !important;
+    bottom: 7px !important;
+    width: 1px !important;
+    height: auto !important;
+    margin: 0 !important;
+    background: #d7e1ec !important;
+    border: 0 !important;
+  }
+
+  html body.pms10-has-advisories
+  > section.pms10-advisory-ticker
+  > .pms10-advisory-viewport {
+    min-width: 0 !important;
+    width: auto !important;
+    overflow: hidden !important;
+    padding-left: 10px !important;
+    background: #ffffff !important;
+  }
+}
+
+/* Preserve the requested live mobile UI: no advisory strip below 1024px. */
+@media (max-width: 1023px) {
+  html body .pms10-advisory-ticker {
+    display: none !important;
+  }
+}
+/* PMS10_DESKTOP_SYSTEM_ADVISORY_WORD_FIX_V2_END */

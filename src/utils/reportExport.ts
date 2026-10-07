@@ -868,32 +868,54 @@ function addLabelValue(doc: any, label: string, value: string, x: number, y: num
   doc.text(doc.splitTextToSize(value || '—', valueWidth - 4).slice(0, 1), x + labelWidth + 2, y + 5.2)
 }
 
-function getSectionBoxHeight(doc: any, text: string) {
+function getSectionBoxLines(doc: any, text: string) {
   const pageWidth = doc.internal.pageSize.getWidth()
   const usableWidth = pageWidth - 24
-  const lines = doc.splitTextToSize(textValue(text, '—'), usableWidth - 8)
+
+  // IMPORTANT: splitTextToSize() uses the CURRENT font metrics.
+  // Set the exact body font before measuring so the measured lines
+  // and rendered lines always use the same width.
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8.3)
+
+  return doc.splitTextToSize(
+    textValue(text, '—'),
+    usableWidth - 8,
+  )
+}
+
+function getSectionBoxHeight(doc: any, text: string) {
+  const lines = getSectionBoxLines(doc, text)
   return Math.max(18, 8 + lines.length * 4.2)
 }
 
 function addSectionBox(doc: any, title: string, text: string, startY: number) {
   const pageWidth = doc.internal.pageSize.getWidth()
   const usableWidth = pageWidth - 24
-  const lines = doc.splitTextToSize(textValue(text, '—'), usableWidth - 8)
-  const height = getSectionBoxHeight(doc, text)
+  const lines = getSectionBoxLines(doc, text)
+  const height = Math.max(18, 8 + lines.length * 4.2)
+
   doc.setFillColor(13, 62, 111)
   doc.setDrawColor(13, 62, 111)
   doc.rect(12, startY, usableWidth, 7, 'FD')
+
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.4)
   doc.setTextColor(255, 255, 255)
   doc.text(title.toUpperCase(), 15, startY + 4.8)
+
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(205, 213, 224)
   doc.rect(12, startY + 7, usableWidth, height - 7, 'FD')
+
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8.3)
   doc.setTextColor(35, 45, 60)
-  doc.text(lines, 16, startY + 12)
+  doc.text(lines, 16, startY + 12, {
+    maxWidth: usableWidth - 8,
+    lineHeightFactor: 1.2,
+  })
+
   return startY + height + 4
 }
 

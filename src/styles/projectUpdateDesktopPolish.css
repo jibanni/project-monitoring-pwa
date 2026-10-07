@@ -232,19 +232,19 @@
 
   .app-shell.app-project-updates-route
     .pu-update-hero-card
-    .pu-update-hero-title.pu-title-medium {
+    .pu-update-hero-title.pu-title-length-2 {
     font-size: clamp(1.7rem, 2vw, 2.25rem) !important;
   }
 
   .app-shell.app-project-updates-route
     .pu-update-hero-card
-    .pu-update-hero-title.pu-title-long {
+    .pu-update-hero-title.pu-title-length-3 {
     font-size: clamp(1.5rem, 1.8vw, 2rem) !important;
   }
 
   .app-shell.app-project-updates-route
     .pu-update-hero-card
-    .pu-update-hero-title.pu-title-extra-long {
+    .pu-update-hero-title.pu-title-length-4 {
     font-size: clamp(1.3rem, 1.55vw, 1.75rem) !important;
     line-height: 1.07 !important;
   }

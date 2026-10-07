@@ -8,6 +8,7 @@ import {
   getAideMemoireDocument,
   getAideMemoirePhotoAssets,
   offlineDb,
+  markAideMemoireDocumentSync,
   saveAideMemoireDocument,
   saveAideMemoireRecord,
   type AideMemoirePhoto,
@@ -18,6 +19,7 @@ import {
   type AideMemoireExportData,
   type AideMemoireExportFormat,
 } from '../utils/aideMemoireExport'
+import { uploadAideMemoireDocumentToDrive } from '../services/projectDocumentService'
 import '../styles/aideMemoireGenerationDialog.css'
 
 type Source = 'online' | 'offline'
@@ -117,6 +119,86 @@ export default function AideMemoireGenerationDialog({
   onClose,
   onGenerated,
 }: Props) {
+  async function syncGeneratedDocumentIfPossible(
+    documentRecord: Awaited<ReturnType<typeof saveAideMemoireDocument>>,
+  ) {
+    if (source !== 'online') {
+      return {
+        synced: false,
+        message: 'Saved locally. The file will upload after the parent inspection is synced.',
+        storagePath: '',
+      }
+    }
+
+    if (!navigator.onLine) {
+      return {
+        synced: false,
+        message: 'No internet connection. The file is saved locally and queued for Offline Sync.',
+        storagePath: '',
+      }
+    }
+
+    try {
+      await markAideMemoireDocumentSync(documentRecord.id, {
+        sync_status: 'syncing',
+        sync_error: '',
+      })
+
+      const uploaded = await uploadAideMemoireDocumentToDrive({
+        document: documentRecord,
+        updateId: updateRef,
+      })
+
+      const storagePath =
+        uploaded.document?.storage_path ||
+        String(uploaded.file.storagePath || '')
+
+      await markAideMemoireDocumentSync(documentRecord.id, {
+        sync_status: 'synced',
+        sync_error: '',
+        cloud_document_id: uploaded.document?.id,
+        cloud_url:
+          uploaded.document?.file_url ||
+          uploaded.file.webViewLink ||
+          uploaded.file.directViewLink ||
+          '',
+        drive_file_id:
+          uploaded.document?.drive_file_id || uploaded.file.id,
+        drive_folder_id:
+          uploaded.document?.drive_folder_id ||
+          String(uploaded.file.folderId || ''),
+        storage_path: storagePath,
+        synced_at:
+          uploaded.document?.synced_at || new Date().toISOString(),
+      })
+
+      return {
+        synced: true,
+        message: 'Uploaded to Google Drive.',
+        storagePath,
+      }
+    } catch (syncError: any) {
+      const reason =
+        syncError?.message ||
+        'The generated Aide Memoire is saved locally and will retry from Offline Sync.'
+
+      await markAideMemoireDocumentSync(documentRecord.id, {
+        sync_status: 'failed',
+        sync_error: reason,
+      })
+
+      console.warn(
+        'Aide Memoire generated locally but cloud upload will retry later.',
+        syncError,
+      )
+      return {
+        synced: false,
+        message: reason,
+        storagePath: '',
+      }
+    }
+  }
+
   const navigate = useNavigate()
   const auth = useAuth()
   const [record, setRecord] = useState<OfflineAideMemoire | null>(null)
@@ -175,7 +257,10 @@ export default function AideMemoireGenerationDialog({
           }
         })
 
-        const storedPdf = await getAideMemoireDocument(stored.id, 'pdf')
+        const [storedPdf, storedDocx] = await Promise.all([
+          getAideMemoireDocument(stored.id, 'pdf'),
+          getAideMemoireDocument(stored.id, 'docx'),
+        ])
 
         if (cancelled) return
         setRecord(stored)
@@ -188,6 +273,44 @@ export default function AideMemoireGenerationDialog({
           setLatestPdfBlob(null)
           setLatestPdfName('Aide_Memoire.pdf')
           setLatestPdfDocumentId('')
+        }
+
+        /*
+         * Recovery path: a previously generated local Aide Memoire may have
+         * been created before Drive credentials were available. Opening the
+         * dialog again while online automatically retries those pending files.
+         */
+        if (source === 'online' && navigator.onLine) {
+          const pendingDocuments = [storedPdf, storedDocx].filter(
+            (item): item is NonNullable<typeof storedPdf> =>
+              Boolean(item) && String(item?.sync_status || 'pending').toLowerCase() !== 'synced',
+          )
+
+          const recovered: string[] = []
+          const recoveryWarnings: string[] = []
+
+          for (const pendingDocument of pendingDocuments) {
+            const retryResult = await syncGeneratedDocumentIfPossible(pendingDocument)
+            const label = pendingDocument.format.toUpperCase()
+
+            if (retryResult.synced) {
+              recovered.push(
+                retryResult.storagePath
+                  ? `${label} uploaded to Google Drive: ${retryResult.storagePath}`
+                  : `${label} uploaded to Google Drive.`,
+              )
+            } else {
+              recoveryWarnings.push(`${label} cloud upload pending: ${retryResult.message}`)
+            }
+          }
+
+          if (!cancelled && recovered.length > 0) {
+            setMessage(recovered.join(' '))
+            await onGenerated?.()
+          }
+          if (!cancelled && recoveryWarnings.length > 0) {
+            setWarning(recoveryWarnings.join(' '))
+          }
         }
       } catch (loadError: any) {
         if (!cancelled) {
@@ -266,6 +389,7 @@ export default function AideMemoireGenerationDialog({
         format,
       )
       const cacheWarnings: string[] = []
+      const cloudMessages: string[] = []
 
       if (result.pdfBlob && result.pdfFileName) {
         setLatestPdfBlob(result.pdfBlob)
@@ -281,6 +405,17 @@ export default function AideMemoireGenerationDialog({
             generatedAt,
           })
           setLatestPdfDocumentId(storedPdf.id)
+
+          const syncResult = await syncGeneratedDocumentIfPossible(storedPdf)
+          if (syncResult.synced) {
+            cloudMessages.push(
+              syncResult.storagePath
+                ? `PDF uploaded to Google Drive: ${syncResult.storagePath}`
+                : 'PDF uploaded to Google Drive.',
+            )
+          } else if (source === 'online') {
+            cacheWarnings.push(`PDF cloud upload pending: ${syncResult.message}`)
+          }
         } catch (cacheError) {
           console.error('PDF generated but the local Latest PDF cache could not be saved.', cacheError)
           cacheWarnings.push('The PDF downloaded, but its local Latest PDF copy could not be retained on this device.')
@@ -289,7 +424,7 @@ export default function AideMemoireGenerationDialog({
 
       if (result.docxBlob && result.docxFileName) {
         try {
-          await saveAideMemoireDocument({
+          const storedDocx = await saveAideMemoireDocument({
             aideMemoireId: record.id,
             projectId: record.project_id,
             updateRef: record.update_ref,
@@ -298,13 +433,28 @@ export default function AideMemoireGenerationDialog({
             blob: result.docxBlob,
             generatedAt,
           })
+
+          const syncResult = await syncGeneratedDocumentIfPossible(storedDocx)
+          if (syncResult.synced) {
+            cloudMessages.push(
+              syncResult.storagePath
+                ? `DOCX uploaded to Google Drive: ${syncResult.storagePath}`
+                : 'DOCX uploaded to Google Drive.',
+            )
+          } else if (source === 'online') {
+            cacheWarnings.push(`DOCX cloud upload pending: ${syncResult.message}`)
+          }
         } catch (cacheError) {
           console.error('DOCX generated but its local cache could not be saved.', cacheError)
           cacheWarnings.push('The DOCX downloaded, but its local copy could not be retained on this device.')
         }
       }
 
-      setMessage(`${result.generated.join(' and ')} generated successfully.`)
+      setMessage(
+        [`${result.generated.join(' and ')} generated successfully.`, ...cloudMessages]
+          .filter(Boolean)
+          .join(' '),
+      )
       setWarning(cacheWarnings.join(' '))
       await onGenerated?.()
     } catch (generationError: any) {

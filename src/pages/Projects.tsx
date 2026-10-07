@@ -13,6 +13,7 @@ import MultiSelectFilter from '../components/MultiSelectFilter'
 import SingleSelectFilter from '../components/SingleSelectFilter'
 import { matchesMultiFilter, normalizeMultiFilterValue } from '../utils/multiFilter'
 import { getOfficialProjectCost, getTargetPhysicalInfo } from '../utils/projectVariance'
+import { isPlaceholderProjectTitle } from '../utils/projectMetricEligibility'
 import { canUpdateProject as canUpdateProjectByAor, filterProjectsByAor, getCanonicalRole } from '../utils/aorAccess'
 import '../styles/projects.css'
 import '../styles/unifiedFilters.css'
@@ -516,7 +517,9 @@ export default function Projects() {
   ])
 
   const totalCost = useMemo(() => {
-    return filteredProjects.reduce((sum, project) => sum + getOfficialProjectCost(project), 0)
+    return filteredProjects
+      .filter((project) => !isPlaceholderProjectTitle(project))
+      .reduce((sum, project) => sum + getOfficialProjectCost(project), 0)
   }, [filteredProjects])
 
   const underProcurementCount = filteredProjects.filter(

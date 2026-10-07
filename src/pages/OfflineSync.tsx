@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { offlineDb, type OfflineProjectPhoto, type OfflineProjectUpdate } from '../lib/offlineDb'
+import {
+  offlineDb,
+  type OfflineAideMemoireDocument,
+  type OfflineProjectPhoto,
+  type OfflineProjectUpdate,
+} from '../lib/offlineDb'
 import * as offlineSyncService from '../services/offlineSyncService'
 import { useAuth } from '../context/AuthContext'
 import { useDesktopViewport } from '../hooks/useDesktopViewport'
@@ -24,6 +29,10 @@ type HydratedOfflineUpdate = OfflineProjectUpdate & {
 }
 
 type HydratedOfflinePhoto = OfflineProjectPhoto & {
+  display_project_name?: string
+}
+
+type HydratedOfflineDocument = OfflineAideMemoireDocument & {
   display_project_name?: string
 }
 
@@ -208,6 +217,21 @@ function getPhotoSize(record: OfflineProjectPhoto) {
   )
 }
 
+function getDocumentTitle(record: HydratedOfflineDocument) {
+  return textValue(record.file_name) || 'Aide Memoire'
+}
+
+function getDocumentProject(record: HydratedOfflineDocument) {
+  return (
+    textValue(record.display_project_name) ||
+    `Project ${textValue(record.project_id) || 'Document'}`
+  )
+}
+
+function getDocumentSize(record: OfflineAideMemoireDocument) {
+  return record.data?.byteLength || 0
+}
+
 function getLinkedPhotos(update: OfflineProjectUpdate, photos: OfflineProjectPhoto[]) {
   const updateId = update.id
   const localId = getUpdateLocalId(update)
@@ -239,7 +263,7 @@ function getLinkedUpdate(photo: OfflineProjectPhoto, updates: OfflineProjectUpda
 }
 
 function getAorProjectFromRecord(
-  record: OfflineProjectUpdate | OfflineProjectPhoto,
+  record: OfflineProjectUpdate | OfflineProjectPhoto | OfflineAideMemoireDocument,
   projectAorMap: OfflineProjectAorMap,
   allUpdates: OfflineProjectUpdate[] = [],
 ): AorProjectLike {
@@ -263,7 +287,7 @@ function getAorProjectFromRecord(
 }
 
 function canSyncOfflineRecord(
-  record: OfflineProjectUpdate | OfflineProjectPhoto,
+  record: OfflineProjectUpdate | OfflineProjectPhoto | OfflineAideMemoireDocument,
   projectAorMap: OfflineProjectAorMap,
   auth: unknown,
   allUpdates: OfflineProjectUpdate[] = [],
@@ -306,6 +330,7 @@ export default function OfflineSync() {
 
   const [offlineUpdates, setOfflineUpdates] = useState<HydratedOfflineUpdate[]>([])
   const [offlinePhotos, setOfflinePhotos] = useState<HydratedOfflinePhoto[]>([])
+  const [offlineDocuments, setOfflineDocuments] = useState<HydratedOfflineDocument[]>([])
   const autoSyncAttemptRef = useRef(false)
 
   const userCanUseOfflineSync = useMemo(() => canUseOfflineSync(auth), [auth])
@@ -370,8 +395,8 @@ export default function OfflineSync() {
   }, [])
 
   const totalPendingCount = useMemo(() => {
-    return offlineUpdates.length + offlinePhotos.length
-  }, [offlinePhotos.length, offlineUpdates.length])
+    return offlineUpdates.length + offlinePhotos.length + offlineDocuments.length
+  }, [offlineDocuments.length, offlinePhotos.length, offlineUpdates.length])
 
   const canSyncCurrentQueue = useMemo(() => {
     if (!userCanUseOfflineSync) return false
@@ -406,14 +431,16 @@ export default function OfflineSync() {
       await offlineSyncService.repairLegacyOfflineQueue()
       setErrorMessage('')
 
-      const [projectLookup, allUpdates, allPhotos] = await Promise.all([
+      const [projectLookup, allUpdates, allPhotos, allDocuments] = await Promise.all([
         getProjectLookup(),
         offlineDb.project_updates.toArray(),
         offlineDb.project_photos.toArray(),
+        offlineDb.aide_memoire_documents.toArray(),
       ])
 
       const pendingUpdates = allUpdates.filter(isPendingRecord)
       const pendingPhotos = allPhotos.filter(isPendingRecord)
+      const pendingDocuments = allDocuments.filter(isPendingRecord)
 
       const allowedUpdates = pendingUpdates.filter((update) =>
         canSyncOfflineRecord(update, projectLookup.aor, auth),
@@ -421,9 +448,14 @@ export default function OfflineSync() {
       const allowedPhotos = pendingPhotos.filter((photo) =>
         canSyncOfflineRecord(photo, projectLookup.aor, auth, pendingUpdates),
       )
+      const allowedDocuments = pendingDocuments.filter((document) =>
+        canSyncOfflineRecord(document, projectLookup.aor, auth, pendingUpdates),
+      )
 
       const hiddenPendingCount =
-        pendingUpdates.length - allowedUpdates.length + pendingPhotos.length - allowedPhotos.length
+        pendingUpdates.length - allowedUpdates.length +
+        pendingPhotos.length - allowedPhotos.length +
+        pendingDocuments.length - allowedDocuments.length
 
       const hydratedUpdates = allowedUpdates.map((update) => {
         const linkedPhotos = getLinkedPhotos(update, allowedPhotos)
@@ -441,9 +473,15 @@ export default function OfflineSync() {
         display_project_name:
           projectLookup.names[photo.project_id] || photo.project_name || '',
       }))
+      const hydratedDocuments = allowedDocuments.map((document) => ({
+        ...document,
+        display_project_name:
+          projectLookup.names[document.project_id] || '',
+      }))
 
       setOfflineUpdates(hydratedUpdates)
       setOfflinePhotos(hydratedPhotos)
+      setOfflineDocuments(hydratedDocuments)
       setBlockedPendingCount(Math.max(0, hiddenPendingCount))
       setLastChecked(new Date().toISOString())
     } catch (error) {
@@ -573,6 +611,7 @@ export default function OfflineSync() {
 
   const pendingUpdatesCount = offlineUpdates.length
   const pendingPhotosCount = offlinePhotos.length
+  const pendingDocumentsCount = offlineDocuments.length
 
   if (!userCanUseOfflineSync) {
     return (
@@ -622,7 +661,7 @@ export default function OfflineSync() {
         <section className="offline-sync-loading-card">
           <div className="offline-sync-loader" />
           <h2>Loading Offline Records</h2>
-          <p>Checking pending updates and photos saved on this device...</p>
+          <p>Checking pending updates, photos, and Aide Memoire files saved on this device...</p>
         </section>
       ) : (
         <>
@@ -647,6 +686,10 @@ export default function OfflineSync() {
                   <strong>{pendingPhotosCount}</strong>
                   Photos
                 </span>
+                <span>
+                  <strong>{pendingDocumentsCount}</strong>
+                  Aide Memoire
+                </span>
                 <span className="total">
                   <strong>{totalPendingCount}</strong>
                   Total
@@ -657,7 +700,7 @@ export default function OfflineSync() {
             {totalPendingCount === 0 ? (
               <div className="offline-sync-compact-empty">
                 <strong>All synced</strong>
-                <span>New offline updates and photos will appear here as a simple list.</span>
+                <span>New offline updates, photos, and generated Aide Memoire files will appear here.</span>
               </div>
             ) : (
               <div className="offline-sync-compact-groups">
@@ -746,6 +789,43 @@ export default function OfflineSync() {
                     </div>
                   </div>
                 )}
+
+                {offlineDocuments.length > 0 && (
+                  <div className="offline-sync-compact-group">
+                    <div className="offline-sync-compact-group-title">
+                      <span>Aide Memoire</span>
+                      <strong>{pendingDocumentsCount}</strong>
+                    </div>
+
+                    <div className="offline-sync-compact-list">
+                      {offlineDocuments.map((record, index) => (
+                        <article
+                          key={textValue(record.id) || `document-${index}`}
+                          className="offline-sync-compact-row document"
+                        >
+                          <div className="offline-sync-compact-row-main">
+                            <strong>{getDocumentProject(record)}</strong>
+                            <span>
+                              {getDocumentTitle(record)}
+                              {' · '}
+                              {formatFileSize(getDocumentSize(record))}
+                            </span>
+                          </div>
+
+                          <span className={`offline-sync-status ${getStatusClass(record)}`}>
+                            {getStatusLabel(record)}
+                          </span>
+
+                          {textValue(record.sync_error) && (
+                            <small className="offline-sync-compact-error">
+                              {textValue(record.sync_error)}
+                            </small>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -763,6 +843,7 @@ export default function OfflineSync() {
               <div className="offline-sync-table-tags">
                 <span>Updates: project_updates</span>
                 <span>Photos: project_photos</span>
+                <span>Aide Memoire: aide_memoire_documents</span>
                 <span>AOR hidden: {blockedPendingCount}</span>
               </div>
             </div>

@@ -24,6 +24,10 @@ import {
   uploadProjectPhotoToDrive,
 } from'../services/googleDrivePhotoUploadService'
 import {
+  getLatestProjectAideMemoireDocument,
+  type CloudAideMemoireDocument,
+} from'../services/projectDocumentService'
+import {
   compressInspectionImage,
   MAX_INSPECTION_PHOTO_BYTES,
   MAX_INSPECTION_PHOTOS_PER_UPDATE,
@@ -896,10 +900,10 @@ function toLocationTitleCase(value?: string | null) {
 function getHeroTitleSizeClass(value?: string | null) {
   const length = String(value ?? '').trim().length
 
-  if (length <= 24) return 'pu-title-short'
-  if (length <= 42) return 'pu-title-medium'
-  if (length <= 68) return 'pu-title-long'
-  return 'pu-title-extra-long'
+  if (length <= 24) return 'pu-title-length-1'
+  if (length <= 42) return 'pu-title-length-2'
+  if (length <= 68) return 'pu-title-length-3'
+  return 'pu-title-length-4'
 }
 
 
@@ -980,6 +984,7 @@ export default function ProjectUpdates() {
   const [draftSaving, setDraftSaving] = useState(false)
   const [photoProcessing, setPhotoProcessing] = useState(false)
   const [latestPdfRecord, setLatestPdfRecord] = useState<OfflineAideMemoireDocument | null>(null)
+  const [latestCloudPdfRecord, setLatestCloudPdfRecord] = useState<CloudAideMemoireDocument | null>(null)
   const [wizardStep, setWizardStep] = useState(1)
   const [maxReachedStep, setMaxReachedStep] = useState(1)
   const [wizardError, setWizardError] = useState('')
@@ -2134,6 +2139,7 @@ export default function ProjectUpdates() {
   async function refreshLatestProjectOutputs() {
     if (!id) {
       setLatestPdfRecord(null)
+      setLatestCloudPdfRecord(null)
       return
     }
 
@@ -2166,10 +2172,41 @@ export default function ProjectUpdates() {
       console.error('Unable to load the latest locally generated Aide Memoire PDF.', error)
       setLatestPdfRecord(null)
     }
+
+    if (navigator.onLine) {
+      try {
+        const latestCloud = await getLatestProjectAideMemoireDocument(id, 'pdf')
+        setLatestCloudPdfRecord(latestCloud)
+      } catch (error) {
+        console.warn('Unable to load the latest cloud Aide Memoire PDF.', error)
+        setLatestCloudPdfRecord(null)
+      }
+    } else {
+      setLatestCloudPdfRecord(null)
+    }
   }
 
-  function viewLatestProjectPdf() {
-    if (!id || !latestPdfRecord) return
+  async function viewLatestProjectPdf() {
+    if (!id) return
+
+    /* Online source of truth: resolve the latest synced PDF from Supabase at
+       click time so every device opens the same newest Aide Memoire. */
+    if (navigator.onLine) {
+      try {
+        const latestCloud = await getLatestProjectAideMemoireDocument(id, 'pdf')
+        setLatestCloudPdfRecord(latestCloud)
+
+        const cloudUrl = String(latestCloud?.file_url || '').trim()
+        if (cloudUrl) {
+          window.open(cloudUrl, '_blank', 'noopener,noreferrer')
+          return
+        }
+      } catch (error) {
+        console.warn('Unable to resolve the latest cloud PDF. Falling back to this device.', error)
+      }
+    }
+
+    if (!latestPdfRecord) return
 
     const activeElement = document.activeElement
     if (activeElement instanceof HTMLElement) activeElement.blur()
@@ -2194,7 +2231,6 @@ export default function ProjectUpdates() {
 
     navigate(`/projects/${id}/aide-memoire/pdf?${params.toString()}`)
   }
-
 
   async function loadData() {
     if (!id) return
@@ -5010,11 +5046,11 @@ export default function ProjectUpdates() {
           },
           {
             id: 'latest-pdf',
-            label: 'Latest PDF',
+            label: 'Latest Aide Memoire',
             icon: <IconPdf />,
             tone: 'primary',
-            hidden: !latestPdfRecord,
-            onSelect: viewLatestProjectPdf,
+            hidden: !latestPdfRecord && !latestCloudPdfRecord,
+            onSelect: () => void viewLatestProjectPdf(),
           },
           {
             id: 'back',

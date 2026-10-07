@@ -379,6 +379,16 @@ export type OfflineAideMemoireDocument = {
   mime_type: string
   data: ArrayBuffer
   generated_at: string
+
+  /* Cloud sync metadata. Local binary data is always retained for offline use. */
+  sync_status?: 'pending' | 'syncing' | 'synced' | 'failed' | string
+  sync_error?: string
+  cloud_document_id?: string
+  cloud_url?: string
+  drive_file_id?: string
+  drive_folder_id?: string
+  storage_path?: string
+  synced_at?: string
 }
 
 export async function saveAideMemoireDocument(params: {
@@ -389,22 +399,63 @@ export async function saveAideMemoireDocument(params: {
   fileName: string
   blob: Blob
   generatedAt?: string
+  syncStatus?: OfflineAideMemoireDocument['sync_status']
 }) {
   const generatedAt = params.generatedAt || new Date().toISOString()
+  const id = `${params.aideMemoireId}:${params.format}`
+  const existing = await offlineDb.aide_memoire_documents.get(id)
+
   const record: OfflineAideMemoireDocument = {
-    id: `${params.aideMemoireId}:${params.format}`,
+    ...existing,
+    id,
     aide_memoire_id: params.aideMemoireId,
     project_id: params.projectId,
     update_ref: params.updateRef,
     format: params.format,
     file_name: params.fileName,
-    mime_type: params.blob.type || (params.format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+    mime_type:
+      params.blob.type ||
+      (params.format === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
     data: await params.blob.arrayBuffer(),
     generated_at: generatedAt,
+    sync_status: params.syncStatus || 'pending',
+    sync_error: '',
   }
 
   await offlineDb.aide_memoire_documents.put(record)
   return record
+}
+
+export async function markAideMemoireDocumentSync(
+  id: string,
+  patch: Partial<OfflineAideMemoireDocument>,
+) {
+  const existing = await offlineDb.aide_memoire_documents.get(id)
+  if (!existing) return null
+
+  const updated: OfflineAideMemoireDocument = {
+    ...existing,
+    ...patch,
+    id: existing.id,
+    aide_memoire_id: existing.aide_memoire_id,
+    project_id: existing.project_id,
+    format: existing.format,
+    data: existing.data,
+  }
+
+  await offlineDb.aide_memoire_documents.put(updated)
+  return updated
+}
+
+export async function getPendingAideMemoireDocuments() {
+  const records = await offlineDb.aide_memoire_documents.toArray()
+
+  return records.filter((record) => {
+    const status = String(record.sync_status || 'pending').toLowerCase()
+    return status !== 'synced'
+  })
 }
 
 export function aideMemoireDocumentToBlob(document: OfflineAideMemoireDocument) {
@@ -504,6 +555,23 @@ class OfflineDatabase extends Dexie {
         'id, project_id, update_ref, [project_id+update_ref], inspection_date, updated_at, status, synced, sync_status',
       aide_memoire_documents:
         'id, aide_memoire_id, project_id, update_ref, format, generated_at, [project_id+format], [aide_memoire_id+format]',
+      aide_memoire_photo_assets:
+        'id, aide_memoire_id, project_id, update_ref, photo_ref, photo_number, [aide_memoire_id+photo_ref]',
+    })
+
+    /* Version 9 adds cloud-sync indexes for generated Aide Memoire documents.
+       Existing IndexedDB records and binaries are preserved. */
+    this.version(9).stores({
+      projects: 'id,status,municipality,risk_level',
+      user_profiles: 'id,email,role,approved',
+      project_updates:
+        '++id, local_id, online_update_id, project_id, inspection_date, status, risk_level, synced, sync_status',
+      project_photos:
+        '++id, offline_update_id, local_update_id, project_update_id, project_id, synced, sync_status',
+      aide_memoires:
+        'id, project_id, update_ref, [project_id+update_ref], inspection_date, updated_at, status, synced, sync_status',
+      aide_memoire_documents:
+        'id, aide_memoire_id, project_id, update_ref, format, generated_at, sync_status, [project_id+format], [project_id+sync_status], [aide_memoire_id+format]',
       aide_memoire_photo_assets:
         'id, aide_memoire_id, project_id, update_ref, photo_ref, photo_number, [aide_memoire_id+photo_ref]',
     })

@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useDesktopViewport } from '../hooks/useDesktopViewport'
 import AdvisoryTicker from './AdvisoryTicker'
 import { preloadRoute, scheduleRoutePreloads } from '../lib/routePreload'
 import { initializeSharedProjects, refreshSharedProjects } from '../lib/projectDataCache'
@@ -304,6 +305,51 @@ function getNavSection(item: NavItem): PmsNavigationSection {
   return 'dashboard'
 }
 
+type DashboardViewMode = 'executive' | 'detailed'
+
+const DASHBOARD_VIEW_STORAGE_KEY = 'pms10:dashboard-view'
+const DASHBOARD_VIEW_STATE_EVENT = 'pms10:dashboard-view-state'
+const DASHBOARD_VIEW_REQUEST_EVENT = 'pms10:dashboard-view-request'
+
+function canUseExecutiveDashboardFromLayout(auth: any, profileRole: unknown) {
+  if (
+    Boolean(auth?.isAdmin) ||
+    Boolean(auth?.isViewer) ||
+    Boolean(auth?.isROEngineer) ||
+    Boolean(auth?.isPOEngineer) ||
+    Boolean(auth?.isEngineer)
+  ) {
+    return true
+  }
+
+  return new Set([
+    'admin',
+    'viewer',
+    'rd',
+    'regional director',
+    'ard',
+    'assistant regional director',
+    'pd',
+    'provincial director',
+    'cd',
+    'city director',
+    'mlgoo',
+    'clgoo',
+    'peo',
+    'project evaluation officer',
+    'ch',
+    'chief',
+    'pdmu chief',
+    'pdmu chief/head',
+    'pdmu head',
+    'ro engineer',
+    'ro engineers',
+    'po engineer',
+    'po engineers',
+    'engineer',
+  ]).has(normalizeRoleValue(profileRole))
+}
+
 export default function Layout({ children }: LayoutProps) {
   const auth = useAuth() as any
   const navigate = useNavigate()
@@ -336,6 +382,16 @@ export default function Layout({ children }: LayoutProps) {
     return window.localStorage.getItem('pms10:desktop-sidebar-collapsed') === '1'
   })
 
+  const isDesktopViewport = useDesktopViewport()
+  const hasExecutiveDashboard = canUseExecutiveDashboardFromLayout(auth, profileRole)
+  const [globalDashboardView, setGlobalDashboardView] = useState<DashboardViewMode>(() => {
+    if (typeof window === 'undefined') return 'executive'
+
+    return window.localStorage.getItem(DASHBOARD_VIEW_STORAGE_KEY) === 'detailed'
+      ? 'detailed'
+      : 'executive'
+  })
+
   const currentRoute = useMemo(
     () => getRouteFromLocation(location),
     [location.pathname, location.search, location.hash],
@@ -351,6 +407,40 @@ export default function Layout({ children }: LayoutProps) {
       desktopSidebarCollapsed ? '1' : '0',
     )
   }, [desktopSidebarCollapsed])
+
+  useEffect(() => {
+    const handleDashboardViewState = (event: Event) => {
+      const nextView = (event as CustomEvent<{ view?: DashboardViewMode }>).detail?.view
+
+      if (nextView !== 'executive' && nextView !== 'detailed') return
+
+      setGlobalDashboardView(nextView)
+      window.localStorage.setItem(DASHBOARD_VIEW_STORAGE_KEY, nextView)
+    }
+
+    window.addEventListener(
+      DASHBOARD_VIEW_STATE_EVENT,
+      handleDashboardViewState as EventListener,
+    )
+
+    return () => {
+      window.removeEventListener(
+        DASHBOARD_VIEW_STATE_EVENT,
+        handleDashboardViewState as EventListener,
+      )
+    }
+  }, [])
+
+  useEffect(() => {
+    if (location.pathname !== '/dashboard') return
+
+    const requestedView = new URLSearchParams(location.search).get('view')
+
+    if (requestedView === 'executive' || requestedView === 'detailed') {
+      setGlobalDashboardView(requestedView)
+      window.localStorage.setItem(DASHBOARD_VIEW_STORAGE_KEY, requestedView)
+    }
+  }, [location.pathname, location.search])
 
 
   useEffect(() => {
@@ -609,6 +699,11 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   const getItemDestination = (item: NavItem) => {
+    // The normal Dashboard workspace button always opens the operational
+    // Detailed View. A direct website/dashboard opening still defaults to
+    // Executive View.
+    if (item.key === 'dashboard') return '/dashboard?view=detailed'
+
     // Every workspace button resumes the exact route last used in that section.
     // This applies even when the section is already active, so a nested working
     // page (Project Details / Edit / Update, etc.) is never reset to the root just
@@ -669,6 +764,22 @@ export default function Layout({ children }: LayoutProps) {
     } finally {
       navigate('/login', { replace: true })
     }
+  }
+
+  const handleGlobalDashboardView = (nextView: DashboardViewMode) => {
+    setGlobalDashboardView(nextView)
+    window.localStorage.setItem(DASHBOARD_VIEW_STORAGE_KEY, nextView)
+
+    if (location.pathname === '/dashboard') {
+      window.dispatchEvent(
+        new CustomEvent(DASHBOARD_VIEW_REQUEST_EVENT, {
+          detail: { view: nextView },
+        }),
+      )
+      return
+    }
+
+    navigate(`/dashboard?view=${nextView}`)
   }
 
   const activeMobileIndex = Math.max(
@@ -735,6 +846,29 @@ export default function Layout({ children }: LayoutProps) {
           )
         })}
       </nav>
+
+      <div className="app-sidebar-user-panel" aria-label="Signed in user">
+        <div className="app-sidebar-user-avatar" aria-hidden="true">
+          {initials}
+        </div>
+
+        <div className="app-sidebar-user-copy">
+          <strong>{displayName}</strong>
+          <span>{displayRole}</span>
+        </div>
+
+        <button
+          type="button"
+          className="app-sidebar-user-logout"
+          onClick={handleLogout}
+          aria-label="Logout"
+          title="Logout"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10 4H5.8A1.8 1.8 0 0 0 4 5.8v12.4A1.8 1.8 0 0 0 5.8 20H10v-2H6V6h4V4Zm4.7 3.3-1.4 1.4 2.3 2.3H9v2h6.6l-2.3 2.3 1.4 1.4L19.4 12l-4.7-4.7Z" />
+          </svg>
+        </button>
+      </div>
 
       <div className="app-sidebar-footer">
         <div className="app-sidebar-office">
@@ -860,7 +994,62 @@ export default function Layout({ children }: LayoutProps) {
     </header>
   )
 
-  const appAdvisoryTicker = <AdvisoryTicker />
+  const appAdvisoryTicker =
+    location.pathname === '/dashboard' &&
+    hasExecutiveDashboard &&
+    globalDashboardView === 'executive'
+      ? null
+      : <AdvisoryTicker />
+
+  const effectiveGlobalDashboardView: DashboardViewMode =
+    hasExecutiveDashboard ? globalDashboardView : 'detailed'
+
+  const floatingDashboardSwitcher = isDesktopViewport ? (
+    <div
+      className="pms10-floating-view-switch"
+      data-view={effectiveGlobalDashboardView}
+      aria-label="Dashboard view selector"
+    >
+      <nav className="pms10-floating-view-switch__track" aria-label="Dashboard view">
+        <span className="pms10-floating-view-switch__thumb" aria-hidden="true" />
+
+        <button
+          type="button"
+          className={
+            effectiveGlobalDashboardView === 'executive' ? 'is-active' : ''
+          }
+          aria-label="Executive View"
+          aria-current={
+            effectiveGlobalDashboardView === 'executive' ? 'page' : undefined
+          }
+          onClick={() => handleGlobalDashboardView('executive')}
+          title={
+            hasExecutiveDashboard
+              ? 'Executive View'
+              : 'Executive View is not available for this account'
+          }
+          disabled={!hasExecutiveDashboard}
+        >
+          E
+        </button>
+
+        <button
+          type="button"
+          className={
+            effectiveGlobalDashboardView === 'detailed' ? 'is-active' : ''
+          }
+          aria-label="Detailed View"
+          aria-current={
+            effectiveGlobalDashboardView === 'detailed' ? 'page' : undefined
+          }
+          onClick={() => handleGlobalDashboardView('detailed')}
+          title="Detailed View"
+        >
+          D
+        </button>
+      </nav>
+    </div>
+  ) : null
 
   const appMobileNav = (
     <nav
@@ -927,6 +1116,15 @@ export default function Layout({ children }: LayoutProps) {
       {appDesktopSidebar}
       {headerPortalReady ? createPortal(appHeader, document.body) : appHeader}
       {headerPortalReady ? createPortal(appAdvisoryTicker, document.body) : appAdvisoryTicker}
+      {headerPortalReady
+        ? createPortal(floatingDashboardSwitcher, document.body)
+        : floatingDashboardSwitcher}
+
+      <div
+        id="dashboard-view-switch-slot"
+        className="dashboard-view-switch-slot"
+        aria-hidden={location.pathname !== '/dashboard'}
+      />
 
       <div className={shellClassName} style={shellStyle}>
         <main className="app-main">{children || <Outlet />}</main>
