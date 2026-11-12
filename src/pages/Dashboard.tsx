@@ -711,7 +711,7 @@ export default function Dashboard() {
     errorMessage,
     refreshProjects,
   } = useSharedProjects<ProjectRecord>()
-  const { onsiteProjects, onsiteLoading, onsiteError } = useOnsiteProjectSnapshots(projects, isDesktopViewport)
+  const { onsiteProjects } = useOnsiteProjectSnapshots(projects, isDesktopViewport)
   const dashboardSourceProjects = useMemo(
     () => isDesktopViewport && dataSource === 'onsite' ? onsiteProjects : projects,
     [isDesktopViewport, dataSource, onsiteProjects, projects],
