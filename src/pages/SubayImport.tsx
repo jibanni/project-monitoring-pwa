@@ -320,6 +320,27 @@ export default function SubayImport() {
     setErrorMessage('')
     setSuccessMessage('')
 
+    // Stop before archiving or updating records if the database migration
+    // is missing. Otherwise each project update would fail on reverted_funds.
+    const hasSubayRecords = previewRows.some(
+      (row) => row.action !== 'invalid' && row.record.subayFormat !== 'sglgif_portal',
+    )
+    if (hasSubayRecords) {
+      const { error: schemaError } = await supabase
+        .from('projects')
+        .select('reverted_funds')
+        .limit(1)
+      if (schemaError) {
+        setImporting(false)
+        setErrorMessage(
+          'SubayBAYAN import stopped: the reverted_funds database column is not available. ' +
+            'Apply migration 20261112083000_add_subay_reverted_funds.sql in Supabase ' +
+            'before importing. No project records were changed.',
+        )
+        return
+      }
+    }
+
     const sourceRowsToKeep = sourceRows
     let sourceBatchId = ''
 
