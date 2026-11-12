@@ -866,6 +866,13 @@ export default function Dashboard() {
     return filterProjectsByAor(dashboardSourceProjects, auth)
   }, [dashboardSourceProjects, auth])
 
+  // Keep the authoritative SubayBAYAN masterlist available for PDF risk
+  // remarks even when the display is switched to engineer On-Site snapshots.
+  // Access scope remains identical to the selected dashboard's AOR.
+  const officialAorProjects = useMemo(() => {
+    return filterProjectsByAor(projects, auth)
+  }, [projects, auth])
+
   const filterOptions = useMemo(() => {
     const years = uniqueSortedTextValues(aorProjects.map(getYearFilterValue)).sort(
       (a, b) => asNumber(b) - asNumber(a),
@@ -1705,6 +1712,7 @@ export default function Dashboard() {
         <div className={`pms-dashboard-view-stage is-executive ${viewTransitionPhase} ${viewTransitionDirection}`}>
           <ExecutiveDashboard
             projects={aorProjects}
+            officialProjects={officialAorProjects}
             dataSource={dataSource}
             onOpenDetailed={() => switchDashboardView('detailed')}
           />
