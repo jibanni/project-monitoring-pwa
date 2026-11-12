@@ -481,32 +481,70 @@ export async function exportExecutiveDashboardPdf(
 
   drawExecutivePage(doc, images, projects, context)
 
-  // Page 2+: Province / LGU matrix matching the user's reference layout.
-  doc.addPage()
-  drawHeader(doc, images, 'Province / LGU implementation matrix  |  Data reflects current dashboard filters')
-  addScope(doc, context, projects)
-  ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
-  doc.text('SUMMARY BY PROVINCE / LGU', MARGIN, 65)
+  // Executive Director's at-a-glance province/HUC comparison immediately
+  // follows the cover so regional differences are visible before detail tables.
+  drawProvinceOverviewPages(doc, images, projects, context)
 
+  // Province / LGU implementation matrix. drawHeader MUST run in
+  // willDrawPage, not didDrawPage: the latter paints over completed rows,
+  // which previously made full continuation pages appear completely blank.
+  doc.addPage()
   const groups = summarize(projects)
-  const matrixRows: (string | number)[][] = groups.map((row) => [
-    row.province, row.lgu, row.projects.length, row.barangays,
-    row.notStarted, row.ongoing, row.completed, row.other,
-    percent(row.projects.length ? row.completed / row.projects.length * 100 : 0),
-  ])
-  const uniqueBarangays = new Set(projects.map((p) => `${regionProvince(p)}|${projectLgu(p)}|${text(p.barangay ?? p.barangay_name).toUpperCase()}`).filter((v) => !v.endsWith('|'))).size
-  const otherCount = projects.filter((p) => statusGroup(p) === 'Other').length
+  const matrixRows: any[][] = []
+
+  const provinces = new Map<string, Summary[]>()
+  for (const group of groups) {
+    provinces.set(group.province, [...(provinces.get(group.province) || []), group])
+  }
+
+  const appendMatrixDetails = (group: Summary): (string | number)[] => [
+    group.lgu, group.projects.length, group.barangays,
+    group.notStarted, group.ongoing, group.completed, group.other,
+    percent(group.projects.length ? group.completed / group.projects.length * 100 : 0),
+  ]
+
+  for (const [province, provinceRows] of provinces) {
+    if (provinceRows.length <= 6) {
+      // Real vertically merged province cell when the group fits a page.
+      provinceRows.forEach((group, index) => {
+        matrixRows.push([
+          ...(index === 0 ? [{
+            content: province, rowSpan: provinceRows.length,
+            styles: { fontStyle: 'bold', fillColor: [235, 243, 252], valign: 'middle' },
+          }] : []),
+          ...appendMatrixDetails(group),
+        ])
+      })
+    } else {
+      // Large groups may span multiple pages. Use one merged province heading
+      // instead of an unbreakable multi-page rowspan (which can cause blanks).
+      matrixRows.push([{
+        content: province.toUpperCase(),
+        colSpan: 9,
+        styles: { fontStyle: 'bold', textColor: NAVY, fillColor: [223, 235, 248] },
+      }])
+      provinceRows.forEach((group) => matrixRows.push(['', ...appendMatrixDetails(group)]))
+    }
+  }
+
+  const uniqueBarangays = new Set(projects.map((p) =>
+    `${regionProvince(p)}|${projectLgu(p)}|${text(p.barangay ?? p.barangay_name).toUpperCase()}`,
+  ).filter((value) => !value.endsWith('|'))).size
+
+  const completedCount = projects.filter((p) => statusGroup(p) === 'Completed').length
   matrixRows.push([
     'REGION X TOTAL', `${groups.length} LGUs`, projects.length, uniqueBarangays,
     projects.filter((p) => statusGroup(p) === 'Not Yet Started').length,
     projects.filter((p) => statusGroup(p) === 'Ongoing').length,
-    projects.filter((p) => statusGroup(p) === 'Completed').length, otherCount,
-    percent(projects.length ? projects.filter((p) => statusGroup(p) === 'Completed').length / projects.length * 100 : 0),
+    completedCount,
+    projects.filter((p) => statusGroup(p) === 'Other').length,
+    percent(projects.length ? completedCount / projects.length * 100 : 0),
   ])
+  const lastMatrixRow = matrixRows.length - 1
 
   autoTable(doc, {
     startY: 69,
-    margin: { left: MARGIN, right: MARGIN, top: 62, bottom: 17 },
+    margin: { left: MARGIN, right: MARGIN, top: 69, bottom: 17 },
     tableWidth: width,
     head: [[
       'PROVINCE / HUC', 'LGU', 'NUMBER OF PROJECTS', 'NUMBER OF BARANGAYS',
@@ -514,38 +552,47 @@ export async function exportExecutiveDashboardPdf(
     ]],
     body: matrixRows,
     theme: 'grid',
-    styles: { font: 'helvetica', fontSize: 7.5, textColor: [25, 47, 75], lineColor: BORDER, lineWidth: 0.15, cellPadding: 2.4, valign: 'middle' },
-    headStyles: { fillColor: [17, 78, 137], textColor: 255, fontSize: 7.1, fontStyle: 'bold', halign: 'center', minCellHeight: 14 },
+    styles: {
+      font: 'helvetica', fontSize: 7.5, textColor: [25, 47, 75],
+      lineColor: BORDER, lineWidth: 0.15, cellPadding: 2.4, valign: 'middle',
+      overflow: 'linebreak',
+    },
+    headStyles: {
+      fillColor: [17, 78, 137], textColor: 255, fontSize: 7.1,
+      fontStyle: 'bold', halign: 'center', minCellHeight: 14,
+    },
     alternateRowStyles: { fillColor: [241, 246, 251] },
-    columnStyles: { 0: { cellWidth: 37 }, 1: { cellWidth: 42 }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' }, 8: { halign: 'center' } },
+    columnStyles: {
+      0: { cellWidth: 37 }, 1: { cellWidth: 42 },
+      2: { halign: 'center' }, 3: { halign: 'center' },
+      4: { halign: 'center' }, 5: { halign: 'center' },
+      6: { halign: 'center' }, 7: { halign: 'center' },
+      8: { halign: 'center' },
+    },
     didParseCell(data: any) {
-      if (data.section === 'body' && data.row.index === matrixRows.length - 1) {
+      if (data.section === 'body' && data.row.index === lastMatrixRow) {
         data.cell.styles.fillColor = [220, 234, 249]
         data.cell.styles.fontStyle = 'bold'
       }
     },
-    didDrawPage(data: any) {
-      if (data.pageNumber > 1) {
-        drawHeader(doc, images, 'Province / LGU implementation matrix (continued)')
-        addScope(doc, context, projects)
-      }
+    willDrawPage(data: any) {
+      drawHeader(doc, images, data.pageNumber === 1
+        ? 'Province / LGU implementation matrix | Current filters'
+        : 'Province / LGU implementation matrix (continued)')
+      addScope(doc, context, projects)
+      ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
+      doc.text('SUMMARY BY PROVINCE / LGU', MARGIN, 65)
     },
   })
 
-  // Project register, sorted by geography. All projects under current filters,
-  // including missing NADAI or financial values, are retained.
+  // Project-level annex with repeated table headings. Render each page's
+  // background and DILG branding BEFORE drawing rows, never afterwards.
   doc.addPage()
-  drawHeader(doc, images, 'Project-level annex  |  Official source information and latest recorded dates')
-  addScope(doc, context, projects)
-  ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
-  doc.text('FILTERED PROJECT REGISTER', MARGIN, 65)
-
   const ordered = [...projects].sort((a, b) =>
     regionProvince(a).localeCompare(regionProvince(b)) ||
     projectLgu(a).localeCompare(projectLgu(b)) ||
     projectTitle(a).localeCompare(projectTitle(b)),
   )
-
   const detailRows = ordered.map((project) => [
     projectCode(project),
     `${regionProvince(project)} / ${projectLgu(project)}`,
@@ -560,7 +607,7 @@ export async function exportExecutiveDashboardPdf(
 
   autoTable(doc, {
     startY: 69,
-    margin: { left: MARGIN, right: MARGIN, top: 62, bottom: 17 },
+    margin: { left: MARGIN, right: MARGIN, top: 69, bottom: 17 },
     tableWidth: width,
     head: [[
       'PROJECT CODE', 'PROVINCE / LGU', 'PROJECT TITLE', 'BARANGAY',
@@ -568,19 +615,28 @@ export async function exportExecutiveDashboardPdf(
     ]],
     body: detailRows,
     theme: 'grid',
-    styles: { font: 'helvetica', fontSize: 6.7, textColor: [28, 52, 79], lineColor: BORDER, lineWidth: 0.12, cellPadding: 1.8, valign: 'middle' },
-    headStyles: { fillColor: [17, 78, 137], textColor: 255, fontSize: 6.7, fontStyle: 'bold', halign: 'center', minCellHeight: 10 },
+    styles: {
+      font: 'helvetica', fontSize: 6.7, textColor: [28, 52, 79],
+      lineColor: BORDER, lineWidth: 0.12, cellPadding: 1.8, valign: 'middle',
+      overflow: 'linebreak',
+    },
+    headStyles: {
+      fillColor: [17, 78, 137], textColor: 255,
+      fontSize: 6.7, fontStyle: 'bold', halign: 'center', minCellHeight: 10,
+    },
     alternateRowStyles: { fillColor: [243, 247, 251] },
     columnStyles: {
       0: { cellWidth: 37 }, 1: { cellWidth: 38 }, 2: { cellWidth: 81 },
       3: { cellWidth: 27 }, 4: { cellWidth: 29 }, 5: { cellWidth: 17 },
       6: { cellWidth: 17 }, 7: { cellWidth: 28 }, 8: { cellWidth: 32 },
     },
-    didDrawPage(data: any) {
-      if (data.pageNumber > 1) {
-        drawHeader(doc, images, 'Filtered project register (continued)')
-        addScope(doc, context, projects)
-      }
+    willDrawPage(data: any) {
+      drawHeader(doc, images, data.pageNumber === 1
+        ? 'Filtered project register | Official source data and NADAI dates'
+        : 'Filtered project register (continued)')
+      addScope(doc, context, projects)
+      ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
+      doc.text('FILTERED PROJECT REGISTER', MARGIN, 65)
     },
   })
 
