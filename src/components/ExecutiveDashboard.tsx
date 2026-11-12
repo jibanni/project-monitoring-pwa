@@ -11,6 +11,7 @@ type ProjectRecord = Record<string, any>
 type ExecutiveDashboardProps = {
   projects: ProjectRecord[]
   onOpenDetailed: () => void
+  dataSource: 'official' | 'onsite'
 }
 
 type ExecutiveFilterMemory = {
@@ -747,6 +748,7 @@ function DualRingMiniChart({
 export default function ExecutiveDashboard({
   projects,
   onOpenDetailed,
+  dataSource,
 }: ExecutiveDashboardProps) {
   const executiveFilterMemory = useMemo(() => readExecutiveFilterMemory(), [])
   const [selectedProvince, setSelectedProvince] = useState(
@@ -761,6 +763,8 @@ export default function ExecutiveDashboard({
   const [nadaiDrilldown, setNadaiDrilldown] = useState<NadaiDrilldown | null>(null)
   const [showAttentionReasons, setShowAttentionReasons] = useState(false)
   const [isFundingYearMenuOpen, setIsFundingYearMenuOpen] = useState(false)
+  const [isExportingReport, setIsExportingReport] = useState(false)
+  const [reportExportError, setReportExportError] = useState('')
   const [rotationDirection, setRotationDirection] = useState<RotationDirection>('forward')
   const [areaRotationDirection, setAreaRotationDirection] = useState<RotationDirection>('forward')
   const [animationNonce, setAnimationNonce] = useState(0)
@@ -1180,6 +1184,26 @@ export default function ExecutiveDashboard({
     setAnimationNonce((value) => value + 1)
   }
 
+  const handleExportReport = async () => {
+    if (isExportingReport) return
+    setIsExportingReport(true)
+    setReportExportError('')
+    try {
+      const { exportExecutiveDashboardPdf } = await import('../utils/executiveDashboardPdf')
+      await exportExecutiveDashboardPdf(scopedProjects, {
+        area: selectedProvince,
+        program: selectedProgram === 'GREEN, GREEN, GREEN' ? '3GP' : selectedProgram,
+        fundingYears: selectedFundingYears,
+        dataSource,
+      })
+    } catch (error) {
+      console.error('PMS10 executive PDF export failed:', error)
+      setReportExportError('Unable to prepare the PDF. Please refresh and try again.')
+    } finally {
+      setIsExportingReport(false)
+    }
+  }
+
   const handlePointerDown = (clientX: number) => {
     swipeStartX.current = clientX
   }
@@ -1370,6 +1394,23 @@ export default function ExecutiveDashboard({
                   </div>
                 </div>
               ) : null}
+            </div>
+
+            <div className="exec-dashboard-export-action">
+              <button
+                type="button"
+                className="exec-dashboard-export-button"
+                disabled={isExportingReport}
+                onClick={() => void handleExportReport()}
+                title="Download landscape executive dashboard PDF with LGU summary and project register"
+                aria-label="Export current Executive Dashboard as PDF"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3" />
+                </svg>
+                <span>{isExportingReport ? 'Generating PDF…' : 'Export Report'}</span>
+              </button>
+              {reportExportError && <span role="alert" className="exec-dashboard-export-error">{reportExportError}</span>}
             </div>
           </div>
 
