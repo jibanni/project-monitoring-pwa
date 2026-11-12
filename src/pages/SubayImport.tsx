@@ -248,8 +248,25 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
     const staleCodeCandidates = codedMatches.filter((project) =>
       !incomingOfficialCodes.has(getProjectCode(project)),
     )
-    if (codedMatches.length === 1 && staleCodeCandidates.length === 1) {
-      const stale = staleCodeCandidates[0]
+    const staleSourceMatch = staleCodeCandidates.length === 1
+      ? staleCodeCandidates[0]
+      : null
+    // Different projects may share a generic title/location. Where more than
+    // one coded project shares that fingerprint, the allocation must ALSO
+    // match exactly before an obsolete code can be reconciled.
+    const sourceCost = Number(record.budget || record.contractAmount || 0)
+    const storedCost = Number(String(staleSourceMatch?.budget ?? '').replace(/,/g, ''))
+    const exactCostMatch =
+      sourceCost > 0 &&
+      storedCost > 0 &&
+      Number.isFinite(sourceCost) &&
+      Number.isFinite(storedCost) &&
+      Math.abs(sourceCost - storedCost) <= 0.01
+    const canSafelyReconcileCode =
+      staleSourceMatch !== null &&
+      (codedMatches.length === 1 || exactCostMatch)
+    if (canSafelyReconcileCode && staleSourceMatch) {
+      const stale = staleSourceMatch
       if (linkedProjectIds.has(stale.id)) {
         return {
           record,
@@ -273,7 +290,7 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
         existingProjectName: stale.project_name,
         existingProjectStatus: stale.status,
         existingProjectPhysical: stale.physical_accomplishment,
-        issue: `SubayBAYAN is authoritative: replace obsolete stored code ${getProjectCode(stale)} with ${record.projectCode} on this existing project. Inspection history and project ID remain unchanged.`,
+        issue: `SubayBAYAN is authoritative: replace obsolete stored code ${getProjectCode(stale)} with ${record.projectCode} on this existing project.${exactCostMatch ? ' Official and existing allocation match exactly.' : ''} Inspection history and project ID remain unchanged.`,
       }
     }
 
