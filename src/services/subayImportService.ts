@@ -384,7 +384,7 @@ function readRevertedFunds(row: unknown[], headerRows: string[][]): number | nul
   for (let col = 0; col < maxColumns; col += 1) {
     const labels = headerRows.map((headers) => normalizeHeader(headers[col] || ''))
     const directlyLabeled = labels.some((label) =>
-      label.includes('REVERT') &&
+      (label.includes('REVERT') || label.includes('REVERSION')) &&
       !['DATE', 'REASON', 'STATUS', 'PROOF', 'ATTACHMENT', 'REMARKS', 'PERCENT', 'RATE'].some((word) =>
         label.split(' ').includes(word),
       ),
