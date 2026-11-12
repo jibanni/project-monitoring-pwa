@@ -1,0 +1,91 @@
+/* PMS10 Executive Report: desktop-only report action, without altering mobile. */
+.exec-dashboard-export-action { display: none; }
+
+@media (min-width: 1024px) {
+  .exec193-filter-stack {
+    position: relative;
+  }
+
+  .exec-dashboard-export-action {
+    position: absolute;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    bottom: 1px;
+    right: 10px;
+    gap: 8px;
+    margin: 0;
+    pointer-events: auto;
+  }
+
+  .exec-dashboard-export-button {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 15px;
+    border: 1px solid #bcd0e6;
+    border-radius: 999px;
+    background: #0d457f;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(21, 64, 111, .13);
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 150ms ease, transform 150ms ease;
+  }
+
+  .exec-dashboard-export-button:hover:not(:disabled) {
+    background: #083562;
+    transform: translateY(-1px);
+  }
+
+  .exec-dashboard-export-button:focus-visible {
+    outline: 3px solid #79aeeb;
+    outline-offset: 2px;
+  }
+
+  .exec-dashboard-export-button:disabled {
+    cursor: wait;
+    opacity: .64;
+  }
+
+  .exec-dashboard-export-button svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+  }
+
+  .exec-dashboard-export-error {
+    position: absolute;
+    width: 280px;
+    right: 0;
+    top: calc(100% + 5px);
+    padding: 9px 11px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fff5f5;
+    color: #991b1b;
+    font-size: 11px;
+    box-shadow: 0 5px 15px rgba(25, 30, 50, .1);
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1170px) {
+  .exec-dashboard-export-button {
+    font-size: 11px;
+    height: 32px;
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .exec-dashboard-export-action,
+  .exec-dashboard-export-button { display: none !important; }
+}
