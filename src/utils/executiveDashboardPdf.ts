@@ -371,7 +371,7 @@ export async function exportExecutiveDashboardPdf(
     row.notStarted, row.ongoing, row.completed, row.other,
     percent(row.projects.length ? row.completed / row.projects.length * 100 : 0),
   ])
-  const uniqueBarangays = new Set(projects.map((p) => `${regionProvince(p)}|${projectLgu(p)}|${text(p.barangay).toUpperCase()}`).filter((v) => !v.endsWith('|'))).size
+  const uniqueBarangays = new Set(projects.map((p) => `${regionProvince(p)}|${projectLgu(p)}|${text(p.barangay ?? p.barangay_name).toUpperCase()}`).filter((v) => !v.endsWith('|'))).size
   const otherCount = projects.filter((p) => statusGroup(p) === 'Other').length
   matrixRows.push([
     'REGION X TOTAL', `${groups.length} LGUs`, projects.length, uniqueBarangays,
