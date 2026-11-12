@@ -3242,7 +3242,6 @@ export default function ProjectUpdates() {
 
     const projectId = id
     const updatePayload = buildUpdatePayload(projectId)
-    const currentTimestamp = new Date().toISOString()
     const latestCoordinatePatch = buildLatestCoordinatePatch()
 
     const { data: insertedUpdate, error: insertError } = await supabase
@@ -3453,7 +3452,6 @@ export default function ProjectUpdates() {
     const projectId = id
     const updatePayload = buildUpdatePayload(projectId)
     const localUpdateId = makeLocalId()
-    const currentTimestamp = new Date().toISOString()
     const latestCoordinatePatch = buildLatestCoordinatePatch()
     const projectName = project?.project_name ||'Untitled Project'
     const driveFundingYear = getDriveFundingYear(project, inspectionDate)
