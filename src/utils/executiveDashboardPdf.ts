@@ -395,14 +395,18 @@ function drawExecutivePage(
     })
   }
 
+  // Keep the entire two-column legend centered directly below the pie.
+  // Previously its columns were spread across the whole left panel.
+  const legendColumnWidth = 60
+  const legendStartX = pieCenterX - legendColumnWidth
   statusSections.forEach((item, index) => {
     const col = index % 2
     const row = Math.floor(index / 2)
-    const x = leftX + 7 + col * (panelWidth / 2)
-    const y = 183.8 + row * 8.2
-    fill(doc, item.color); doc.circle(x + 1.5, y - 1.2, 1.4, 'F')
-    ink(doc, item.color); doc.setFont('helvetica', 'bold'); doc.setFontSize(7)
-    doc.text(`${item.label}: ${item.value}`, x + 5.3, y)
+    const x = legendStartX + col * legendColumnWidth
+    const y = 183.5 + row * 8.2
+    fill(doc, item.color); doc.circle(x + 1.3, y - 1.2, 1.35, 'F')
+    ink(doc, item.color); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.9)
+    doc.text(`${item.label}: ${item.value}`, x + 5, y)
   })
 
   ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.4)
@@ -700,17 +704,34 @@ export async function exportExecutiveDashboardPdf(
     (options.dataSource === 'official' ? project : undefined)
 
   type RiskLevel = 'None' | 'Low' | 'Moderate' | 'High'
-  const riskPriority: Record<RiskLevel, number> = {
-    None: 0, Low: 1, Moderate: 2, High: 3,
+
+  // SubayBAYAN FY 2025+ exports can contain multiple numbered components,
+  // e.g. "1). -50.00\n2). -45.00" under CL SLIPPAGE. These fields must
+  // NEVER be substituted with engineer/project_updates data.
+  const sourceComponents = (raw: unknown): Array<{ number: number; value: string }> =>
+    text(raw).replace(/\r/g, '').split('\n').map((line, index) => {
+      const match = line.match(/^\s*(\d+)\)\.?\s*(.*)$/)
+      return {
+        number: match ? Number(match[1]) : index + 1,
+        value: (match ? match[2] : line).trim(),
+      }
+    }).filter((entry) => Boolean(entry.value))
+
+  const numericSlippage = (raw: string): number | null => {
+    const match = raw.match(/^\s*([-+]?\d+(?:\.\d+)?)/)
+    if (!match) return null
+    const result = Number(match[1])
+    return Number.isFinite(result) ? result : null
   }
-  const strongerRisk = (a: RiskLevel, b: RiskLevel): RiskLevel =>
-    riskPriority[b] > riskPriority[a] ? b : a
+  const sourceRemark = (raw: string): boolean =>
+    Boolean(raw.trim()) && !/^(?:-|none|n\/a|nil|no remarks?|not applicable)$/i.test(raw.trim())
 
   const reportDay = new Date(
     context.generatedAt.getFullYear(),
     context.generatedAt.getMonth(),
     context.generatedAt.getDate(),
   )
+
   const getOfficialRiskInfo = (project: ProjectRecord): {
     level: RiskLevel
     remarks: string
@@ -718,27 +739,57 @@ export async function exportExecutiveDashboardPdf(
     const official = officialSourceFor(project)
     if (!official) return { level: 'None', remarks: '' }
 
-    // Officially completed projects must not be classified as at risk.
+    // Completed SubayBAYAN projects always remain No Risk.
     if (getPmsProjectStatus(official) === 'Completed') {
       return { level: 'None', remarks: '' }
     }
 
-    let level: RiskLevel = getPmsRiskLevel(official)
-    const causes: string[] = []
+    // Keep the imported CM risk classification authoritative: the PDF
+    // does not silently elevate it using engineer or forecast calculations.
+    const level: RiskLevel = getPmsRiskLevel(official)
+    if (level === 'None') return { level, remarks: '' }
 
-    // Use the CL SLIPPAGE figure imported from SubayBAYAN.
-    // Never recalculate it using the engineer's physical accomplishment.
-    if (official.slippage != null && text(official.slippage) !== '') {
-      const slippage = numeric(official.slippage)
-      if (slippage < 0) {
-        causes.push('Negative slippage: ' + Math.abs(slippage).toFixed(2) + ' percentage points')
-        level = strongerRisk(level,
-          slippage <= -15 ? 'High' : slippage < -5 ? 'Moderate' : 'Low')
-      }
+    const reasons: string[] = []
+    const rawSlippage = text(official.subay_source_slippage_raw)
+    const rawRiskLabels = text(official.subay_source_risk_details_raw)
+    const officialSourceRemarks = text(official.subay_source_remarks_raw)
+
+    const riskComponents = sourceComponents(rawRiskLabels)
+    const highIndices = riskComponents
+      .filter((entry) => /high\s*risk/i.test(entry.value))
+      .map((entry) => entry.number)
+    const slipComponents = sourceComponents(rawSlippage)
+      .map((entry) => ({ ...entry, numeric: numericSlippage(entry.value) }))
+    const negative = slipComponents
+      .filter((entry) => entry.numeric !== null && entry.numeric < 0)
+      .sort((a, b) => (a.numeric ?? 0) - (b.numeric ?? 0))
+
+    if (negative.length) {
+      const shown = negative.slice(0, 3).map((entry) =>
+        'Component ' + entry.number + ': ' + entry.numeric!.toFixed(2) + ' pp')
+      reasons.push('CL negative slippage: ' + shown.join('; ') +
+        (negative.length > shown.length ? ' (+' + (negative.length - shown.length) + ' more)' : ''))
     }
 
-    // Revised contract expiry takes precedence over the original expiry.
-    // Neither target completion nor inspection dates create a risk cause.
+    // CP REMARKS comes from the original SubayBAYAN masterlist (not engineers).
+    const officialNotes = sourceComponents(officialSourceRemarks)
+      .filter((entry) => sourceRemark(entry.value))
+    const seen = new Set<string>()
+    const deduplicatedNotes = officialNotes.filter((entry) => {
+      const value = entry.value.toLowerCase()
+      if (seen.has(value)) return false
+      seen.add(value)
+      return true
+    })
+    if (deduplicatedNotes.length) {
+      const shown = deduplicatedNotes.slice(0, 2).map((entry) =>
+        'Component ' + entry.number + ': ' + entry.value.slice(0, 145))
+      reasons.push('SubayBAYAN remarks: ' + shown.join('; ') +
+        (deduplicatedNotes.length > shown.length ? ' (additional source remarks omitted)' : ''))
+    }
+
+    // Prevailing revised contract expiry supersedes the original contract
+    // expiry. Use ONLY fields from the official project record.
     const revisedExpiry = text(official.revised_contract_expiration_date)
     const originalExpiry = text(official.contract_expiration_date)
     const expiryText = revisedExpiry || originalExpiry
@@ -748,29 +799,37 @@ export async function exportExecutiveDashboardPdf(
         const daysRemaining = Math.round((expiry.getTime() - reportDay.getTime()) / 86400000)
         const contractLabel = revisedExpiry ? 'Revised contract' : 'Contract'
         if (daysRemaining < 0) {
-          causes.push(contractLabel + ' expired on ' + formatDate(expiryText))
-          level = strongerRisk(level, 'High')
+          reasons.push(contractLabel + ' expired on ' + formatDate(expiryText))
         } else if (daysRemaining <= 30) {
-          const suffix = daysRemaining === 1 ? ' day' : ' days'
-          causes.push(contractLabel + ' expires in ' + daysRemaining + suffix +
+          reasons.push(contractLabel + ' expires in ' + daysRemaining +
+            (daysRemaining === 1 ? ' day' : ' days') +
             ' (' + formatDate(expiryText) + ')')
-          level = strongerRisk(level, 'Moderate')
         }
       }
     }
 
-    if (level === 'None') return { level, remarks: '' }
-    if (!causes.length) {
+    // Explicit official risk classification must never be mistaken for
+    // evidence of slippage that the source does not actually report.
+    const heading = 'SubayBAYAN ' + level + ' Risk'
+    if (!reasons.length) {
+      if (rawRiskLabels) {
+        const components = highIndices.length
+          ? ' (component ' + highIndices.slice(0, 4).join(', ') +
+            (highIndices.length > 4 ? ', etc.' : '') + ')'
+          : ''
+        return {
+          level,
+          remarks: heading + components +
+            ': Specific cause not stated in official source fields',
+        }
+      }
       return {
         level,
-        remarks: 'SubayBAYAN ' + level +
-          ' risk: No negative slippage or contract-expiration basis recorded',
+        remarks: heading +
+          ': Detailed slippage/remarks not recorded in PMS10 yet; verify latest SubayBAYAN extract',
       }
     }
-    return {
-      level,
-      remarks: 'SubayBAYAN ' + level + ' risk: ' + causes.join('; '),
-    }
+    return { level, remarks: heading + ': ' + reasons.join('; ') }
   }
   const officialRiskById = new Map(ordered.map(
     (project) => [text(project.id), getOfficialRiskInfo(project)] as const,
@@ -879,7 +938,7 @@ export async function exportExecutiveDashboardPdf(
       ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
       doc.text('FILTERED PROJECT REGISTER', MARGIN, 65)
       ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2)
-      doc.text('Red risk = official SubayBAYAN slippage/contract expiry   |   Green = 100% physical   |   Red financial = 100% physical, <100% financial',
+      doc.text('Red row = official SubayBAYAN risk   |   Green = 100% physical   |   Red financial = 100% physical, <100% financial',
         PAGE[1] - MARGIN, 65, { align: 'right' })
     },
   })

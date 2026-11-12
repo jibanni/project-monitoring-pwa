@@ -73,3 +73,36 @@ This change adds **Export Report** to the desktop Executive Dashboard without mo
 5. Verify the report paginates on long project lists without clipping and that the header and table columns repeat.
 
 **Validation:** Vercel TypeScript/Vite preview build passed. PDF download and print-render still need user-side verification in a signed-in browser.
+
+## Official SubayBAYAN risk-cause recovery and chart legend fix (November 12, 2026)
+
+**Why some projects showed "High risk: No negative slippage or contract-expiration basis recorded":**
+The FY 2025+ SubayBAYAN Excel extraction has **CL SLIPPAGE** (column 89), **CM RISK LEVEL** (column 90), and **CP REMARKS** (column 93), each potentially containing multiple component-level values (`1). -50.00`, `2). -45.00`, etc.). PMS10 imported the combined CM risk classification but did **not** persist CL or CP in the `projects` table. Legacy `projects.slippage` was often 0 and contract dates absent. This caused an unsupported claim of "no negative slippage."
+
+Read-only verification against production Supabase (November 12):
+- **24** officially High Risk, incomplete project records checked;
+- **19** have archived negative CL slippage; **5** do not;
+- **1** includes substantive official CP remarks;
+- **24 of 24** had previously retained High risk labels but no usable negative numeric `projects.slippage` or contract expiration date.
+- **1,129** project records can be linked to archived original FY 2024- or FY 2025+ source rows for recovery (the archive is Admin-only).
+
+**Fix:**
+- Center the Status pie legend as a compact **2 × 2 grid directly below the chart**.
+- Preserve three dedicated **official-only** project fields: `subay_source_slippage_raw`, `subay_source_risk_details_raw`, and `subay_source_remarks_raw`.
+- On future imports, write the original CL/CM/CP texts to these dedicated fields; do not substitute engineer inspection values or flatten multiple component slippages into one project variance.
+- Migration `20261112160000_preserve_subay_official_risk_evidence.sql` backfills these fields directly from the existing protected `subay_import_source_rows` archive, **without reimporting Excel or changing risk classifications and site updates**.
+- The PDF describes negative component-level slippage and actual source remarks (plus official original/revised contract expiry if present). It explicitly reports **"Specific cause not stated in official source fields"** when SubayBAYAN marks High Risk with no available negative slippage, substantive CP remark, or contract basis.
+- No queries to `project_updates` or engineer-entered issues/remarks. **Official** and **Actual On-Site** report modes both use the original official record for risk evidence.
+
+**Release order:** Apply the database migration **before** promoting this GitHub branch to production. Until then, preview exports may report that detailed source evidence has not yet been synchronized. This migration modifies only the project metadata and leaves engineer inspection history, current risk labels, and physical/financial accomplishment unchanged.
+
+### Report acceptance checks
+1. For Region X / SBDP / FY 2026, inspect a PDF at full page width: status legend centered beneath the pie; pies and donuts readable.
+2. For an archived official High Risk record with negative CL values, verify the PDF displays component slippages, such as `Component 1: -50.00 pp`.
+3. For a High Risk record whose official CL slippage is 0 and whose CP remark is blank, verify a clearly qualified source classification without inventing a cause.
+4. For a record with a substantive CP remark, verify that remark appears and **no engineer inspection notes** appear.
+5. Confirm existing "Reverted Funds / Remarks" amounts, green 100% physical highlighting, and red financial mismatch highlighting remain unchanged.
+6. Test both SubayBAYAN Official and Actual On-Site dashboard views; official risk context should match across views.
+7. Confirm the existing mobile interface and navigation have not changed.
+
+**Validation status:** Vercel TypeScript/Vite development build passed. Production migration and signed-in PDF visual QA are pending.
