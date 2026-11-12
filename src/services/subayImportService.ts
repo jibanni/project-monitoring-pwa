@@ -49,6 +49,7 @@ export type SubayImportRecord = {
   targetPhysicalAccomplishment: number | null
   financialAccomplishment: number | null
   disbursementAmount: number | null
+  revertedFunds: number | null
   riskLevel: string
   implementingOffice: string
   contractor: string
@@ -355,16 +356,49 @@ function parseNullableNumber(value: unknown) {
 function calculateFinancialAccomplishment(
   disbursementAmount: number | null,
   projectCost: number,
+  revertedFunds: number | null,
 ) {
-  if (disbursementAmount === null || projectCost <= 0) return null
+  if ((disbursementAmount === null && revertedFunds === null) || projectCost <= 0) return null
 
-  const percentage = (disbursementAmount / projectCost) * 100
+  // Fund-accounted-for metric requested for PMS10:
+  // disbursement + the amount formally returned to the National Treasury.
+  // Reverted funds are NOT disbursements and must be retained separately.
+  // The denominator remains the imported total project cost.
+  const percentage = ((disbursementAmount ?? 0) + (revertedFunds ?? 0)) / projectCost * 100
 
   if (!Number.isFinite(percentage)) return null
   if (percentage < 0) return 0
   if (percentage > 100) return 100
 
   return percentage
+}
+
+/**
+ * Reverted funds are not at a stable offset across SubayBAYAN export layouts.
+ * Read only a header explicitly mentioning "revert", never infer from a
+ * nearby "remaining", "balance", or "allocation" column.
+ */
+function findRevertedFundsColumn(headerRows: string[][]): number | null {
+  if (!headerRows.length) return null
+  const maxColumns = Math.max(...headerRows.map((header) => header.length))
+  for (let col = 0; col < maxColumns; col += 1) {
+    const labels = headerRows.map((headers) => normalizeHeader(headers[col] || ''))
+    const directlyLabeled = labels.some((label) =>
+      (label.includes('REVERT') || label.includes('REVERSION')) &&
+      !['DATE', 'REASON', 'STATUS', 'PROOF', 'ATTACHMENT', 'REMARKS', 'PERCENT', 'RATE'].some((word) =>
+        label.split(' ').includes(word),
+      ),
+    )
+    if (directlyLabeled) return col
+  }
+  return null
+}
+
+function readRevertedFunds(row: unknown[], headerRows: string[][]): number | null {
+  const col = findRevertedFundsColumn(headerRows)
+  if (col === null || textValue(row[col]) === '') return null
+  const parsed = parseNullableNumber(row[col])
+  return parsed !== null && parsed >= 0 ? parsed : null
 }
 
 function parseFundingYear(value: unknown) {
@@ -862,8 +896,12 @@ export function projectPayloadFromSubayRecord(
   // metrics. Field/engineer values belong in project_updates instead.
   const projectCost = record.budget || record.contractAmount || 0
   const sourceFinancialAccomplishment =
-    record.disbursementAmount !== null
-      ? calculateFinancialAccomplishment(record.disbursementAmount, projectCost)
+    record.subayFormat !== 'sglgif_portal'
+      ? calculateFinancialAccomplishment(
+          record.disbursementAmount,
+          projectCost,
+          record.revertedFunds,
+        )
       : record.financialAccomplishment
 
   const payload: Record<string, unknown> = {
@@ -892,6 +930,7 @@ export function projectPayloadFromSubayRecord(
     Object.assign(payload, {
       budget: projectCost,
       disbursement_amount: record.disbursementAmount,
+      reverted_funds: record.revertedFunds,
       financial_accomplishment: sourceFinancialAccomplishment,
       nadai_date: record.nadaiDate,
       start_date: record.startDate,
@@ -1095,12 +1134,16 @@ function parseRecordFromRow(
       : parseNullableNumber(getProfileCell(row, profile, 'disbursementAmount'))
   const sourceProjectCost =
     getBudget(row, profile) || parseNumber(getProfileCell(row, profile, 'contractAmount'))
+  const revertedFunds =
+    profile.id === 'sglgif_portal'
+      ? null
+      : readRevertedFunds(row, sourceData.headerRows)
   const financialAccomplishment =
     profile.id === 'sglgif_portal'
       ? isSglgifCompleted
         ? 100
         : null
-      : calculateFinancialAccomplishment(disbursementAmount, sourceProjectCost)
+      : calculateFinancialAccomplishment(disbursementAmount, sourceProjectCost, revertedFunds)
   const status = normalizeStatus(
     getProfileCell(row, profile, 'status'),
     getProfileCell(row, profile, 'physicalStatus'),
@@ -1157,6 +1200,7 @@ function parseRecordFromRow(
     targetPhysicalAccomplishment,
     financialAccomplishment,
     disbursementAmount,
+    revertedFunds,
     riskLevel:
       profile.id === 'sglgif_portal'
         ? 'None'
@@ -1249,6 +1293,15 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
     const headerIndex = detectedFormat.headerRowNumber - 1
     const dataStartIndex = headerIndex + profile.dataStartOffset
     const sourceHeaderRows = rows.slice(Math.max(0, headerIndex - 1), headerIndex + 1)
+    if (profile.id !== 'sglgif_portal' && findRevertedFundsColumn(
+      sourceHeaderRows.map((header) => header.map((value) => textValue(value))),
+    ) === null) {
+      issues.push({
+        sheetName,
+        rowNumber: detectedFormat.headerRowNumber,
+        message: 'No explicitly labeled reverted-funds AMOUNT column was detected. PMS10 will keep reverted funds as unknown for this sheet; verify the extract headers before accepting the computed financial percentage.',
+      })
+    }
 
     rows.slice(dataStartIndex).forEach((row, rowOffset) => {
       const rowNumber = dataStartIndex + rowOffset + 1

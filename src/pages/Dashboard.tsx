@@ -1000,47 +1000,14 @@ export default function Dashboard() {
 
     const completionRate =
       visibleProjects.length > 0
-        ? truncateDashboardPercent(
-            (completedProjects.length / visibleProjects.length) * 100,
-          )
+        ? Math.round((completedProjects.length / visibleProjects.length) * 10000) / 100
         : 0
 
-    const physicalWeightBase = performanceProjects.reduce(
-      (sum, project) =>
-        sum +
-        Math.max(
-          0,
-          getOfficialProjectCost(
-            project as unknown as Parameters<typeof getOfficialProjectCost>[0],
-          ),
-        ),
-      0,
-    )
-
-    const weightedPhysicalAccomplishment = performanceProjects.reduce(
-      (sum, project) => {
-        const cost = Math.max(
-          0,
-          getOfficialProjectCost(
-            project as unknown as Parameters<typeof getOfficialProjectCost>[0],
-          ),
-        )
-
-        return sum + cost * (getPhysicalProgress(project) / 100)
-      },
-      0,
-    )
-
-    const physicalAccomplishment = truncateDashboardPercent(
-      physicalWeightBase > 0
-        ? (weightedPhysicalAccomplishment / physicalWeightBase) * 100
-        : 0,
-    )
-
+    // Physical headline uses the PROJECT completion rate, not cost-weighted
+    // progress. Every project under the selected filters is in the denominator.
+    const physicalAccomplishment = completionRate
     const physicalAccomplishmentMethod =
-      physicalWeightBase > 0
-        ? 'Cost-weighted across eligible project costs'
-        : 'No eligible project cost available'
+      'Completed projects / all projects in the selected filters'
 
     const financialWeightBase = performanceProjects.reduce(
       (sum, project) => sum + Math.max(0, getOfficialProjectCost(project as unknown as Parameters<typeof getOfficialProjectCost>[0])),
@@ -1068,7 +1035,7 @@ export default function Dashboard() {
 
     const physicalPerformanceData = [
       {
-        name: 'Physical Accomplishment',
+        name: 'Project Completion Rate',
         value: physicalAccomplishment,
       },
       {
@@ -1301,13 +1268,13 @@ export default function Dashboard() {
     },
     {
       key: 'physical',
-      label: 'Physical Accomplishment',
+      label: 'Project Completion Rate',
       value: dashboardData.physicalAccomplishment,
       displayValue: formatPhysicalPercent(dashboardData.physicalAccomplishment),
-      helper: 'Cost-weighted performance',
+      helper: 'Completed / Total Projects',
       className: 'physical-summary desktop-summary',
-      title: 'Physical Accomplishment Scope',
-      subtitle: 'Projects contributing to the current physical accomplishment view.',
+      title: 'Project Completion Rate',
+      subtitle: 'Completed projects divided by all projects within the dashboard filters.',
       records: visibleProjects,
     },
     {
@@ -2248,7 +2215,7 @@ export default function Dashboard() {
                                 <Cell
                                   key={entry.name}
                                   fill={
-                                    entry.name === 'Physical Accomplishment'
+                                    entry.name === 'Project Completion Rate'
                                       ? '#16a34a'
                                       : '#e2e8f0'
                                   }
@@ -2369,10 +2336,9 @@ export default function Dashboard() {
                 </button>
 
                 <div className="dashboard-completion-note">
-                  <strong>Scope:</strong> Physical and financial accomplishment use the same
-                  cost-weighted dashboard methodology as Executive View and respond to the
-                  current program, funding year, province, and LGU filters. The Completed
-                  and Remaining cards at right are project counts and are shown separately.
+                  <strong>Scope:</strong> Project completion rate is Completed projects
+                  divided by Total projects. Financial accomplishment remains weighted by
+                  project cost and includes imported reverted funds when available.
                 </div>
               </div>
             </div>
