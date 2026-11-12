@@ -848,31 +848,19 @@ export default function ExecutiveDashboard({
   }, [projects, selectedProvince])
 
   const fundingYearOptions = useMemo(() => {
+    // Build funding-year options across the entire accessible portfolio,
+    // not just the selected location. If a year has no matching projects
+    // in the next province/HUC, keep the filter and show zero results.
+    // Preserve a previously selected year when switching data sources.
     return Array.from(
-      new Set(
-        provinceProjects
+      new Set([
+        ...projects
           .map(projectFundingYear)
           .filter((year) => /^20\d{2}$/.test(year)),
-      ),
+        ...selectedFundingYears.filter((year) => /^20\d{2}$/.test(year)),
+      ]),
     ).sort((a, b) => Number(b) - Number(a))
-  }, [provinceProjects])
-
-  useEffect(() => {
-    setSelectedFundingYears((current) => {
-      const valid = current
-        .filter((year) => fundingYearOptions.includes(year))
-        .sort((a, b) => Number(b) - Number(a))
-
-      if (
-        valid.length === current.length &&
-        valid.every((year, index) => year === current[index])
-      ) {
-        return current
-      }
-
-      return valid
-    })
-  }, [fundingYearOptions])
+  }, [projects, selectedFundingYears])
 
   const isAllFundingYears = selectedFundingYears.length === 0
   const fundingYearSelectionKey = isAllFundingYears
@@ -1156,8 +1144,8 @@ export default function ExecutiveDashboard({
     setRotationDirection(direction)
     setAreaRotationDirection(direction)
     setSelectedProvince(nextArea)
-    setSelectedFundingYears([])
-    // Preserve the selected program when switching province/HUC.
+    // Preserve selected funding year(s) and program across province/HUC changes.
+    // A location without matching projects correctly shows an empty scope.
     setAnimationNonce((value) => value + 1)
     setAreaAnimationNonce((value) => value + 1)
   }
