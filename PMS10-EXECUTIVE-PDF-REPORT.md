@@ -55,3 +55,21 @@ This change adds **Export Report** to the desktop Executive Dashboard without mo
 7. Confirm the new compact export button fits left under the Executive Dashboard date on desktop, while mobile layout/navigation remains unchanged.
 
 **Validation status:** TypeScript/Vite build confirmed on Vercel preview. Signed-in PDF browser render and printed pages require operator review before production promotion.
+
+## Executive infographic and discrepancy-highlighting update (November 12)
+
+- First-page KPIs are compressed into a short 24-mm strip. The two graph panels below consume the rest of the printable cover area: a larger, centered **Project Status pie** (with slice counts) and centered **NADAI Physical/Financial double-donuts**, with smaller legends like the desktop Executive Dashboard.
+- The project annex no longer includes a Project Code column. It instead has **Province/HUC** and **LGU** as two independent columns, followed by Project Title, Barangay, Status, Physical %, Financial %, NADAI Download Date, and Reverted Funds.
+- **Green-tinted project row** indicates a reported physical accomplishment of 100%. The physical percentage is bold green.
+- **Financial percentage in red** is shown **only** when a project has reported 100% physical accomplishment and its reported financial percentage is below 100%. Unknown/blank financial data remains `-` and is never shown as an assumed zero.
+- The annex header has a compact legend explaining the green row/red financial formatting.
+- All changes concern the exported PDF only; no modifications to the dashboard UI, mobile layout, source records, or schema.
+
+### Acceptance checks
+1. For Region X > SBDP > FY 2025, confirm compact KPI cards and that pie/donuts are larger and centered, with legends unobstructed.
+2. Confirm the table contains two separate geography columns, **Province/HUC** and **LGU**, and no Project Code.
+3. Check three rows: physically 100% / financially 100% (green, no red); physically 100% / financially below 100% (green row and red financial text); physically below 100% / financially below 100% (neither the special green nor red treatment).
+4. Confirm empty financial values display `-`, never a fabricated financial percentage.
+5. Verify the report paginates on long project lists without clipping and that the header and table columns repeat.
+
+**Validation:** Vercel TypeScript/Vite preview build passed. PDF download and print-render still need user-side verification in a signed-in browser.
