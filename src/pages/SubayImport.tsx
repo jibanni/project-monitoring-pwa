@@ -23,6 +23,8 @@ type ExistingProject = {
   province?: string | null
   municipality?: string | null
   subaybayan_project_code?: string | null
+  status?: string | null
+  physical_accomplishment?: number | string | null
   budget?: number | string | null
   disbursement_amount?: number | string | null
   financial_accomplishment?: number | string | null
@@ -42,6 +44,9 @@ type PreviewRow = {
   existingFinancialAccomplishment?: number | string | null
   existingRevisedProjectCost?: number | string | null
   existingHasContractModification?: boolean | string | null
+  existingProjectName?: string | null
+  existingProjectStatus?: string | null
+  existingProjectPhysical?: number | string | null
   issue?: string
 }
 
@@ -130,7 +135,9 @@ function BackIcon() {
 
 function buildPreviewRows(records: SubayImportRecord[], existingProjects: ExistingProject[]) {
   const byCode = new Map<string, ExistingProject>()
-  const byFingerprint = new Map<string, ExistingProject>()
+  const uncodedByFingerprint = new Map<string, ExistingProject[]>()
+  const codedByFingerprint = new Map<string, ExistingProject[]>()
+  const linkedProjectIds = new Set<string>()
 
   existingProjects.forEach((project) => {
     const code = getProjectCode(project)
@@ -152,8 +159,9 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
       project_name: project.project_name,
     })
 
-    if (fingerprint && !byFingerprint.has(fingerprint)) {
-      byFingerprint.set(fingerprint, project)
+    if (fingerprint) {
+      const matches = code ? codedByFingerprint : uncodedByFingerprint
+      matches.set(fingerprint, [...(matches.get(fingerprint) || []), project])
     }
   })
 
@@ -184,19 +192,55 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
     }
 
     const fingerprint = getSubayProjectFingerprint(record)
-    const manualMatch = byFingerprint.get(fingerprint)
+    const uncodedMatches = uncodedByFingerprint.get(fingerprint) || []
+    const codedMatches = codedByFingerprint.get(fingerprint) || []
 
-    if (manualMatch) {
+    // A descriptive match is ONLY allowed to attach an official code to a
+    // formerly manually enrolled record that has no SubayBAYAN project code.
+    // Do not silently overwrite a different official project code.
+    if (uncodedMatches.length > 1) {
+      return {
+        record,
+        action: 'invalid',
+        actionLabel: 'Review Match',
+        issue: `Multiple uncoded PMS10 projects match ${record.projectCode}. Review duplicates manually before importing.`,
+      }
+    }
+
+    if (uncodedMatches.length === 1) {
+      const manualMatch = uncodedMatches[0]
+      if (linkedProjectIds.has(manualMatch.id)) {
+        return {
+          record,
+          action: 'invalid',
+          actionLabel: 'Review Match',
+          issue: 'This PMS10 manual project was already matched to a different imported row. No changes will be applied.',
+        }
+      }
+      linkedProjectIds.add(manualMatch.id)
       return {
         record,
         action: 'link_manual',
-        actionLabel: 'Link Manual Record',
+        actionLabel: 'Link Existing (No Code)',
         projectId: manualMatch.id,
         existingBudget: manualMatch.budget,
         existingDisbursementAmount: manualMatch.disbursement_amount,
         existingFinancialAccomplishment: manualMatch.financial_accomplishment,
         existingRevisedProjectCost: manualMatch.revised_project_cost,
         existingHasContractModification: manualMatch.has_contract_modification,
+        existingProjectName: manualMatch.project_name,
+        existingProjectStatus: manualMatch.status,
+        existingProjectPhysical: manualMatch.physical_accomplishment,
+        issue: 'This existing PMS10 project has no SubayBAYAN code. Its official details will be linked and updated; this is not a new project.',
+      }
+    }
+
+    if (codedMatches.some((project) => getProjectCode(project) !== record.projectCode)) {
+      return {
+        record,
+        action: 'invalid',
+        actionLabel: 'Code Conflict',
+        issue: 'A project with the same year, location and title already has a DIFFERENT official SubayBAYAN code. Review the conflicting records instead of overwriting one.',
       }
     }
 
@@ -242,7 +286,7 @@ export default function SubayImport() {
     for (let from = 0; ; from += pageSize) {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, project_name, funding_year, funding_source, province, municipality, subaybayan_project_code, budget, disbursement_amount, financial_accomplishment, revised_project_cost, has_contract_modification')
+        .select('id, project_name, funding_year, funding_source, province, municipality, subaybayan_project_code, status, physical_accomplishment, budget, disbursement_amount, financial_accomplishment, revised_project_cost, has_contract_modification')
         .order('id', { ascending: true })
         .range(from, from + pageSize - 1)
       if (error) throw error
@@ -569,7 +613,7 @@ export default function SubayImport() {
           <strong>{stats.update}</strong>
         </article>
         <article className="subay-import-summary-card orange">
-          <span>Link Manual</span>
+          <span>Link Existing</span>
           <strong>{stats.link}</strong>
         </article>
         <article className="subay-import-summary-card red">
@@ -577,6 +621,20 @@ export default function SubayImport() {
           <strong>{stats.invalid}</strong>
         </article>
       </section>
+
+      {stats.link > 0 && (
+        <section className="subay-import-sheet-note" aria-label="Previously manual projects matched to source records">
+          <strong>Existing projects matched without a SubayBAYAN code ({stats.link})</strong>
+          <p>These are already enrolled in PMS10. Linking is not the same as creating an additional project.</p>
+          {previewRows.filter((row) => row.action === 'link_manual').map((row) => (
+            <p key={row.record.projectCode}>
+              <strong>{row.record.projectCode}</strong> — {row.record.projectTitle} ({row.record.municipality}, {row.record.province}).
+              {' '}PMS10 before import: {row.existingProjectStatus || 'Not specified'} ({row.existingProjectPhysical ?? 'Not recorded'}% physical).
+              {' '}SubayBAYAN source: {row.record.status || 'Not specified'} ({row.record.physicalAccomplishment ?? 'Not recorded'}% physical).
+            </p>
+          ))}
+        </section>
+      )}
 
       {detectedSheets.length > 0 && (
         <section className="subay-import-sheet-note">
