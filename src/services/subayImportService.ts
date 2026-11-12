@@ -46,6 +46,7 @@ export type SubayImportRecord = {
   projectType: string
   status: string
   physicalAccomplishment: number | null
+  targetPhysicalAccomplishment: number | null
   financialAccomplishment: number | null
   disbursementAmount: number | null
   riskLevel: string
@@ -502,29 +503,9 @@ function parseNadaiDate(value: unknown) {
 }
 
 function findNadaiDateInRow(row: unknown[], profile: SubayFormatProfile) {
-  // First use the expected profile column.
-  const expectedValue = getProfileCell(row, profile, 'nadaiDate')
-  const expectedDate = parseNadaiDate(expectedValue)
-
-  if (expectedDate) return expectedDate
-
-  /*
-    FY2025+ exports sometimes shift columns when the portal extraction changes.
-    If column U does not parse, scan the row for the distinctive
-    "Yes - <date> at <time>" NADAI value instead of treating the project as
-    having no NADAI date.
-  */
-  if (profile.id === 'fy2025_above') {
-    for (const cell of row) {
-      const raw = textValue(cell)
-      if (!/^yes\b/i.test(raw) || !/\b(?:19|20)\d{2}\b/.test(raw)) continue
-
-      const parsed = parseNadaiDate(cell)
-      if (parsed) return parsed
-    }
-  }
-
-  return null
+  // Only the profile's officially designated NADAI column is authoritative.
+  // Scanning unrelated cells for 'Yes - date' produced false NADAI matches.
+  return parseNadaiDate(getProfileCell(row, profile, 'nadaiDate'))
 }
 
 function rowText(row: unknown[]) {
@@ -736,6 +717,9 @@ export function getSimplifiedImportStatus(record: SubayImportRecord) {
   if (rawStatus.includes('terminat')) return 'Terminated'
   if (rawStatus.includes('cancel')) return 'Cancelled'
   if (rawStatus.includes('suspend')) return 'Suspended'
+  if (rawStatus.includes('not yet started') || rawStatus.includes('not started')) return 'Not Yet Started'
+  if (rawStatus.includes('procurement')) return 'Under Procurement'
+  if (rawStatus.includes('ongoing') || rawStatus.includes('on-going') || rawStatus.includes('on going')) return 'Ongoing'
 
   if (record.subayFormat === 'sglgif_portal') {
     if (
@@ -874,26 +858,12 @@ export function projectPayloadFromSubayRecord(
     existingHasContractModification?: unknown
   } = {},
 ) {
+  // The latest imported SubayBAYAN extract is authoritative for official
+  // metrics. Field/engineer values belong in project_updates instead.
   const projectCost = record.budget || record.contractAmount || 0
-  const existingDisbursementAmount = parseNumber(options.existingDisbursementAmount)
-  const existingFinancialAccomplishment = parsePercent(options.existingFinancialAccomplishment)
-  const existingRevisedProjectCost = parseNumber(options.existingRevisedProjectCost)
-  const existingHasContractModification =
-    options.existingHasContractModification === true ||
-    textValue(options.existingHasContractModification).toLowerCase() === 'true'
-
-  const preserveExistingFinancial =
-    !options.isCreate &&
-    (existingDisbursementAmount > 0 || existingFinancialAccomplishment > 0)
-
-  const officialProjectCost =
-    existingHasContractModification && existingRevisedProjectCost > 0
-      ? existingRevisedProjectCost
-      : projectCost || parseNumber(options.existingBudget)
-
   const sourceFinancialAccomplishment =
     record.disbursementAmount !== null
-      ? calculateFinancialAccomplishment(record.disbursementAmount, officialProjectCost)
+      ? calculateFinancialAccomplishment(record.disbursementAmount, projectCost)
       : record.financialAccomplishment
 
   const payload: Record<string, unknown> = {
@@ -916,51 +886,36 @@ export function projectPayloadFromSubayRecord(
     updated_at: new Date().toISOString(),
   }
 
-  /*
-   * Financial data precedence:
-   * 1. Existing PMS10 value maintained by an Engineer/Admin is preserved.
-   * 2. Otherwise, SubayBAYAN cumulative disbursement repairs the project.
-   * 3. SGLGIF keeps its existing completed-project financial behavior because
-   *    that extract has no disbursement column.
-   *
-   * This means re-importing a current SubayBAYAN masterlist repairs projects
-   * that still have blank/zero financial data without overwriting field-
-   * maintained disbursement values.
-   */
-  if (!preserveExistingFinancial) {
-    if (record.disbursementAmount !== null) {
-      payload.disbursement_amount = record.disbursementAmount
+  if (record.subayFormat !== 'sglgif_portal') {
+    // A missing source value remains null (unknown), NOT an engineer's
+    // previously entered amount. Zero is kept as a legitimate source value.
+    Object.assign(payload, {
+      budget: projectCost,
+      disbursement_amount: record.disbursementAmount,
+      financial_accomplishment: sourceFinancialAccomplishment,
+      nadai_date: record.nadaiDate,
+      start_date: record.startDate,
+      target_completion_date: record.targetCompletionDate,
+      contract_expiration_date: record.contractExpirationDate,
+      target_physical_accomplishment: record.targetPhysicalAccomplishment,
+      target_physical_as_of: null,
+      target_physical_source: 'import',
+    })
+    // Existing field-observed contract variations are retained until
+    // the dedicated on-site dataset is migrated. Official calculations
+    // must use imported original cost and contract date.
+  } else {
+    // The SGLGIF portal has no source disbursement field. Preserve its
+    // existing project-cost fallback until an official amount is provided.
+    const existingBudget = parseNumber(options.existingBudget)
+    if (projectCost > 0) {
+      payload.budget = projectCost
+    } else if (options.isCreate || existingBudget <= 0) {
+      payload.budget = null
     }
-
     if (sourceFinancialAccomplishment !== null) {
       payload.financial_accomplishment = sourceFinancialAccomplishment
     }
-  }
-
-  if (projectCost > 0) {
-    payload.budget = projectCost
-  } else if (record.subayFormat === 'sglgif_portal') {
-    const existingBudget = parseNumber(options.existingBudget)
-
-    // Keep the SGLGIF project cost blank when the Portal extract has no Amount.
-    // If a user already entered a positive cost manually, omit the field during
-    // re-import so the manual value is preserved.
-    if (options.isCreate || existingBudget <= 0) payload.budget = null
-  } else {
-    // Preserve the existing behavior of the two SubayBAYAN formats.
-    payload.budget = 0
-  }
-
-  if (record.startDate) payload.start_date = record.startDate
-  if (record.targetCompletionDate) payload.target_completion_date = record.targetCompletionDate
-  if (record.contractExpirationDate) payload.contract_expiration_date = record.contractExpirationDate
-  // FY2024-and-below provides a direct Date of NADAI field.
-  // FY2025+ provides "HAS NADAI?" text; parseNadaiDate extracts the embedded
-  // date only for affirmative values. The exact source cell remains preserved
-  // in sourceData / subay_import_source_rows.
-  if (record.nadaiDate) payload.nadai_date = record.nadaiDate
-  if (record.revisedContractExpirationDate && record.status === 'Completed') {
-    payload.revised_contract_expiration_date = record.revisedContractExpirationDate
   }
 
   return payload
@@ -1127,7 +1082,13 @@ function parseRecordFromRow(
       ? isSglgifCompleted
         ? 100
         : null
-      : parsePercent(physicalValue)
+      : textValue(physicalValue) ? parsePercent(physicalValue) : null
+  const targetPhysicalAccomplishment =
+    profile.id === 'sglgif_portal'
+      ? null
+      : textValue(getProfileCell(row, profile, 'targetPhysicalAccomplishment'))
+        ? parsePercent(getProfileCell(row, profile, 'targetPhysicalAccomplishment'))
+        : null
   const disbursementAmount =
     profile.id === 'sglgif_portal'
       ? null
@@ -1193,6 +1154,7 @@ function parseRecordFromRow(
     projectType: getCompositeProjectType(row, profile),
     status,
     physicalAccomplishment,
+    targetPhysicalAccomplishment,
     financialAccomplishment,
     disbursementAmount,
     riskLevel:

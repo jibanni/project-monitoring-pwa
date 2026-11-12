@@ -863,6 +863,26 @@ export default function EditProject() {
     setPageError('')
     setSuccessMessage('')
 
+    // Imported SubayBAYAN projects are source-controlled. A manual edit would
+    // silently reintroduce disagreement with the official masterlist.
+    const { data: sourceCheck, error: sourceCheckError } = await supabase
+      .from('projects')
+      .select('subaybayan_project_code')
+      .eq('id', id)
+      .single()
+
+    if (sourceCheckError) {
+      setPageError(sourceCheckError.message)
+      setSaving(false)
+      return
+    }
+
+    if (String(sourceCheck?.subaybayan_project_code || '').trim()) {
+      setPageError('This project is linked to SubayBAYAN. Official fields are read-only; reimport the latest official extract to update them. On-site observations should be submitted through Project Updates.')
+      setSaving(false)
+      return
+    }
+
     const updatePayload = {
       project_name: toProjectTitleCase(cleanText(form.project_name) || 'Untitled Project'),
       description: cleanText(form.description),

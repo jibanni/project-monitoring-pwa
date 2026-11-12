@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { refreshSharedProjects } from '../lib/projectDataCache'
 import { useAuth } from '../context/AuthContext'
 import {
   createProjectFingerprint,
@@ -41,7 +42,6 @@ type PreviewRow = {
   existingFinancialAccomplishment?: number | string | null
   existingRevisedProjectCost?: number | string | null
   existingHasContractModification?: boolean | string | null
-  preserveExistingFinancial?: boolean
   issue?: string
 }
 
@@ -89,13 +89,6 @@ function formatCurrency(value: number | null | undefined) {
 
 function getImportCost(record: SubayImportRecord) {
   return record.budget || record.contractAmount || 0
-}
-
-function hasMaintainedFinancialData(project: ExistingProject) {
-  return (
-    Number(project.disbursement_amount || 0) > 0 ||
-    Number(project.financial_accomplishment || 0) > 0
-  )
 }
 
 function formatFinancialPercent(value: number | null | undefined) {
@@ -187,7 +180,6 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
         existingFinancialAccomplishment: existingByCode.financial_accomplishment,
         existingRevisedProjectCost: existingByCode.revised_project_cost,
         existingHasContractModification: existingByCode.has_contract_modification,
-        preserveExistingFinancial: hasMaintainedFinancialData(existingByCode),
       }
     }
 
@@ -205,7 +197,6 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
         existingFinancialAccomplishment: manualMatch.financial_accomplishment,
         existingRevisedProjectCost: manualMatch.revised_project_cost,
         existingHasContractModification: manualMatch.has_contract_modification,
-        preserveExistingFinancial: hasMaintainedFinancialData(manualMatch),
       }
     }
 
@@ -246,13 +237,20 @@ export default function SubayImport() {
   }, [previewRows])
 
   async function fetchExistingProjects() {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('id, project_name, funding_year, funding_source, province, municipality, subaybayan_project_code, budget, disbursement_amount, financial_accomplishment, revised_project_cost, has_contract_modification')
-
-    if (error) throw error
-
-    return (data || []) as ExistingProject[]
+    const projects: ExistingProject[] = []
+    const pageSize = 500
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, project_name, funding_year, funding_source, province, municipality, subaybayan_project_code, budget, disbursement_amount, financial_accomplishment, revised_project_cost, has_contract_modification')
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1)
+      if (error) throw error
+      const page = (data || []) as ExistingProject[]
+      projects.push(...page)
+      if (page.length < pageSize) break
+    }
+    return projects
   }
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -313,7 +311,7 @@ export default function SubayImport() {
     }
 
     const confirmed = window.confirm(
-      'Proceed with the project masterlist import? PMS10 will first keep a read-only copy of every genuine project row, including columns it does not currently use. Spreadsheet headers, logo/caption rows, and decorative rows are ignored. Existing project master data with the same import code will be updated. PMS10 disbursement/financial values already maintained by Engineers/Admins will be preserved; blank/zero values may be repaired from SubayBAYAN.',
+      'Proceed with the project masterlist import? PMS10 will first keep a read-only copy of every genuine project row, including columns it does not currently use. Spreadsheet headers, logo/caption rows, and decorative rows are ignored. Existing project master data with the same import code will be updated. SubayBAYAN values supersede the official project master data. Engineer/field observations remain preserved in the inspection history.',
     )
 
     if (!confirmed) return
@@ -418,6 +416,12 @@ export default function SubayImport() {
           `${row.record.projectCode}: ${error?.message || 'Import failed for this row.'}`,
         )
       }
+    }
+
+    try {
+      await refreshSharedProjects({ force: true })
+    } catch (refreshError) {
+      console.warn('Imported project data saved; dashboard cache refresh failed.', refreshError)
     }
 
     setImporting(false)
@@ -589,8 +593,8 @@ export default function SubayImport() {
               SubayBAYAN uses PROJECT CODE. SGLGIF uses a stable import code
               generated from its LGU reference code, year, LGU, and title. Only FY{' '}
               {SUBAY_MIN_FUNDING_YEAR} onwards will be included. Existing PMS10
-              inspection updates, photos, Google Drive records, and existing
-              maintained financial/disbursement values are preserved. Only
+              inspection updates, photos, and Google Drive records are preserved;
+              official project values are replaced by the imported SubayBAYAN data. Only
               genuine project rows are counted and archived with their original
               columns; spreadsheet headers, logo/caption rows, and decorative
               rows are ignored. A dedicated “Date of NADAI” is used as the
@@ -680,17 +684,9 @@ export default function SubayImport() {
                       )}
                     </td>
                     <td>
-                      {row.preserveExistingFinancial ? (
+                      {row.record.disbursementAmount !== null ? (
                         <>
-                          <strong>Preserve PMS10</strong>
-                          <small>
-                            {formatCurrency(Number(row.existingDisbursementAmount || 0)) || 'No amount'} ·{' '}
-                            {formatFinancialPercent(Number(row.existingFinancialAccomplishment || 0))}
-                          </small>
-                        </>
-                      ) : row.record.disbursementAmount !== null ? (
-                        <>
-                          <strong>Repair from SubayBAYAN</strong>
+                          <strong>Official SubayBAYAN</strong>
                           <small>
                             {formatCurrency(row.record.disbursementAmount) || 'Php 0.00'} ·{' '}
                             {formatFinancialPercent(row.record.financialAccomplishment)}
@@ -698,8 +694,8 @@ export default function SubayImport() {
                         </>
                       ) : (
                         <>
-                          <span>No source disbursement</span>
-                          <small>Existing value unchanged when applicable</small>
+                          <strong>Not reported in extract</strong>
+                          <small>Official disbursement and financial data remain unknown</small>
                         </>
                       )}
                     </td>
