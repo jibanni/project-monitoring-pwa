@@ -1,4 +1,7 @@
 import { getPmsProjectStatus, getPmsRiskLevel } from './projectStatus'
+import { getProjectSlippageVariance } from './projectVariance'
+import { getDeadlineRiskInfo } from './deadlineRisk'
+import { supabase } from '../lib/supabase'
 import { isProjectEligibleForAggregatePerformance } from './projectMetricEligibility'
 
 type ProjectRecord = Record<string, any>
@@ -45,14 +48,6 @@ function numeric(value: unknown): number {
 
 function percent(value: number): string {
   return `${Math.max(0, Math.min(100, value)).toFixed(2)}%`
-}
-
-function shortMoney(amount: unknown): string {
-  if (amount == null || text(amount) === '') return '-'
-  const value = numeric(amount)
-  if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(2)}M`
-  if (Math.abs(value) >= 1e3) return `${(value / 1e3).toFixed(1)}K`
-  return value.toLocaleString('en-PH', { maximumFractionDigits: 2 })
 }
 
 function regionProvince(project: ProjectRecord): string {
@@ -189,7 +184,13 @@ function drawHeader(
   if (images.dilg) doc.addImage(images.dilg, 'PNG', 16, 8, 19, 19)
   // Give the Bagong Pilipinas mark equal visual prominence while retaining
   // the existing header line and centered DILG office letterhead.
-  if (images.bagong) doc.addImage(images.bagong, 'PNG', width - 45, 1, 31, 28.2)
+  if (images.bagong) {
+    // The existing PNG is 499 x 520 px. Preserve its original aspect ratio
+    // so the circular mark never appears stretched in the PDF letterhead.
+    const logoHeight = 27.8
+    const logoWidth = logoHeight * (499 / 520)
+    doc.addImage(images.bagong, 'PNG', width - MARGIN - logoWidth, 1.1, logoWidth, logoHeight)
+  }
   ink(doc, [66, 78, 91])
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
   doc.text('Republic of the Philippines', width / 2, 9.4, { align: 'center' })
@@ -435,27 +436,34 @@ function drawExecutivePage(
       const physicalRate = group.length ? done / group.length * 100 : 0
       const financialRate = financeWeighted(group)
       const centerX = rightX + columnWidth * (index + 0.5)
-      const radius = visibleYears.length === 1 ? 27 : visibleYears.length === 2 ? 22 : 18
+      // Keep project-count text clearly ABOVE the donut (previously the
+      // count touched the chart's top), even when only one NADAI year exists.
+      const radius = visibleYears.length === 1 ? 23.5 : visibleYears.length === 2 ? 21.0 : 16.5
+      const centerY = 156
 
       ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8)
-      doc.text(`NADAI ${year}`, centerX, 117.3, { align: 'center' })
-      ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.2)
+      doc.text(`NADAI ${year}`, centerX, 117.8, { align: 'center' })
+      ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.1)
       doc.text(`${group.length} ${group.length === 1 ? 'project' : 'projects'}`,
-        centerX, 123.0, { align: 'center' })
+        centerX, 124.0, { align: 'center' })
 
-      drawDoubleDonut(doc, centerX, 150.0, physicalRate, financialRate, radius)
+      drawDoubleDonut(doc, centerX, centerY, physicalRate, financialRate, radius)
 
-      const textSize = visibleYears.length === 3 ? 6.3 : 7.0
-      const legendLeft = centerX - 20
-      const legendRight = centerX + 23
-      fill(doc, GREEN); doc.circle(legendLeft + 1.2, 181.9, 1.25, 'F')
+      // Compact centered legend below each chart; no overlapping arcs.
+      const textSize = visibleYears.length === 3 ? 6.0 : 7.0
+      const legendWidth = Math.min(columnWidth - 5, visibleYears.length === 3 ? 41 : 54)
+      const legendLeft = centerX - legendWidth / 2
+      const legendRight = centerX + legendWidth / 2
+      const firstLine = 185.6
+      const secondLine = 193.0
+      fill(doc, GREEN); doc.circle(legendLeft + 1.2, firstLine - 1.1, 1.25, 'F')
       ink(doc, GREEN); doc.setFont('helvetica', 'bold'); doc.setFontSize(textSize)
-      doc.text('Physical', legendLeft + 4.5, 183)
-      doc.text(percent(physicalRate), legendRight, 183, { align: 'right' })
-      fill(doc, [85, 123, 193]); doc.circle(legendLeft + 1.2, 190.0, 1.25, 'F')
+      doc.text('Physical', legendLeft + 4.4, firstLine)
+      doc.text(percent(physicalRate), legendRight, firstLine, { align: 'right' })
+      fill(doc, [85, 123, 193]); doc.circle(legendLeft + 1.2, secondLine - 1.1, 1.25, 'F')
       ink(doc, [85, 123, 193])
-      doc.text('Financial', legendLeft + 4.5, 191.1)
-      doc.text(percent(financialRate), legendRight, 191.1, { align: 'right' })
+      doc.text('Financial', legendLeft + 4.4, secondLine)
+      doc.text(percent(financialRate), legendRight, secondLine, { align: 'right' })
     })
   }
   if (years.length > visibleYears.length) {
@@ -531,6 +539,50 @@ function addFooters(doc: any, options: ExecutiveDashboardPdfOptions) {
     doc.text(`PMS10 | ${options.dataSource === 'official' ? 'SubayBAYAN Official' : 'Actual On-Site'} | Exported ${date.toLocaleString('en-PH')}`, MARGIN, 209)
     doc.text(`Page ${p} of ${pages}`, PAGE[1] - MARGIN, 209, { align: 'right' })
   }
+}
+
+/**
+ * Fetch only inspection notes for risk-tagged projects in the current
+ * authorized filter scope. RLS protects the query; this read never changes
+ * SubayBAYAN project status or the inspection/update records.
+ * Missing/failed lookups are non-fatal and the report still exports.
+ */
+async function loadRiskInspectionNotes(projects: ProjectRecord[]): Promise<Map<string, string>> {
+  const notes = new Map<string, string>()
+  const ids = Array.from(new Set(projects
+    .filter((project) => getPmsRiskLevel(project) !== 'None')
+    .map((project) => text(project.id))
+    .filter(Boolean),
+  ))
+  for (let offset = 0; offset < ids.length; offset += 30) {
+    const idsBatch = ids.slice(offset, offset + 30)
+    try {
+      const { data, error } = await supabase
+        .from('project_updates')
+        .select('project_id, issues, remarks, inspection_date, created_at')
+        .in('project_id', idsBatch)
+        .order('inspection_date', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false, nullsFirst: false })
+        .limit(1000)
+
+      if (error) {
+        console.warn('PMS10 PDF: inspection-note lookup unavailable:', error.message)
+        continue
+      }
+      for (const update of data || []) {
+        const key = text(update.project_id)
+        if (!key || notes.has(key)) continue
+        const parts = [text(update.issues), text(update.remarks)]
+          .filter((value) => value && !/^(?:none|no issues?|nil|n\/a)$/i.test(value))
+        if (!parts.length) continue
+        const dateLabel = formatDate(update.inspection_date)
+        notes.set(key, `Inspection${dateLabel !== '-' ? ` (${dateLabel})` : ''}: ${[...new Set(parts)].join('; ')}`)
+      }
+    } catch (error) {
+      console.warn('PMS10 PDF: inspection-note lookup failed:', error)
+    }
+  }
+  return notes
 }
 
 export async function exportExecutiveDashboardPdf(
@@ -683,6 +735,71 @@ export async function exportExecutiveDashboardPdf(
     return value != null && text(value) !== '' && numeric(value) >= 99.999
   }
 
+  const reportDate = context.generatedAt
+  const inspectionRiskNotes = await loadRiskInspectionNotes(ordered)
+  const isAtRisk = (project: ProjectRecord) => getPmsRiskLevel(project) !== 'None'
+  const getProjectRemarks = (project: ProjectRecord): string => {
+    const riskLevel = getPmsRiskLevel(project)
+    const recordedIssues = text(project.issues)
+    const enteredRemarks = text(project.remarks)
+    const noIssue = (value: string) => /^(?:none|no issues?|n\/a|not applicable|nil)$/i.test(value)
+    const recordedNote = [recordedIssues, enteredRemarks]
+      .filter((value) => value && !noIssue(value))
+      .filter((value, index, values) => values.indexOf(value) === index)
+      .join('; ')
+
+    if (riskLevel === 'None') {
+      return recordedNote ? `Remarks: ${recordedNote}` : ''
+    }
+
+    const reasons: string[] = []
+    const status = text(project.status ?? project.project_status).toLowerCase()
+    if (/suspend/.test(status)) reasons.push('Implementation suspended')
+    if (/cancel/.test(status)) reasons.push('Implementation cancelled')
+    if (/terminat/.test(status)) reasons.push('Implementation terminated')
+
+    const deadline = getDeadlineRiskInfo(project, reportDate)
+    if (
+      (deadline.basis === 'Contract Expiry' || deadline.basis === 'Revised Contract Expiry') &&
+      deadline.daysRemaining !== null
+    ) {
+      if (deadline.daysRemaining < 0) {
+        reasons.push(`${deadline.basis} lapsed on ${formatDate(deadline.effectiveDate)}`)
+      } else if (deadline.daysRemaining <= 30 && riskLevel !== 'High') {
+        reasons.push(`${deadline.basis} within ${deadline.daysRemaining} days`)
+      }
+    }
+
+    const slippage = getProjectSlippageVariance(project)
+    if (slippage < 0) {
+      reasons.push(`Negative slippage: ${Math.abs(slippage).toFixed(2)} percentage points`)
+    }
+    const notStartedReason = text(project.not_yet_started_reason)
+    if (notStartedReason && !noIssue(notStartedReason) && /not yet started|procurement/i.test(status)) {
+      reasons.push(`Not started: ${notStartedReason}`)
+    }
+    if (recordedNote) reasons.push(`Recorded issues: ${recordedNote}`)
+    const inspectionNote = inspectionRiskNotes.get(text(project.id))
+    if (inspectionNote) reasons.push(inspectionNote)
+    if (!reasons.length) reasons.push('Specific cause not recorded')
+    return `AT RISK (${riskLevel}): ${reasons.join('; ')}`
+  }
+
+  const getRevertedFundsAndRemarks = (project: ProjectRecord): string => {
+    const hasReversion =
+      project.reverted_funds !== null &&
+      project.reverted_funds !== undefined &&
+      text(project.reverted_funds) !== ''
+    const amount = hasReversion
+      ? `Reverted: PHP ${numeric(project.reverted_funds).toLocaleString('en-PH', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
+      : ''
+    const remarks = getProjectRemarks(project)
+    return [amount, remarks].filter(Boolean).join('\n') || '-'
+  }
+
   const detailRows = ordered.map((project) => [
     regionProvince(project),
     projectLgu(project),
@@ -693,7 +810,7 @@ export async function exportExecutiveDashboardPdf(
     project.financial_accomplishment == null || text(project.financial_accomplishment) === ''
       ? '-' : percent(finance(project)),
     formatDate(nadaiDate(project)?.toISOString()),
-    shortMoney(project.reverted_funds),
+    getRevertedFundsAndRemarks(project),
   ])
 
   autoTable(doc, {
@@ -702,7 +819,7 @@ export async function exportExecutiveDashboardPdf(
     tableWidth: width,
     head: [[
       'PROVINCE / HUC', 'LGU', 'PROJECT TITLE', 'BARANGAY',
-      'STATUS', 'PHYSICAL', 'FINANCIAL', 'NADAI DOWNLOAD', 'REVERTED FUNDS',
+      'STATUS', 'PHYSICAL', 'FINANCIAL', 'NADAI DOWNLOAD', 'REVERTED FUNDS / REMARKS',
     ]],
     body: detailRows,
     theme: 'grid',
@@ -717,27 +834,45 @@ export async function exportExecutiveDashboardPdf(
     },
     alternateRowStyles: { fillColor: [243, 247, 251] },
     columnStyles: {
-      0: { cellWidth: 34 }, 1: { cellWidth: 34 }, 2: { cellWidth: 83 },
-      3: { cellWidth: 26 }, 4: { cellWidth: 28 }, 5: { cellWidth: 18 },
-      6: { cellWidth: 19 }, 7: { cellWidth: 30 }, 8: { cellWidth: 34 },
+      0: { cellWidth: 29 }, 1: { cellWidth: 28 }, 2: { cellWidth: 61 },
+      3: { cellWidth: 18 }, 4: { cellWidth: 28 }, 5: { cellWidth: 17 },
+      6: { cellWidth: 20 }, 7: { cellWidth: 25 }, 8: { cellWidth: 80 },
     },
     didParseCell(data: any) {
       if (data.section !== 'body') return
       const project = ordered[data.row.index]
-      if (!project || !hasFullPhysicalAccomplishment(project)) return
+      if (!project) return
 
-      // A restrained green row identifies physical work at 100%.
-      // Red financial text is reserved ONLY for physically complete
-      // projects whose reported financial percentage is below 100%.
-      data.cell.styles.fillColor = [231, 247, 236]
-      if (data.column.index === 5) {
-        data.cell.styles.textColor = [18, 120, 62]
-        data.cell.styles.fontStyle = 'bold'
+      // Risk highlighting overrides all other row treatments. This makes
+      // low, moderate and high risk projects easy to identify at a glance.
+      const riskLevel = getPmsRiskLevel(project)
+      if (isAtRisk(project)) {
+        data.cell.styles.fillColor = riskLevel === 'High'
+          ? [255, 230, 233]
+          : [255, 244, 243]
+        if (data.column.index === 4 || data.column.index === 8) {
+          data.cell.styles.textColor = [187, 25, 45]
+          data.cell.styles.fontStyle = 'bold'
+        }
+      } else if (hasFullPhysicalAccomplishment(project)) {
+        data.cell.styles.fillColor = [231, 247, 236]
+        if (data.column.index === 5) {
+          data.cell.styles.textColor = [18, 120, 62]
+          data.cell.styles.fontStyle = 'bold'
+        }
       }
+
+      // Preserve previous discrepancy highlighting: red finance only for
+      // physically complete projects with a reported financial value <100%.
       const hasFinancialFigure =
         project.financial_accomplishment != null &&
         text(project.financial_accomplishment) !== ''
-      if (data.column.index === 6 && hasFinancialFigure && finance(project) < 99.999) {
+      if (
+        data.column.index === 6 &&
+        hasFullPhysicalAccomplishment(project) &&
+        hasFinancialFigure &&
+        finance(project) < 99.999
+      ) {
         data.cell.styles.textColor = [194, 32, 47]
         data.cell.styles.fontStyle = 'bold'
       }
@@ -750,7 +885,7 @@ export async function exportExecutiveDashboardPdf(
       ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
       doc.text('FILTERED PROJECT REGISTER', MARGIN, 65)
       ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2)
-      doc.text('Green = 100% physical   |   Red financial = physically complete, financial below 100%',
+      doc.text('Green = 100% physical   |   Red row = at risk   |   Red financial = 100% physical, <100% financial',
         PAGE[1] - MARGIN, 65, { align: 'right' })
     },
   })
