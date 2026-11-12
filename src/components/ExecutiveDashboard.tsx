@@ -11,6 +11,7 @@ type ProjectRecord = Record<string, any>
 
 type ExecutiveDashboardProps = {
   projects: ProjectRecord[]
+  officialProjects: ProjectRecord[]
   onOpenDetailed: () => void
   dataSource: 'official' | 'onsite'
 }
@@ -748,6 +749,7 @@ function DualRingMiniChart({
 
 export default function ExecutiveDashboard({
   projects,
+  officialProjects,
   onOpenDetailed,
   dataSource,
 }: ExecutiveDashboardProps) {
@@ -1196,7 +1198,7 @@ export default function ExecutiveDashboard({
         program: selectedProgram === 'GREEN, GREEN, GREEN' ? '3GP' : selectedProgram,
         fundingYears: selectedFundingYears,
         dataSource,
-      })
+      }, officialProjects)
     } catch (error) {
       console.error('PMS10 executive PDF export failed:', error)
       setReportExportError('Unable to prepare the PDF. Please refresh and try again.')
