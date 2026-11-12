@@ -32,7 +32,7 @@ type ExistingProject = {
   has_contract_modification?: boolean | string | null
 }
 
-type PreviewAction = 'create' | 'update_by_code' | 'link_manual' | 'invalid'
+type PreviewAction = 'create' | 'update_by_code' | 'link_manual' | 'reconcile_code' | 'invalid'
 
 type PreviewRow = {
   record: SubayImportRecord
@@ -44,6 +44,7 @@ type PreviewRow = {
   existingFinancialAccomplishment?: number | string | null
   existingRevisedProjectCost?: number | string | null
   existingHasContractModification?: boolean | string | null
+  previousOfficialCode?: string | null
   existingProjectName?: string | null
   existingProjectStatus?: string | null
   existingProjectPhysical?: number | string | null
@@ -77,7 +78,7 @@ function getCanonicalSglgifCode(value: unknown) {
 function getStatusClass(action: PreviewAction) {
   if (action === 'create') return 'create'
   if (action === 'update_by_code') return 'update'
-  if (action === 'link_manual') return 'link'
+  if (action === 'link_manual' || action === 'reconcile_code') return 'link'
   return 'invalid'
 }
 
@@ -138,6 +139,7 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
   const uncodedByFingerprint = new Map<string, ExistingProject[]>()
   const codedByFingerprint = new Map<string, ExistingProject[]>()
   const linkedProjectIds = new Set<string>()
+  const incomingOfficialCodes = new Set(records.map((record) => record.projectCode.trim().toUpperCase()))
 
   existingProjects.forEach((project) => {
     const code = getProjectCode(project)
@@ -235,12 +237,63 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
       }
     }
 
-    if (codedMatches.some((project) => getProjectCode(project) !== record.projectCode)) {
+    // SubayBAYAN is the authority for official project codes and status.
+    // A previously stored code may be obsolete. We may safely repair that
+    // existing row (and retain its inspection/photo project_id) ONLY if:
+    // - the full year/program/province/LGU/title fingerprint is unique,
+    // - the old code is NOT present anywhere in the current official extract,
+    // - and no other incoming row has already claimed the same PMS10 row.
+    // Otherwise preserve both official identities; never overwrite a code
+    // belonging to a different entry in the SAME official masterlist.
+    const staleCodeCandidates = codedMatches.filter((project) =>
+      !incomingOfficialCodes.has(getProjectCode(project)),
+    )
+    if (codedMatches.length === 1 && staleCodeCandidates.length === 1) {
+      const stale = staleCodeCandidates[0]
+      if (linkedProjectIds.has(stale.id)) {
+        return {
+          record,
+          action: 'invalid',
+          actionLabel: 'Review Duplicates',
+          issue: 'The same PMS10 project was already matched to another source row. No code will be replaced.',
+        }
+      }
+      linkedProjectIds.add(stale.id)
+      return {
+        record,
+        action: 'reconcile_code',
+        actionLabel: 'Update Official Code',
+        projectId: stale.id,
+        previousOfficialCode: getProjectCode(stale),
+        existingBudget: stale.budget,
+        existingDisbursementAmount: stale.disbursement_amount,
+        existingFinancialAccomplishment: stale.financial_accomplishment,
+        existingRevisedProjectCost: stale.revised_project_cost,
+        existingHasContractModification: stale.has_contract_modification,
+        existingProjectName: stale.project_name,
+        existingProjectStatus: stale.status,
+        existingProjectPhysical: stale.physical_accomplishment,
+        issue: `SubayBAYAN is authoritative: replace obsolete stored code ${getProjectCode(stale)} with ${record.projectCode} on this existing project. Inspection history and project ID remain unchanged.`,
+      }
+    }
+
+    if (codedMatches.length > 1 && staleCodeCandidates.length > 0) {
       return {
         record,
         action: 'invalid',
-        actionLabel: 'Code Conflict',
-        issue: 'A project with the same year, location and title already has a DIFFERENT official SubayBAYAN code. Review the conflicting records instead of overwriting one.',
+        actionLabel: 'Review Ambiguous Match',
+        issue: 'Multiple existing coded projects share the source title, year, program and location. No automatic overwrite is safe. Review their project codes.',
+      }
+    }
+
+    if (codedMatches.length > 0) {
+      // This is a DISTINCT source project because the other matching title
+      // is associated with an official code ALSO present in this extract.
+      return {
+        record,
+        action: 'create',
+        actionLabel: 'Create Official Project',
+        issue: 'Another official project shares this title and location, but its distinct code is also in this masterlist. Create this separate source project; do not merge them by title.',
       }
     }
 
@@ -274,7 +327,7 @@ export default function SubayImport() {
       total: previewRows.length,
       create: previewRows.filter((row) => row.action === 'create').length,
       update: previewRows.filter((row) => row.action === 'update_by_code').length,
-      link: previewRows.filter((row) => row.action === 'link_manual').length,
+      link: previewRows.filter((row) => row.action === 'link_manual' || row.action === 'reconcile_code').length,
       invalid: previewRows.filter((row) => row.action === 'invalid').length,
       importable: previewRows.filter((row) => row.action !== 'invalid').length,
     }
@@ -359,6 +412,17 @@ export default function SubayImport() {
     )
 
     if (!confirmed) return
+
+    const codeCorrections = previewRows.filter((row) => row.action === 'reconcile_code')
+    if (codeCorrections.length > 0) {
+      const correctionsList = codeCorrections.slice(0, 12).map((row) =>
+        `${row.previousOfficialCode || 'No old code'} -> ${row.record.projectCode} | ${row.record.municipality} | ${row.record.projectTitle}`,
+      ).join('\n')
+      const correctionConfirmed = window.confirm(
+        `Official SubayBAYAN code reconciliation: ${codeCorrections.length} existing PMS10 project(s) will have their previous code replaced by the current official code. Project IDs, inspections and photos will be kept.\n\n${correctionsList}${codeCorrections.length > 12 ? '\n... and more' : ''}\n\nConfirm these code corrections?`,
+      )
+      if (!correctionConfirmed) return
+    }
 
     setImporting(true)
     setErrorMessage('')
@@ -465,7 +529,7 @@ export default function SubayImport() {
 
           if (error) throw error
 
-          if (row.action === 'link_manual') {
+          if (row.action === 'link_manual' || row.action === 'reconcile_code') {
             result.linked += 1
           } else {
             result.updated += 1
@@ -613,7 +677,7 @@ export default function SubayImport() {
           <strong>{stats.update}</strong>
         </article>
         <article className="subay-import-summary-card orange">
-          <span>Link Existing</span>
+          <span>Link / Reconcile</span>
           <strong>{stats.link}</strong>
         </article>
         <article className="subay-import-summary-card red">
@@ -624,13 +688,15 @@ export default function SubayImport() {
 
       {stats.link > 0 && (
         <section className="subay-import-sheet-note" aria-label="Previously manual projects matched to source records">
-          <strong>Existing projects matched without a SubayBAYAN code ({stats.link})</strong>
-          <p>These are already enrolled in PMS10. Linking is not the same as creating an additional project.</p>
-          {previewRows.filter((row) => row.action === 'link_manual').map((row) => (
+          <strong>Existing PMS10 project identities requiring official matching ({stats.link})</strong>
+          <p>SubayBAYAN codes are authoritative. PMS10 will retain the existing project ID and engineering history while linking an uncoded project or reconciling a unique obsolete code.</p>
+          {previewRows.filter((row) => row.action === 'link_manual' || row.action === 'reconcile_code').map((row) => (
             <p key={row.record.projectCode}>
-              <strong>{row.record.projectCode}</strong> — {row.record.projectTitle} ({row.record.municipality}, {row.record.province}).
-              {' '}PMS10 before import: {row.existingProjectStatus || 'Not specified'} ({row.existingProjectPhysical ?? 'Not recorded'}% physical).
-              {' '}SubayBAYAN source: {row.record.status || 'Not specified'} ({row.record.physicalAccomplishment ?? 'Not recorded'}% physical).
+              <strong>{row.action === 'reconcile_code' ? 'Official code correction' : 'Link uncoded record'}:</strong>
+              {' '}{row.previousOfficialCode || 'No existing code'} → {row.record.projectCode}
+              {' '}— {row.record.projectTitle} ({row.record.municipality}, {row.record.province}).
+              {' '}Before: {row.existingProjectStatus || 'Not specified'} ({row.existingProjectPhysical ?? 'Not recorded'}% physical).
+              {' '}Official: {row.record.status || 'Not specified'} ({row.record.physicalAccomplishment ?? 'Not recorded'}% physical).
             </p>
           ))}
         </section>

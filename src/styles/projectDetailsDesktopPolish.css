@@ -574,3 +574,15 @@
     max-width: none !important;
   }
 }
+
+/* Official finance details: desktop-only until the scheduled mobile redesign. */
+@media (max-width: 1023px) {
+  .pd-official-financial-field { display: none !important; }
+}
+.pd-official-financial-field small {
+  display: block;
+  color: #61758d;
+  font-size: 0.73rem;
+  line-height: 1.35;
+  margin-top: 4px;
+}
