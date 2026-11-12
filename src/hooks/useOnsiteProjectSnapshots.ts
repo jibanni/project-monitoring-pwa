@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 
 export type ProjectWithId = {
   id: string
-  [key: string]: unknown
 }
 
 type SiteUpdate = {
