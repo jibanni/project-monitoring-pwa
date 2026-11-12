@@ -292,65 +292,18 @@ function pms10RecordNumber(
 
 function resolveProjectFinancialAccomplishment(
   projectValue: unknown,
-  updateValues: unknown[],
+  _updateValues: unknown[],
 ) {
+  // Display the imported official masterlist financial percentage.
+  // On-site inspection disbursements and percentages are never substituted.
   const projectRecord =
     projectValue && typeof projectValue === 'object'
       ? (projectValue as Record<string, unknown>)
       : null
-
-  const latestUpdate =
-    Array.isArray(updateValues) &&
-    updateValues.length > 0 &&
-    updateValues[0] &&
-    typeof updateValues[0] === 'object'
-      ? (updateValues[0] as Record<string, unknown>)
-      : null
-
-  const projectCost = pms10RecordNumber(projectRecord, [
-    'revised_project_cost',
-    'revised_cost',
-    'contract_amount',
-    'contract_cost',
-    'budget',
-    'project_cost',
-  ])
-
-  const disbursement =
-    pms10RecordNumber(latestUpdate, [
-      'disbursement',
-      'total_disbursement',
-      'cumulative_disbursement',
-      'disbursement_amount',
-    ]) ||
-    pms10RecordNumber(projectRecord, [
-      'disbursement',
-      'total_disbursement',
-      'cumulative_disbursement',
-      'disbursement_amount',
-    ])
-
-  if (projectCost > 0 && disbursement > 0) {
-    const computed = (disbursement / projectCost) * 100
-
-    if (Number.isFinite(computed)) {
-      return Math.max(0, Math.min(100, computed))
-    }
-  }
-
-  const latestFinancial = pms10RecordNumber(latestUpdate, [
-    'financial_accomplishment',
-  ])
-
-  if (latestFinancial > 0) {
-    return Math.max(0, Math.min(100, latestFinancial))
-  }
-
-  const storedFinancial = pms10RecordNumber(projectRecord, [
-    'financial_accomplishment',
-  ])
-
-  return Math.max(0, Math.min(100, storedFinancial))
+  const stored = projectRecord?.financial_accomplishment
+  if (stored === null || stored === undefined || stored === '') return 0
+  const parsed = pms10FinancialNumber(stored)
+  return Math.max(0, Math.min(100, parsed))
 }
 
 export default function ProjectDetails() {
