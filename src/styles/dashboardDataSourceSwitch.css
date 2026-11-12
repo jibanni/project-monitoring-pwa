@@ -1,0 +1,60 @@
+/* Only desktop view gets the two-source dashboard. Existing mobile UI is unchanged. */
+.pms10-dashboard-data-source { display: none; }
+@media (min-width: 1024px) {
+  .pms10-dashboard-data-source {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 18px;
+    margin: 10px 24px 12px;
+    border: 1px solid #dbe5f0;
+    border-radius: 14px;
+    background: #fff;
+    color: #223a58;
+    box-sizing: border-box;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(14, 43, 81, 0.035);
+  }
+  .pms10-dashboard-data-source-label {
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+    color: #607897;
+  }
+  .pms10-dashboard-data-source-options {
+    display: flex;
+    align-items: center;
+    padding: 3px;
+    gap: 2px;
+    background: #edf3fa;
+    border: 1px solid #dae4ef;
+    border-radius: 11px;
+  }
+  .pms10-dashboard-data-source-options button {
+    border: 0;
+    border-radius: 8px;
+    padding: 8px 13px;
+    color: #385577;
+    background: transparent;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .pms10-dashboard-data-source-options button.is-active {
+    color: #fff;
+    background: #17477d;
+    box-shadow: 0 1px 4px rgba(11,43,88,.15);
+  }
+  .pms10-dashboard-data-source-options button:focus-visible {
+    outline: 3px solid #68a3e9;
+    outline-offset: 2px;
+  }
+  .pms10-dashboard-data-source-note {
+    color: #657e9a;
+    font-size: 12px;
+  }
+}
