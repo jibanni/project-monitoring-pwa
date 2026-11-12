@@ -916,7 +916,9 @@ export default function ExecutiveDashboard({
   )
 
   const overallPhysical = useMemo(
-    () => weightedAverage(scopedProjects, physical),
+    () => scopedProjects.length > 0
+      ? scopedProjects.filter((project) => getPmsProjectStatus(project) === 'Completed').length / scopedProjects.length * 100
+      : 0,
     [scopedProjects],
   )
 
@@ -1045,7 +1047,9 @@ export default function ExecutiveDashboard({
         year,
         label: `NADAI ${year}`,
         projects: cohort,
-        physical: weightedAverage(cohort, physical),
+        physical: cohort.length > 0
+          ? cohort.filter((project) => getPmsProjectStatus(project) === 'Completed').length / cohort.length * 100
+          : 0,
         financial: weightedAverage(cohort, financial),
       }
     })
@@ -1373,14 +1377,14 @@ export default function ExecutiveDashboard({
 
             <div className="exec13-summary-card physical">
               <strong>{formatPercent(overallPhysical)}</strong>
-              <span>Physical Accomplishment</span>
-              <small>Work completed</small>
+              <span>Project Completion Rate</span>
+              <small>Completed projects / total projects</small>
             </div>
 
             <div className="exec13-summary-card financial">
               <strong>{formatPercent(overallFinancial)}</strong>
               <span>Financial Accomplishment</span>
-              <small>Funds disbursed against project cost</small>
+              <small>Disbursement + reverted funds / project cost</small>
             </div>
 
             <button
