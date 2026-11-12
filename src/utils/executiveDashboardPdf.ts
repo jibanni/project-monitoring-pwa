@@ -27,7 +27,6 @@ type Summary = {
 const PAGE: [number, number] = [215.9, 330.2] // Folio landscape, matching other PMS10 report exports.
 const MARGIN = 12
 const NAVY: [number, number, number] = [13, 50, 92]
-const BLUE: [number, number, number] = [31, 85, 154]
 const GREEN: [number, number, number] = [26, 154, 91]
 const RED: [number, number, number] = [221, 53, 62]
 const SLATE: [number, number, number] = [101, 119, 141]
@@ -46,12 +45,6 @@ function numeric(value: unknown): number {
 
 function percent(value: number): string {
   return `${Math.max(0, Math.min(100, value)).toFixed(2)}%`
-}
-
-function moneyCompact(amount: number): string {
-  if (amount >= 1e9) return `PHP ${(amount / 1e9).toFixed(2)}B`
-  if (amount >= 1e6) return `PHP ${(amount / 1e6).toFixed(2)}M`
-  return `PHP ${amount.toLocaleString('en-PH', { maximumFractionDigits: 0 })}`
 }
 
 function shortMoney(amount: unknown): string {
