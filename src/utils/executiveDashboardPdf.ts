@@ -77,10 +77,6 @@ function projectTitle(project: ProjectRecord): string {
   return text(project.project_name ?? project.project_title ?? project.title ?? project.name) || 'Untitled Project'
 }
 
-function projectCode(project: ProjectRecord): string {
-  return text(project.subaybayan_project_code ?? project.project_code ?? project.code ?? project.reference_code) || '-'
-}
-
 function projectCost(project: ProjectRecord): number {
   if (text(project.subaybayan_project_code)) return numeric(project.budget)
   return numeric(project.project_cost ?? project.amount ?? project.budget ?? project.total_project_cost ?? project.approved_budget)
@@ -222,18 +218,20 @@ function addScope(doc: any, options: ExecutiveDashboardPdfOptions, projects: Pro
 }
 
 function metricCard(
-  doc: any, x: number, value: string, label: string, accent: [number, number, number], detail: string,
+  doc: any, x: number, value: string, label: string,
+  accent: [number, number, number], detail: string,
 ) {
-  const y = 63, w = 73.5, h = 36
+  // Compact KPIs leave most of the cover to the graphs.
+  const y = 61, w = 73.5, h = 24
   fill(doc, [255, 255, 255]); border(doc, BORDER)
-  doc.roundedRect(x, y, w, h, 4, 4, 'FD')
-  fill(doc, accent); doc.roundedRect(x, y, 2.8, h, 1.5, 1.5, 'F')
-  ink(doc, accent); doc.setFont('helvetica', 'bold'); doc.setFontSize(22)
-  doc.text(value, x + 6, y + 18)
-  ink(doc, NAVY); doc.setFontSize(8.7)
-  doc.text(label, x + 6, y + 25.3)
-  ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.7)
-  doc.text(detail, x + 6, y + 31.6)
+  doc.roundedRect(x, y, w, h, 2.3, 2.3, 'FD')
+  fill(doc, accent); doc.roundedRect(x, y, 2.6, h, 1.2, 1.2, 'F')
+  ink(doc, accent); doc.setFont('helvetica', 'bold'); doc.setFontSize(16.5)
+  doc.text(value, x + 6, y + 10.6)
+  ink(doc, NAVY); doc.setFontSize(7.5)
+  doc.text(label, x + 6, y + 16.8)
+  ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2)
+  doc.text(detail, x + 6, y + 21.6)
 }
 
 /**
@@ -329,99 +327,142 @@ function drawExecutivePage(
   const date = options.generatedAt ?? new Date()
   drawHeader(doc, images, `Generated ${formatDate(date.toISOString())}`)
   addScope(doc, options, projects)
-  const count = projects.length
-  const completed = projects.filter((project) => statusGroup(project) === 'Completed').length
-  const risk = projects.filter((project) => getPmsRiskLevel(project) === 'High').length
-  const financialRate = financeWeighted(projects)
-  const completionRate = count ? completed / count * 100 : 0
-  const cardGap = 4
 
-  for (const [index, metric] of [
-    [count.toLocaleString('en-PH'), 'TOTAL PROJECTS', NAVY, 'Current filtered portfolio'],
-    [percent(completionRate), 'COMPLETION RATE', GREEN, `${completed} of ${count} completed`],
-    [percent(financialRate), 'FINANCIAL', [79, 112, 182], 'Cost-weighted accomplishment'],
-    [risk.toLocaleString('en-PH'), 'HIGH RISK', RED, 'Requires close monitoring'],
-  ].entries()) {
-    const [number, label, color, detail] = metric as [string, string, [number, number, number], string]
-    metricCard(doc, MARGIN + index * (73.5 + cardGap), number, label, color, detail)
+  const count = projects.length
+  const completed = projects.filter((p) => statusGroup(p) === 'Completed').length
+  const ongoing = projects.filter((p) => statusGroup(p) === 'Ongoing').length
+  const notStarted = projects.filter((p) => statusGroup(p) === 'Not Yet Started').length
+  const other = count - completed - ongoing - notStarted
+  const highRisk = projects.filter((p) => getPmsRiskLevel(p) === 'High').length
+  const completion = count ? completed / count * 100 : 0
+  const financial = financeWeighted(projects)
+
+  const metrics: Array<[string, string, [number, number, number], string]> = [
+    [count.toLocaleString('en-PH'), 'TOTAL PROJECTS', NAVY, 'Filtered portfolio'],
+    [percent(completion), 'COMPLETION RATE', GREEN, `${completed} of ${count} completed`],
+    [percent(financial), 'FINANCIAL', [79, 112, 182], 'Cost-weighted progress'],
+    [highRisk.toLocaleString('en-PH'), 'HIGH RISK', RED, 'Requires monitoring'],
+  ]
+  metrics.forEach(([value, label, color, detail], index) => {
+    metricCard(doc, MARGIN + index * 77.5, value, label, color, detail)
+  })
+
+  // Status pie on the left and NADAI-year donuts on the right, comparable
+  // in scale to the Executive Dashboard charts rather than the KPI row.
+  const gap = 5
+  const panelWidth = (PAGE[1] - MARGIN * 2 - gap) / 2
+  const leftX = MARGIN
+  const rightX = MARGIN + panelWidth + gap
+  const panelY = 91
+  const panelHeight = 107
+
+  for (const x of [leftX, rightX]) {
+    fill(doc, [255, 255, 255]); border(doc, BORDER)
+    doc.roundedRect(x, panelY, panelWidth, panelHeight, 2.5, 2.5, 'FD')
   }
 
-  // Dashboard-consistent status pie and readable legend.
-  fill(doc, [255, 255, 255]); border(doc, BORDER)
-  doc.roundedRect(MARGIN, 104, PAGE[1] - MARGIN * 2, 39, 1.4, 1.4, 'FD')
   ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
-  doc.text('PROJECT IMPLEMENTATION STATUS', MARGIN + 6, 112)
+  doc.text('PROJECT IMPLEMENTATION STATUS', leftX + 7, 100.7)
+  ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.1)
+  doc.text(`${count} projects in current selection`, leftX + 7, 109.0)
 
   const statusSections: Array<{
     label: StatusBucket; value: number; color: [number, number, number]
   }> = [
     { label: 'Completed', value: completed, color: GREEN },
-    { label: 'Ongoing', value: projects.filter((p) => statusGroup(p) === 'Ongoing').length, color: [39, 102, 204] },
-    { label: 'Not Yet Started', value: projects.filter((p) => statusGroup(p) === 'Not Yet Started').length, color: SLATE },
-    { label: 'Other', value: projects.filter((p) => statusGroup(p) === 'Other').length, color: AMBER },
+    { label: 'Ongoing', value: ongoing, color: [39, 102, 204] },
+    { label: 'Not Yet Started', value: notStarted, color: SLATE },
+    { label: 'Other', value: other, color: AMBER },
   ]
-  drawPie(doc, 44, 128, 12, statusSections.map((section) => ({
-    value: section.value, color: section.color,
-  })))
-  statusSections.forEach((item, index) => {
-    const col = index % 2, row = Math.floor(index / 2)
-    const x = 75 + col * 109, y = 122 + row * 11.5
-    fill(doc, item.color); doc.circle(x, y - 1.2, 1.8, 'F')
-    ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
-    doc.text(`${item.label}: ${item.value}`, x + 5, y)
-  })
-  ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.4)
-  doc.text(`${completed} of ${count} projects completed (${percent(completionRate)})`, PAGE[1] - MARGIN - 5, 140, { align: 'right' })
+  const pieCenterX = leftX + panelWidth / 2
+  const pieCenterY = 146.5
+  const pieRadius = 28
+  drawPie(doc, pieCenterX, pieCenterY, pieRadius,
+    statusSections.map((item) => ({ value: item.value, color: item.color })))
 
-  // Double-donut charts reflect the existing desktop NADAI graphs:
-  // outer green = completed project ratio, inner blue = financial progress.
-  const cohorts = new Map<number, ProjectRecord[]>()
-  for (const project of projects) {
-    const dateValue = nadaiDate(project)
-    if (!dateValue) continue
-    const year = dateValue.getFullYear()
-    cohorts.set(year, [...(cohorts.get(year) || []), project])
-  }
-  const cohortYears = [...cohorts.keys()].sort((a, b) => a - b)
-  fill(doc, [255, 255, 255]); border(doc, BORDER)
-  doc.roundedRect(MARGIN, 148, PAGE[1] - MARGIN * 2, 49, 1.4, 1.4, 'FD')
-  ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
-  doc.text('PROGRESS BY NADAI / FUND DOWNLOAD YEAR', MARGIN + 6, 156)
-  const knownCount = [...cohorts.values()].reduce((sum, group) => sum + group.length, 0)
-  ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3)
-  doc.text(`${knownCount} of ${count} projects have a recorded NADAI date`, PAGE[1] - MARGIN - 6, 156, { align: 'right' })
-
-  const visibleYears = cohortYears.slice(0, 3)
-  if (!visibleYears.length) {
-    ink(doc, SLATE); doc.setFontSize(9)
-    doc.text('No recorded NADAI dates for the selected filters.', MARGIN + 9, 175)
-  } else {
-    const fullWidth = PAGE[1] - MARGIN * 2 - 12
-    const columnWidth = fullWidth / visibleYears.length
-    visibleYears.forEach((year, index) => {
-      const group = cohorts.get(year) || []
-      const groupCompletion = group.length
-        ? group.filter((p) => statusGroup(p) === 'Completed').length / group.length * 100
-        : 0
-      const groupFinancial = financeWeighted(group)
-      const x = MARGIN + 6 + index * columnWidth
-      ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
-      doc.text(`NADAI ${year}  |  ${group.length} projects`, x + 3, 164)
-      drawDoubleDonut(doc, x + 21, 180, groupCompletion, groupFinancial, 13)
-      fill(doc, GREEN); doc.circle(x + 40, 176, 1.5, 'F')
-      ink(doc, GREEN); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.7)
-      doc.text(`Physical  ${percent(groupCompletion)}`, x + 44, 177.1)
-      fill(doc, [85, 123, 193]); doc.circle(x + 40, 185, 1.5, 'F')
-      ink(doc, [85, 123, 193])
-      doc.text(`Financial ${percent(groupFinancial)}`, x + 44, 186)
+  // Labels within visible slices; the compact legend always has exact counts.
+  if (count > 0) {
+    let arc = -Math.PI / 2
+    statusSections.forEach((item) => {
+      const sweep = item.value / count * Math.PI * 2
+      if (item.value && sweep >= 0.34) {
+        const mid = arc + sweep / 2
+        const x = pieCenterX + Math.cos(mid) * (pieRadius * 0.59)
+        const y = pieCenterY + Math.sin(mid) * (pieRadius * 0.59)
+        ink(doc, [255, 255, 255])
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
+        doc.text(String(item.value), x, y + 1.4, { align: 'center' })
+      }
+      arc += sweep
     })
   }
-  if (cohortYears.length > visibleYears.length) {
-    ink(doc, SLATE); doc.setFontSize(6.4)
-    doc.text(`Additional NADAI years: ${cohortYears.length - visibleYears.length} (see project register)`, PAGE[1] - MARGIN - 5, 194, { align: 'right' })
+
+  statusSections.forEach((item, index) => {
+    const col = index % 2
+    const row = Math.floor(index / 2)
+    const x = leftX + 7 + col * (panelWidth / 2)
+    const y = 183.8 + row * 8.2
+    fill(doc, item.color); doc.circle(x + 1.5, y - 1.2, 1.4, 'F')
+    ink(doc, item.color); doc.setFont('helvetica', 'bold'); doc.setFontSize(7)
+    doc.text(`${item.label}: ${item.value}`, x + 5.3, y)
+  })
+
+  ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.4)
+  doc.text('PROGRESS BY FUND DOWNLOAD YEAR', rightX + 6, 100.7)
+
+  const cohorts = new Map<number, ProjectRecord[]>()
+  for (const project of projects) {
+    const received = nadaiDate(project)
+    if (!received) continue
+    const year = received.getFullYear()
+    cohorts.set(year, [...(cohorts.get(year) || []), project])
   }
-  ink(doc, SLATE); doc.setFontSize(6.4)
-  doc.text('Physical = completed / projects in group. Financial = cost-weighted accomplishment. Other = suspended, cancelled or terminated.', MARGIN, 201)
+  const years = [...cohorts.keys()].sort((a, b) => a - b)
+  const recorded = [...cohorts.values()].reduce((sum, group) => sum + group.length, 0)
+  ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.1)
+  doc.text(`${recorded} of ${count} projects with NADAI date`, rightX + 6, 109.0)
+
+  const visibleYears = years.slice(0, 3)
+  if (!visibleYears.length) {
+    ink(doc, SLATE); doc.setFontSize(8.5)
+    doc.text('No NADAI dates recorded for current selection.',
+      rightX + panelWidth / 2, 150, { align: 'center' })
+  } else {
+    const columnWidth = panelWidth / visibleYears.length
+    visibleYears.forEach((year, index) => {
+      const group = cohorts.get(year) || []
+      const done = group.filter((p) => statusGroup(p) === 'Completed').length
+      const physicalRate = group.length ? done / group.length * 100 : 0
+      const financialRate = financeWeighted(group)
+      const centerX = rightX + columnWidth * (index + 0.5)
+      const radius = visibleYears.length === 1 ? 27 : visibleYears.length === 2 ? 22 : 18
+
+      ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8)
+      doc.text(`NADAI ${year}`, centerX, 117.3, { align: 'center' })
+      ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.2)
+      doc.text(`${group.length} ${group.length === 1 ? 'project' : 'projects'}`,
+        centerX, 123.0, { align: 'center' })
+
+      drawDoubleDonut(doc, centerX, 150.0, physicalRate, financialRate, radius)
+
+      const textSize = visibleYears.length === 3 ? 6.3 : 7.0
+      const legendLeft = centerX - 20
+      const legendRight = centerX + 23
+      fill(doc, GREEN); doc.circle(legendLeft + 1.2, 181.9, 1.25, 'F')
+      ink(doc, GREEN); doc.setFont('helvetica', 'bold'); doc.setFontSize(textSize)
+      doc.text('Physical', legendLeft + 4.5, 183)
+      doc.text(percent(physicalRate), legendRight, 183, { align: 'right' })
+      fill(doc, [85, 123, 193]); doc.circle(legendLeft + 1.2, 190.0, 1.25, 'F')
+      ink(doc, [85, 123, 193])
+      doc.text('Financial', legendLeft + 4.5, 191.1)
+      doc.text(percent(financialRate), legendRight, 191.1, { align: 'right' })
+    })
+  }
+  if (years.length > visibleYears.length) {
+    ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(6)
+    doc.text(`+${years.length - visibleYears.length} NADAI year(s) in project register`,
+      rightX + panelWidth - 6, 196, { align: 'right' })
+  }
 }
 
 function drawProvinceOverviewPages(
@@ -636,14 +677,21 @@ export async function exportExecutiveDashboardPdf(
     projectLgu(a).localeCompare(projectLgu(b)) ||
     projectTitle(a).localeCompare(projectTitle(b)),
   )
+  const hasFullPhysicalAccomplishment = (project: ProjectRecord) => {
+    const value = project.physical_accomplishment ??
+      project.physical_progress ?? project.actual_physical_accomplishment
+    return value != null && text(value) !== '' && numeric(value) >= 99.999
+  }
+
   const detailRows = ordered.map((project) => [
-    projectCode(project),
-    `${regionProvince(project)} / ${projectLgu(project)}`,
+    regionProvince(project),
+    projectLgu(project),
     projectTitle(project),
     text(project.barangay ?? project.barangay_name) || '-',
     getPmsProjectStatus(project),
     physical(project),
-    project.financial_accomplishment == null ? '-' : percent(finance(project)),
+    project.financial_accomplishment == null || text(project.financial_accomplishment) === ''
+      ? '-' : percent(finance(project)),
     formatDate(nadaiDate(project)?.toISOString()),
     shortMoney(project.reverted_funds),
   ])
@@ -653,7 +701,7 @@ export async function exportExecutiveDashboardPdf(
     margin: { left: MARGIN, right: MARGIN, top: 69, bottom: 17 },
     tableWidth: width,
     head: [[
-      'PROJECT CODE', 'PROVINCE / LGU', 'PROJECT TITLE', 'BARANGAY',
+      'PROVINCE / HUC', 'LGU', 'PROJECT TITLE', 'BARANGAY',
       'STATUS', 'PHYSICAL', 'FINANCIAL', 'NADAI DOWNLOAD', 'REVERTED FUNDS',
     ]],
     body: detailRows,
@@ -669,9 +717,30 @@ export async function exportExecutiveDashboardPdf(
     },
     alternateRowStyles: { fillColor: [243, 247, 251] },
     columnStyles: {
-      0: { cellWidth: 37 }, 1: { cellWidth: 38 }, 2: { cellWidth: 81 },
-      3: { cellWidth: 27 }, 4: { cellWidth: 29 }, 5: { cellWidth: 17 },
-      6: { cellWidth: 17 }, 7: { cellWidth: 28 }, 8: { cellWidth: 32 },
+      0: { cellWidth: 34 }, 1: { cellWidth: 34 }, 2: { cellWidth: 83 },
+      3: { cellWidth: 26 }, 4: { cellWidth: 28 }, 5: { cellWidth: 18 },
+      6: { cellWidth: 19 }, 7: { cellWidth: 30 }, 8: { cellWidth: 34 },
+    },
+    didParseCell(data: any) {
+      if (data.section !== 'body') return
+      const project = ordered[data.row.index]
+      if (!project || !hasFullPhysicalAccomplishment(project)) return
+
+      // A restrained green row identifies physical work at 100%.
+      // Red financial text is reserved ONLY for physically complete
+      // projects whose reported financial percentage is below 100%.
+      data.cell.styles.fillColor = [231, 247, 236]
+      if (data.column.index === 5) {
+        data.cell.styles.textColor = [18, 120, 62]
+        data.cell.styles.fontStyle = 'bold'
+      }
+      const hasFinancialFigure =
+        project.financial_accomplishment != null &&
+        text(project.financial_accomplishment) !== ''
+      if (data.column.index === 6 && hasFinancialFigure && finance(project) < 99.999) {
+        data.cell.styles.textColor = [194, 32, 47]
+        data.cell.styles.fontStyle = 'bold'
+      }
     },
     willDrawPage(data: any) {
       drawHeader(doc, images, data.pageNumber === 1
@@ -680,6 +749,9 @@ export async function exportExecutiveDashboardPdf(
       addScope(doc, context, projects)
       ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
       doc.text('FILTERED PROJECT REGISTER', MARGIN, 65)
+      ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2)
+      doc.text('Green = 100% physical   |   Red financial = physically complete, financial below 100%',
+        PAGE[1] - MARGIN, 65, { align: 'right' })
     },
   })
 
