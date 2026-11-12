@@ -1,7 +1,4 @@
 import { getPmsProjectStatus, getPmsRiskLevel } from './projectStatus'
-import { getProjectSlippageVariance } from './projectVariance'
-import { getDeadlineRiskInfo } from './deadlineRisk'
-import { supabase } from '../lib/supabase'
 import { isProjectEligibleForAggregatePerformance } from './projectMetricEligibility'
 
 type ProjectRecord = Record<string, any>
@@ -541,53 +538,10 @@ function addFooters(doc: any, options: ExecutiveDashboardPdfOptions) {
   }
 }
 
-/**
- * Fetch only inspection notes for risk-tagged projects in the current
- * authorized filter scope. RLS protects the query; this read never changes
- * SubayBAYAN project status or the inspection/update records.
- * Missing/failed lookups are non-fatal and the report still exports.
- */
-async function loadRiskInspectionNotes(projects: ProjectRecord[]): Promise<Map<string, string>> {
-  const notes = new Map<string, string>()
-  const ids = Array.from(new Set(projects
-    .filter((project) => getPmsRiskLevel(project) !== 'None')
-    .map((project) => text(project.id))
-    .filter(Boolean),
-  ))
-  for (let offset = 0; offset < ids.length; offset += 30) {
-    const idsBatch = ids.slice(offset, offset + 30)
-    try {
-      const { data, error } = await supabase
-        .from('project_updates')
-        .select('project_id, issues, remarks, inspection_date, created_at')
-        .in('project_id', idsBatch)
-        .order('inspection_date', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false, nullsFirst: false })
-        .limit(1000)
-
-      if (error) {
-        console.warn('PMS10 PDF: inspection-note lookup unavailable:', error.message)
-        continue
-      }
-      for (const update of data || []) {
-        const key = text(update.project_id)
-        if (!key || notes.has(key)) continue
-        const parts = [text(update.issues), text(update.remarks)]
-          .filter((value) => value && !/^(?:none|no issues?|nil|n\/a)$/i.test(value))
-        if (!parts.length) continue
-        const dateLabel = formatDate(update.inspection_date)
-        notes.set(key, `Inspection${dateLabel !== '-' ? ` (${dateLabel})` : ''}: ${[...new Set(parts)].join('; ')}`)
-      }
-    } catch (error) {
-      console.warn('PMS10 PDF: inspection-note lookup failed:', error)
-    }
-  }
-  return notes
-}
-
 export async function exportExecutiveDashboardPdf(
   projects: ProjectRecord[],
   options: ExecutiveDashboardPdfOptions,
+  officialProjects: ProjectRecord[] = projects,
 ): Promise<void> {
   // Load PDF libraries only when requested; keep Dashboard startup lightweight.
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
@@ -735,55 +689,95 @@ export async function exportExecutiveDashboardPdf(
     return value != null && text(value) !== '' && numeric(value) >= 99.999
   }
 
-  const reportDate = context.generatedAt
-  const inspectionRiskNotes = await loadRiskInspectionNotes(ordered)
-  const isAtRisk = (project: ProjectRecord) => getPmsRiskLevel(project) !== 'None'
-  const getProjectRemarks = (project: ProjectRecord): string => {
-    const riskLevel = getPmsRiskLevel(project)
-    const recordedIssues = text(project.issues)
-    const enteredRemarks = text(project.remarks)
-    const noIssue = (value: string) => /^(?:none|no issues?|n\/a|not applicable|nil)$/i.test(value)
-    const recordedNote = [recordedIssues, enteredRemarks]
-      .filter((value) => value && !noIssue(value))
-      .filter((value, index, values) => values.indexOf(value) === index)
-      .join('; ')
+  // The separate masterlist is authoritative even for On-Site reports.
+  // Engineer snapshots replace status, risk_level and physical progress;
+  // none of those snapshot values can determine official PDF risk causes.
+  const officialById = new Map(officialProjects.map(
+    (project) => [text(project.id), project] as const,
+  ))
+  const officialSourceFor = (project: ProjectRecord): ProjectRecord | undefined =>
+    officialById.get(text(project.id)) ||
+    (options.dataSource === 'official' ? project : undefined)
 
-    if (riskLevel === 'None') {
-      return recordedNote ? `Remarks: ${recordedNote}` : ''
+  type RiskLevel = 'None' | 'Low' | 'Moderate' | 'High'
+  const riskPriority: Record<RiskLevel, number> = {
+    None: 0, Low: 1, Moderate: 2, High: 3,
+  }
+  const strongerRisk = (a: RiskLevel, b: RiskLevel): RiskLevel =>
+    riskPriority[b] > riskPriority[a] ? b : a
+
+  const reportDay = new Date(
+    context.generatedAt.getFullYear(),
+    context.generatedAt.getMonth(),
+    context.generatedAt.getDate(),
+  )
+  const getOfficialRiskInfo = (project: ProjectRecord): {
+    level: RiskLevel
+    remarks: string
+  } => {
+    const official = officialSourceFor(project)
+    if (!official) return { level: 'None', remarks: '' }
+
+    // Officially completed projects must not be classified as at risk.
+    if (getPmsProjectStatus(official) === 'Completed') {
+      return { level: 'None', remarks: '' }
     }
 
-    const reasons: string[] = []
-    const status = text(project.status ?? project.project_status).toLowerCase()
-    if (/suspend/.test(status)) reasons.push('Implementation suspended')
-    if (/cancel/.test(status)) reasons.push('Implementation cancelled')
-    if (/terminat/.test(status)) reasons.push('Implementation terminated')
+    let level: RiskLevel = getPmsRiskLevel(official)
+    const causes: string[] = []
 
-    const deadline = getDeadlineRiskInfo(project, reportDate)
-    if (
-      (deadline.basis === 'Contract Expiry' || deadline.basis === 'Revised Contract Expiry') &&
-      deadline.daysRemaining !== null
-    ) {
-      if (deadline.daysRemaining < 0) {
-        reasons.push(`${deadline.basis} lapsed on ${formatDate(deadline.effectiveDate)}`)
-      } else if (deadline.daysRemaining <= 30 && riskLevel !== 'High') {
-        reasons.push(`${deadline.basis} within ${deadline.daysRemaining} days`)
+    // Use the CL SLIPPAGE figure imported from SubayBAYAN.
+    // Never recalculate it using the engineer's physical accomplishment.
+    if (official.slippage != null && text(official.slippage) !== '') {
+      const slippage = numeric(official.slippage)
+      if (slippage < 0) {
+        causes.push('Negative slippage: ' + Math.abs(slippage).toFixed(2) + ' percentage points')
+        level = strongerRisk(level,
+          slippage <= -15 ? 'High' : slippage < -5 ? 'Moderate' : 'Low')
       }
     }
 
-    const slippage = getProjectSlippageVariance(project)
-    if (slippage < 0) {
-      reasons.push(`Negative slippage: ${Math.abs(slippage).toFixed(2)} percentage points`)
+    // Revised contract expiry takes precedence over the original expiry.
+    // Neither target completion nor inspection dates create a risk cause.
+    const revisedExpiry = text(official.revised_contract_expiration_date)
+    const originalExpiry = text(official.contract_expiration_date)
+    const expiryText = revisedExpiry || originalExpiry
+    if (expiryText) {
+      const expiry = new Date(expiryText.slice(0, 10) + 'T00:00:00')
+      if (!Number.isNaN(expiry.getTime())) {
+        const daysRemaining = Math.round((expiry.getTime() - reportDay.getTime()) / 86400000)
+        const contractLabel = revisedExpiry ? 'Revised contract' : 'Contract'
+        if (daysRemaining < 0) {
+          causes.push(contractLabel + ' expired on ' + formatDate(expiryText))
+          level = strongerRisk(level, 'High')
+        } else if (daysRemaining <= 30) {
+          const suffix = daysRemaining === 1 ? ' day' : ' days'
+          causes.push(contractLabel + ' expires in ' + daysRemaining + suffix +
+            ' (' + formatDate(expiryText) + ')')
+          level = strongerRisk(level, 'Moderate')
+        }
+      }
     }
-    const notStartedReason = text(project.not_yet_started_reason)
-    if (notStartedReason && !noIssue(notStartedReason) && /not yet started|procurement/i.test(status)) {
-      reasons.push(`Not started: ${notStartedReason}`)
+
+    if (level === 'None') return { level, remarks: '' }
+    if (!causes.length) {
+      return {
+        level,
+        remarks: 'SubayBAYAN ' + level +
+          ' risk: No negative slippage or contract-expiration basis recorded',
+      }
     }
-    if (recordedNote) reasons.push(`Recorded issues: ${recordedNote}`)
-    const inspectionNote = inspectionRiskNotes.get(text(project.id))
-    if (inspectionNote) reasons.push(inspectionNote)
-    if (!reasons.length) reasons.push('Specific cause not recorded')
-    return `AT RISK (${riskLevel}): ${reasons.join('; ')}`
+    return {
+      level,
+      remarks: 'SubayBAYAN ' + level + ' risk: ' + causes.join('; '),
+    }
   }
+  const officialRiskById = new Map(ordered.map(
+    (project) => [text(project.id), getOfficialRiskInfo(project)] as const,
+  ))
+  const getOfficialRiskFor = (project: ProjectRecord) =>
+    officialRiskById.get(text(project.id)) ||
+    { level: 'None' as RiskLevel, remarks: '' }
 
   const getRevertedFundsAndRemarks = (project: ProjectRecord): string => {
     const hasReversion =
@@ -796,7 +790,7 @@ export async function exportExecutiveDashboardPdf(
           maximumFractionDigits: 2,
         })}`
       : ''
-    const remarks = getProjectRemarks(project)
+    const remarks = getOfficialRiskFor(project).remarks
     return [amount, remarks].filter(Boolean).join('\n') || '-'
   }
 
@@ -845,8 +839,8 @@ export async function exportExecutiveDashboardPdf(
 
       // Risk highlighting overrides all other row treatments. This makes
       // low, moderate and high risk projects easy to identify at a glance.
-      const riskLevel = getPmsRiskLevel(project)
-      if (isAtRisk(project)) {
+      const riskLevel = getOfficialRiskFor(project).level
+      if (riskLevel !== 'None') {
         data.cell.styles.fillColor = riskLevel === 'High'
           ? [255, 230, 233]
           : [255, 244, 243]
@@ -885,7 +879,7 @@ export async function exportExecutiveDashboardPdf(
       ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
       doc.text('FILTERED PROJECT REGISTER', MARGIN, 65)
       ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2)
-      doc.text('Green = 100% physical   |   Red row = at risk   |   Red financial = 100% physical, <100% financial',
+      doc.text('Red risk = official SubayBAYAN slippage/contract expiry   |   Green = 100% physical   |   Red financial = 100% physical, <100% financial',
         PAGE[1] - MARGIN, 65, { align: 'right' })
     },
   })
