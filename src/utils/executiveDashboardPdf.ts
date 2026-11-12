@@ -234,6 +234,65 @@ function metricCard(
   doc.text(detail, x + 6, y + 31.6)
 }
 
+/**
+ * Pie wedges are vector PDF geometry (not rasterized screenshots).
+ * Each wedge is tessellated into narrow filled triangles for sharp printing.
+ */
+function drawPie(
+  doc: any, cx: number, cy: number, radius: number,
+  sections: Array<{ value: number; color: [number, number, number] }>,
+) {
+  const total = sections.reduce((sum, section) => sum + Math.max(0, section.value), 0)
+  if (total <= 0) {
+    fill(doc, [226, 233, 242]); doc.circle(cx, cy, radius, 'F')
+    return
+  }
+  let angle = -Math.PI / 2
+  for (const section of sections) {
+    const sweep = 2 * Math.PI * Math.max(0, section.value) / total
+    if (sweep <= 0) continue
+    fill(doc, section.color)
+    if (sweep >= 2 * Math.PI - 0.000001) {
+      doc.circle(cx, cy, radius, 'F')
+    } else {
+      const pieces = Math.max(2, Math.ceil(sweep / (Math.PI / 48)))
+      for (let part = 0; part < pieces; part += 1) {
+        const start = angle + sweep * part / pieces
+        const end = angle + sweep * (part + 1) / pieces
+        doc.triangle(
+          cx, cy,
+          cx + radius * Math.cos(start), cy + radius * Math.sin(start),
+          cx + radius * Math.cos(end), cy + radius * Math.sin(end),
+          'F',
+        )
+      }
+    }
+    angle += sweep
+  }
+}
+
+function drawRing(
+  doc: any, cx: number, cy: number, radius: number,
+  thickness: number, value: number, color: [number, number, number],
+) {
+  const amount = Math.max(0, Math.min(100, value))
+  drawPie(doc, cx, cy, radius, [
+    { value: amount, color },
+    { value: 100 - amount, color: [227, 234, 244] },
+  ])
+  fill(doc, [255, 255, 255])
+  doc.circle(cx, cy, radius - thickness, 'F')
+}
+
+function drawDoubleDonut(
+  doc: any, cx: number, cy: number,
+  physicalCompletion: number, financialAccomplishment: number,
+  radius = 13.5,
+) {
+  drawRing(doc, cx, cy, radius, 4.3, physicalCompletion, GREEN)
+  drawRing(doc, cx, cy, radius - 5.1, 3.4, financialAccomplishment, [85, 123, 193])
+}
+
 function drawExecutivePage(
   doc: any,
   images: { dilg?: string; bagong?: string },
@@ -244,86 +303,150 @@ function drawExecutivePage(
   drawHeader(doc, images, `Generated ${formatDate(date.toISOString())}  |  Landscape executive summary`)
   addScope(doc, options, projects)
   const count = projects.length
-  const complete = projects.filter((project) => statusGroup(project) === 'Completed').length
+  const completed = projects.filter((project) => statusGroup(project) === 'Completed').length
   const risk = projects.filter((project) => getPmsRiskLevel(project) === 'High').length
-  const fin = financeWeighted(projects)
-  const value = (count ? complete / count * 100 : 0)
+  const financialRate = financeWeighted(projects)
+  const completionRate = count ? completed / count * 100 : 0
   const cardGap = 4
-  for (const [i, metric] of [
+
+  for (const [index, metric] of [
     [count.toLocaleString('en-PH'), 'TOTAL PROJECTS', NAVY, 'Current filtered portfolio'],
-    [percent(value), 'COMPLETION RATE', GREEN, `${complete} of ${count} completed`],
-    [percent(fin), 'FINANCIAL', [79, 112, 182], 'Weighted by official cost'],
-    [risk.toLocaleString('en-PH'), 'HIGH RISK', RED, 'Requires monitoring'],
+    [percent(completionRate), 'COMPLETION RATE', GREEN, `${completed} of ${count} completed`],
+    [percent(financialRate), 'FINANCIAL', [79, 112, 182], 'Cost-weighted accomplishment'],
+    [risk.toLocaleString('en-PH'), 'HIGH RISK', RED, 'Requires close monitoring'],
   ].entries()) {
     const [number, label, color, detail] = metric as [string, string, [number, number, number], string]
-    metricCard(doc, MARGIN + i * (73.5 + cardGap), number, label, color, detail)
+    metricCard(doc, MARGIN + index * (73.5 + cardGap), number, label, color, detail)
   }
 
-  // Status distribution: all statuses reconcile to total projects.
+  // Dashboard-consistent status pie and readable legend.
   fill(doc, [255, 255, 255]); border(doc, BORDER)
-  doc.roundedRect(MARGIN, 104, PAGE[1] - MARGIN * 2, 38, 4, 4, 'FD')
+  doc.roundedRect(MARGIN, 104, PAGE[1] - MARGIN * 2, 39, 4, 4, 'FD')
   ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
   doc.text('PROJECT IMPLEMENTATION STATUS', MARGIN + 6, 112)
-  const categories: [StatusBucket, [number, number, number]][] = [
-    ['Completed', GREEN], ['Ongoing', [38, 104, 201]], ['Not Yet Started', SLATE], ['Other', AMBER],
+
+  const statusSections: Array<{
+    label: StatusBucket; value: number; color: [number, number, number]
+  }> = [
+    { label: 'Completed', value: completed, color: GREEN },
+    { label: 'Ongoing', value: projects.filter((p) => statusGroup(p) === 'Ongoing').length, color: [39, 102, 204] },
+    { label: 'Not Yet Started', value: projects.filter((p) => statusGroup(p) === 'Not Yet Started').length, color: SLATE },
+    { label: 'Other', value: projects.filter((p) => statusGroup(p) === 'Other').length, color: AMBER },
   ]
-  let x = MARGIN + 6
-  const barW = PAGE[1] - MARGIN * 2 - 12
-  fill(doc, [228, 233, 241]); doc.roundedRect(x, 117, barW, 7, 2, 2, 'F')
-  if (count) {
-    categories.forEach(([category, color]) => {
-      const n = projects.filter((p) => statusGroup(p) === category).length
-      const segment = n / count * barW
-      if (segment > 0) { fill(doc, color); doc.rect(x, 117, segment, 7, 'F'); x += segment }
+  drawPie(doc, 44, 124, 14, statusSections.map((section) => ({
+    value: section.value, color: section.color,
+  })))
+  statusSections.forEach((item, index) => {
+    const col = index % 2, row = Math.floor(index / 2)
+    const x = 75 + col * 109, y = 122 + row * 11.5
+    fill(doc, item.color); doc.circle(x, y - 1.2, 1.8, 'F')
+    ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+    doc.text(`${item.label}: ${item.value}`, x + 5, y)
+  })
+  ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.4)
+  doc.text(`${completed} of ${count} projects completed (${percent(completionRate)})`, PAGE[1] - MARGIN - 5, 140, { align: 'right' })
+
+  // Double-donut charts reflect the existing desktop NADAI graphs:
+  // outer green = completed project ratio, inner blue = financial progress.
+  const cohorts = new Map<number, ProjectRecord[]>()
+  for (const project of projects) {
+    const dateValue = nadaiDate(project)
+    if (!dateValue) continue
+    const year = dateValue.getFullYear()
+    cohorts.set(year, [...(cohorts.get(year) || []), project])
+  }
+  const cohortYears = [...cohorts.keys()].sort((a, b) => a - b)
+  fill(doc, [255, 255, 255]); border(doc, BORDER)
+  doc.roundedRect(MARGIN, 148, PAGE[1] - MARGIN * 2, 49, 4, 4, 'FD')
+  ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
+  doc.text('PROGRESS BY NADAI / FUND DOWNLOAD YEAR', MARGIN + 6, 156)
+  const knownCount = [...cohorts.values()].reduce((sum, group) => sum + group.length, 0)
+  ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3)
+  doc.text(`${knownCount} of ${count} projects have a recorded NADAI date`, PAGE[1] - MARGIN - 6, 156, { align: 'right' })
+
+  const visibleYears = cohortYears.slice(0, 3)
+  if (!visibleYears.length) {
+    ink(doc, SLATE); doc.setFontSize(9)
+    doc.text('No recorded NADAI dates for the selected filters.', MARGIN + 9, 175)
+  } else {
+    const fullWidth = PAGE[1] - MARGIN * 2 - 12
+    const columnWidth = fullWidth / visibleYears.length
+    visibleYears.forEach((year, index) => {
+      const group = cohorts.get(year) || []
+      const groupCompletion = group.length
+        ? group.filter((p) => statusGroup(p) === 'Completed').length / group.length * 100
+        : 0
+      const groupFinancial = financeWeighted(group)
+      const x = MARGIN + 6 + index * columnWidth
+      ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+      doc.text(`NADAI ${year}  |  ${group.length} projects`, x + 3, 164)
+      drawDoubleDonut(doc, x + 21, 180, groupCompletion, groupFinancial, 13)
+      fill(doc, GREEN); doc.circle(x + 40, 176, 1.5, 'F')
+      ink(doc, GREEN); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.7)
+      doc.text(`Physical  ${percent(groupCompletion)}`, x + 44, 177.1)
+      fill(doc, [85, 123, 193]); doc.circle(x + 40, 185, 1.5, 'F')
+      ink(doc, [85, 123, 193])
+      doc.text(`Financial ${percent(groupFinancial)}`, x + 44, 186)
     })
   }
-  categories.forEach(([category, color], index) => {
-    const countHere = projects.filter((project) => statusGroup(project) === category).length
-    const px = MARGIN + 6 + index * 74.5
-    fill(doc, color); doc.circle(px + 1.4, 132.5, 1.4, 'F')
-    ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.7)
-    doc.text(`${category}: ${countHere}`, px + 5, 134)
-  })
+  if (cohortYears.length > visibleYears.length) {
+    ink(doc, SLATE); doc.setFontSize(6.4)
+    doc.text(`Additional NADAI years: ${cohortYears.length - visibleYears.length} (see project register)`, PAGE[1] - MARGIN - 5, 194, { align: 'right' })
+  }
+  ink(doc, SLATE); doc.setFontSize(6.4)
+  doc.text('Physical = completed / projects in group. Financial = cost-weighted accomplishment. Other = suspended, cancelled or terminated.', MARGIN, 201)
+}
 
-  const nadai = projects.map((p) => ({ project: p, date: nadaiDate(p) }))
-  const byYear = new Map<number, ProjectRecord[]>()
-  nadai.forEach(({ project, date }) => {
-    if (date) {
-      const y = date.getFullYear()
-      byYear.set(y, [...(byYear.get(y) || []), project])
+function drawProvinceOverviewPages(
+  doc: any, images: { dilg?: string; bagong?: string },
+  projects: ProjectRecord[], options: ExecutiveDashboardPdfOptions,
+) {
+  const map = new Map<string, ProjectRecord[]>()
+  for (const project of projects) {
+    const province = regionProvince(project)
+    map.set(province, [...(map.get(province) || []), project])
+  }
+  const areas = [...map].map(([name, items]) => {
+    const complete = items.filter((p) => statusGroup(p) === 'Completed').length
+    return {
+      name, count: items.length, complete,
+      rate: items.length ? complete / items.length * 100 : 0,
+      financial: financeWeighted(items),
+      risk: items.filter((p) => getPmsRiskLevel(p) === 'High').length,
     }
-  })
-  const years = [...byYear.keys()].sort((a, b) => a - b)
-  fill(doc, [255, 255, 255]); border(doc, BORDER)
-  doc.roundedRect(MARGIN, 148, PAGE[1] - MARGIN * 2, 45, 4, 4, 'FD')
-  ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
-  doc.text('PROGRESS BY NADAI / FUND DOWNLOAD YEAR', MARGIN + 6, 156.2)
-  ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
-  doc.text(`${nadai.length - nadai.filter((p) => !p.date).length} of ${count} have a recorded NADAI / download date`, PAGE[1] - MARGIN - 6, 156.2, { align: 'right' })
+  }).sort((a, b) => b.rate - a.rate || a.name.localeCompare(b.name))
 
-  const yearRows = years.length ? years.slice(0, 6) : []
-  if (!yearRows.length) {
-    doc.text('No fund download dates are recorded for the current filters.', MARGIN + 6, 170)
+  // For a single-area report the cover page already supplies the metrics.
+  if (areas.length <= 1) return
+
+  for (let offset = 0; offset < areas.length; offset += 8) {
+    doc.addPage()
+    drawHeader(doc, images, 'At-a-glance comparison of provincial and HUC performance')
+    addScope(doc, options, projects)
+    ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.7)
+    doc.text('PERFORMANCE BY PROVINCE / HIGHLY URBANIZED CITY', MARGIN, 65)
+    ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.1)
+    doc.text('Ranked by completion rate  |  Donut = completed / total projects', PAGE[1] - MARGIN, 65, { align: 'right' })
+
+    areas.slice(offset, offset + 8).forEach((area, index) => {
+      const row = Math.floor(index / 2), col = index % 2
+      const x = MARGIN + col * 155.5, y = 70 + row * 32
+      fill(doc, [255, 255, 255]); border(doc, BORDER)
+      doc.roundedRect(x, y, 150, 29.4, 3.5, 3.5, 'FD')
+      drawRing(doc, x + 17, y + 14.5, 11, 4.2, area.rate, GREEN)
+      ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+      const name = doc.splitTextToSize(area.name, 116).slice(0, 1)
+      doc.text(name, x + 33, y + 7.5)
+      ink(doc, GREEN); doc.setFontSize(12.3)
+      doc.text(percent(area.rate), x + 33, y + 16)
+      ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.2)
+      doc.text(`${area.complete} / ${area.count} completed`, x + 75, y + 15.3)
+      ink(doc, [65, 101, 169]); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.3)
+      doc.text(`Financial: ${percent(area.financial)}`, x + 33, y + 24.8)
+      ink(doc, area.risk > 0 ? RED : SLATE); doc.setFontSize(7.2)
+      doc.text(`High Risk: ${area.risk}`, x + 112, y + 24.8)
+    })
   }
-  const startX = MARGIN + 6
-  const columnWidth = (PAGE[1] - MARGIN * 2 - 12) / Math.min(3, Math.max(1, yearRows.length))
-  yearRows.forEach((year, i) => {
-    const group = byYear.get(year) || []
-    const row = Math.floor(i / 3), col = i % 3
-    const xx = startX + col * columnWidth, yy = 164 + row * 13.1
-    const progress = group.length ? 100 * group.filter((p) => statusGroup(p) === 'Completed').length / group.length : 0
-    ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.6)
-    doc.text(`NADAI ${year}  |  ${group.length} projects`, xx, yy)
-    fill(doc, [227, 233, 241]); doc.roundedRect(xx, yy + 2, columnWidth - 20, 3.5, 1.7, 1.7, 'F')
-    fill(doc, GREEN); if (progress > 0) doc.roundedRect(xx, yy + 2, (columnWidth - 20) * progress / 100, 3.5, 1.7, 1.7, 'F')
-    ink(doc, GREEN); doc.setFontSize(7); doc.text(percent(progress), xx + columnWidth - 17, yy + 5)
-  })
-  if (years.length > yearRows.length) {
-    ink(doc, SLATE); doc.setFontSize(6.8)
-    doc.text(`+ ${years.length - yearRows.length} additional NADAI years in the project register`, PAGE[1] - MARGIN - 5, 189, { align: 'right' })
-  }
-  ink(doc, SLATE); doc.setFontSize(6.5)
-  doc.text('Completion = Completed / Total Projects. Other = suspended, cancelled, terminated or unclassified. Financial % follows PMS10 source values.', MARGIN, 199.2)
 }
 
 function addFooters(doc: any, options: ExecutiveDashboardPdfOptions) {
