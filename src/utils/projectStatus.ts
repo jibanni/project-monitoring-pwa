@@ -92,6 +92,17 @@ export function getPmsProjectStatus(project: Record<string, any>): PmsProjectSta
     return 'Completed'
   }
 
+  // For a SubayBAYAN-linked record the explicit source status takes
+  // precedence over local schedule/contract inference.
+  if (textValue(project.subaybayan_project_code)) {
+    if (rawStatus.includes('terminat')) return 'Terminated'
+    if (rawStatus.includes('cancel')) return 'Cancelled'
+    if (rawStatus.includes('suspend')) return 'Suspended'
+    if (rawStatus.includes('procurement')) return 'Under Procurement'
+    if (rawStatus.includes('not') && rawStatus.includes('start')) return 'Not Yet Started'
+    if (rawStatus.includes('ongoing') || rawStatus.includes('on going')) return 'Ongoing'
+  }
+
   if (rawStatus.includes('terminat')) return 'Terminated'
   if (rawStatus.includes('cancel')) return 'Cancelled'
   if (rawStatus.includes('suspend')) return 'Suspended'
@@ -134,6 +145,12 @@ export function getPmsRiskLevel(project: Record<string, any>): PmsRiskLevel {
 
   if (status === 'Completed' || physical >= 100) {
     return 'None'
+  }
+
+  // A source-linked project explicitly uses the imported (or selected
+  // on-site snapshot) risk level, not a calculated field override.
+  if (textValue(project.subaybayan_project_code)) {
+    return normalizeRiskLevel(project.risk_level)
   }
 
   return normalizeRiskLevel(getComputedRiskLevelWithDeadline(project))
