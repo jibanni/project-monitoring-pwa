@@ -719,6 +719,7 @@ export function getSimplifiedImportStatus(record: SubayImportRecord) {
   if (rawStatus.includes('suspend')) return 'Suspended'
   if (rawStatus.includes('not yet started') || rawStatus.includes('not started')) return 'Not Yet Started'
   if (rawStatus.includes('procurement')) return 'Under Procurement'
+  if (rawStatus.includes('ongoing') || rawStatus.includes('on-going') || rawStatus.includes('on going')) return 'Ongoing'
 
   if (record.subayFormat === 'sglgif_portal') {
     if (
