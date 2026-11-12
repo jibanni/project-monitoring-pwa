@@ -1,6 +1,7 @@
 import { getPmsProjectStatus, getPmsRiskLevel } from './projectStatus'
 import { getProjectSlippageVariance } from './projectVariance'
 import { getDeadlineRiskInfo } from './deadlineRisk'
+import { supabase } from '../lib/supabase'
 import { isProjectEligibleForAggregatePerformance } from './projectMetricEligibility'
 
 type ProjectRecord = Record<string, any>
@@ -540,6 +541,50 @@ function addFooters(doc: any, options: ExecutiveDashboardPdfOptions) {
   }
 }
 
+/**
+ * Fetch only inspection notes for risk-tagged projects in the current
+ * authorized filter scope. RLS protects the query; this read never changes
+ * SubayBAYAN project status or the inspection/update records.
+ * Missing/failed lookups are non-fatal and the report still exports.
+ */
+async function loadRiskInspectionNotes(projects: ProjectRecord[]): Promise<Map<string, string>> {
+  const notes = new Map<string, string>()
+  const ids = Array.from(new Set(projects
+    .filter((project) => getPmsRiskLevel(project) !== 'None')
+    .map((project) => text(project.id))
+    .filter(Boolean),
+  ))
+  for (let offset = 0; offset < ids.length; offset += 30) {
+    const idsBatch = ids.slice(offset, offset + 30)
+    try {
+      const { data, error } = await supabase
+        .from('project_updates')
+        .select('project_id, issues, remarks, inspection_date, created_at')
+        .in('project_id', idsBatch)
+        .order('inspection_date', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false, nullsFirst: false })
+        .limit(1000)
+
+      if (error) {
+        console.warn('PMS10 PDF: inspection-note lookup unavailable:', error.message)
+        continue
+      }
+      for (const update of data || []) {
+        const key = text(update.project_id)
+        if (!key || notes.has(key)) continue
+        const parts = [text(update.issues), text(update.remarks)]
+          .filter((value) => value && !/^(?:none|no issues?|nil|n\/a)$/i.test(value))
+        if (!parts.length) continue
+        const dateLabel = formatDate(update.inspection_date)
+        notes.set(key, `Inspection${dateLabel !== '-' ? ` (${dateLabel})` : ''}: ${[...new Set(parts)].join('; ')}`)
+      }
+    } catch (error) {
+      console.warn('PMS10 PDF: inspection-note lookup failed:', error)
+    }
+  }
+  return notes
+}
+
 export async function exportExecutiveDashboardPdf(
   projects: ProjectRecord[],
   options: ExecutiveDashboardPdfOptions,
@@ -691,6 +736,7 @@ export async function exportExecutiveDashboardPdf(
   }
 
   const reportDate = context.generatedAt
+  const inspectionRiskNotes = await loadRiskInspectionNotes(ordered)
   const isAtRisk = (project: ProjectRecord) => getPmsRiskLevel(project) !== 'None'
   const getProjectRemarks = (project: ProjectRecord): string => {
     const riskLevel = getPmsRiskLevel(project)
@@ -733,6 +779,8 @@ export async function exportExecutiveDashboardPdf(
       reasons.push(`Not started: ${notStartedReason}`)
     }
     if (recordedNote) reasons.push(`Recorded issues: ${recordedNote}`)
+    const inspectionNote = inspectionRiskNotes.get(text(project.id))
+    if (inspectionNote) reasons.push(inspectionNote)
     if (!reasons.length) reasons.push('Specific cause not recorded')
     return `AT RISK (${riskLevel}): ${reasons.join('; ')}`
   }
