@@ -1705,6 +1705,7 @@ export default function Dashboard() {
         <div className={`pms-dashboard-view-stage is-executive ${viewTransitionPhase} ${viewTransitionDirection}`}>
           <ExecutiveDashboard
             projects={aorProjects}
+            dataSource={dataSource}
             onOpenDetailed={() => switchDashboardView('detailed')}
           />
         </div>
