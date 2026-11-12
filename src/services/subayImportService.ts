@@ -384,8 +384,10 @@ function readRevertedFunds(row: unknown[], headerRows: string[][]): number | nul
   for (let col = 0; col < maxColumns; col += 1) {
     const labels = headerRows.map((headers) => normalizeHeader(headers[col] || ''))
     const directlyLabeled = labels.some((label) =>
-      /\\bREVERT(?:ED|ED FUNDS|SION|ED AMOUNT)?\\b/.test(label) &&
-      !/\\b(?:DATE|REASON|STATUS|PROOF|ATTACHMENT|REMARKS|PERCENT|RATE)\\b/.test(label),
+      label.includes('REVERT') &&
+      !['DATE', 'REASON', 'STATUS', 'PROOF', 'ATTACHMENT', 'REMARKS', 'PERCENT', 'RATE'].some((word) =>
+        label.split(' ').includes(word),
+      ),
     )
     if (!directlyLabeled) continue
     // For merged group headers select its explicit amount/numeric child.
