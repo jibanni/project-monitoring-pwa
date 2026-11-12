@@ -327,34 +327,13 @@ function buildOnlineUpdatePayload(update: OfflineProjectUpdate) {
 function buildProjectPatch(update: OfflineProjectUpdate) {
   const latitude = nullableNumber(update.inspection_latitude)
   const longitude = nullableNumber(update.inspection_longitude)
-
+  // Synchronization must never overwrite official SubayBAYAN master metrics.
+  // On-site physical, financial, risk and findings remain in project_updates.
   return {
-    status: textValue(update.status) || 'Ongoing',
-    physical_accomplishment: toNumber(update.physical_accomplishment),
-    target_physical_accomplishment: toNumber(update.target_physical_accomplishment),
-    target_physical_as_of: update.inspection_date,
-    target_physical_source: textValue(update.target_physical_source) || 'manual',
-    financial_accomplishment: toNumber(update.financial_accomplishment),
-    ...(hasKey(update.disbursement_amount)
-      ? { disbursement_amount: nullableNumber(update.disbursement_amount) }
-      : {}),
-    risk_level: getAutoRiskForUpdate(update),
-    has_contract_modification:
-      update.has_contract_modification === true ||
-      textValue(update.has_contract_modification).toLowerCase() === 'true' ||
-      textValue(update.has_contract_modification).toLowerCase() === 'yes',
-    contract_modification_type: nullableText(update.contract_modification_type),
-    revised_project_cost: nullableNumber(update.revised_project_cost),
-    revised_contract_expiration_date: nullableText(update.revised_contract_expiration_date),
-    not_yet_started_reason: nullableText(update.not_yet_started_reason),
     last_inspection_date: update.inspection_date,
     ...(latitude !== null && longitude !== null
-      ? {
-          latitude,
-          longitude,
-        }
+      ? { latitude, longitude }
       : {}),
-    updated_at: new Date().toISOString(),
   }
 }
 
