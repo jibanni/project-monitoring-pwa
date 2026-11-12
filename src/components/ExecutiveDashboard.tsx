@@ -772,6 +772,28 @@ export default function ExecutiveDashboard({
   const [programIndicator, setProgramIndicator] = useState({ left: 0, width: 0, ready: false })
 
   useEffect(() => {
+    if (!isFundingYearMenuOpen) return
+
+    const dismissOnOutsidePointer = (event: PointerEvent) => {
+      const menu = fundingYearMenuRef.current
+      if (menu && event.target instanceof Node && !menu.contains(event.target)) {
+        setIsFundingYearMenuOpen(false)
+      }
+    }
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsFundingYearMenuOpen(false)
+    }
+
+    document.addEventListener('pointerdown', dismissOnOutsidePointer, true)
+    document.addEventListener('keydown', dismissOnEscape, true)
+
+    return () => {
+      document.removeEventListener('pointerdown', dismissOnOutsidePointer, true)
+      document.removeEventListener('keydown', dismissOnEscape, true)
+    }
+  }, [isFundingYearMenuOpen])
+
+  useEffect(() => {
     // Executive View is a true full-screen workspace on every viewport.
     // Hide the normal PMS10 shell while this view is mounted so the sidebar,
     // global header and advisory ticker can never squeeze or offset the board.
@@ -867,30 +889,29 @@ export default function ExecutiveDashboard({
   }, [provinceProjects, selectedFundingYears, isAllFundingYears])
 
   const programOptions = useMemo(() => {
-    // Program tabs belong to the selected Area, not to the selected Funding Year.
-    // This keeps the chosen program stable when the user changes FY.
+    // Keep program tabs based on the entire currently available project
+    // portfolio, NOT the selected area. A program can legitimately have
+    // zero projects in another area, and that must never reset the filter.
     const values = Array.from(
-      new Set<string>(
-        provinceProjects.map((project) =>
-          canonicalProgram(projectProgram(project)),
-        ),
-      ),
+      new Set<string>([
+        ...projects.map((project) => canonicalProgram(projectProgram(project))),
+        ...(selectedProgram !== 'All Programs' && selectedProgram !== 'All LGSF'
+          ? [selectedProgram]
+          : []),
+      ]),
     )
       .filter((value) => value && value !== 'Unspecified Program')
       .sort(compareProgramOptions)
 
-    const hasLgsfPrograms = values.some((value) => LGSF_PROGRAMS.has(value))
+    const hasLgsfPrograms = values.some((value) => LGSF_PROGRAMS.has(value)) ||
+      selectedProgram === 'All LGSF'
 
     return [
       'All Programs',
       ...(hasLgsfPrograms ? ['All LGSF'] : []),
       ...values,
     ]
-  }, [provinceProjects])
-
-  useEffect(() => {
-    if (!programOptions.includes(selectedProgram)) setSelectedProgram('All Programs')
-  }, [programOptions, selectedProgram])
+  }, [projects, selectedProgram])
 
   const scopedProjects = useMemo(() => {
     if (selectedProgram === 'All Programs') return fundingYearProjects
@@ -1136,7 +1157,7 @@ export default function ExecutiveDashboard({
     setAreaRotationDirection(direction)
     setSelectedProvince(nextArea)
     setSelectedFundingYears([])
-    setSelectedProgram('All Programs')
+    // Preserve the selected program when switching province/HUC.
     setAnimationNonce((value) => value + 1)
     setAreaAnimationNonce((value) => value + 1)
   }

@@ -19,6 +19,7 @@ import {
 import '../styles/layout.css'
 import '../styles/sidebarFooterDesktopPolish.css'
 import '../styles/sidebarBrandingPolish.css'
+import '../styles/dashboardDataSourceSwitch.css'
 
 type LayoutProps = {
   children?: ReactNode
@@ -306,10 +307,14 @@ function getNavSection(item: NavItem): PmsNavigationSection {
 }
 
 type DashboardViewMode = 'executive' | 'detailed'
+type DashboardDataSource = 'official' | 'onsite'
 
 const DASHBOARD_VIEW_STORAGE_KEY = 'pms10:dashboard-view'
 const DASHBOARD_VIEW_STATE_EVENT = 'pms10:dashboard-view-state'
 const DASHBOARD_VIEW_REQUEST_EVENT = 'pms10:dashboard-view-request'
+const DASHBOARD_DATA_SOURCE_STORAGE_KEY = 'pms10:dashboard-data-source'
+const DASHBOARD_DATA_SOURCE_STATE_EVENT = 'pms10:dashboard-data-source-state'
+const DASHBOARD_DATA_SOURCE_REQUEST_EVENT = 'pms10:dashboard-data-source-request'
 
 function canUseExecutiveDashboardFromLayout(auth: any, profileRole: unknown) {
   if (
@@ -391,6 +396,12 @@ export default function Layout({ children }: LayoutProps) {
       ? 'detailed'
       : 'executive'
   })
+  const [globalDashboardDataSource, setGlobalDashboardDataSource] = useState<DashboardDataSource>(() =>
+    typeof window !== 'undefined' &&
+    window.localStorage.getItem(DASHBOARD_DATA_SOURCE_STORAGE_KEY) === 'onsite'
+      ? 'onsite'
+      : 'official',
+  )
 
   const currentRoute = useMemo(
     () => getRouteFromLocation(location),
@@ -428,6 +439,21 @@ export default function Layout({ children }: LayoutProps) {
         DASHBOARD_VIEW_STATE_EVENT,
         handleDashboardViewState as EventListener,
       )
+    }
+  }, [])
+
+  useEffect(() => {
+    const onDashboardDataSourceState = (event: Event) => {
+      const source = (event as CustomEvent<{ source?: DashboardDataSource }>).detail?.source
+      if (source !== 'official' && source !== 'onsite') return
+
+      setGlobalDashboardDataSource(source)
+      window.localStorage.setItem(DASHBOARD_DATA_SOURCE_STORAGE_KEY, source)
+    }
+
+    window.addEventListener(DASHBOARD_DATA_SOURCE_STATE_EVENT, onDashboardDataSourceState as EventListener)
+    return () => {
+      window.removeEventListener(DASHBOARD_DATA_SOURCE_STATE_EVENT, onDashboardDataSourceState as EventListener)
     }
   }, [])
 
@@ -782,6 +808,17 @@ export default function Layout({ children }: LayoutProps) {
     navigate(`/dashboard?view=${nextView}`)
   }
 
+  const handleGlobalDashboardDataSource = (nextSource: DashboardDataSource) => {
+    setGlobalDashboardDataSource(nextSource)
+    window.localStorage.setItem(DASHBOARD_DATA_SOURCE_STORAGE_KEY, nextSource)
+
+    if (location.pathname === '/dashboard') {
+      window.dispatchEvent(new CustomEvent(DASHBOARD_DATA_SOURCE_REQUEST_EVENT, {
+        detail: { source: nextSource },
+      }))
+    }
+  }
+
   const activeMobileIndex = Math.max(
     0,
     visibleNavItems.findIndex((item) => isItemActive(item)),
@@ -1008,8 +1045,34 @@ export default function Layout({ children }: LayoutProps) {
     <div
       className="pms10-floating-view-switch"
       data-view={effectiveGlobalDashboardView}
-      aria-label="Dashboard view selector"
+      data-source={globalDashboardDataSource}
+      aria-label="Dashboard view and project data selectors"
     >
+      {location.pathname === '/dashboard' && (
+        <nav className="pms10-floating-data-source__track" aria-label="Project data source">
+          <span className="pms10-floating-data-source__thumb" aria-hidden="true" />
+          <button
+            type="button"
+            aria-label="SubayBAYAN Official"
+            aria-pressed={globalDashboardDataSource === 'official'}
+            className={globalDashboardDataSource === 'official' ? 'is-active' : ''}
+            onClick={() => handleGlobalDashboardDataSource('official')}
+            title="SubayBAYAN Official"
+          >
+            S
+          </button>
+          <button
+            type="button"
+            aria-label="Actual On-Site"
+            aria-pressed={globalDashboardDataSource === 'onsite'}
+            className={globalDashboardDataSource === 'onsite' ? 'is-active' : ''}
+            onClick={() => handleGlobalDashboardDataSource('onsite')}
+            title="Actual On-Site"
+          >
+            A
+          </button>
+        </nav>
+      )}
       <nav className="pms10-floating-view-switch__track" aria-label="Dashboard view">
         <span className="pms10-floating-view-switch__thumb" aria-hidden="true" />
 

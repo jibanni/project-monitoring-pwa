@@ -15,7 +15,6 @@ import {
 
 import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
 import { useOnsiteProjectSnapshots } from '../hooks/useOnsiteProjectSnapshots'
-import '../styles/dashboardDataSourceSwitch.css'
 import { useAuth } from '../context/AuthContext'
 import { useDesktopViewport } from '../hooks/useDesktopViewport'
 import { readPageView, removePageView, writePageView } from '../lib/pageViewMemory'
@@ -577,7 +576,11 @@ export default function Dashboard() {
       ? 'detailed'
       : 'executive'
 
-  const [dataSource, setDataSource] = useState<'official' | 'onsite'>('official')
+  const [dataSource, setDataSource] = useState<'official' | 'onsite'>(() =>
+    window.localStorage.getItem('pms10:dashboard-data-source') === 'onsite'
+      ? 'onsite'
+      : 'official',
+  )
   const [dashboardView, setDashboardView] = useState<'executive' | 'detailed'>(
     initialDashboardView,
   )
@@ -608,6 +611,25 @@ export default function Dashboard() {
       : viewTransitionDirection === 'forward'
         ? 'detailed'
         : 'executive'
+
+  useEffect(() => {
+    window.localStorage.setItem('pms10:dashboard-data-source', dataSource)
+    window.dispatchEvent(new CustomEvent('pms10:dashboard-data-source-state', {
+      detail: { source: dataSource },
+    }))
+  }, [dataSource])
+
+  useEffect(() => {
+    const handleSourceRequest = (event: Event) => {
+      const source = (event as CustomEvent<{ source?: 'official' | 'onsite' }>).detail?.source
+      if (source !== 'official' && source !== 'onsite') return
+      setDataSource(source)
+    }
+    window.addEventListener('pms10:dashboard-data-source-request', handleSourceRequest as EventListener)
+    return () => {
+      window.removeEventListener('pms10:dashboard-data-source-request', handleSourceRequest as EventListener)
+    }
+  }, [])
 
   useEffect(() => {
     window.localStorage.setItem('pms10:dashboard-view', visualDashboardView)
@@ -689,7 +711,7 @@ export default function Dashboard() {
     errorMessage,
     refreshProjects,
   } = useSharedProjects<ProjectRecord>()
-  const { onsiteProjects, onsiteLoading, onsiteError } = useOnsiteProjectSnapshots(projects, isDesktopViewport)
+  const { onsiteProjects } = useOnsiteProjectSnapshots(projects, isDesktopViewport)
   const dashboardSourceProjects = useMemo(
     () => isDesktopViewport && dataSource === 'onsite' ? onsiteProjects : projects,
     [isDesktopViewport, dataSource, onsiteProjects, projects],
@@ -1676,40 +1698,11 @@ export default function Dashboard() {
     )
   }
 
-  const dashboardDataSourceSwitcher = isDesktopViewport ? (
-    <section className="pms10-dashboard-data-source" aria-label="Project data source">
-      <span className="pms10-dashboard-data-source-label">Project data</span>
-      <div className="pms10-dashboard-data-source-options" role="group" aria-label="Select dashboard data source">
-        <button
-          type="button"
-          aria-pressed={dataSource === 'official'}
-          className={dataSource === 'official' ? 'is-active' : ''}
-          onClick={() => setDataSource('official')}
-        >SubayBAYAN Official</button>
-        <button
-          type="button"
-          aria-pressed={dataSource === 'onsite'}
-          className={dataSource === 'onsite' ? 'is-active' : ''}
-          onClick={() => { setDataSource('onsite'); void refreshProjects() }}
-        >Actual On-Site</button>
-      </div>
-      <span className="pms10-dashboard-data-source-note">
-        {dataSource === 'official'
-          ? 'Latest imported masterlist'
-          : onsiteLoading
-            ? 'Loading submitted inspections…'
-            : onsiteError
-              ? `Could not load on-site observations: ${onsiteError}`
-              : `${onsiteProjects.length.toLocaleString()} projects with recorded on-site progress; projects without inspection records excluded`}
-      </span>
-    </section>
-  ) : null
 
   if (hasExecutiveDashboard && isDesktopViewport && dashboardView === 'executive') {
     return (
       <>
         <div className={`pms-dashboard-view-stage is-executive ${viewTransitionPhase} ${viewTransitionDirection}`}>
-          {dashboardDataSourceSwitcher}
           <ExecutiveDashboard
             projects={aorProjects}
             onOpenDetailed={() => switchDashboardView('detailed')}
@@ -1728,7 +1721,6 @@ export default function Dashboard() {
           isDashboardScrolled ? 'is-dashboard-scrolled' : ''
         }`}
       >
-        {dashboardDataSourceSwitcher}
         {!isDesktopViewport && (
           <section className="dashboard-hero">
             <div>
