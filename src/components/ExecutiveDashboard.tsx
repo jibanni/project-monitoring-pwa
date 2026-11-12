@@ -208,6 +208,8 @@ function formatAsOfDate() {
 }
 
 function projectCost(project: ProjectRecord) {
+  // For SubayBAYAN-linked projects the latest imported budget is authoritative.
+  if (textValue(project.subaybayan_project_code)) return numberValue(project.budget)
   return numberValue(
     project.project_cost ??
       project.amount ??
