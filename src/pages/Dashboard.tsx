@@ -1000,9 +1000,7 @@ export default function Dashboard() {
 
     const completionRate =
       visibleProjects.length > 0
-        ? truncateDashboardPercent(
-            (completedProjects.length / visibleProjects.length) * 100,
-          )
+        ? Math.round((completedProjects.length / visibleProjects.length) * 10000) / 100
         : 0
 
     // Physical headline uses the PROJECT completion rate, not cost-weighted
