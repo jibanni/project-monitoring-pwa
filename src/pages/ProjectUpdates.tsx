@@ -3257,30 +3257,12 @@ export default function ProjectUpdates() {
 
     const updateId = insertedUpdate?.id
 
+    // SubayBAYAN is authoritative for the project masterlist.
+    // Engineer figures stay in project_updates, and are surfaced only
+    // by the separate Actual On-Site dashboard mode.
     const projectPatch = {
-      status: projectStatus,
-      physical_accomplishment: clampProgress(physicalAccomplishment),
-      target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
-      target_physical_as_of: inspectionDate,
-      target_physical_source:'manual',
-      financial_accomplishment: clampProgress(financialAccomplishment),
-      disbursement_amount: effectiveDisbursementAmount,
-      risk_level: autoRiskLevel,
-      has_contract_modification: hasContractModification,
-      contract_modification_type: hasContractModification ? contractModificationType : null,
-      revised_project_cost:
-        hasContractModification && hasRevisedProjectCost
-          ? toNumber(revisedProjectCost)
-          : null,
-      revised_contract_expiration_date: hasContractModification
-        ? isSuspensionOrderSelected
-          ? project?.revised_contract_expiration_date || null
-          : revisedContractExpirationDate || null
-        : null,
-      not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
       last_inspection_date: inspectionDate,
       ...latestCoordinatePatch,
-      updated_at: currentTimestamp,
     }
 
     const { error: projectUpdateError } = await supabase
@@ -3554,59 +3536,14 @@ export default function ProjectUpdates() {
       }
     }
 
-    await updateCachedProject(projectId, {
-      status: projectStatus,
-      physical_accomplishment: clampProgress(physicalAccomplishment),
-      target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
-      target_physical_as_of: inspectionDate,
-      target_physical_source:'manual',
-      financial_accomplishment: clampProgress(financialAccomplishment),
-      disbursement_amount: effectiveDisbursementAmount,
-      risk_level: autoRiskLevel,
-      contract_expiration_date: project?.contract_expiration_date || null,
-      has_contract_modification: hasContractModification,
-      contract_modification_type: hasContractModification ? contractModificationType : null,
-      revised_project_cost:
-        hasContractModification && hasRevisedProjectCost
-          ? toNumber(revisedProjectCost)
-          : null,
-      revised_contract_expiration_date: hasContractModification
-        ? isSuspensionOrderSelected
-          ? project?.revised_contract_expiration_date || null
-          : revisedContractExpirationDate || null
-        : null,
-      not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
+    // Offline observations are already kept in offlineDb.project_updates.
+    // Never change the cached official SubayBAYAN values with a field entry.
+    const inspectionPatch = {
       last_inspection_date: inspectionDate,
       ...latestCoordinatePatch,
-      updated_at: currentTimestamp,
-    })
-
-    await updateSharedProjectCache(projectId, {
-      status: projectStatus,
-      physical_accomplishment: clampProgress(physicalAccomplishment),
-      target_physical_accomplishment: clampProgress(targetPhysicalAccomplishment),
-      target_physical_as_of: inspectionDate,
-      target_physical_source: 'manual',
-      financial_accomplishment: clampProgress(financialAccomplishment),
-      disbursement_amount: effectiveDisbursementAmount,
-      risk_level: autoRiskLevel,
-      contract_expiration_date: project?.contract_expiration_date || null,
-      has_contract_modification: hasContractModification,
-      contract_modification_type: hasContractModification ? contractModificationType : null,
-      revised_project_cost:
-        hasContractModification && hasRevisedProjectCost
-          ? toNumber(revisedProjectCost)
-          : null,
-      revised_contract_expiration_date: hasContractModification
-        ? isSuspensionOrderSelected
-          ? project?.revised_contract_expiration_date || null
-          : revisedContractExpirationDate || null
-        : null,
-      not_yet_started_reason: requiresUpdateReason ? cleanText(notYetStartedReason) : null,
-      last_inspection_date: inspectionDate,
-      ...latestCoordinatePatch,
-      updated_at: currentTimestamp,
-    })
+    }
+    await updateCachedProject(projectId, inspectionPatch)
+    await updateSharedProjectCache(projectId, inspectionPatch)
 
     await finalizeAideMemoireForSavedUpdate(localUpdateId, 'offline')
     await refreshLatestProjectOutputs()
