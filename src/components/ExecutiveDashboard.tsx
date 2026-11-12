@@ -5,6 +5,7 @@ import {
   getProjectSlippageVariance,
 } from '../utils/projectVariance'
 import { isProjectEligibleForAggregatePerformance } from '../utils/projectMetricEligibility'
+import '../styles/executiveDashboardExport.css'
 
 type ProjectRecord = Record<string, any>
 
