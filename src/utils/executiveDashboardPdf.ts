@@ -77,10 +77,6 @@ function projectTitle(project: ProjectRecord): string {
   return text(project.project_name ?? project.project_title ?? project.title ?? project.name) || 'Untitled Project'
 }
 
-function projectCode(project: ProjectRecord): string {
-  return text(project.subaybayan_project_code ?? project.project_code ?? project.code ?? project.reference_code) || '-'
-}
-
 function projectCost(project: ProjectRecord): number {
   if (text(project.subaybayan_project_code)) return numeric(project.budget)
   return numeric(project.project_cost ?? project.amount ?? project.budget ?? project.total_project_cost ?? project.approved_budget)
@@ -681,14 +677,21 @@ export async function exportExecutiveDashboardPdf(
     projectLgu(a).localeCompare(projectLgu(b)) ||
     projectTitle(a).localeCompare(projectTitle(b)),
   )
+  const hasFullPhysicalAccomplishment = (project: ProjectRecord) => {
+    const value = project.physical_accomplishment ??
+      project.physical_progress ?? project.actual_physical_accomplishment
+    return value != null && text(value) !== '' && numeric(value) >= 99.999
+  }
+
   const detailRows = ordered.map((project) => [
-    projectCode(project),
-    `${regionProvince(project)} / ${projectLgu(project)}`,
+    regionProvince(project),
+    projectLgu(project),
     projectTitle(project),
     text(project.barangay ?? project.barangay_name) || '-',
     getPmsProjectStatus(project),
     physical(project),
-    project.financial_accomplishment == null ? '-' : percent(finance(project)),
+    project.financial_accomplishment == null || text(project.financial_accomplishment) === ''
+      ? '-' : percent(finance(project)),
     formatDate(nadaiDate(project)?.toISOString()),
     shortMoney(project.reverted_funds),
   ])
@@ -698,7 +701,7 @@ export async function exportExecutiveDashboardPdf(
     margin: { left: MARGIN, right: MARGIN, top: 69, bottom: 17 },
     tableWidth: width,
     head: [[
-      'PROJECT CODE', 'PROVINCE / LGU', 'PROJECT TITLE', 'BARANGAY',
+      'PROVINCE / HUC', 'LGU', 'PROJECT TITLE', 'BARANGAY',
       'STATUS', 'PHYSICAL', 'FINANCIAL', 'NADAI DOWNLOAD', 'REVERTED FUNDS',
     ]],
     body: detailRows,
@@ -714,9 +717,30 @@ export async function exportExecutiveDashboardPdf(
     },
     alternateRowStyles: { fillColor: [243, 247, 251] },
     columnStyles: {
-      0: { cellWidth: 37 }, 1: { cellWidth: 38 }, 2: { cellWidth: 81 },
-      3: { cellWidth: 27 }, 4: { cellWidth: 29 }, 5: { cellWidth: 17 },
-      6: { cellWidth: 17 }, 7: { cellWidth: 28 }, 8: { cellWidth: 32 },
+      0: { cellWidth: 34 }, 1: { cellWidth: 34 }, 2: { cellWidth: 83 },
+      3: { cellWidth: 26 }, 4: { cellWidth: 28 }, 5: { cellWidth: 18 },
+      6: { cellWidth: 19 }, 7: { cellWidth: 30 }, 8: { cellWidth: 34 },
+    },
+    didParseCell(data: any) {
+      if (data.section !== 'body') return
+      const project = ordered[data.row.index]
+      if (!project || !hasFullPhysicalAccomplishment(project)) return
+
+      // A restrained green row identifies physical work at 100%.
+      // Red financial text is reserved ONLY for physically complete
+      // projects whose reported financial percentage is below 100%.
+      data.cell.styles.fillColor = [231, 247, 236]
+      if (data.column.index === 5) {
+        data.cell.styles.textColor = [18, 120, 62]
+        data.cell.styles.fontStyle = 'bold'
+      }
+      const hasFinancialFigure =
+        project.financial_accomplishment != null &&
+        text(project.financial_accomplishment) !== ''
+      if (data.column.index === 6 && hasFinancialFigure && finance(project) < 99.999) {
+        data.cell.styles.textColor = [194, 32, 47]
+        data.cell.styles.fontStyle = 'bold'
+      }
     },
     willDrawPage(data: any) {
       drawHeader(doc, images, data.pageNumber === 1
@@ -725,6 +749,9 @@ export async function exportExecutiveDashboardPdf(
       addScope(doc, context, projects)
       ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5)
       doc.text('FILTERED PROJECT REGISTER', MARGIN, 65)
+      ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2)
+      doc.text('Green = 100% physical   |   Red financial = physically complete, financial below 100%',
+        PAGE[1] - MARGIN, 65, { align: 'right' })
     },
   })
 
