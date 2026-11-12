@@ -751,13 +751,8 @@ export async function exportExecutiveDashboardPdf(
 
     const reasons: string[] = []
     const rawSlippage = text(official.subay_source_slippage_raw)
-    const rawRiskLabels = text(official.subay_source_risk_details_raw)
     const officialSourceRemarks = text(official.subay_source_remarks_raw)
 
-    const riskComponents = sourceComponents(rawRiskLabels)
-    const highIndices = riskComponents
-      .filter((entry) => /high\s*risk/i.test(entry.value))
-      .map((entry) => entry.number)
     const slipComponents = sourceComponents(rawSlippage)
       .map((entry) => ({ ...entry, numeric: numericSlippage(entry.value) }))
     const negative = slipComponents
@@ -765,9 +760,12 @@ export async function exportExecutiveDashboardPdf(
       .sort((a, b) => (a.numeric ?? 0) - (b.numeric ?? 0))
 
     if (negative.length) {
+      // Show the actual official CL negative figure without lengthy risk
+      // explanations. Preserve component numbers when multiple items exist.
       const shown = negative.slice(0, 3).map((entry) =>
-        'Component ' + entry.number + ': ' + entry.numeric!.toFixed(2) + ' pp')
-      reasons.push('CL negative slippage: ' + shown.join('; ') +
+        entry.numeric!.toFixed(2) + '%' +
+        (negative.length > 1 ? ' (C' + entry.number + ')' : ''))
+      reasons.push('Slippage: ' + shown.join(', ') +
         (negative.length > shown.length ? ' (+' + (negative.length - shown.length) + ' more)' : ''))
     }
 
@@ -783,9 +781,10 @@ export async function exportExecutiveDashboardPdf(
     })
     if (deduplicatedNotes.length) {
       const shown = deduplicatedNotes.slice(0, 2).map((entry) =>
-        'Component ' + entry.number + ': ' + entry.value.slice(0, 145))
-      reasons.push('SubayBAYAN remarks: ' + shown.join('; ') +
-        (deduplicatedNotes.length > shown.length ? ' (additional source remarks omitted)' : ''))
+        entry.value.slice(0, 145) +
+        (deduplicatedNotes.length > 1 ? ' (C' + entry.number + ')' : ''))
+      reasons.push('Remarks: ' + shown.join('; ') +
+        (deduplicatedNotes.length > shown.length ? ' (+more)' : ''))
     }
 
     // Prevailing revised contract expiry supersedes the original contract
@@ -797,39 +796,27 @@ export async function exportExecutiveDashboardPdf(
       const expiry = new Date(expiryText.slice(0, 10) + 'T00:00:00')
       if (!Number.isNaN(expiry.getTime())) {
         const daysRemaining = Math.round((expiry.getTime() - reportDay.getTime()) / 86400000)
-        const contractLabel = revisedExpiry ? 'Revised contract' : 'Contract'
+        const contractLabel = revisedExpiry ? 'Revised Contract' : 'Contract'
         if (daysRemaining < 0) {
-          reasons.push(contractLabel + ' expired on ' + formatDate(expiryText))
+          reasons.push(contractLabel + ' Expired: ' + formatDate(expiryText))
         } else if (daysRemaining <= 30) {
-          reasons.push(contractLabel + ' expires in ' + daysRemaining +
-            (daysRemaining === 1 ? ' day' : ' days') +
-            ' (' + formatDate(expiryText) + ')')
+          reasons.push(contractLabel + ' Expires in ' + daysRemaining +
+            (daysRemaining === 1 ? ' day' : ' days'))
         }
       }
     }
 
-    // Explicit official risk classification must never be mistaken for
-    // evidence of slippage that the source does not actually report.
-    const heading = 'SubayBAYAN ' + level + ' Risk'
+    // CM Risk Level is an authoritative classification, but not proof of
+    // slippage or expiry. If CL/CP/contract fields contain no cause, flag
+    // the record for validation rather than inventing a reason or silently
+    // discarding its official risk rating.
     if (!reasons.length) {
-      if (rawRiskLabels) {
-        const components = highIndices.length
-          ? ' (component ' + highIndices.slice(0, 4).join(', ') +
-            (highIndices.length > 4 ? ', etc.' : '') + ')'
-          : ''
-        return {
-          level,
-          remarks: heading + components +
-            ': Specific cause not stated in official source fields',
-        }
-      }
       return {
         level,
-        remarks: heading +
-          ': Detailed slippage/remarks not recorded in PMS10 yet; verify latest SubayBAYAN extract',
+        remarks: level + ' Risk - For Validation (SubayBAYAN)',
       }
     }
-    return { level, remarks: heading + ': ' + reasons.join('; ') }
+    return { level, remarks: reasons.join('; ') }
   }
   const officialRiskById = new Map(ordered.map(
     (project) => [text(project.id), getOfficialRiskInfo(project)] as const,
