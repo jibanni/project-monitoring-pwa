@@ -410,6 +410,8 @@ function drawProvinceOverviewPages(
     const complete = items.filter((p) => statusGroup(p) === 'Completed').length
     return {
       name, count: items.length, complete,
+      ongoing: items.filter((p) => statusGroup(p) === 'Ongoing').length,
+      notStarted: items.filter((p) => statusGroup(p) === 'Not Yet Started').length,
       rate: items.length ? complete / items.length * 100 : 0,
       financial: financeWeighted(items),
       risk: items.filter((p) => getPmsRiskLevel(p) === 'High').length,
@@ -436,11 +438,13 @@ function drawProvinceOverviewPages(
       drawRing(doc, x + 17, y + 14.5, 11, 4.2, area.rate, GREEN)
       ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
       const name = doc.splitTextToSize(area.name, 116).slice(0, 1)
-      doc.text(name, x + 33, y + 7.5)
+      doc.text(`${offset + index + 1}. ${name[0]}`, x + 33, y + 7.5)
       ink(doc, GREEN); doc.setFontSize(12.3)
       doc.text(percent(area.rate), x + 33, y + 16)
       ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.2)
       doc.text(`${area.complete} / ${area.count} completed`, x + 75, y + 15.3)
+      ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.4)
+      doc.text(`Ongoing: ${area.ongoing}  |  Not started: ${area.notStarted}`, x + 75, y + 20.2)
       ink(doc, [65, 101, 169]); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.3)
       doc.text(`Financial: ${percent(area.financial)}`, x + 33, y + 24.8)
       ink(doc, area.risk > 0 ? RED : SLATE); doc.setFontSize(7.2)
@@ -545,7 +549,7 @@ export async function exportExecutiveDashboardPdf(
 
   const completedCount = projects.filter((p) => statusGroup(p) === 'Completed').length
   matrixRows.push([
-    'REGION X TOTAL', `${groups.length} LGUs`, projects.length, uniqueBarangays,
+    'FILTERED TOTAL', `${groups.length} LGUs`, projects.length, uniqueBarangays,
     projects.filter((p) => statusGroup(p) === 'Not Yet Started').length,
     projects.filter((p) => statusGroup(p) === 'Ongoing').length,
     completedCount,
