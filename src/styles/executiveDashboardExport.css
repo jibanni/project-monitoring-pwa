@@ -1,72 +1,73 @@
-/* PMS10 Executive Report: desktop-only report action, without altering mobile. */
+/* Executive PDF export action: desktop-only, nested under dashboard title.
+   Funding-year controls stay centered and do not share its layout. */
 .exec-dashboard-export-action { display: none; }
 
 @media (min-width: 1024px) {
-  .exec193-filter-stack {
-    position: relative;
-  }
+  .exec13-brand > div { min-width: 0; }
 
-  .exec-dashboard-export-action {
-    position: absolute;
-    z-index: 4;
+  .exec13-brand .exec-dashboard-export-action {
     display: flex;
+    position: relative;
     align-items: center;
-    justify-content: flex-end;
-    bottom: 1px;
-    right: 10px;
-    gap: 8px;
-    margin: 0;
-    pointer-events: auto;
+    justify-content: flex-start;
+    margin-top: 7px;
+    gap: 6px;
+    width: max-content;
+    max-width: 100%;
   }
 
-  .exec-dashboard-export-button {
+  .exec13-brand .exec-dashboard-export-button {
     appearance: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    height: 34px;
-    padding: 0 15px;
-    border: 1px solid #bcd0e6;
+    gap: 7px;
+    min-height: 27px;
+    padding: 0 13px;
+    border: 1px solid #bbd0e8;
     border-radius: 999px;
-    background: #0d457f;
+    background: #0e467e;
     color: #fff;
-    box-shadow: 0 3px 10px rgba(21, 64, 111, .13);
+    font: 800 11px/1 inherit;
     font-family: inherit;
-    font-size: 12px;
-    line-height: 1;
+    font-size: 11px;
     font-weight: 800;
+    line-height: 1;
     white-space: nowrap;
+    box-shadow: 0 3px 10px rgba(21, 64, 111, .13);
     cursor: pointer;
-    transition: background 150ms ease, transform 150ms ease;
+    transition: background 150ms ease;
   }
 
-  .exec-dashboard-export-button:hover:not(:disabled) {
+  .exec13-brand .exec-dashboard-export-button span {
+    color: inherit !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .exec13-brand .exec-dashboard-export-button:hover:not(:disabled) {
     background: #083562;
-    transform: translateY(-1px);
   }
-
-  .exec-dashboard-export-button:focus-visible {
+  .exec13-brand .exec-dashboard-export-button:focus-visible {
     outline: 3px solid #79aeeb;
     outline-offset: 2px;
   }
-
-  .exec-dashboard-export-button:disabled {
+  .exec13-brand .exec-dashboard-export-button:disabled {
     cursor: wait;
     opacity: .64;
   }
-
-  .exec-dashboard-export-button svg {
-    width: 15px;
-    height: 15px;
-    flex: 0 0 15px;
+  .exec13-brand .exec-dashboard-export-button svg {
+    width: 13px;
+    height: 13px;
+    flex: 0 0 13px;
   }
-
-  .exec-dashboard-export-error {
+  .exec13-brand .exec-dashboard-export-error {
     position: absolute;
-    width: 280px;
-    right: 0;
-    top: calc(100% + 5px);
+    left: 0;
+    top: calc(100% + 4px);
+    z-index: 100;
+    width: 275px;
     padding: 9px 11px;
     border: 1px solid #fecaca;
     border-radius: 8px;
@@ -76,15 +77,6 @@
     box-shadow: 0 5px 15px rgba(25, 30, 50, .1);
   }
 }
-
-@media (min-width: 1024px) and (max-width: 1170px) {
-  .exec-dashboard-export-button {
-    font-size: 11px;
-    height: 32px;
-    padding: 0 10px;
-  }
-}
-
 @media (max-width: 1023px) {
   .exec-dashboard-export-action,
   .exec-dashboard-export-button { display: none !important; }
