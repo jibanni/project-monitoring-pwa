@@ -608,6 +608,8 @@ export default function ProjectDetails() {
         implementing_office: onlineProject.implementing_office || '',
         contractor: onlineProject.contractor || '',
         budget: onlineProject.budget || 0,
+        disbursement_amount: onlineProject.disbursement_amount ?? null,
+        reverted_funds: onlineProject.reverted_funds ?? null,
         start_date: onlineProject.start_date || '',
         target_completion_date: onlineProject.target_completion_date || '',
         latitude: onlineProject.latitude || '',
@@ -1112,6 +1114,17 @@ export default function ProjectDetails() {
               <div className="pd-info-item">
                 <span>Funding Source</span>
                 <strong>{formatFundingDisplay(project)}</strong>
+              </div>
+
+              <div className="pd-info-item pd-official-financial-field">
+                <span>Official Disbursement (SubayBAYAN)</span>
+                <strong>{project.disbursement_amount == null ? 'Not reported' : formatCurrency(project.disbursement_amount)}</strong>
+              </div>
+
+              <div className="pd-info-item pd-official-financial-field">
+                <span>Funds Reversion (SubayBAYAN)</span>
+                <strong>{project.reverted_funds == null ? 'Not reported' : formatCurrency(project.reverted_funds)}</strong>
+                <small>Officially reverted amount; tracked separately from disbursements.</small>
               </div>
 
               <div className="pd-info-item">
