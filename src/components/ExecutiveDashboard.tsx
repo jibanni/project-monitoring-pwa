@@ -1233,6 +1233,22 @@ export default function ExecutiveDashboard({
             <div>
               <strong>Executive Dashboard</strong>
               <span>As of {formatAsOfDate()}</span>
+            <div className="exec-dashboard-export-action">
+              <button
+                type="button"
+                className="exec-dashboard-export-button"
+                disabled={isExportingReport}
+                onClick={() => void handleExportReport()}
+                title="Download landscape executive dashboard PDF with LGU summary and project register"
+                aria-label="Export current Executive Dashboard as PDF"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3" />
+                </svg>
+                <span>{isExportingReport ? 'Generating PDF…' : 'Export Report'}</span>
+              </button>
+              {reportExportError && <span role="alert" className="exec-dashboard-export-error">{reportExportError}</span>}
+            </div>
             </div>
           </div>
 
@@ -1397,22 +1413,7 @@ export default function ExecutiveDashboard({
               ) : null}
             </div>
 
-            <div className="exec-dashboard-export-action">
-              <button
-                type="button"
-                className="exec-dashboard-export-button"
-                disabled={isExportingReport}
-                onClick={() => void handleExportReport()}
-                title="Download landscape executive dashboard PDF with LGU summary and project register"
-                aria-label="Export current Executive Dashboard as PDF"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3" />
-                </svg>
-                <span>{isExportingReport ? 'Generating PDF…' : 'Export Report'}</span>
-              </button>
-              {reportExportError && <span role="alert" className="exec-dashboard-export-error">{reportExportError}</span>}
-            </div>
+
           </div>
 
           <section
