@@ -276,20 +276,6 @@ function pms10FinancialNumber(value: unknown) {
   return 0
 }
 
-function pms10RecordNumber(
-  record: Record<string, unknown> | null | undefined,
-  keys: string[],
-) {
-  if (!record) return 0
-
-  for (const key of keys) {
-    const value = pms10FinancialNumber(record[key])
-    if (value > 0) return value
-  }
-
-  return 0
-}
-
 function resolveProjectFinancialAccomplishment(
   projectValue: unknown,
   _updateValues: unknown[],
