@@ -928,6 +928,19 @@ export function projectPayloadFromSubayRecord(
     // A missing source value remains null (unknown), NOT an engineer's
     // previously entered amount. Zero is kept as a legitimate source value.
     Object.assign(payload, {
+      // Preserve original official component-level CL / CM / CP fields.
+      // CL SLIPPAGE can contain several numbered components, so do not
+      // collapse it to the old project.slippage numeric field or mix it
+      // with risk/remarks entered by engineers in project_updates.
+      subay_source_slippage_raw: record.subayFormat === 'fy2025_above'
+        ? textValue(record.sourceData.values[89]) || null
+        : null,
+      subay_source_risk_details_raw: record.subayFormat === 'fy2025_above'
+        ? textValue(record.sourceData.values[90]) || null
+        : null,
+      subay_source_remarks_raw: textValue(
+        record.sourceData.values[record.subayFormat === 'fy2025_above' ? 93 : 18],
+      ) || null,
       budget: projectCost,
       disbursement_amount: record.disbursementAmount,
       reverted_funds: record.revertedFunds,
