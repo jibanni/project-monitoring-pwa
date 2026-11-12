@@ -684,18 +684,23 @@ export default function SubayImport() {
                       )}
                     </td>
                     <td>
-                      {row.record.disbursementAmount !== null ? (
+                      {row.record.disbursementAmount !== null || row.record.revertedFunds !== null ? (
                         <>
                           <strong>Official SubayBAYAN</strong>
                           <small>
-                            {formatCurrency(row.record.disbursementAmount) || 'Php 0.00'} ·{' '}
-                            {formatFinancialPercent(row.record.financialAccomplishment)}
+                            Disbursed: {formatCurrency(row.record.disbursementAmount) || 'Php 0.00'}
+                          </small>
+                          <small>
+                            Reverted: {formatCurrency(row.record.revertedFunds) || 'Php 0.00'}
+                          </small>
+                          <small>
+                            Financial: {formatFinancialPercent(row.record.financialAccomplishment)}
                           </small>
                         </>
                       ) : (
                         <>
-                          <strong>Not reported in extract</strong>
-                          <small>Official disbursement and financial data remain unknown</small>
+                          <strong>No source financial figures</strong>
+                          <small>Disbursement and reversion were not reported</small>
                         </>
                       )}
                     </td>
