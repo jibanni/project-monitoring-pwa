@@ -378,9 +378,9 @@ function calculateFinancialAccomplishment(
  * Read only a header explicitly mentioning "revert", never infer from a
  * nearby "remaining", "balance", or "allocation" column.
  */
-function readRevertedFunds(row: unknown[], headerRows: string[][]): number | null {
+function findRevertedFundsColumn(headerRows: string[][]): number | null {
   if (!headerRows.length) return null
-  const maxColumns = Math.max(row.length, ...headerRows.map((header) => header.length))
+  const maxColumns = Math.max(...headerRows.map((header) => header.length))
   for (let col = 0; col < maxColumns; col += 1) {
     const labels = headerRows.map((headers) => normalizeHeader(headers[col] || ''))
     const directlyLabeled = labels.some((label) =>
@@ -389,14 +389,16 @@ function readRevertedFunds(row: unknown[], headerRows: string[][]): number | nul
         label.split(' ').includes(word),
       ),
     )
-    if (!directlyLabeled) continue
-    // For merged group headers select its explicit amount/numeric child.
-    const value = row[col]
-    if (textValue(value) === '') continue
-    const parsed = parseNullableNumber(value)
-    if (parsed !== null && parsed >= 0) return parsed
+    if (directlyLabeled) return col
   }
   return null
+}
+
+function readRevertedFunds(row: unknown[], headerRows: string[][]): number | null {
+  const col = findRevertedFundsColumn(headerRows)
+  if (col === null || textValue(row[col]) === '') return null
+  const parsed = parseNullableNumber(row[col])
+  return parsed !== null && parsed >= 0 ? parsed : null
 }
 
 function parseFundingYear(value: unknown) {
@@ -1291,6 +1293,15 @@ export async function parseSubayMasterlistFile(file: File): Promise<SubayParseRe
     const headerIndex = detectedFormat.headerRowNumber - 1
     const dataStartIndex = headerIndex + profile.dataStartOffset
     const sourceHeaderRows = rows.slice(Math.max(0, headerIndex - 1), headerIndex + 1)
+    if (profile.id !== 'sglgif_portal' && findRevertedFundsColumn(
+      sourceHeaderRows.map((header) => header.map((value) => textValue(value))),
+    ) === null) {
+      issues.push({
+        sheetName,
+        rowNumber: detectedFormat.headerRowNumber,
+        message: 'No explicitly labeled reverted-funds AMOUNT column was detected. PMS10 will keep reverted funds as unknown for this sheet; verify the extract headers before accepting the computed financial percentage.',
+      })
+    }
 
     rows.slice(dataStartIndex).forEach((row, rowOffset) => {
       const rowNumber = dataStartIndex + rowOffset + 1
