@@ -3,6 +3,14 @@
 .exec-dashboard-export-action { display: none; }
 
 @media (min-width: 1024px) {
+  /* Desktop-only larger regional seal; leave the mobile header untouched. */
+  .exec13-shell .exec13-topbar .exec13-brand > img {
+    width: clamp(56px, 4.4vw, 64px) !important;
+    height: clamp(56px, 4.4vw, 64px) !important;
+    flex: 0 0 clamp(56px, 4.4vw, 64px) !important;
+    object-fit: contain;
+  }
+
   .exec13-brand > div { min-width: 0; }
 
   .exec13-brand .exec-dashboard-export-action {
@@ -25,7 +33,7 @@
     min-height: 27px;
     padding: 0 13px;
     border: 1px solid #bbd0e8;
-    border-radius: 999px;
+    border-radius: 8px;
     background: #0e467e;
     color: #fff;
     font-family: inherit;

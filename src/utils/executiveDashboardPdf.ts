@@ -191,7 +191,9 @@ function drawHeader(
   pageBase(doc)
   const width = PAGE[1]
   if (images.dilg) doc.addImage(images.dilg, 'PNG', 16, 8, 19, 19)
-  if (images.bagong) doc.addImage(images.bagong, 'PNG', width - 35, 5.5, 20, 22)
+  // Give the Bagong Pilipinas mark equal visual prominence while retaining
+  // the existing header line and centered DILG office letterhead.
+  if (images.bagong) doc.addImage(images.bagong, 'PNG', width - 45, 1, 31, 28.2)
   ink(doc, [66, 78, 91])
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
   doc.text('Republic of the Philippines', width / 2, 9.4, { align: 'center' })
@@ -210,7 +212,7 @@ function drawHeader(
 
 function addScope(doc: any, options: ExecutiveDashboardPdfOptions, projects: ProjectRecord[]) {
   const years = options.fundingYears.length ? options.fundingYears.map((value) => `FY ${value}`).join(', ') : 'All Funding Years'
-  fill(doc, [230, 239, 250]); doc.roundedRect(MARGIN, 46, PAGE[1] - MARGIN * 2, 12, 3, 3, 'F')
+  fill(doc, [230, 239, 250]); doc.roundedRect(MARGIN, 46, PAGE[1] - MARGIN * 2, 12, 1.5, 1.5, 'F')
   ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
   const scope = `AREA: ${options.area}    |    PROGRAM: ${options.program}    |    YEAR: ${years}`
   const clipped = doc.splitTextToSize(scope, PAGE[1] - MARGIN * 2 - 14).slice(0, 2)
@@ -235,40 +237,65 @@ function metricCard(
 }
 
 /**
- * Pie wedges are vector PDF geometry (not rasterized screenshots).
- * Each wedge is tessellated into narrow filled triangles for sharp printing.
+ * Render clean pies as one high-resolution image per chart. The previous
+ * jsPDF triangle tessellation caused visible radial hairlines in PDF
+ * viewers (even though the adjacent triangles shared the same color).
+ * Canvas arc paths + same-color strokes eliminate those seams.
+ * Only this on-demand export uses canvas; no live dashboard visuals change.
  */
 function drawPie(
   doc: any, cx: number, cy: number, radius: number,
   sections: Array<{ value: number; color: [number, number, number] }>,
 ) {
-  const total = sections.reduce((sum, section) => sum + Math.max(0, section.value), 0)
-  if (total <= 0) {
-    fill(doc, [226, 233, 242]); doc.circle(cx, cy, radius, 'F')
+  const pixelRadius = 260
+  const side = pixelRadius * 2
+  const canvas = document.createElement('canvas')
+  canvas.width = side
+  canvas.height = side
+  const context = canvas.getContext('2d')
+  if (!context) {
+    // Fallback remains clean, even when canvas drawing is unavailable.
+    fill(doc, [227, 234, 244])
+    doc.circle(cx, cy, radius, 'F')
     return
   }
-  let angle = -Math.PI / 2
-  for (const section of sections) {
-    const sweep = 2 * Math.PI * Math.max(0, section.value) / total
-    if (sweep <= 0) continue
-    fill(doc, section.color)
-    if (sweep >= 2 * Math.PI - 0.000001) {
-      doc.circle(cx, cy, radius, 'F')
-    } else {
-      const pieces = Math.max(2, Math.ceil(sweep / (Math.PI / 48)))
-      for (let part = 0; part < pieces; part += 1) {
-        const start = angle + sweep * part / pieces
-        const end = angle + sweep * (part + 1) / pieces
-        doc.triangle(
-          cx, cy,
-          cx + radius * Math.cos(start), cy + radius * Math.sin(start),
-          cx + radius * Math.cos(end), cy + radius * Math.sin(end),
-          'F',
-        )
-      }
+
+  const total = sections.reduce((sum, section) =>
+    sum + (Number.isFinite(section.value) ? Math.max(0, section.value) : 0), 0)
+  const base: [number, number, number] = [227, 234, 244]
+  const colorCss = (color: [number, number, number]) => `rgb(${color.join(',')})`
+  context.fillStyle = colorCss(base)
+  context.beginPath()
+  context.arc(pixelRadius, pixelRadius, pixelRadius - 2, 0, Math.PI * 2)
+  context.fill()
+
+  if (total > 0) {
+    let angle = -Math.PI / 2
+    for (const section of sections) {
+      const value = Math.max(0, Number.isFinite(section.value) ? section.value : 0)
+      if (!value) continue
+      const sweep = (value / total) * Math.PI * 2
+      const end = angle + sweep
+      const color = colorCss(section.color)
+      context.beginPath()
+      context.moveTo(pixelRadius, pixelRadius)
+      context.arc(pixelRadius, pixelRadius, pixelRadius - 2, angle, end)
+      context.closePath()
+      context.fillStyle = color
+      context.fill()
+      // Overpaint the antialiased slice edges with their own segment color.
+      // This avoids the white radial lines that were visible in the PDF.
+      context.strokeStyle = color
+      context.lineWidth = 1.35
+      context.stroke()
+      angle = end
     }
-    angle += sweep
   }
+  doc.addImage(
+    canvas.toDataURL('image/png'),
+    'PNG',
+    cx - radius, cy - radius, radius * 2, radius * 2,
+  )
 }
 
 function drawRing(
@@ -300,7 +327,7 @@ function drawExecutivePage(
   options: ExecutiveDashboardPdfOptions,
 ) {
   const date = options.generatedAt ?? new Date()
-  drawHeader(doc, images, `Generated ${formatDate(date.toISOString())}  |  Landscape executive summary`)
+  drawHeader(doc, images, `Generated ${formatDate(date.toISOString())}`)
   addScope(doc, options, projects)
   const count = projects.length
   const completed = projects.filter((project) => statusGroup(project) === 'Completed').length
@@ -321,7 +348,7 @@ function drawExecutivePage(
 
   // Dashboard-consistent status pie and readable legend.
   fill(doc, [255, 255, 255]); border(doc, BORDER)
-  doc.roundedRect(MARGIN, 104, PAGE[1] - MARGIN * 2, 39, 4, 4, 'FD')
+  doc.roundedRect(MARGIN, 104, PAGE[1] - MARGIN * 2, 39, 1.4, 1.4, 'FD')
   ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
   doc.text('PROJECT IMPLEMENTATION STATUS', MARGIN + 6, 112)
 
@@ -333,7 +360,7 @@ function drawExecutivePage(
     { label: 'Not Yet Started', value: projects.filter((p) => statusGroup(p) === 'Not Yet Started').length, color: SLATE },
     { label: 'Other', value: projects.filter((p) => statusGroup(p) === 'Other').length, color: AMBER },
   ]
-  drawPie(doc, 44, 124, 14, statusSections.map((section) => ({
+  drawPie(doc, 44, 128, 12, statusSections.map((section) => ({
     value: section.value, color: section.color,
   })))
   statusSections.forEach((item, index) => {
@@ -357,7 +384,7 @@ function drawExecutivePage(
   }
   const cohortYears = [...cohorts.keys()].sort((a, b) => a - b)
   fill(doc, [255, 255, 255]); border(doc, BORDER)
-  doc.roundedRect(MARGIN, 148, PAGE[1] - MARGIN * 2, 49, 4, 4, 'FD')
+  doc.roundedRect(MARGIN, 148, PAGE[1] - MARGIN * 2, 49, 1.4, 1.4, 'FD')
   ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
   doc.text('PROGRESS BY NADAI / FUND DOWNLOAD YEAR', MARGIN + 6, 156)
   const knownCount = [...cohorts.values()].reduce((sum, group) => sum + group.length, 0)
