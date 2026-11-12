@@ -417,9 +417,9 @@ export default function SubayImport() {
     if (codeCorrections.length > 0) {
       const correctionsList = codeCorrections.slice(0, 12).map((row) =>
         `${row.previousOfficialCode || 'No old code'} -> ${row.record.projectCode} | ${row.record.municipality} | ${row.record.projectTitle}`,
-      ).join('\\n')
+      ).join('\n')
       const correctionConfirmed = window.confirm(
-        `Official SubayBAYAN code reconciliation: ${codeCorrections.length} existing PMS10 project(s) will have their previous code replaced by the current official code. Project IDs, inspections and photos will be kept.\\n\\n${correctionsList}${codeCorrections.length > 12 ? '\\n... and more' : ''}\\n\\nConfirm these code corrections?`,
+        `Official SubayBAYAN code reconciliation: ${codeCorrections.length} existing PMS10 project(s) will have their previous code replaced by the current official code. Project IDs, inspections and photos will be kept.\n\n${correctionsList}${codeCorrections.length > 12 ? '\n... and more' : ''}\n\nConfirm these code corrections?`,
       )
       if (!correctionConfirmed) return
     }
