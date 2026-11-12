@@ -740,6 +740,8 @@ export function getSimplifiedImportStatus(record: SubayImportRecord) {
   if (rawStatus.includes('terminat')) return 'Terminated'
   if (rawStatus.includes('cancel')) return 'Cancelled'
   if (rawStatus.includes('suspend')) return 'Suspended'
+  if (rawStatus.includes('not yet started') || rawStatus.includes('not started')) return 'Not Yet Started'
+  if (rawStatus.includes('procurement')) return 'Under Procurement'
 
   if (record.subayFormat === 'sglgif_portal') {
     if (
