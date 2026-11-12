@@ -49,14 +49,6 @@ function percent(value: number): string {
   return `${Math.max(0, Math.min(100, value)).toFixed(2)}%`
 }
 
-function shortMoney(amount: unknown): string {
-  if (amount == null || text(amount) === '') return '-'
-  const value = numeric(amount)
-  if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(2)}M`
-  if (Math.abs(value) >= 1e3) return `${(value / 1e3).toFixed(1)}K`
-  return value.toLocaleString('en-PH', { maximumFractionDigits: 2 })
-}
-
 function regionProvince(project: ProjectRecord): string {
   const province = text(project.province ?? project.province_name ?? project.aor_province)
   const lgu = text(project.lgu ?? project.municipality ?? project.city_municipality ?? project.city)
@@ -757,7 +749,7 @@ export async function exportExecutiveDashboardPdf(
         })}`
       : ''
     const remarks = getProjectRemarks(project)
-    return [amount, remarks].filter(Boolean).join('\\n') || '-'
+    return [amount, remarks].filter(Boolean).join('\n') || '-'
   }
 
   const detailRows = ordered.map((project) => [
