@@ -503,32 +503,9 @@ function parseNadaiDate(value: unknown) {
 }
 
 function findNadaiDateInRow(row: unknown[], profile: SubayFormatProfile) {
-  // First use the expected profile column.
-  const expectedValue = getProfileCell(row, profile, 'nadaiDate')
-  const expectedDate = parseNadaiDate(expectedValue)
-
-  if (expectedDate) return expectedDate
-  // An explicit 'No' in the official NADAI column must never be
-  // overridden by an unrelated affirmative/date value elsewhere in the row.
-  if (profile.id === 'fy2025_above' && /^no\b/i.test(textValue(expectedValue))) return null
-
-  /*
-    FY2025+ exports sometimes shift columns when the portal extraction changes.
-    If column U does not parse, scan the row for the distinctive
-    "Yes - <date> at <time>" NADAI value instead of treating the project as
-    having no NADAI date.
-  */
-  if (profile.id === 'fy2025_above') {
-    for (const cell of row) {
-      const raw = textValue(cell)
-      if (!/^yes\b/i.test(raw) || !/\b(?:19|20)\d{2}\b/.test(raw)) continue
-
-      const parsed = parseNadaiDate(cell)
-      if (parsed) return parsed
-    }
-  }
-
-  return null
+  // Only the profile's officially designated NADAI column is authoritative.
+  // Scanning unrelated cells for 'Yes - date' produced false NADAI matches.
+  return parseNadaiDate(getProfileCell(row, profile, 'nadaiDate'))
 }
 
 function rowText(row: unknown[]) {
