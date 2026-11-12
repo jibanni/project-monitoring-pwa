@@ -481,6 +481,18 @@ export async function exportExecutiveDashboardPdf(
 
   drawExecutivePage(doc, images, projects, context)
 
+  // Do not append empty matrix/register pages for a filter scope with zero
+  // projects. The executive cover clearly reports zero and remains the
+  // only necessary page.
+  if (!projects.length) {
+    addFooters(doc, context)
+    const emptyTag = [options.area, options.program, options.fundingYears.join('-') || 'AllFY']
+      .map((value) => value.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 28))
+      .join('_')
+    doc.save(`PMS10_Executive_Report_${emptyTag}_${generatedAt.toISOString().slice(0, 10)}.pdf`)
+    return
+  }
+
   // Executive Director's at-a-glance province/HUC comparison immediately
   // follows the cover so regional differences are visible before detail tables.
   drawProvinceOverviewPages(doc, images, projects, context)
