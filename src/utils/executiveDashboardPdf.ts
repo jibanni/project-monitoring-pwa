@@ -1,4 +1,6 @@
 import { getPmsProjectStatus, getPmsRiskLevel } from './projectStatus'
+import { getProjectSlippageVariance } from './projectVariance'
+import { getDeadlineRiskInfo } from './deadlineRisk'
 import { isProjectEligibleForAggregatePerformance } from './projectMetricEligibility'
 
 type ProjectRecord = Record<string, any>
@@ -189,7 +191,13 @@ function drawHeader(
   if (images.dilg) doc.addImage(images.dilg, 'PNG', 16, 8, 19, 19)
   // Give the Bagong Pilipinas mark equal visual prominence while retaining
   // the existing header line and centered DILG office letterhead.
-  if (images.bagong) doc.addImage(images.bagong, 'PNG', width - 45, 1, 31, 28.2)
+  if (images.bagong) {
+    // The existing PNG is 499 x 520 px. Preserve its original aspect ratio
+    // so the circular mark never appears stretched in the PDF letterhead.
+    const logoHeight = 27.8
+    const logoWidth = logoHeight * (499 / 520)
+    doc.addImage(images.bagong, 'PNG', width - MARGIN - logoWidth, 1.1, logoWidth, logoHeight)
+  }
   ink(doc, [66, 78, 91])
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
   doc.text('Republic of the Philippines', width / 2, 9.4, { align: 'center' })
@@ -435,27 +443,34 @@ function drawExecutivePage(
       const physicalRate = group.length ? done / group.length * 100 : 0
       const financialRate = financeWeighted(group)
       const centerX = rightX + columnWidth * (index + 0.5)
-      const radius = visibleYears.length === 1 ? 27 : visibleYears.length === 2 ? 22 : 18
+      // Keep project-count text clearly ABOVE the donut (previously the
+      // count touched the chart's top), even when only one NADAI year exists.
+      const radius = visibleYears.length === 1 ? 23.5 : visibleYears.length === 2 ? 21.0 : 16.5
+      const centerY = 156
 
       ink(doc, NAVY); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.8)
-      doc.text(`NADAI ${year}`, centerX, 117.3, { align: 'center' })
-      ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.2)
+      doc.text(`NADAI ${year}`, centerX, 117.8, { align: 'center' })
+      ink(doc, SLATE); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.1)
       doc.text(`${group.length} ${group.length === 1 ? 'project' : 'projects'}`,
-        centerX, 123.0, { align: 'center' })
+        centerX, 124.0, { align: 'center' })
 
-      drawDoubleDonut(doc, centerX, 150.0, physicalRate, financialRate, radius)
+      drawDoubleDonut(doc, centerX, centerY, physicalRate, financialRate, radius)
 
-      const textSize = visibleYears.length === 3 ? 6.3 : 7.0
-      const legendLeft = centerX - 20
-      const legendRight = centerX + 23
-      fill(doc, GREEN); doc.circle(legendLeft + 1.2, 181.9, 1.25, 'F')
+      // Compact centered legend below each chart; no overlapping arcs.
+      const textSize = visibleYears.length === 3 ? 6.0 : 7.0
+      const legendWidth = Math.min(columnWidth - 5, visibleYears.length === 3 ? 41 : 54)
+      const legendLeft = centerX - legendWidth / 2
+      const legendRight = centerX + legendWidth / 2
+      const firstLine = 185.6
+      const secondLine = 193.0
+      fill(doc, GREEN); doc.circle(legendLeft + 1.2, firstLine - 1.1, 1.25, 'F')
       ink(doc, GREEN); doc.setFont('helvetica', 'bold'); doc.setFontSize(textSize)
-      doc.text('Physical', legendLeft + 4.5, 183)
-      doc.text(percent(physicalRate), legendRight, 183, { align: 'right' })
-      fill(doc, [85, 123, 193]); doc.circle(legendLeft + 1.2, 190.0, 1.25, 'F')
+      doc.text('Physical', legendLeft + 4.4, firstLine)
+      doc.text(percent(physicalRate), legendRight, firstLine, { align: 'right' })
+      fill(doc, [85, 123, 193]); doc.circle(legendLeft + 1.2, secondLine - 1.1, 1.25, 'F')
       ink(doc, [85, 123, 193])
-      doc.text('Financial', legendLeft + 4.5, 191.1)
-      doc.text(percent(financialRate), legendRight, 191.1, { align: 'right' })
+      doc.text('Financial', legendLeft + 4.4, secondLine)
+      doc.text(percent(financialRate), legendRight, secondLine, { align: 'right' })
     })
   }
   if (years.length > visibleYears.length) {
