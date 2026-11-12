@@ -213,10 +213,14 @@ export function getContractExpirationInfo(
 }
 
 export function getOfficialProjectCost(project?: ProjectLike | null): number {
-  const hasModification = toBoolean(project?.has_contract_modification)
-  const revisedCost = toNumber(project?.revised_project_cost)
   const originalCost = toNumber((project as any)?.budget)
 
+  // The imported project budget is the official masterlist amount.
+  // Engineer-observed contract adjustments remain separate.
+  if (textValue((project as any)?.subaybayan_project_code)) return originalCost
+
+  const hasModification = toBoolean(project?.has_contract_modification)
+  const revisedCost = toNumber(project?.revised_project_cost)
   if (hasModification && revisedCost > 0) return revisedCost
 
   return originalCost
