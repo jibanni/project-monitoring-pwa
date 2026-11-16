@@ -15,7 +15,6 @@ type CompressionOptions = {
 }
 
 export const MAX_INSPECTION_PHOTO_BYTES = 700 * 1024
-export const MAX_INSPECTION_PHOTOS_PER_UPDATE = 3
 
 function replaceExtensionWithJpeg(fileName: string) {
   const base = fileName.replace(/\.[^/.]+$/, '').trim() || 'inspection-photo'
