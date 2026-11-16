@@ -29,13 +29,23 @@
   .rpmes-comparison-controls .rpmes-link-field { flex: 1 1 300px; }
   .rpmes-link-field input { flex: 1; min-width: 130px; }
   .rpmes-comparison-meta { line-height: 1.55; }
+  .rpmes-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .rpmes-summary > div { padding: 9px 11px; background: #f2f7fc; border: 1px solid #d9e6f2; border-radius: 8px; font-size: .8rem; }
+  .rpmes-summary strong { display: block; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+  .rpmes-summary span { display: block; color: #445f77; }
+  .rpmes-table-options { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin-top: 10px; }
+  .rpmes-table-options label { display: flex; align-items: center; gap: 6px; font-size: .84rem; }
   .rpmes-comparison-table { margin-top: 12px; overflow-x: auto; border: 1px solid #d7e4f0; border-radius: 9px; }
-  .rpmes-comparison-table table { width: 100%; min-width: 820px; border-collapse: collapse; text-align: center; font-size: .82rem; color: #163753; }
+  .rpmes-comparison-table table { width: 100%; min-width: 710px; border-collapse: collapse; text-align: center; font-size: .82rem; color: #163753; font-variant-numeric: tabular-nums; }
   .rpmes-comparison-table caption { padding: 7px 10px; background: #f4f8fc; text-align: left; color: #456381; }
   .rpmes-comparison-table :is(th, td) { border: 1px solid #d9e6f2; padding: 8px 5px; vertical-align: middle; }
   .rpmes-comparison-table thead th { background: #11558f; color: #fff; font-weight: 750; text-transform: uppercase; }
-  .rpmes-comparison-table thead tr + tr th { background: #eaf3fc; color: #214b72; font-size: .64rem; letter-spacing: .02em; }
   .rpmes-comparison-table tbody tr:nth-child(even) { background: #f6f9fd; }
-  .rpmes-comparison-table tbody :is(td:first-child, th[scope='row']) { text-align: left; padding-inline: 9px; }
-  .rpmes-comparison-table td[data-diff='true'] { background: #fff3db; color: #714200; font-weight: 700; }
+  .rpmes-comparison-table tbody :is(.rpmes-province-cell, th[scope='row']) { text-align: left; padding-inline: 9px; }
+  .rpmes-comparison-table .rpmes-province-cell { background: #edf4fb; font-weight: 750; }
+  .rpmes-comparison-table tbody + tbody tr:first-child > * { border-top: 2px solid #c4d8ea; }
+  .rpmes-comparison-table td[data-diff='true'] { background: #fff3db; color: #714200; }
+  .rpmes-metric-difference { display: inline-grid; gap: 2px; text-align: left; }
+  .rpmes-metric-difference > span { display: flex; justify-content: space-between; align-items: baseline; gap: 5px; }
+  .rpmes-metric-difference > span > span { font-size: .7rem; }
 }

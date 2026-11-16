@@ -22,6 +22,15 @@ const dateLabel = (date: Date) => new Intl.DateTimeFormat('en-PH', {
 const percent = new Intl.NumberFormat('en-PH', { style: 'percent', maximumFractionDigits: 2 })
 const sourceNames = { subay: 'PMS SubayBAYAN', rpmes: 'RPMES' } as const
 const sources = ['subay', 'rpmes'] as const
+const metricLabels = {
+  projects: 'Projects', barangays: 'Barangays', notStarted: 'Not yet started',
+  ongoing: 'Ongoing', completed: 'Completed', completion: 'Completion rate',
+} as const
+
+function displayMetric(key: keyof typeof metricLabels, value: number | null) {
+  if (value === null) return '—'
+  return key === 'completion' ? percent.format(value) : String(value)
+}
 
 function readLinks(storageKey: string): SourceLinks {
   try {
@@ -58,6 +67,7 @@ export default function RpmesStatusComparison({ projects, projectSource, refresh
   const [sheets, setSheets] = useState<Partial<Record<PilotProvince, SheetData>>>({})
   const [errors, setErrors] = useState<PilotProvince[]>([])
   const [loading, setLoading] = useState(false)
+  const [differencesOnly, setDifferencesOnly] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [importProvince, setImportProvince] = useState<PilotProvince | ''>('')
   const [importUrl, setImportUrl] = useState('')
@@ -77,6 +87,18 @@ export default function RpmesStatusComparison({ projects, projectSource, refresh
   const ready = projectSource === 'empty' ? [] : requested.filter((province) => sheets[province] && !errors.includes(province))
   const rpmes = ready.flatMap((province) => sheets[province]!.rows.filter((entry) => canViewProject(entry, auth)))
   const compared = summarizeByLgu(official.filter((entry) => ready.includes(entry.province)), rpmes, getCanonicalProjectLgu)
+  const differing = compared.filter((row) => SUMMARY_COLUMNS.some(({ key }) =>
+    displayMetric(key, row.subay[key]) !== displayMetric(key, row.rpmes[key])))
+  const visible = differencesOnly ? differing : compared
+  const subayProjectCount = compared.reduce((total, row) => total + row.subay.projects, 0)
+  const rpmesProjectCount = compared.reduce((total, row) => total + row.rpmes.projects, 0)
+  const byProvince = new Map<PilotProvince, typeof compared>()
+  for (const row of visible) {
+    const group = byProvince.get(row.province)
+    if (group) group.push(row)
+    else byProvince.set(row.province, [row])
+  }
+  const provinceCount = new Set(compared.map((row) => row.province)).size
   const hasOther = compared.some((row) => row.subay.other || row.rpmes.other)
   const hasMissingBarangay = compared.some((row) => row.subay.missingBarangay || row.rpmes.missingBarangay)
 
@@ -226,30 +248,46 @@ export default function RpmesStatusComparison({ projects, projectSource, refresh
     {projectSource === 'empty' && <p role="status">Waiting for official PMS10 project records.</p>}
     {!requested.length && <p role="status">No FY 2025 SBDP pilot projects are available in your current PMS10 scope.</p>}
     {ready.length > 0 && <>
-      <div className="rpmes-comparison-table" tabIndex={0} role="region" aria-label="LGU status summary">
+      <div className="rpmes-summary" aria-label="Comparison totals">
+        <div><strong>{compared.length}</strong> LGUs covered <span>across {provinceCount} {provinceCount === 1 ? 'province' : 'provinces'}</span></div>
+        <div><strong>{subayProjectCount}</strong> PMS SubayBAYAN projects</div>
+        <div><strong>{rpmesProjectCount}</strong> RPMES projects</div>
+        <div><strong>{differing.length}</strong> {differing.length === 1 ? 'LGU' : 'LGUs'} with differences</div>
+      </div>
+      {compared.length > 0 && <div className="rpmes-table-options">
+        <p>One number means both sources agree. Highlighted cells show each source’s figure.</p>
+        <label><input type="checkbox" checked={differencesOnly} onChange={(event) => setDifferencesOnly(event.target.checked)} /> Show differences only</label>
+      </div>}
+      {visible.length > 0 && <div className="rpmes-comparison-table" tabIndex={0} role="region" aria-label="LGU status summary">
         <table>
-          <caption>{compared.length} LGUs · Highlighted values differ between sources.</caption>
-          <colgroup span={1} /><colgroup span={1} />
-          {SUMMARY_COLUMNS.map(({ key }) => <colgroup key={key} span={2} />)}
+          <caption>Showing {visible.length} of {compared.length} LGUs</caption>
           <thead>
             <tr>
-              <th scope="col" rowSpan={2}>Province</th><th scope="col" rowSpan={2}>LGUs</th>
-              {SUMMARY_COLUMNS.map(({ key, label }) => <th scope="colgroup" colSpan={2} key={key}>{label}</th>)}
+              <th scope="col">Province</th><th scope="col">LGU</th>
+              {SUMMARY_COLUMNS.map(({ key }) => <th scope="col" key={key}>{metricLabels[key]}</th>)}
             </tr>
-            <tr>{SUMMARY_COLUMNS.flatMap(({ key }) => sources.map((source) => <th scope="col" key={`${key}-${source}`}>{sourceNames[source]}</th>))}</tr>
           </thead>
-          <tbody>{compared.map((row) => <tr key={row.key}>
-            <td>{row.province}</td><th scope="row">{row.lgu}</th>
-            {SUMMARY_COLUMNS.flatMap(({ key }) => sources.map((source) => {
-              const value = row[source][key]
-              return <td key={`${key}-${source}`} data-diff={row.subay[key] !== row.rpmes[key]}>
-                {value == null ? '—' : key === 'completion' ? percent.format(value) : value}
-              </td>
-            }))}
-          </tr>)}</tbody>
+          {[...byProvince].map(([province, rows]) => <tbody key={province}>
+            {rows.map((row, index) => <tr key={row.key}>
+              {index === 0 && <th className="rpmes-province-cell" scope="rowgroup" rowSpan={rows.length}>{province}</th>}
+              <th scope="row">{row.lgu}</th>
+              {SUMMARY_COLUMNS.map(({ key }) => {
+                const subay = displayMetric(key, row.subay[key])
+                const rpmes = displayMetric(key, row.rpmes[key])
+                const differs = subay !== rpmes
+                return <td key={key} data-diff={differs}>
+                  {differs ? <div className="rpmes-metric-difference">
+                    <span><span>SubayBAYAN</span> <strong>{subay}</strong></span>
+                    <span><span>RPMES</span> <strong>{rpmes}</strong></span>
+                  </div> : subay}
+                </td>
+              })}
+            </tr>)}
+          </tbody>)}
         </table>
-      </div>
+      </div>}
       {!compared.length && <p>No projects were found in the selected scope.</p>}
+      {differencesOnly && compared.length > 0 && !visible.length && <p role="status">No differences in the displayed metrics for the selected LGUs.</p>}
       <p className="rpmes-comparison-meta">Completion = completed projects ÷ total projects. Barangays are counted once per LGU and source. Preparation and procurement are included in Not Yet Started.</p>
       {hasOther && <p>Other or blank statuses are included in total projects but are not assigned to the three status columns.</p>}
       {hasMissingBarangay && <p>Projects with blank barangay names are included in project totals, but not in the count of distinct barangays.</p>}
