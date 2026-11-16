@@ -173,6 +173,18 @@ export async function getProjectAideMemoireDocuments(
   return (result.data || []) as unknown as CloudAideMemoireDocument[]
 }
 
+export function isLocalAideMemoireNewer(
+  local: OfflineAideMemoireDocument | null,
+  cloud: CloudAideMemoireDocument | null,
+) {
+  if (!local) return false
+  if (!cloud?.file_url) return true
+
+  const localTime = Date.parse(local.generated_at || '')
+  const cloudTime = Date.parse(cloud.generated_at || cloud.uploaded_at || '')
+  return Number.isFinite(localTime) && (!Number.isFinite(cloudTime) || localTime > cloudTime)
+}
+
 export async function getLatestProjectAideMemoireDocument(
   projectId: string,
   format: AideMemoireDocumentFormat = 'pdf',

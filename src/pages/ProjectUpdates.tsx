@@ -25,12 +25,12 @@ import {
 } from'../services/googleDrivePhotoUploadService'
 import {
   getLatestProjectAideMemoireDocument,
+  isLocalAideMemoireNewer,
   type CloudAideMemoireDocument,
 } from'../services/projectDocumentService'
 import {
   compressInspectionImage,
   MAX_INSPECTION_PHOTO_BYTES,
-  MAX_INSPECTION_PHOTOS_PER_UPDATE,
 } from'../utils/imageCompression'
 import ActionMenu from'../components/ActionMenu'
 import AideMemoireGenerationDialog from'../components/AideMemoireGenerationDialog'
@@ -197,6 +197,7 @@ type SaveSuccessDialog = {
   message: string
   mode: SaveMode
   updateRef: string
+  inspectionDate: string
 } | null
 
 type NoticeDialog = {
@@ -970,7 +971,7 @@ export default function ProjectUpdates() {
   const [portalReady, setPortalReady] = useState(false)
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
   const [saveSuccessDialog, setSaveSuccessDialog] = useState<SaveSuccessDialog>(null)
-  const [aideGenerationRequest, setAideGenerationRequest] = useState<{ updateRef: string; source: 'online' | 'offline' } | null>(null)
+  const [aideGenerationRequest, setAideGenerationRequest] = useState<{ updateRef: string; source: 'online' | 'offline'; inspectionDate: string } | null>(null)
   const [noticeDialog, setNoticeDialog] = useState<NoticeDialog>(null)
   const [aideFindings, setAideFindings] = useState<AideMemoireFinding[]>([createBlankAideFinding()])
   const [noFindingsObserved, setNoFindingsObserved] = useState(false)
@@ -2126,10 +2127,13 @@ export default function ProjectUpdates() {
     }
   }
 
-  async function finalizeAideMemoireForSavedUpdate(updateRef: string, source: 'online' | 'offline') {
-    if (!updateRef) return
+  async function finalizeAideMemoireForSavedUpdate(updateRef: string, source: SaveMode, savedInspectionDate: string) {
     const finalRecord = buildAideMemoireRecord(updateRef, source, 'final')
-    await saveAideMemoireRecord(finalRecord)
+    await saveAideMemoireRecord({
+      ...finalRecord,
+      inspection_date: savedInspectionDate,
+      update_snapshot: { ...finalRecord.update_snapshot, inspection_date: savedInspectionDate },
+    })
     if (workingDraftId) await offlineDb.aide_memoires.delete(workingDraftId)
     clearFormDraft(shadowDraftKey)
     setWorkingAideDraft(null)
@@ -2189,15 +2193,15 @@ export default function ProjectUpdates() {
   async function viewLatestProjectPdf() {
     if (!id) return
 
-    /* Online source of truth: resolve the latest synced PDF from Supabase at
-       click time so every device opens the same newest Aide Memoire. */
+    /* Check the cloud at click time, but keep a newer local PDF available
+       while its upload is still pending. */
     if (navigator.onLine) {
       try {
         const latestCloud = await getLatestProjectAideMemoireDocument(id, 'pdf')
         setLatestCloudPdfRecord(latestCloud)
 
         const cloudUrl = String(latestCloud?.file_url || '').trim()
-        if (cloudUrl) {
+        if (cloudUrl && !isLocalAideMemoireNewer(latestPdfRecord, latestCloud)) {
           window.open(cloudUrl, '_blank', 'noopener,noreferrer')
           return
         }
@@ -2533,12 +2537,6 @@ export default function ProjectUpdates() {
   ) {
     const imageFiles = files.filter(isLikelyImage)
     const rejectedCount = files.length - imageFiles.length
-    const availableSlots = Math.max(
-      0,
-      MAX_INSPECTION_PHOTOS_PER_UPDATE - photoInputsRef.current.length,
-    )
-    const acceptedImageFiles = imageFiles.slice(0, availableSlots)
-    const overLimitCount = imageFiles.length - acceptedImageFiles.length
 
     if (imageFiles.length === 0) {
       if (rejectedCount > 0) {
@@ -2547,16 +2545,9 @@ export default function ProjectUpdates() {
       return [] as PhotoInput[]
     }
 
-    if (availableSlots === 0) {
-      setErrorMessage(
-        `A project update can contain up to ${MAX_INSPECTION_PHOTOS_PER_UPDATE} photos. Remove a photo before adding another.`,
-      )
-      return [] as PhotoInput[]
-    }
-
     setPhotoProcessing(true)
     setErrorMessage('')
-    setMessage(`Preparing ${acceptedImageFiles.length} inspection photo(s)…`)
+    setMessage(`Preparing ${imageFiles.length} inspection photo(s)…`)
 
     try {
       const metadataPromise: Promise<PhotoCaptureMetadata> = options.captureGps
@@ -2578,7 +2569,7 @@ export default function ProjectUpdates() {
       let originalBytes = 0
       let compressedBytes = 0
 
-      for (const sourceFile of acceptedImageFiles) {
+      for (const sourceFile of imageFiles) {
         originalBytes += sourceFile.size
 
         try {
@@ -2632,14 +2623,7 @@ export default function ProjectUpdates() {
         photoKind: options.photoKind,
       }))
 
-      setPhotoInputs((previous) => {
-        const nextPhotos = [...previous, ...mappedPhotos].slice(
-          0,
-          MAX_INSPECTION_PHOTOS_PER_UPDATE,
-        )
-        photoInputsRef.current = nextPhotos
-        return nextPhotos
-      })
+      setPhotoInputs((previous) => [...previous, ...mappedPhotos])
 
       if (
         options.captureGps &&
@@ -2667,23 +2651,19 @@ export default function ProjectUpdates() {
         ? Math.max(0, Math.round((1 - compressedBytes / originalBytes) * 100))
         : 0
       const skippedMessage = rejectedCount > 0 ? ` ${rejectedCount} non-image file(s) were skipped.` : ''
-      const limitMessage = overLimitCount > 0
-        ? ` ${overLimitCount} photo(s) were skipped because the maximum is ${MAX_INSPECTION_PHOTOS_PER_UPDATE}.`
-        : ''
       const warningMessage = warnings.length > 0 ? ` ${warnings.join(' ')}` : ''
       const gpsMessage = options.captureGps ? ` ${metadata.gpsMessage}` : ''
 
       setMessage(
-        `${mappedPhotos.length} photo(s) ready. ${originalMb.toFixed(1)} MB was reduced to ${compressedMb.toFixed(1)} MB (${savedPercent}% smaller).${gpsMessage}${skippedMessage}${limitMessage}${warningMessage}`,
+        `${mappedPhotos.length} photo(s) ready. ${originalMb.toFixed(1)} MB was reduced to ${compressedMb.toFixed(1)} MB (${savedPercent}% smaller).${gpsMessage}${skippedMessage}${warningMessage}`,
       )
 
       if (
         rejectedCount > 0 ||
-        overLimitCount > 0 ||
         warnings.length > 0 ||
         (options.captureGps && metadata.latitude === null)
       ) {
-        setErrorMessage(`${gpsMessage}${skippedMessage}${limitMessage}${warningMessage}`.trim())
+        setErrorMessage(`${gpsMessage}${skippedMessage}${warningMessage}`.trim())
       }
 
       return mappedPhotos
@@ -3047,10 +3027,6 @@ export default function ProjectUpdates() {
       return'You are not allowed to submit project updates.'
     }
 
-    if (photoInputs.length > MAX_INSPECTION_PHOTOS_PER_UPDATE) {
-      return `A project update can contain up to ${MAX_INSPECTION_PHOTOS_PER_UPDATE} photos. Remove the extra photos before saving.`
-    }
-
     const oversizedPhoto = photoInputs.find(
       (photo) => photo.file.size > MAX_INSPECTION_PHOTO_BYTES,
     )
@@ -3254,13 +3230,15 @@ export default function ProjectUpdates() {
       throw insertError
     }
 
-    const updateId = insertedUpdate?.id
+    const updateId = String(insertedUpdate?.id || '')
+    if (!updateId) throw new Error('PMS10 could not identify the saved project update.')
+    const savedInspectionDate = String(insertedUpdate?.inspection_date || updatePayload.inspection_date)
 
     // SubayBAYAN is authoritative for the project masterlist.
     // Engineer figures stay in project_updates, and are surfaced only
     // by the separate Actual On-Site dashboard mode.
     const projectPatch = {
-      last_inspection_date: inspectionDate,
+      last_inspection_date: savedInspectionDate,
       ...latestCoordinatePatch,
     }
 
@@ -3283,10 +3261,10 @@ export default function ProjectUpdates() {
     }
 
     if (photoInputs.length > 0 && updateId) {
-      photoUploadResult = await uploadPhotosOnline(projectId, String(updateId))
+      photoUploadResult = await uploadPhotosOnline(projectId, updateId, savedInspectionDate)
     }
 
-    await finalizeAideMemoireForSavedUpdate(String(updateId || ''), 'online')
+    await finalizeAideMemoireForSavedUpdate(updateId, 'online', savedInspectionDate)
     await refreshLatestProjectOutputs()
     clearFormAfterSave()
 
@@ -3302,7 +3280,8 @@ export default function ProjectUpdates() {
         ? `The inspection update is saved and the Aide Memoire can be generated now, even without syncing. ${photoUploadResult.uploadedCount} photo(s) reached Google Drive and ${photoUploadResult.queuedCount} compressed photo(s) remain safely on this device for Offline Sync.`
         : 'Project update saved successfully. The project record and compressed photos have been updated.',
       mode:'online',
-      updateRef: String(updateId || ''),
+      updateRef: updateId,
+      inspectionDate: savedInspectionDate,
     })
 
   }
@@ -3378,9 +3357,9 @@ export default function ProjectUpdates() {
     return photoRows.length
   }
 
-  async function uploadPhotosOnline(projectId: string, updateId: string) {
+  async function uploadPhotosOnline(projectId: string, updateId: string, savedInspectionDate: string) {
     const projectTitle = project?.project_name || 'Untitled Project'
-    const driveFundingYear = getDriveFundingYear(project, inspectionDate)
+    const driveFundingYear = getDriveFundingYear(project, savedInspectionDate)
     const driveFundingSource = getDriveFundingSource(project)
     const uploadedBy =
       auth?.profile?.full_name ||
@@ -3403,7 +3382,7 @@ export default function ProjectUpdates() {
           projectId,
           updateId,
           projectTitle,
-          inspectionDate,
+          inspectionDate: savedInspectionDate,
           fundingYear: driveFundingYear,
           fundingSource: driveFundingSource,
           fundingProgram: driveFundingSource,
@@ -3543,7 +3522,7 @@ export default function ProjectUpdates() {
     await updateCachedProject(projectId, inspectionPatch)
     await updateSharedProjectCache(projectId, inspectionPatch)
 
-    await finalizeAideMemoireForSavedUpdate(localUpdateId, 'offline')
+    await finalizeAideMemoireForSavedUpdate(localUpdateId, 'offline', updatePayload.inspection_date)
     await refreshLatestProjectOutputs()
     clearFormAfterSave()
     setMessage('Project update saved offline. Sync it when internet is available.')
@@ -3552,6 +3531,7 @@ export default function ProjectUpdates() {
       message:'The inspection update and compressed photo files are safely stored on this device. You can generate the Aide Memoire now without synchronizing, then use Offline Sync when internet is available.',
       mode:'offline',
       updateRef: localUpdateId,
+      inspectionDate: updatePayload.inspection_date,
     })
 
     await loadOfflineData()
@@ -3599,7 +3579,11 @@ export default function ProjectUpdates() {
     if (!id || !saveSuccessDialog?.updateRef) return
 
     const source = saveSuccessDialog.mode === 'offline' ? 'offline' : 'online'
-    setAideGenerationRequest({ updateRef: saveSuccessDialog.updateRef, source })
+    setAideGenerationRequest({
+      updateRef: saveSuccessDialog.updateRef,
+      source,
+      inspectionDate: saveSuccessDialog.inspectionDate,
+    })
     setSaveSuccessDialog(null)
   }
 
@@ -3817,7 +3801,7 @@ export default function ProjectUpdates() {
                 <div className="pu-long-date-field">
                   <div>
                     <strong>{formatLongDate(inspectionDate)}</strong>
-                    <small>Selected update date</small>
+                    <small>This date will appear on the Aide Memoire.</small>
                   </div>
 
                   <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ? 'disabled' : ''}`}>
@@ -4883,7 +4867,7 @@ export default function ProjectUpdates() {
           <div className="pu-save-modal">
             <p className="pu-eyebrow">Confirm Update</p>
             <h3>Save this project update?</h3>
-            <p>Review the summary below. Continue saving this project update?</p>
+            <p>Update date for this record and its Aide Memoire: <strong>{formatLongDate(inspectionDate)}</strong></p>
 
             <div className="pu-save-summary-grid">
               <span>Status <strong>{heroDisplayStatus}</strong></span>
@@ -4929,6 +4913,7 @@ export default function ProjectUpdates() {
             <div className="pu-success-icon">✓</div>
             <h3>{saveSuccessDialog.title}</h3>
             <p>{saveSuccessDialog.message}</p>
+            <p>Saved update date: <strong>{formatLongDate(saveSuccessDialog.inspectionDate)}</strong></p>
             <div className="pu-modal-actions">
               <button
                 type="button"
@@ -4961,6 +4946,7 @@ export default function ProjectUpdates() {
           projectId={id}
           updateRef={aideGenerationRequest.updateRef}
           source={aideGenerationRequest.source}
+          inspectionDate={aideGenerationRequest.inspectionDate}
           returnTo={`/projects/${id}/updates`}
           onClose={() => setAideGenerationRequest(null)}
           onGenerated={refreshLatestProjectOutputs}
@@ -4981,7 +4967,7 @@ export default function ProjectUpdates() {
           },
           {
             id: 'latest-pdf',
-            label: 'Latest Aide Memoire',
+            label: 'Latest Saved Aide Memoire',
             icon: <IconPdf />,
             tone: 'primary',
             hidden: !latestPdfRecord && !latestCloudPdfRecord,

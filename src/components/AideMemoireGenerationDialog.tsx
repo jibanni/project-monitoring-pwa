@@ -13,6 +13,7 @@ import {
   saveAideMemoireRecord,
   type AideMemoirePhoto,
   type OfflineAideMemoire,
+  type OfflineAideMemoireDocument,
 } from '../lib/offlineDb'
 import {
   generateAideMemoireFiles,
@@ -29,6 +30,7 @@ type Props = {
   projectId: string
   updateRef: string
   source: Source
+  inspectionDate?: string
   returnTo?: string
   onClose: () => void
   onGenerated?: () => void | Promise<void>
@@ -36,6 +38,15 @@ type Props = {
 
 function buildRecordId(projectId: string, source: Source, updateRef: string) {
   return `aide-${projectId}-${source}-${updateRef}`
+}
+
+function matchesSavedInspectionDate(
+  document: OfflineAideMemoireDocument,
+  savedDate: string | undefined,
+  snapshotDate: string | undefined,
+) {
+  const fileDate = document.file_name.match(/_(\d{4}-\d{2}-\d{2})\.(?:pdf|docx)$/i)?.[1]
+  return !savedDate || savedDate === (fileDate || snapshotDate)
 }
 
 function mapExportData(
@@ -115,6 +126,7 @@ export default function AideMemoireGenerationDialog({
   projectId,
   updateRef,
   source,
+  inspectionDate,
   returnTo,
   onClose,
   onGenerated,
@@ -228,6 +240,11 @@ export default function AideMemoireGenerationDialog({
       setMessage('')
       setWarning('')
       setError('')
+      setRecord(null)
+      setPhotos([])
+      setLatestPdfBlob(null)
+      setLatestPdfName('Aide_Memoire.pdf')
+      setLatestPdfDocumentId('')
 
       try {
         let stored = await offlineDb.aide_memoires.get(aideMemoireId)
@@ -263,12 +280,21 @@ export default function AideMemoireGenerationDialog({
         ])
 
         if (cancelled) return
-        setRecord(stored)
+        const snapshotDate = stored.inspection_date?.slice(0, 10)
+        const savedDate = inspectionDate?.slice(0, 10) || snapshotDate
+        const availableDocuments = [storedPdf, storedDocx].filter(
+          (item): item is OfflineAideMemoireDocument => item !== null,
+        )
+        const matchingDocuments = availableDocuments.filter(
+          (item) => matchesSavedInspectionDate(item, savedDate, snapshotDate),
+        )
+        const matchingPdf = matchingDocuments.find((item) => item.format === 'pdf')
+        setRecord(savedDate ? { ...stored, inspection_date: savedDate } : stored)
         setPhotos(loadedPhotos)
-        if (storedPdf) {
-          setLatestPdfBlob(aideMemoireDocumentToBlob(storedPdf))
-          setLatestPdfName(storedPdf.file_name || 'Aide_Memoire.pdf')
-          setLatestPdfDocumentId(storedPdf.id)
+        if (matchingPdf) {
+          setLatestPdfBlob(aideMemoireDocumentToBlob(matchingPdf))
+          setLatestPdfName(matchingPdf.file_name || 'Aide_Memoire.pdf')
+          setLatestPdfDocumentId(matchingPdf.id)
         } else {
           setLatestPdfBlob(null)
           setLatestPdfName('Aide_Memoire.pdf')
@@ -280,10 +306,13 @@ export default function AideMemoireGenerationDialog({
          * been created before Drive credentials were available. Opening the
          * dialog again while online automatically retries those pending files.
          */
+        const dateWarning = availableDocuments.length !== matchingDocuments.length
+          ? 'A cached file has a different date. Generate the Aide Memoire again to use the saved update date.'
+          : ''
+        if (dateWarning) setWarning(dateWarning)
         if (source === 'online' && navigator.onLine) {
-          const pendingDocuments = [storedPdf, storedDocx].filter(
-            (item): item is NonNullable<typeof storedPdf> =>
-              Boolean(item) && String(item?.sync_status || 'pending').toLowerCase() !== 'synced',
+          const pendingDocuments = matchingDocuments.filter(
+            (item) => String(item.sync_status || 'pending').toLowerCase() !== 'synced',
           )
 
           const recovered: string[] = []
@@ -309,7 +338,7 @@ export default function AideMemoireGenerationDialog({
             await onGenerated?.()
           }
           if (!cancelled && recoveryWarnings.length > 0) {
-            setWarning(recoveryWarnings.join(' '))
+            setWarning([dateWarning, ...recoveryWarnings].filter(Boolean).join(' '))
           }
         }
       } catch (loadError: any) {
@@ -326,7 +355,7 @@ export default function AideMemoireGenerationDialog({
     return () => {
       cancelled = true
     }
-  }, [open, aideMemoireId, projectId, updateRef])
+  }, [open, aideMemoireId, projectId, updateRef, inspectionDate, source])
 
   useEffect(() => {
     if (!open) return
@@ -493,7 +522,7 @@ export default function AideMemoireGenerationDialog({
             {record && (
               <>
                 <div className="am-direct-summary">
-                  <span><small>Inspection</small><strong>{record.inspection_date || '—'}</strong></span>
+                  <span><small>Saved Update Date</small><strong>{record.inspection_date || '—'}</strong></span>
                   <span><small>Findings</small><strong>{record.findings?.length || 0}</strong></span>
                   <span><small>Attendees</small><strong>{record.attendance?.length || 0}</strong></span>
                   <span><small>Photos</small><strong>{record.photos?.length || 0}</strong></span>

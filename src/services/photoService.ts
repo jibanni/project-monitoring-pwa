@@ -1,11 +1,11 @@
 import { supabase } from '../lib/supabase'
 
 const PHOTO_BUCKET = 'project-photos'
-const DEFAULT_PHOTO_RETAIN_COUNT = 5
 
 type ProjectPhotoRow = {
   id: string | number
   photo_url: string | null
+  caption?: string | null
   uploaded_at?: string | null
 }
 
@@ -78,41 +78,6 @@ async function deletePhotoRowsAndFiles(photos: ProjectPhotoRow[]) {
   }
 }
 
-export async function cleanupProjectPhotos(
-  projectId: string,
-  keepCount = DEFAULT_PHOTO_RETAIN_COUNT,
-) {
-  const retainCount = Math.max(0, Math.floor(Number(keepCount) || 0))
-
-  const photosResult = await supabase
-    .from('project_photos')
-    .select('id, photo_url, uploaded_at')
-    .eq('project_id', projectId)
-    .order('uploaded_at', { ascending: false })
-
-  if (photosResult.error) {
-    throw photosResult.error
-  }
-
-  const photos = (photosResult.data || []) as ProjectPhotoRow[]
-  const photosToDelete = photos.slice(retainCount)
-
-  if (photosToDelete.length === 0) {
-    return {
-      retainedPhotoRows: photos.length,
-      deletedPhotoRows: 0,
-      deletedStorageFiles: 0,
-    }
-  }
-
-  const deleteResult = await deletePhotoRowsAndFiles(photosToDelete)
-
-  return {
-    retainedPhotoRows: Math.min(photos.length, retainCount),
-    ...deleteResult,
-  }
-}
-
 export async function uploadProjectPhoto(
   file: File,
   projectId: string,
@@ -155,9 +120,32 @@ export async function uploadProjectPhoto(
     throw insertResult.error
   }
 
-  await cleanupProjectPhotos(projectId, DEFAULT_PHOTO_RETAIN_COUNT)
-
   return insertResult.data
+}
+
+export async function getProjectPhotoPage(
+  projectId: string,
+  offset: number,
+  pageSize: number,
+  signal?: AbortSignal,
+) {
+  const query = supabase
+    .from('project_photos')
+    .select('id, photo_url, caption, uploaded_at')
+    .eq('project_id', projectId)
+    .order('uploaded_at', { ascending: false, nullsFirst: false })
+    .order('id', { ascending: false })
+    .range(offset, offset + pageSize)
+  const { data, error } = await (signal ? query.abortSignal(signal) : query)
+  if (error) throw error
+
+  const rows = (data || []) as ProjectPhotoRow[]
+  const photos = rows.slice(0, pageSize)
+  return {
+    photos,
+    nextOffset: offset + photos.length,
+    hasMore: rows.length > pageSize,
+  }
 }
 
 export async function getProjectPhotos(projectId: string) {

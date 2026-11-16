@@ -17,7 +17,6 @@ import {
 import {
   compressInspectionImage,
   MAX_INSPECTION_PHOTO_BYTES,
-  MAX_INSPECTION_PHOTOS_PER_UPDATE,
 } from '../utils/imageCompression'
 import { recordSuccessfulSync } from '../lib/appDiagnostics'
 import { canUpdateProject, getCanonicalRole } from '../utils/aorAccess'
@@ -830,12 +829,6 @@ async function syncPhotosForOfflineUpdate(
   const driveFundingYear = getOfflineDriveFundingYear(update, projectMeta)
   const driveFundingSource = getOfflineDriveFundingSource(update, projectMeta)
   let uploadedPhotoCount = 0
-
-  if (photos.length > MAX_INSPECTION_PHOTOS_PER_UPDATE) {
-    throw new Error(
-      `This pending update contains ${photos.length} photos. PMS10 now allows a maximum of ${MAX_INSPECTION_PHOTOS_PER_UPDATE}; remove the extra photos before syncing.`,
-    )
-  }
 
   for (let index = 0; index < photos.length; index += 1) {
     const photo = photos[index]

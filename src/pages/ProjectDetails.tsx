@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -7,7 +7,7 @@ import { getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, type 
 import { getOfficialProjectCost, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { getPmsRiskLevel } from '../utils/projectStatus'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
-import { cleanupProjectPhotos, deleteProjectPhotos } from '../services/photoService'
+import { deleteProjectPhotos, getProjectPhotoPage } from '../services/photoService'
 import { normalizeProgramName } from '../utils/program'
 import {
   generateProjectBrieferPdf,
@@ -30,10 +30,12 @@ import AideMemoireGenerationDialog from '../components/AideMemoireGenerationDial
 import {
   getLatestProjectAideMemoireDocument,
   getProjectAideMemoireDocuments,
+  isLocalAideMemoireNewer,
   type CloudAideMemoireDocument,
 } from '../services/projectDocumentService'
 
 const PROJECT_UPDATE_HISTORY_LIMIT = 5
+const PROJECT_PHOTO_PAGE_SIZE = 5
 
 function toNumber(value: unknown): number {
   if (value === null || value === undefined || value === '') return 0
@@ -305,7 +307,11 @@ export default function ProjectDetails() {
   const [project, setProject] = useState<any>(null)
   const [updates, setUpdates] = useState<any[]>([])
   const [aideMemoireDrafts, setAideMemoireDrafts] = useState<OfflineAideMemoire[]>([])
-  const [photos, setPhotos] = useState<any[]>([])
+  const [photos, setPhotos] = useState<Awaited<ReturnType<typeof getProjectPhotoPage>>['photos']>([])
+  const [photoPage, setPhotoPage] = useState({ nextOffset: 0, hasMore: false })
+  const [photosLoading, setPhotosLoading] = useState(false)
+  const [photoPageError, setPhotoPageError] = useState('')
+  const photoPageRequest = useRef<AbortController | null>(null)
   const [loading, setLoading] = useState(true)
   const [dataSource, setDataSource] = useState('online')
   const [photosExpanded, setPhotosExpanded] = useState(Boolean(rememberedView.photosExpanded))
@@ -316,7 +322,7 @@ export default function ProjectDetails() {
   const [copiedSubayCode, setCopiedSubayCode] = useState(false)
   const [latestGeneratedAidePdf, setLatestGeneratedAidePdf] = useState<OfflineAideMemoireDocument | null>(null)
   const [cloudAideDocuments, setCloudAideDocuments] = useState<CloudAideMemoireDocument[]>([])
-  const [aideGenerationRequest, setAideGenerationRequest] = useState<{ updateRef: string; source: 'online' | 'offline' } | null>(null)
+  const [aideGenerationRequest, setAideGenerationRequest] = useState<{ updateRef: string; source: 'online' | 'offline'; inspectionDate?: string } | null>(null)
   const [generatingProjectBriefer, setGeneratingProjectBriefer] = useState(false)
 
   useEffect(() => {
@@ -380,7 +386,17 @@ export default function ProjectDetails() {
   useEffect(() => {
     setPhotosExpanded(false)
     setHistoryOpen(false)
-    loadData()
+    setPhotos([])
+    setPhotoPage({ nextOffset: 0, hasMore: false })
+    setPhotosLoading(false)
+    setPhotoPageError('')
+    const controller = new AbortController()
+    void loadData(controller.signal)
+    return () => {
+      controller.abort()
+      photoPageRequest.current?.abort()
+      photoPageRequest.current = null
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     id,
@@ -516,7 +532,7 @@ export default function ProjectDetails() {
     setDataSource('offline')
   }
 
-  async function loadData() {
+  async function loadData(signal: AbortSignal) {
     setLoading(true)
 
     if (!id) {
@@ -526,7 +542,7 @@ export default function ProjectDetails() {
 
     if (!navigator.onLine) {
       await loadOfflineData()
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
       return
     }
 
@@ -544,6 +560,8 @@ export default function ProjectDetails() {
         .order('inspection_date', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(PROJECT_UPDATE_HISTORY_LIMIT)
+
+      if (signal.aborted) return
 
       if (projectResult.error) {
         throw projectResult.error
@@ -566,24 +584,13 @@ export default function ProjectDetails() {
 
       setAccessDenied(false)
 
-      await cleanupProjectPhotos(id, 5)
-
-      const photosResult = await supabase
-        .from('project_photos')
-        .select('*')
-        .eq('project_id', id)
-        .order('uploaded_at', { ascending: false })
-        .limit(5)
-
-      if (photosResult.error) {
-        throw photosResult.error
-      }
-
-      const latestPhotos = photosResult.data || []
+      const firstPhotoPage = await getProjectPhotoPage(id, 0, PROJECT_PHOTO_PAGE_SIZE, signal)
+      if (signal.aborted) return
 
       setProject(onlineProject)
       setUpdates(updatesResult.data || [])
-      setPhotos(latestPhotos)
+      setPhotos(firstPhotoPage.photos)
+      setPhotoPage({ nextOffset: firstPhotoPage.nextOffset, hasMore: firstPhotoPage.hasMore })
       setDataSource('online')
       await loadCloudAideMemoireDocuments()
 
@@ -618,10 +625,40 @@ export default function ProjectDetails() {
         cached_at: new Date().toISOString(),
       } as any)
     } catch (error) {
+      if (signal.aborted) return
       console.error(error)
       await loadOfflineData()
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
+    }
+  }
+
+  async function loadMorePhotos() {
+    if (!id || !photoPage.hasMore || photoPageRequest.current) return
+
+    const controller = new AbortController()
+    photoPageRequest.current = controller
+    setPhotosLoading(true)
+    setPhotoPageError('')
+
+    try {
+      const nextPage = await getProjectPhotoPage(id, photoPage.nextOffset, PROJECT_PHOTO_PAGE_SIZE, controller.signal)
+      if (controller.signal.aborted) return
+
+      setPhotos((current) => {
+        const existingIds = new Set(current.map((photo) => photo.id))
+        return [...current, ...nextPage.photos.filter((photo) => !existingIds.has(photo.id))]
+      })
+      setPhotoPage({ nextOffset: nextPage.nextOffset, hasMore: nextPage.hasMore })
+    } catch (error) {
+      if (controller.signal.aborted) return
+      console.error('Unable to load more project photos.', error)
+      setPhotoPageError('Could not load more photos. Please try again.')
+    } finally {
+      if (photoPageRequest.current === controller) {
+        photoPageRequest.current = null
+        setPhotosLoading(false)
+      }
     }
   }
 
@@ -648,9 +685,8 @@ export default function ProjectDetails() {
 
 
   const latestUpdate = updates.length > 0 ? updates[0] : null
-  const displayedPhotos = photos.slice(0, 5)
-  const primaryPhoto = displayedPhotos.length > 0 ? displayedPhotos[0] : null
-  const expandedPhotos = displayedPhotos.slice(1, 5)
+  const primaryPhoto = photos[0] ?? null
+  const expandedPhotos = photos.slice(1)
 
   const physicalProgress = useMemo(
     () => clampPercent(project?.physical_accomplishment),
@@ -889,17 +925,12 @@ export default function ProjectDetails() {
   async function openLatestGeneratedAidePdf() {
     if (!id) return
 
-    /*
-     * Online source of truth: always ask Supabase for the newest synced PDF
-     * at the moment the user presses "Latest Aide Memoire". This keeps
-     * multiple devices on the same document instead of preferring each
-     * device's own IndexedDB copy.
-     */
+    // Check the latest synced PDF without hiding a newer local copy pending upload.
     if (navigator.onLine) {
       try {
         const latestCloud = await getLatestProjectAideMemoireDocument(id, 'pdf')
 
-        if (latestCloud?.file_url) {
+        if (latestCloud?.file_url && !isLocalAideMemoireNewer(latestGeneratedAidePdf, latestCloud)) {
           setCloudAideDocuments((current) => {
             const withoutLatest = current.filter((item) => item.id !== latestCloud.id)
             return [latestCloud, ...withoutLatest]
@@ -1282,7 +1313,7 @@ export default function ProjectDetails() {
                 <h2>Photo Gallery</h2>
               </div>
 
-              <span className="pd-section-chip">{displayedPhotos.length} photos</span>
+              <span className="pd-section-chip">{photos.length}{photoPage.hasMore ? '+' : ''} photos</span>
             </div>
 
             {dataSource === 'offline' ? (
@@ -1290,7 +1321,7 @@ export default function ProjectDetails() {
                 Online photo gallery is not available while offline. Newly captured offline
                 photos can be viewed from the Offline Sync page before syncing.
               </div>
-            ) : displayedPhotos.length === 0 || !primaryPhoto ? (
+            ) : !primaryPhoto ? (
               <div className="pd-empty-inline">No photos uploaded yet.</div>
             ) : (
               <div className="pd-photo-holder">
@@ -1314,8 +1345,10 @@ export default function ProjectDetails() {
                     <span className="pd-photo-expand-pill">
                       {photosExpanded
                         ? 'Hide Photos'
-                        : expandedPhotos.length > 0
-                          ? `View ${expandedPhotos.length} More`
+                        : photoPage.hasMore
+                          ? 'View More Photos'
+                          : expandedPhotos.length > 0
+                            ? `View ${expandedPhotos.length} More`
                           : 'Latest Photo Only'}
                     </span>
                   </div>
@@ -1326,7 +1359,7 @@ export default function ProjectDetails() {
                     <div className="pd-photo-expanded-header">
                       <div>
                         <h3>Latest Additional Photos</h3>
-                        <p>Showing up to 4 photos, excluding the main photo above.</p>
+                        <p>Photos are listed from newest to oldest.</p>
                       </div>
 
                       <button
@@ -1355,7 +1388,7 @@ export default function ProjectDetails() {
                             <div
                               className="pd-photo-card-image"
                               style={{
-                                backgroundImage: `url("${getDriveImagePreviewUrl(photo.photo_url)}")`,
+                                backgroundImage: `url("${getDriveImagePreviewUrl(photo.photo_url, 480)}")`,
                               }}
                             />
 
@@ -1366,6 +1399,17 @@ export default function ProjectDetails() {
                           </a>
                         ))}
                       </div>
+                    )}
+                    {photoPageError && <p role="status">{photoPageError}</p>}
+                    {photoPage.hasMore && (
+                      <button
+                        type="button"
+                        className="pd-photo-collapse-btn"
+                        onClick={() => void loadMorePhotos()}
+                        disabled={photosLoading}
+                      >
+                        {photosLoading ? 'Loading Photos…' : 'Load More Photos'}
+                      </button>
                     )}
                   </div>
                 )}
@@ -1590,6 +1634,7 @@ export default function ProjectDetails() {
                                   setAideGenerationRequest({
                                     updateRef: updateReference,
                                     source: updateSource === 'offline' ? 'offline' : 'online',
+                                    inspectionDate: update.inspection_date || undefined,
                                   })
                                 }}
                               >
@@ -1623,6 +1668,7 @@ export default function ProjectDetails() {
           projectId={id}
           updateRef={aideGenerationRequest.updateRef}
           source={aideGenerationRequest.source}
+          inspectionDate={aideGenerationRequest.inspectionDate}
           returnTo={`/projects/${id}`}
           onClose={() => setAideGenerationRequest(null)}
           onGenerated={async () => {
