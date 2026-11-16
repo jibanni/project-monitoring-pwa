@@ -108,7 +108,7 @@ serve(async (req: Request) => {
       error: requesterProfileError,
     } = await adminClient
       .from('profiles')
-      .select('id, role, approved')
+      .select('id, role, approved, is_active')
       .eq('id', requesterId)
       .maybeSingle()
 
@@ -123,7 +123,7 @@ serve(async (req: Request) => {
 
     const requesterRole = String(requesterProfile?.role || '').trim().toLowerCase()
 
-    if (requesterRole !== 'admin') {
+    if (requesterRole !== 'admin' || requesterProfile?.approved !== true || requesterProfile.is_active === false) {
       console.error('Requester is not admin', {
         requesterId,
         requesterRole,
@@ -133,6 +133,15 @@ serve(async (req: Request) => {
         ok: false,
         message: 'Only admin accounts can change user passwords.',
       })
+    }
+
+    const { data: allowed, error: assuranceError } = await userClient.rpc('pms10_admin_security_status')
+    if (assuranceError) {
+      console.error('Could not verify admin assurance', assuranceError.code)
+      return jsonResponse(503, { ok: false, message: 'Admin verification is temporarily unavailable.' })
+    }
+    if (allowed !== true) {
+      return jsonResponse(403, { ok: false, message: 'Verify your authenticator in Admin Security before changing another user password.' })
     }
 
     const body = await req.json().catch(() => ({}))

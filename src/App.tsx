@@ -20,6 +20,7 @@ import PendingApproval from './pages/PendingApproval'
 import Unauthorized from './pages/Unauthorized'
 import OfflineSync from './pages/OfflineSync'
 
+const AdminSecurity = lazy(() => import('./pages/AdminSecurity'))
 const Dashboard = lazy(routeLoaders.dashboard)
 const Projects = lazy(routeLoaders.projects)
 const ProjectDetails = lazy(routeLoaders.projectDetails)
@@ -236,6 +237,15 @@ function App() {
               element={
                 <RoleProtectedPage allowedRoles={['Admin']}>
                   <Advisories />
+                </RoleProtectedPage>
+              }
+            />
+
+            <Route
+              path="admin-security"
+              element={
+                <RoleProtectedPage allowedRoles={['Admin']}>
+                  <AdminSecurity />
                 </RoleProtectedPage>
               }
             />

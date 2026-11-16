@@ -715,6 +715,10 @@ export default function UserManagement() {
           </section>
         )}
 
+        <div style={{ marginBlock: '.5rem' }}>
+          <Link to="/admin-security">Admin Security · Authenticator Setup</Link>
+        </div>
+
         <section className="user-management-summary-grid">
           <article className="user-management-summary-card">
             <span>Total Users</span>

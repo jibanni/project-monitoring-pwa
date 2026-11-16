@@ -1,0 +1,14 @@
+.pms-admin-security {
+  max-width: 35rem;
+  margin: 1rem auto;
+  padding: 1.25rem;
+  background: var(--app-surface, #fff);
+  border: 1px solid #dbe4ef;
+  border-radius: 1rem;
+  color: #123057;
+}
+.pms-admin-security form { display: grid; gap: .6rem; max-width: 20rem; margin-block: 1rem; }
+.pms-admin-security input { padding: .6rem; border: 1px solid #7895b4; border-radius: .4rem; font: inherit; }
+.pms-admin-security button { padding: .6rem 1rem; border: 0; border-radius: .4rem; color: #fff; background: #174b85; font: inherit; }
+.pms-admin-security button:disabled { opacity: .5; }
+.pms-admin-security footer { margin-top: 1rem; }

@@ -496,10 +496,11 @@ async function syncOneAideMemoireDocument(
     return { synced: false, skipped: true }
   }
 
-  await markAideMemoireDocumentSync(document.id, {
+  const claimedDocument = await markAideMemoireDocumentSync(document.id, {
     sync_status: 'syncing',
     sync_error: '',
   })
+  if (!claimedDocument) return { synced: false, skipped: true }
 
   try {
     const uploaded = await uploadAideMemoireDocumentToDrive({

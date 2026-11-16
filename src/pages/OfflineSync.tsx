@@ -325,6 +325,7 @@ export default function OfflineSync() {
   const [removalDialog, setRemovalDialog] = useState<RemovalDialogState | null>(null)
   const [loadingRemovalPreview, setLoadingRemovalPreview] = useState(false)
   const [removingUpdate, setRemovingUpdate] = useState(false)
+  const [removingDocumentId, setRemovingDocumentId] = useState<string | null>(null)
   const rememberedView = readPageView('offline-sync', { diagnosticsOpen: false })
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(Boolean(rememberedView.diagnosticsOpen))
 
@@ -332,6 +333,7 @@ export default function OfflineSync() {
   const [offlinePhotos, setOfflinePhotos] = useState<HydratedOfflinePhoto[]>([])
   const [offlineDocuments, setOfflineDocuments] = useState<HydratedOfflineDocument[]>([])
   const autoSyncAttemptRef = useRef(false)
+  const queueOperationRef = useRef(false)
 
   const userCanUseOfflineSync = useMemo(() => canUseOfflineSync(auth), [auth])
   const userIsAdmin = useMemo(() => isAdminAuth(auth), [auth])
@@ -493,6 +495,8 @@ export default function OfflineSync() {
   }
 
   async function syncNow(automatic = false) {
+    if (queueOperationRef.current) return
+    queueOperationRef.current = true
     try {
       setSyncing(true)
       setErrorMessage('')
@@ -518,6 +522,10 @@ export default function OfflineSync() {
       const result = await offlineSyncService.syncOfflineUpdates()
 
       await refreshOfflineData()
+      if (result.failedDocumentCount > 0) {
+        setErrorMessage(result.message)
+        return
+      }
       setLastSyncMessage(
         result?.message ||
           (automatic
@@ -531,6 +539,7 @@ export default function OfflineSync() {
         error?.message || 'Sync failed. Please check your connection and Supabase permissions.',
       )
     } finally {
+      queueOperationRef.current = false
       setSyncing(false)
     }
   }
@@ -606,6 +615,33 @@ export default function OfflineSync() {
       )
     } finally {
       setRemovingUpdate(false)
+    }
+  }
+
+  async function removeFailedDocument(record: HydratedOfflineDocument) {
+    if (!userIsAdmin || queueOperationRef.current || record.sync_status !== 'failed') return
+    if (!window.confirm(`Permanently remove "${getDocumentTitle(record)}" from this device's queue? This cannot be undone. Other local drafts, inspections, photos and cloud files will not be changed.`)) return
+
+    queueOperationRef.current = true
+    setRemovingDocumentId(record.id)
+    setErrorMessage('')
+    setLastSyncMessage('')
+
+    try {
+      await offlineDb.transaction('rw', offlineDb.aide_memoire_documents, async () => {
+        const current = await offlineDb.aide_memoire_documents.get(record.id)
+        if (current?.sync_status !== 'failed' || current.project_id !== record.project_id) {
+          throw new Error('This file is no longer a failed queue item. Refresh and check its status.')
+        }
+        await offlineDb.aide_memoire_documents.delete(record.id)
+      })
+      await refreshOfflineData()
+      setLastSyncMessage('The selected failed Aide Memoire was removed from this device.')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to remove the selected Aide Memoire.')
+    } finally {
+      queueOperationRef.current = false
+      setRemovingDocumentId(null)
     }
   }
 
@@ -812,9 +848,20 @@ export default function OfflineSync() {
                             </span>
                           </div>
 
-                          <span className={`offline-sync-status ${getStatusClass(record)}`}>
-                            {getStatusLabel(record)}
-                          </span>
+                          <div className="offline-sync-compact-row-side">
+                            <span className={`offline-sync-status ${getStatusClass(record)}`}>
+                              {getStatusLabel(record)}
+                            </span>
+                            {userIsAdmin && record.sync_status === 'failed' && (
+                              <button type="button" className="offline-sync-compact-remove"
+                                onClick={() => void removeFailedDocument(record)}
+                                disabled={syncing || Boolean(removingDocumentId)}
+                                aria-label={`Remove failed file ${getDocumentTitle(record)} from this device`}
+                                title="Remove failed file from this device">
+                                ×
+                              </button>
+                            )}
+                          </div>
 
                           {textValue(record.sync_error) && (
                             <small className="offline-sync-compact-error">
@@ -857,7 +904,7 @@ export default function OfflineSync() {
                 type="button"
                 className="primary"
                 onClick={() => void syncNow(false)}
-                disabled={!isOnline || syncing || totalPendingCount === 0 || !canSyncCurrentQueue}
+                disabled={!isOnline || syncing || Boolean(removingDocumentId) || totalPendingCount === 0 || !canSyncCurrentQueue}
               >
                 {syncing ? 'Syncing...' : 'Sync Now'}
               </button>

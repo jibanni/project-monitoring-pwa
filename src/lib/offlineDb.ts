@@ -433,20 +433,24 @@ export async function markAideMemoireDocumentSync(
   id: string,
   patch: Partial<OfflineAideMemoireDocument>,
 ) {
-  const existing = await offlineDb.aide_memoire_documents.get(id)
-  if (!existing) return null
+  const table = offlineDb.aide_memoire_documents
+  const updated = await offlineDb.transaction('rw', table, async () => {
+    const existing = await table.get(id)
+    if (!existing) return null
 
-  const updated: OfflineAideMemoireDocument = {
-    ...existing,
-    ...patch,
-    id: existing.id,
-    aide_memoire_id: existing.aide_memoire_id,
-    project_id: existing.project_id,
-    format: existing.format,
-    data: existing.data,
-  }
-
-  await offlineDb.aide_memoire_documents.put(updated)
+    const record: OfflineAideMemoireDocument = {
+      ...existing,
+      ...patch,
+      id: existing.id,
+      aide_memoire_id: existing.aide_memoire_id,
+      project_id: existing.project_id,
+      format: existing.format,
+      data: existing.data,
+    }
+    await table.put(record)
+    return record
+  })
+  if (!updated) return null
   if (patch.sync_status === 'synced') {
     // Cache cleanup must never turn a successful cloud upload into a failed one.
     await pruneSyncedAideMemoireCache(updated.project_id).catch((error) => {
