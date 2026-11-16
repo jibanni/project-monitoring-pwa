@@ -10,6 +10,9 @@
   }
   .rpmes-comparison h1 { margin: 0 0 4px; font-size: 1.3rem; }
   .rpmes-comparison p { margin: 6px 0; color: #445f77; font-size: .86rem; }
+  .rpmes-page-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 15px; }
+  .rpmes-comparison .rpmes-eyebrow { margin: 0 0 4px; color: #275b86; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .rpmes-cohort-badge { flex: none; padding: 6px 10px; border: 1px solid #cddff0; border-radius: 999px; background: #edf5ff; color: #18436c; font-size: .76rem; font-weight: 800; }
   .rpmes-comparison [role='alert'] { color: #9e321b; }
   .rpmes-comparison-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
   .rpmes-comparison-controls label { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; }
@@ -25,7 +28,19 @@
   .rpmes-comparison-controls button { cursor: pointer; font-weight: 700; }
   .rpmes-comparison-controls button:disabled { opacity: .55; cursor: default; }
   .rpmes-comparison-controls .rpmes-primary { background: #15558d; border-color: #15558d; color: white; }
+  .rpmes-workspace { border: 1px solid #d9e6f2; border-radius: 10px; background: #f7faff; padding: 11px 13px; }
+  .rpmes-workspace .rpmes-toolbar { margin: 0; align-items: flex-end; }
+  .rpmes-toolbar > label, .rpmes-import-fields > label { flex-direction: column; align-items: stretch; gap: 4px; font-size: .75rem; font-weight: 700; }
+  .rpmes-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-left: auto; }
+  .rpmes-workspace :is(button, select, input) { min-height: 34px; }
+  .rpmes-workspace :is(button, select, input):focus-visible { outline: 2px solid #1c69ab; outline-offset: 2px; }
+  .rpmes-workspace .rpmes-secondary { background: white; }
+  .rpmes-link-status { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 9px; margin-top: 8px; color: #526a82; font-size: .75rem; }
+  .rpmes-link-status strong { color: #214d77; }
+  .rpmes-empty { margin-top: 12px; padding: 13px; border: 1px dashed #c3d7e8; border-radius: 9px; background: #f8fbff; }
   .rpmes-import { padding: 10px 12px 0; border: 1px solid #dce7f1; background: #f6faff; border-radius: 8px; }
+  .rpmes-workspace .rpmes-import { margin-top: 9px; background: white; }
+  .rpmes-import-fields { align-items: flex-end; }
   .rpmes-comparison-controls .rpmes-link-field { flex: 1 1 300px; }
   .rpmes-link-field input { flex: 1; min-width: 130px; }
   .rpmes-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }

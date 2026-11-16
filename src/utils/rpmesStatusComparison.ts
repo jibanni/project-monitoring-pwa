@@ -1,14 +1,28 @@
-export const RPMES_PILOT_SOURCES = {
+export const RPMES_PROVINCES = ['Bukidnon', 'Camiguin', 'Lanao del Norte', 'Misamis Occidental', 'Misamis Oriental'] as const
+export type RpmesProvince = (typeof RPMES_PROVINCES)[number]
+export const RPMES_COHORTS = ['2024', '2024-UA', '2025', '2025-UA', '2026', '2026-UA', '2027', '2027-UA'] as const
+export type RpmesCohort = (typeof RPMES_COHORTS)[number]
+export const DEFAULT_RPMES_COHORT: RpmesCohort = '2025'
+
+const DEFAULT_2025_SOURCES: Partial<Record<RpmesProvince, string>> = {
   'Misamis Oriental': '1PZgYTp4lNwLCgA4p46ecIfMuPdfPqaT31j11Uw6Ubpc',
   'Misamis Occidental': '11m1PigviD0ZNYdKvVNBfe7ZFRNN4HJoG5ZFgmD5Splw',
   Bukidnon: '18qCMLiXRm0C5mxaLzi87Eyea-m73M14l_LW5WcMj7mA',
-} as const
+}
 
-export type PilotProvince = keyof typeof RPMES_PILOT_SOURCES
-export const RPMES_PILOT_PROVINCES = Object.keys(RPMES_PILOT_SOURCES) as PilotProvince[]
+export function defaultRpmesSheet(cohort: RpmesCohort, province: RpmesProvince) {
+  return cohort === DEFAULT_RPMES_COHORT ? DEFAULT_2025_SOURCES[province] : undefined
+}
+
+export function rpmesSourceKey(cohort: RpmesCohort, province: RpmesProvince) {
+  return `${cohort}:${province}` as const
+}
+
+export type RpmesSourceKey = ReturnType<typeof rpmesSourceKey>
+export type RpmesSourceLinks = Partial<Record<RpmesSourceKey, string>>
 
 export type StatusEntry = {
-  province: PilotProvince
+  province: RpmesProvince
   municipality: string
   barangay: string
   status: string
@@ -37,8 +51,45 @@ export const SUMMARY_COLUMNS = [
 export const text = (value: unknown) => String(value ?? '').trim()
 export const projectCodeKey = (value: unknown) => text(value).toUpperCase().replace(/\s+/g, '')
 
-export function pilotProvince(value: unknown) {
-  return RPMES_PILOT_PROVINCES.find((province) => province.toLowerCase() === text(value).toLowerCase())
+export function rpmesProvince(value: unknown) {
+  const normalized = text(value).replace(/^province\s+of\s+/i, '').replace(/\s+/g, ' ').toLowerCase()
+  return RPMES_PROVINCES.find((province) => province.toLowerCase() === normalized)
+}
+
+export function sbdpCodeCohort(value: unknown): RpmesCohort | undefined {
+  const parts = projectCodeKey(value).split('-')
+  if (parts.shift() !== 'SBDP') return undefined
+  const yearIndex = parts[0] === 'UA' ? 1 : 0
+  const first = parts[yearIndex]
+  const identifiers = parts.slice(yearIndex + 1).filter((part) => part !== 'UA')
+  if (!/^(?:20)?2[4-7]$/.test(first ?? '') || !identifiers.length ||
+    !identifiers.every((part) => /^[A-Z0-9]+$/.test(part)) || !identifiers.some((part) => /\d/.test(part))) return undefined
+  const year = first.length === 2 ? `20${first}` : first
+  return (parts.includes('UA') ? `${year}-UA` : year) as RpmesCohort
+}
+
+export function sbdpOfficialCohort(project: Record<string, unknown>): RpmesCohort | undefined {
+  const code = sbdpCodeCohort(project.subaybayan_project_code)
+  if (!code || project.pms10_progress_source === 'onsite' || text(project.funding_year) !== code.slice(0, 4)) return undefined
+  const explicitUa = /(?:^|[^a-z])ua(?:[^a-z]|$)|unprogrammed/i.test(text(project.funding_source))
+  return explicitUa ? `${code.slice(0, 4)}-UA` as RpmesCohort : code
+}
+
+export function readRpmesSourceLinks(current: unknown, legacy: unknown): RpmesSourceLinks {
+  const read = (input: unknown, key: string) => {
+    const value = input && typeof input === 'object' && Object.hasOwn(input, key)
+      ? (input as Record<string, unknown>)[key] : undefined
+    return typeof value === 'string' && /^[\w-]{20,128}$/.test(value) ? value : undefined
+  }
+  const links: RpmesSourceLinks = {}
+  for (const province of RPMES_PROVINCES) {
+    for (const cohort of RPMES_COHORTS) {
+      const key = rpmesSourceKey(cohort, province)
+      const id = read(current, key) ?? (cohort === DEFAULT_RPMES_COHORT ? read(legacy, province) : undefined)
+      if (id) links[key] = id
+    }
+  }
+  return links
 }
 
 export function rpmesSpreadsheetId(value: unknown) {
@@ -51,7 +102,7 @@ export function rpmesSpreadsheetId(value: unknown) {
   }
 }
 
-export function rpmesCsvUrl(province: PilotProvince, spreadsheetId: string = RPMES_PILOT_SOURCES[province]) {
+export function rpmesCsvUrl(spreadsheetId: string) {
   if (!/^[\w-]{20,128}$/.test(spreadsheetId)) throw new Error('Invalid spreadsheet ID')
   const query = new URLSearchParams({
     tqx: 'out:csv', sheet: 'RPMES Form 2', headers: '0', range: 'A5:AB1024',
@@ -60,11 +111,13 @@ export function rpmesCsvUrl(province: PilotProvince, spreadsheetId: string = RPM
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?${query}`
 }
 
-export function parseRpmesValues(rows: unknown[][], province: PilotProvince): StatusEntry[] {
+export function parseRpmesValues(rows: unknown[][], province: RpmesProvince, cohort: RpmesCohort): StatusEntry[] {
   const usable = rows.filter((row) => Boolean(text(row[0])))
-  if (!usable.length || usable.some((row) => !/^SBDP-(?:2025|25)-[A-Z0-9-]+$/.test(projectCodeKey(row[0])) ||
-    pilotProvince(row[1]) !== province || !text(row[2]))) {
-    throw new Error('The RPMES worksheet does not match the expected FY 2025 SBDP layout.')
+  if (!usable.length || usable.some((row) => rpmesProvince(row[1]) !== province || !text(row[2]))) {
+    throw new Error(`RPMES Form 2 must contain project rows for ${province} with an LGU on each row.`)
+  }
+  if (usable.some((row) => sbdpCodeCohort(row[0]) !== cohort)) {
+    throw new Error(`The project codes in RPMES Form 2 do not all match SBDP ${cohort}. Check the year and UA designation.`)
   }
   if (new Set(usable.map((row) => projectCodeKey(row[0]))).size !== usable.length) {
     throw new Error('RPMES Form 2 contains duplicate project codes.')
@@ -101,9 +154,9 @@ function totals(entries: StatusEntry[]): LguMetrics {
 export function summarizeByLgu(
   subay: StatusEntry[],
   rpmes: StatusEntry[],
-  canonicalizeLgu: (province: PilotProvince, municipality: string) => string,
+  canonicalizeLgu: (province: RpmesProvince, municipality: string) => string,
 ) {
-  type Group = { key: string; province: PilotProvince; lgu: string; subay: StatusEntry[]; rpmes: StatusEntry[] }
+  type Group = { key: string; province: RpmesProvince; lgu: string; subay: StatusEntry[]; rpmes: StatusEntry[] }
   const groups = new Map<string, Group>()
   for (const [source, entries] of [['subay', subay], ['rpmes', rpmes]] as const) {
     for (const entry of entries) {
