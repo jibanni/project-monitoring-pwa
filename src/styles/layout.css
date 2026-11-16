@@ -5326,7 +5326,7 @@ body > .app-header.app-header-project-details.app-header-scrolled {
   body > .pms10-floating-view-switch[data-view='detailed'] .pms10-floating-view-switch__thumb {
     transform: translateX(100%);
   }
-  body > .pms10-floating-view-switch button {
+  body > .pms10-floating-view-switch > nav > button {
     position: relative;
     z-index: 1;
     box-sizing: border-box;
@@ -5350,12 +5350,12 @@ body > .app-header.app-header-project-details.app-header-scrolled {
     letter-spacing: 0;
     cursor: pointer;
   }
-  body > .pms10-floating-view-switch button.is-active { color: #fff; }
-  body > .pms10-floating-view-switch button:focus-visible {
+  body > .pms10-floating-view-switch > nav > button.is-active { color: #fff; }
+  body > .pms10-floating-view-switch > nav > button:focus-visible {
     outline: 2px solid #064e3b;
     outline-offset: 2px;
   }
-  body > .pms10-floating-view-switch button:disabled { opacity: .4; cursor: not-allowed; }
+  body > .pms10-floating-view-switch > nav > button:disabled { opacity: .4; cursor: not-allowed; }
 
   /* Popup scrims and blur effects must not leave a clickable slider above them. */
   body:has([aria-modal='true']:not([hidden]), dialog[open],

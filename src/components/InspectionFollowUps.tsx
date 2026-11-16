@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -162,8 +163,12 @@ export default function InspectionFollowUps({ defaultOpen = false }: { defaultOp
   const [editor, setEditor] = useState<Editor | null>(null)
   const [revision, setRevision] = useState(0)
   const [notice, setNotice] = useState('')
+  const trackerRef = useRef<HTMLDivElement>(null)
+  const bellRef = useRef<HTMLButtonElement>(null)
   const editorTrigger = useRef<HTMLElement | null>(null)
   const panelId = useId()
+  const headingId = useId()
+  const summaryId = useId()
   const sourceId = useId()
 
   useEffect(() => {
@@ -211,6 +216,27 @@ export default function InspectionFollowUps({ defaultOpen = false }: { defaultOp
     return () => controller.abort()
   }, [showSources, expanded, revision])
 
+  useEffect(() => {
+    if (!expanded || editor) return
+    function dismissOnOutsidePress(event: PointerEvent) {
+      if (event.target instanceof Node && !trackerRef.current?.contains(event.target)) {
+        setExpanded(false)
+      }
+    }
+    function dismissOnEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      const shouldRestoreFocus = trackerRef.current?.contains(document.activeElement)
+      setExpanded(false)
+      if (shouldRestoreFocus) bellRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', dismissOnOutsidePress)
+    document.addEventListener('keydown', dismissOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', dismissOnOutsidePress)
+      document.removeEventListener('keydown', dismissOnEscape)
+    }
+  }, [expanded, editor])
+
   const { rows, counts, tracked } = useMemo(() => {
     const counts: Record<FollowUpTiming, number> = { overdue: 0, due_soon: 0, later: 0, unscheduled: 0, resolved: 0 }
     const tracked = new Set<string>()
@@ -247,16 +273,22 @@ export default function InspectionFollowUps({ defaultOpen = false }: { defaultOp
     refresh()
   }
 
-  return <section className="pms-fu" aria-label="Inspection follow-ups">
-    <button type="button" className="pms-fu-toggle" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded((value) => !value)}>
-      <span className="pms-fu-bell"><Bell /><span className="pms-fu-badge" hidden={!fresh || !urgent}>{urgent}</span></span>
-      <span className="pms-fu-title"><strong>Inspection Follow-ups</strong><small>Bukidnon pilot</small></span>
-      <span className="pms-fu-notification" aria-live="polite" aria-atomic="true">
-        {fresh ? `${counts.overdue} overdue · ${counts.due_soon} due within 7 days` : snapshot ? 'Reminders unavailable' : 'Checking reminders…'}
-      </span>
-      <span className="pms-fu-chevron" aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
+  const summary = fresh ? `${counts.overdue} overdue · ${counts.due_soon} due within 7 days`
+    : snapshot ? 'Reminders unavailable' : 'Checking reminders…'
+
+  return <div className="pms-fu" ref={trackerRef}>
+    <button type="button" ref={bellRef} className="pms-fu-toggle" aria-label="Inspection Follow-ups"
+      title={`Inspection Follow-ups · ${summary}`} aria-describedby={summaryId} aria-expanded={expanded} aria-controls={panelId}
+      onClick={() => setExpanded((value) => !value)}>
+      <Bell />
+      {fresh && urgent > 0 ? <span className="pms-fu-badge" aria-hidden="true">{urgent > 99 ? '99+' : urgent}</span> : null}
     </button>
-    <div id={panelId} className="pms-fu-body" tabIndex={-1} hidden={!expanded}>
+    <span id={summaryId} className="pms-fu-announcement" aria-live="polite" aria-atomic="true">{summary}</span>
+    <section id={panelId} className="pms-fu-body" aria-labelledby={headingId} tabIndex={-1} hidden={!expanded}>
+      <div className="pms-fu-heading">
+        <div className="pms-fu-title"><h2 id={headingId}>Inspection Follow-ups</h2><small>Bukidnon pilot</small></div>
+        <span className="pms-fu-notification">{summary}</span>
+      </div>
       <div className="pms-fu-toolbar">
         <div role="group" aria-label="Filter follow-ups" className="pms-fu-filters">
           {(['all', 'overdue', 'due_soon', 'later', 'unscheduled', 'resolved'] as Filter[]).map((key) =>
@@ -304,7 +336,7 @@ export default function InspectionFollowUps({ defaultOpen = false }: { defaultOp
             </li>)}</ul>}
         </div>
       </div>}
-    </div>
-    {editor && <FollowUpEditor entry={editor} onDismiss={closeEditor} onSave={save} />}
-  </section>
+    </section>
+    {editor ? createPortal(<FollowUpEditor entry={editor} onDismiss={closeEditor} onSave={save} />, document.body) : null}
+  </div>
 }

@@ -1,12 +1,15 @@
 # PMS10 Inspection Follow-ups — Bukidnon pilot
 
-This is a full-file replacement ZIP based on PMS10 main at `abd54d5`. It is
-ready for a pilot preview and does not imply a production deployment.
+The Actual Follow-up Bell ZIP updates the existing Bukidnon pilot on PMS10
+main at `67979f4`. It replaces the affected files only and does not require
+another database migration if the pilot is already installed.
 
 ## What changes
-- A desktop Dashboard panel in both Detailed and Executive views. The bell
-  counts previously tracked, unresolved actions already overdue or due today
-  through seven calendar days ahead (Philippine time).
+- On the desktop Dashboard, a bell beside the S/A and E/D switches opens the
+  tracker in both Detailed and Executive views when Actual On-Site is selected.
+  SubayBAYAN Official does not mount or fetch the tracker. The bell counts
+  previously tracked, unresolved actions already overdue or due today through
+  seven calendar days ahead (Philippine time).
 - The in-app reminder updates on refresh, on return to a visible dashboard, and
   about once a minute while the dashboard stays visible and online. This does
   not send email, SMS, or background push. If offline, reminders are marked
@@ -25,7 +28,23 @@ ready for a pilot preview and does not imply a production deployment.
   tracking label, not a permission grant. No official SubayBAYAN data, source
   recommendations, or mobile workflow is rewritten.
 
-## Apply and preview
+## Apply the bell update and preview
+
+From a clean checkout of main that already has the Bukidnon pilot:
+
+```bash
+cd ~/project-monitoring-pwa
+git status --short
+unzip -o "$HOME/Downloads/PMS10-Actual-Followup-Bell-v2.zip" -d .
+npm ci
+node --test tests/inspection-followups.test.mjs
+npm run build
+```
+
+The bell update changes only the desktop UI and its regression test. It does
+not deploy, apply migrations, or modify existing follow-up records.
+
+## Original pilot setup (only if not yet installed)
 
 From a clean repository on the current baseline:
 
@@ -47,7 +66,10 @@ to that environment. Do not use these instructions to push an unrelated pending
 migration. No production apply is needed for a local build.
 
 ## Verify the pilot
-1. In a desktop window, go to Dashboard and expand Inspection Follow-ups.
+1. In a desktop window, go to Dashboard, select **A** (Actual On-Site), and
+   click the Inspection Follow-ups bell by the switches. Select **S**
+   (SubayBAYAN Official) and verify the panel and bell disappear, then return to
+   **A** and open the bell again.
    Choose **Track an inspection recommendation** and select one Bukidnon item.
 2. Assign a person or office and set a past due date. Verify it appears in
    Overdue and adds one to the bell. Change the deadline into the next seven

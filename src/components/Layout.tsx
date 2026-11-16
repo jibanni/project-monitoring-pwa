@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -20,6 +20,8 @@ import '../styles/layout.css'
 import '../styles/sidebarFooterDesktopPolish.css'
 import '../styles/sidebarBrandingPolish.css'
 import '../styles/dashboardDataSourceSwitch.css'
+
+const InspectionFollowUps = lazy(() => import('./InspectionFollowUps'))
 
 type LayoutProps = {
   children?: ReactNode
@@ -1041,6 +1043,9 @@ export default function Layout({ children }: LayoutProps) {
   const effectiveGlobalDashboardView: DashboardViewMode =
     hasExecutiveDashboard ? globalDashboardView : 'detailed'
 
+  const showInspectionFollowUps = location.pathname === '/dashboard' &&
+    globalDashboardDataSource === 'onsite' && user && auth.isApproved && profile?.is_active !== false
+
   const floatingDashboardSwitcher = isDesktopViewport ? (
     <div
       className="pms10-floating-view-switch"
@@ -1111,6 +1116,14 @@ export default function Layout({ children }: LayoutProps) {
           D
         </button>
       </nav>
+      {showInspectionFollowUps ? (
+        <Suspense fallback={null}>
+          <InspectionFollowUps
+            key={user.id}
+            defaultOpen={new URLSearchParams(location.search).has('followups')}
+          />
+        </Suspense>
+      ) : null}
     </div>
   ) : null
 
