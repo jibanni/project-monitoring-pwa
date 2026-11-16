@@ -22,6 +22,11 @@ const dateLabel = (date: Date) => new Intl.DateTimeFormat('en-PH', {
 const percent = new Intl.NumberFormat('en-PH', { style: 'percent', maximumFractionDigits: 2 })
 const sourceNames = { subay: 'PMS SubayBAYAN', rpmes: 'RPMES' } as const
 const sources = ['subay', 'rpmes'] as const
+const statusSummaryRows = [
+  { key: 'notStarted', label: 'Not yet started' },
+  { key: 'ongoing', label: 'Ongoing implementation' },
+  { key: 'completed', label: 'Completed' },
+] as const
 const metricLabels = {
   projects: 'Projects', barangays: 'Barangays', notStarted: 'Not yet started',
   ongoing: 'Ongoing', completed: 'Completed', completion: 'Completion rate',
@@ -99,8 +104,6 @@ export default function RpmesStatusComparison({ projects, projectSource, refresh
     else byProvince.set(row.province, [row])
   }
   const provinceCount = new Set(compared.map((row) => row.province)).size
-  const hasOther = compared.some((row) => row.subay.other || row.rpmes.other)
-  const hasMissingBarangay = compared.some((row) => row.subay.missingBarangay || row.rpmes.missingBarangay)
 
   async function runComparison() {
     if (busy.current || !requested.length) return
@@ -248,6 +251,7 @@ export default function RpmesStatusComparison({ projects, projectSource, refresh
     {projectSource === 'empty' && <p role="status">Waiting for official PMS10 project records.</p>}
     {!requested.length && <p role="status">No FY 2025 SBDP pilot projects are available in your current PMS10 scope.</p>}
     {ready.length > 0 && <>
+      {usingCachedProjects && <p role="status">PMS SubayBAYAN is showing cached records.</p>}
       <div className="rpmes-summary" aria-label="Comparison totals">
         <div><strong>{compared.length}</strong> LGUs covered <span>across {provinceCount} {provinceCount === 1 ? 'province' : 'provinces'}</span></div>
         <div><strong>{subayProjectCount}</strong> PMS SubayBAYAN projects</div>
@@ -288,11 +292,24 @@ export default function RpmesStatusComparison({ projects, projectSource, refresh
       </div>}
       {!compared.length && <p>No projects were found in the selected scope.</p>}
       {differencesOnly && compared.length > 0 && !visible.length && <p role="status">No differences in the displayed metrics for the selected LGUs.</p>}
-      <p className="rpmes-comparison-meta">Completion = completed projects ÷ total projects. Barangays are counted once per LGU and source. Preparation and procurement are included in Not Yet Started.</p>
-      {hasOther && <p>Other or blank statuses are included in total projects but are not assigned to the three status columns.</p>}
-      {hasMissingBarangay && <p>Projects with blank barangay names are included in project totals, but not in the count of distinct barangays.</p>}
-      <p className="rpmes-comparison-meta">{ready.map((province) => `${province}: ${dateLabel(sheets[province]!.checkedAt)}`).join(' · ')} (RPMES read, PHT).
-        {usingCachedProjects ? ' PMS SubayBAYAN uses cached records.' : ''} Source reporting dates may differ.</p>
+      {compared.length > 0 && <section className="rpmes-status-summary" aria-labelledby="rpmes-status-summary-title">
+        <h2 id="rpmes-status-summary-title">Summary{differencesOnly && <span>All {compared.length} LGUs in scope</span>}</h2>
+        <table aria-labelledby="rpmes-status-summary-title">
+          <thead><tr>
+            <th scope="col">Project status</th>
+            {sources.map((source) => <th key={source} scope="col">{sourceNames[source]}</th>)}
+          </tr></thead>
+          <tbody>{statusSummaryRows.map(({ key, label }) => {
+            const subay = compared.reduce((total, row) => total + row.subay[key], 0)
+            const rpmes = compared.reduce((total, row) => total + row.rpmes[key], 0)
+            return <tr key={key}>
+              <th scope="row">{label}</th>
+              <td data-diff={subay !== rpmes}>{subay}</td>
+              <td data-diff={subay !== rpmes}>{rpmes}</td>
+            </tr>
+          })}</tbody>
+        </table>
+      </section>}
     </>}
   </section>
 }

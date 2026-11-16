@@ -28,7 +28,6 @@
   .rpmes-import { padding: 10px 12px 0; border: 1px solid #dce7f1; background: #f6faff; border-radius: 8px; }
   .rpmes-comparison-controls .rpmes-link-field { flex: 1 1 300px; }
   .rpmes-link-field input { flex: 1; min-width: 130px; }
-  .rpmes-comparison-meta { line-height: 1.55; }
   .rpmes-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
   .rpmes-summary > div { padding: 9px 11px; background: #f2f7fc; border: 1px solid #d9e6f2; border-radius: 8px; font-size: .8rem; }
   .rpmes-summary strong { display: block; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
@@ -48,4 +47,13 @@
   .rpmes-metric-difference { display: inline-grid; gap: 2px; text-align: left; }
   .rpmes-metric-difference > span { display: flex; justify-content: space-between; align-items: baseline; gap: 5px; }
   .rpmes-metric-difference > span > span { font-size: .7rem; }
+  .rpmes-status-summary { max-width: 630px; margin-top: 16px; border: 1px solid #d9e6f2; border-radius: 9px; overflow: hidden; }
+  .rpmes-status-summary h2 { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin: 0; padding: 8px 11px; background: #ff9900; color: #252017; font-size: .9rem; text-transform: uppercase; }
+  .rpmes-status-summary h2 span { font-size: .75rem; font-weight: 600; text-transform: none; }
+  .rpmes-status-summary table { width: 100%; border-collapse: collapse; font-size: .83rem; font-variant-numeric: tabular-nums; }
+  .rpmes-status-summary :is(th, td) { padding: 7px 10px; border-top: 1px solid #d9e6f2; text-align: center; }
+  .rpmes-status-summary tr > :first-child { text-align: left; }
+  .rpmes-status-summary thead { background: #f2f7fc; }
+  .rpmes-status-summary td { font-weight: 750; }
+  .rpmes-status-summary td[data-diff='true'] { background: #fff3db; color: #714200; }
 }
