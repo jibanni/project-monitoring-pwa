@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { MAX_DOCUMENT_BYTES, validateAideMemoire, UploadValidationError, readUploadForm, validatePhoto } from '../_shared/uploadValidation.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,8 +9,6 @@ const corsHeaders = {
 }
 
 const DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
-const MAX_PHOTO_BYTES = 700 * 1024
-const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 const AIDE_MEMOIRE_FILE_LIMIT = 3
 const AIDE_MEMOIRE_RETENTION_BATCH_SIZE = 20
 
@@ -306,34 +305,8 @@ function getDriveDownloadUrl(fileId: string) {
 
 function getReadableDriveError(errorMessage: string) {
   const lower = errorMessage.toLowerCase()
-
-  if (lower.includes('storage quota') || lower.includes('service accounts')) {
-    return [
-      'Google Drive upload failed because the service-account method has no Drive storage quota.',
-      'Use the OAuth/My Drive method configured for PMS10.',
-    ].join(' ')
-  }
-  if (
-    lower.includes('pms10 drive root is not accessible') ||
-    lower.includes('resolves to') ||
-    lower.includes('cannot create files or folders')
-  ) {
-    return errorMessage
-  }
-  if (lower.includes('file not found') || lower.includes('not found')) {
-    return 'Google Drive folder was not found. Check GOOGLE_DRIVE_FOLDER_ID and account access.'
-  }
-  if (lower.includes('invalid_grant')) {
-    return 'Google OAuth refresh token is invalid or expired.'
-  }
-  if (lower.includes('invalid_client')) {
-    return 'Google OAuth Client ID or Client Secret is invalid.'
-  }
-  if (lower.includes('insufficient') || lower.includes('permission')) {
-    return 'Google Drive permission is insufficient for the configured PMS10 account.'
-  }
-
-  return errorMessage
+  if (lower.includes('quota')) return 'Google Drive storage is unavailable. Contact the PMS10 administrator.'
+  return 'Unable to upload to Google Drive. Retry when connected, or contact the PMS10 administrator.'
 }
 
 async function getGoogleAccessToken() {
@@ -748,7 +721,7 @@ Deno.serve(async (request) => {
 
   try {
     const rootFolderId = getRequiredEnv('GOOGLE_DRIVE_FOLDER_ID')
-    const formData = await request.formData()
+    const formData = await readUploadForm(request, MAX_DOCUMENT_BYTES)
     const fileField = formData.get('file')
 
     if (!fileField || typeof (fileField as File).arrayBuffer !== 'function') {
@@ -784,50 +757,13 @@ Deno.serve(async (request) => {
       )
     }
 
-    if (fileKind === 'photo') {
-      if (!file.type.startsWith('image/')) {
-        return jsonResponse(
-          { ok: false, message: 'Invalid photo type.', error: 'Only image files are allowed for photos.' },
-          400,
-        )
-      }
-      if (file.size > MAX_PHOTO_BYTES) {
-        return jsonResponse(
-          { ok: false, message: 'Photo is too large.', error: 'Inspection photos must be 700 KB or less.' },
-          413,
-        )
-      }
-    }
-
-    if (fileKind === 'aide-memoire') {
-      const allowed =
-        file.type === 'application/pdf' ||
-        file.type ===
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-        /\.pdf$/i.test(file.name) ||
-        /\.docx$/i.test(file.name)
-
-      if (!allowed) {
-        return jsonResponse(
-          { ok: false, message: 'Invalid document type.', error: 'Aide Memoire must be PDF or DOCX.' },
-          400,
-        )
-      }
-      if (!aideMemoireId || !['pdf', 'docx'].includes(documentFormat)) {
-        return jsonResponse(
-          { ok: false, message: 'Missing document reference.', error: 'aideMemoireId and documentFormat are required.' },
-          400,
-        )
-      }
-      if (file.size > MAX_DOCUMENT_BYTES) {
-        return jsonResponse(
-          { ok: false, message: 'Document is too large.', error: 'Aide Memoire files must be 20 MB or less.' },
-          413,
-        )
-      }
+    if (fileKind === 'aide-memoire' && (!aideMemoireId || !['pdf', 'docx'].includes(documentFormat))) {
+      throw new UploadValidationError('Aide Memoire ID and PDF or DOCX format are required.')
     }
 
     const uploader = await authorizeUploader(request, projectId, updateId)
+    if (fileKind === 'photo') await validatePhoto(file)
+    else await validateAideMemoire(file, documentFormat)
     const inspectionDate = normalizeDate(uploader.inspectionDate)
     const fundingYear = normalizeFundingYear(uploader.fundingYear, inspectionDate)
     const fundingSource = normalizeFundingSource(
@@ -1111,6 +1047,9 @@ Deno.serve(async (request) => {
       retentionPending,
     })
   } catch (error) {
+    if (error instanceof UploadValidationError) {
+      return jsonResponse({ ok: false, message: 'Upload rejected.', error: error.message }, error.status)
+    }
     console.error(error)
 
     const rawMessage =

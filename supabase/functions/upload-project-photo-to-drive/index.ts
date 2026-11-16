@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { MAX_PHOTO_BYTES, UploadValidationError, readUploadForm, validatePhoto } from '../_shared/uploadValidation.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,7 +48,6 @@ type DriveFile = {
 }
 
 const DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
-const MAX_PHOTO_BYTES = 700 * 1024
 
 type AuthorizedUploader = {
   userId: string
@@ -286,43 +286,8 @@ function getDriveDirectViewUrl(fileId: string) {
 
 function getReadableDriveError(errorMessage: string) {
   const lower = errorMessage.toLowerCase()
-
-  if (lower.includes('storage quota') || lower.includes('service accounts')) {
-    return [
-      'Google Drive upload failed because the service-account method has no Drive storage quota.',
-      'Use the OAuth/My Drive method with GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and GOOGLE_OAUTH_REFRESH_TOKEN.',
-    ].join(' ')
-  }
-
-  if (lower.includes('file not found') || lower.includes('not found')) {
-    return [
-      'Google Drive folder was not found.',
-      'Please check GOOGLE_DRIVE_FOLDER_ID and confirm the OAuth-authorized Google account can open that folder.',
-    ].join(' ')
-  }
-
-  if (lower.includes('invalid_grant')) {
-    return [
-      'Google OAuth refresh token is invalid or expired.',
-      'Generate a new refresh token using OAuth Playground and save it again to Supabase secrets.',
-    ].join(' ')
-  }
-
-  if (lower.includes('invalid_client')) {
-    return [
-      'Google OAuth Client ID or Client Secret is invalid.',
-      'Please check GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET in Supabase secrets.',
-    ].join(' ')
-  }
-
-  if (lower.includes('insufficient') || lower.includes('permission')) {
-    return [
-      'Google Drive permission is insufficient.',
-      'Confirm the OAuth scope includes Drive upload access and that the selected Google account owns or can access the target folder.',
-    ].join(' ')
-  }
-
-  return errorMessage
+  if (lower.includes('quota')) return 'Google Drive storage is unavailable. Contact the PMS10 administrator.'
+  return 'Unable to upload to Google Drive. Retry when connected, or contact the PMS10 administrator.'
 }
 
 async function getGoogleAccessToken() {
@@ -682,7 +647,7 @@ Deno.serve(async (request) => {
   try {
     const rootFolderId = getRequiredEnv('GOOGLE_DRIVE_FOLDER_ID')
 
-    const formData = await request.formData()
+    const formData = await readUploadForm(request, MAX_PHOTO_BYTES)
     const fileField = formData.get('file')
 
     if (!fileField || typeof (fileField as File).arrayBuffer !== 'function') {
@@ -702,17 +667,6 @@ Deno.serve(async (request) => {
     const projectId = textValue(formData.get('projectId'))
     const updateId = textValue(formData.get('updateId'))
 
-    if (!file.type.startsWith('image/')) {
-      return jsonResponse(
-        {
-          ok: false,
-          message: 'Invalid file type.',
-          error: 'Only image files are allowed.',
-        },
-        400,
-      )
-    }
-
     if (!projectId || !updateId) {
       return jsonResponse(
         {
@@ -724,18 +678,8 @@ Deno.serve(async (request) => {
       )
     }
 
-    if (file.size > MAX_PHOTO_BYTES) {
-      return jsonResponse(
-        {
-          ok: false,
-          message: 'Photo is too large.',
-          error: 'Inspection photos must be compressed to 700 KB or less before upload.',
-        },
-        413,
-      )
-    }
-
     const uploader = await authorizeUploader(request, projectId, updateId)
+    await validatePhoto(file)
     const uploadedBy = uploader.label
     const projectTitle = uploader.projectTitle || 'Untitled Project'
     const inspectionDate = normalizeDate(uploader.inspectionDate)
@@ -861,6 +805,9 @@ Deno.serve(async (request) => {
       file: uploadedFile,
     })
   } catch (error) {
+    if (error instanceof UploadValidationError) {
+      return jsonResponse({ ok: false, message: 'Upload rejected.', error: error.message }, error.status)
+    }
     console.error(error)
 
     const rawMessage =
