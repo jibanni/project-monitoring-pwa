@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useDesktopViewport } from '../hooks/useDesktopViewport'
 import { AIDE_MEMOIRE_FILE_LIMIT, aideMemoireDocumentToBlob, getRecentLocalAideMemoireDocuments, getWorkingProjectUpdateDraftId, offlineDb, pruneSyncedAideMemoireCache, saveAideMemoireDocument, type OfflineAideMemoire, type OfflineAideMemoireDocument } from '../lib/offlineDb'
 import { createFormDraftKey, loadFormDraftEntry } from '../lib/formDraftStorage'
 import { getOfficialProjectCost, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
@@ -28,6 +29,7 @@ import '../styles/projectDetailsDesktopPolish.css'
 import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveImageUrl'
 import ActionMenu from '../components/ActionMenu'
 import AideMemoireGenerationDialog from '../components/AideMemoireGenerationDialog'
+import DesktopProjectDetails from '../components/DesktopProjectDetails'
 import {
   getProjectAideMemoireDocuments,
   type CloudAideMemoireDocument,
@@ -313,6 +315,7 @@ export default function ProjectDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
   const auth = useAuth() as any
+  const isDesktopViewport = useDesktopViewport()
   const rememberedView = readPageView(`project-details:${id || 'unknown'}`, {
     photosExpanded: false,
     historyOpen: false,
@@ -355,7 +358,7 @@ export default function ProjectDetails() {
   }, [id, photosExpanded, historyOpen])
 
   useEffect(() => {
-    if (!historyOpen) return
+    if (!historyOpen || isDesktopViewport) return
 
     const previousOverflow = document.body.style.overflow
 
@@ -371,7 +374,7 @@ export default function ProjectDetails() {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', handleHistoryEscape)
     }
-  }, [historyOpen])
+  }, [historyOpen, isDesktopViewport])
 
 
   useEffect(() => {
@@ -608,6 +611,7 @@ export default function ProjectDetails() {
         .eq('project_id', id)
         .order('inspection_date', { ascending: false })
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(PROJECT_UPDATE_HISTORY_LIMIT)
 
       if (signal.aborted) return
@@ -1065,6 +1069,75 @@ export default function ProjectDetails() {
             Back to Projects
           </button>
         </div>
+      </div>
+    )
+  }
+
+  const aideDialog = id && aideGenerationRequest && (
+    <AideMemoireGenerationDialog
+      open
+      projectId={id}
+      updateRef={aideGenerationRequest.updateRef}
+      source={aideGenerationRequest.source}
+      inspectionDate={aideGenerationRequest.inspectionDate}
+      returnTo={`/projects/${id}`}
+      onClose={() => setAideGenerationRequest(null)}
+      onGenerated={async () => {
+        await loadAideMemoireDrafts()
+        if (navigator.onLine) await loadCloudAideMemoireDocuments()
+      }}
+    />
+  )
+
+  if (isDesktopViewport) {
+    return (
+      <div className="pd-page">
+        <DesktopProjectDetails
+          key={String(project.id)}
+          project={project}
+          projectId={String(project.id)}
+          location={heroLocation}
+          program={formatFundingDisplay(project)}
+          fundingYear={formatFundingYear(project.funding_year)}
+          projectCode={subayCode}
+          copiedCode={copiedSubayCode}
+          status={displayStatus}
+          riskLabel={heroRiskTone === 'none' ? 'No Risk' : `${heroRiskLabel} Risk`}
+          riskTone={heroRiskTone}
+          officialCost={getOfficialProjectCost(project)}
+          offline={dataSource === 'offline'}
+          updates={updates}
+          localAideRecords={aideDraftByUpdate}
+          files={recentAideFiles.map((file) => ({
+            id: `${file.kind}:${file.document.id}`,
+            name: getDisplayValue(file.document.file_name, 'Aide Memoire'),
+            format: String(file.kind === 'cloud' ? file.document.document_format || 'File' : file.document.format).toUpperCase(),
+            date: file.time,
+            detail: `${formatAideSavedTime(file.time)}${file.kind === 'local' ? ' · On this device'
+              : file.document.generated_by_name ? ` · ${file.document.generated_by_name}` : ''}`,
+            open: () => openAideFile(file),
+          }))}
+          fileLimit={AIDE_MEMOIRE_FILE_LIMIT}
+          photos={photos}
+          photosHaveMore={photoPage.hasMore}
+          photosLoading={photosLoading}
+          photoError={photoPageError}
+          draft={resumableUpdateDraft}
+          onBack={goBackToProjects}
+          onCopyCode={() => void handleCopySubayCode()}
+          onNewUpdate={canUpdateCurrentProject ? goToAddUpdate : undefined}
+          onResumeDraft={resumableUpdateDraft ? resumeLatestUpdateDraft : undefined}
+          onEdit={canEditCurrentProject && dataSource === 'online' ? goToEditProject : undefined}
+          onDelete={isAdmin && dataSource === 'online' ? () => void handleDelete() : undefined}
+          onMap={goToMap}
+          onBriefer={() => void generateProjectBriefer()}
+          generatingBriefer={generatingProjectBriefer}
+          onLoadPhotos={() => void loadMorePhotos()}
+          onGenerateAide={canUpdateCurrentProject ? (updateRef, source, inspectionDate) => {
+            setAideGenerationRequest({ updateRef, source, inspectionDate })
+          } : undefined}
+        />
+        {aideDialog}
       </div>
     )
   }
@@ -1693,21 +1766,7 @@ export default function ProjectDetails() {
           )
         : null}
 
-      {id && aideGenerationRequest && (
-        <AideMemoireGenerationDialog
-          open
-          projectId={id}
-          updateRef={aideGenerationRequest.updateRef}
-          source={aideGenerationRequest.source}
-          inspectionDate={aideGenerationRequest.inspectionDate}
-          returnTo={`/projects/${id}`}
-          onClose={() => setAideGenerationRequest(null)}
-          onGenerated={async () => {
-            await loadAideMemoireDrafts()
-            if (navigator.onLine) await loadCloudAideMemoireDocuments()
-          }}
-        />
-      )}
+      {aideDialog}
 
       <ActionMenu
         ariaLabel="Project actions"
