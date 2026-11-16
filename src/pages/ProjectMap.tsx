@@ -91,6 +91,7 @@ type ProjectRecord = {
   province: string | null
   latitude: number | string | null
   longitude: number | string | null
+  subaybayan_project_code?: string | null
   physical_accomplishment: number | string | null
   financial_accomplishment: number | string | null
   risk_level: string | null
@@ -244,7 +245,12 @@ function buildMapProject(
     })
   }
 
-  const latestCoordinate = candidates.sort((a, b) => b.timestamp - a.timestamp)[0]
+  // A fresh official import does not make earlier inspection GPS less valid.
+  // Linked records keep official GPS untouched and the map reads field GPS
+  // directly from the inspection whenever it exists.
+  const latestCoordinate = (String(project.subaybayan_project_code ?? '').trim()
+    ? candidates.find((candidate) => candidate.source === 'update')
+    : undefined) ?? candidates.sort((a, b) => b.timestamp - a.timestamp)[0]
 
   if (latestCoordinate) {
     return {
@@ -852,17 +858,25 @@ export default function ProjectMap() {
 
     try {
       setGpsErrorMessage('')
-      const { data, error } = await supabase
-        .from('project_updates')
-        .select('id, project_id, inspection_date, inspection_latitude, inspection_longitude, created_at')
-        .not('inspection_latitude', 'is', null)
-        .not('inspection_longitude', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(5000)
-
-      if (error) throw error
-
-      const rows = (data || []) as unknown as ProjectUpdateRecord[]
+      // The Data API may cap a response below a requested limit. Page the
+      // inspection GPS records because linked projects no longer copy them
+      // into the masterlist as a fallback.
+      const rows: ProjectUpdateRecord[] = []
+      const pageSize = 500
+      for (let start = 0; ; start += pageSize) {
+        const { data, error } = await supabase
+          .from('project_updates')
+          .select('id, project_id, inspection_date, inspection_latitude, inspection_longitude, created_at')
+          .not('inspection_latitude', 'is', null)
+          .not('inspection_longitude', 'is', null)
+          .order('created_at', { ascending: false, nullsFirst: false })
+          .order('id', { ascending: false })
+          .range(start, start + pageSize - 1)
+        if (error) throw error
+        const page = (data || []) as ProjectUpdateRecord[]
+        rows.push(...page)
+        if (page.length < pageSize) break
+      }
       const nextMap = new Map<string, ProjectUpdateRecord[]>()
 
       rows.forEach((update) => {

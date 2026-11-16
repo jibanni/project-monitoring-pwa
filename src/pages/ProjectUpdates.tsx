@@ -3,7 +3,6 @@ import { createPortal, flushSync } from'react-dom'
 import type { ChangeEvent, FormEvent, KeyboardEvent } from'react'
 import { Link, useLocation, useNavigate, useParams } from'react-router-dom'
 import { supabase } from'../lib/supabase'
-import { updateSharedProjectCache } from'../lib/projectDataCache'
 import { clearFormDraft, createFormDraftKey, loadFormDraftEntry, saveFormDraft } from'../lib/formDraftStorage'
 import { aideMemoireDocumentToBlob, aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, getWorkingProjectUpdateDraftId, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
 import { useAuth } from'../context/AuthContext'
@@ -152,6 +151,7 @@ type ProjectUpdateRecord = {
 
 type ProjectUpdateInsert = {
   project_id: string
+  status: string
   engineer_id: string | null
   inspection_date: string
   physical_accomplishment: number
@@ -689,17 +689,6 @@ async function getCachedProject(projectId: string) {
   return projectsTable.get(projectId)
 }
 
-async function updateCachedProject(projectId: string, patch: Partial<ProjectRecord>) {
-  const db = offlineDb as any
-  const projectsTable = db?.projects
-
-  if (!projectsTable?.update) {
-    return
-  }
-
-  await projectsTable.update(projectId, patch)
-}
-
 async function putCachedProject(projectRecord: ProjectRecord) {
   const db = offlineDb as any
   const projectsTable = db?.projects
@@ -710,14 +699,6 @@ async function putCachedProject(projectRecord: ProjectRecord) {
 
   await projectsTable.put({
     ...projectRecord,
-    project_name: projectRecord.project_name ||'Untitled Project',
-    status: projectRecord.status ||'Not Yet Started',
-    municipality: projectRecord.municipality ||'',
-    province: projectRecord.province ||'',
-    barangay: projectRecord.barangay ||'',
-    physical_accomplishment: toNumber(projectRecord.physical_accomplishment),
-    financial_accomplishment: toNumber(projectRecord.financial_accomplishment),
-    risk_level: projectRecord.risk_level ||'None',
     cached_at: new Date().toISOString(),
   })
 }
@@ -3183,6 +3164,7 @@ export default function ProjectUpdates() {
   function buildUpdatePayload(projectId: string): ProjectUpdateInsert {
     return {
       project_id: projectId,
+      status: heroDisplayStatus,
       engineer_id: auth?.user?.id || auth?.profile?.id || null,
       inspection_date: inspectionDate,
       physical_accomplishment: clampProgress(physicalAccomplishment),
@@ -3205,21 +3187,6 @@ export default function ProjectUpdates() {
           : null,
       created_at: new Date().toISOString(),
     }
-  }
-
-  function buildLatestCoordinatePatch() {
-    if (
-      inspectionCoordinateStatus.isValid &&
-      inspectionCoordinateStatus.latitude !== null &&
-      inspectionCoordinateStatus.longitude !== null
-    ) {
-      return {
-        latitude: inspectionCoordinateStatus.latitude,
-        longitude: inspectionCoordinateStatus.longitude,
-      }
-    }
-
-    return {}
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -3287,7 +3254,6 @@ export default function ProjectUpdates() {
 
     const projectId = id
     const updatePayload = buildUpdatePayload(projectId)
-    const latestCoordinatePatch = buildLatestCoordinatePatch()
 
     const { data: insertedUpdate, error: insertError } = await supabase
       .from('project_updates')
@@ -3302,26 +3268,6 @@ export default function ProjectUpdates() {
     const updateId = String(insertedUpdate?.id || '')
     if (!updateId) throw new Error('PMS10 could not identify the saved project update.')
     const savedInspectionDate = String(insertedUpdate?.inspection_date || updatePayload.inspection_date)
-
-    // SubayBAYAN is authoritative for the project masterlist.
-    // Engineer figures stay in project_updates, and are surfaced only
-    // by the separate Actual On-Site dashboard mode.
-    const projectPatch = {
-      last_inspection_date: savedInspectionDate,
-      ...latestCoordinatePatch,
-    }
-
-    const { error: projectUpdateError } = await supabase
-      .from('projects')
-      .update(projectPatch)
-      .eq('id', projectId)
-
-    if (projectUpdateError) {
-      throw projectUpdateError
-    }
-
-    await updateSharedProjectCache(projectId, projectPatch)
-    setProject((current) => current ? { ...current, ...projectPatch } : current)
 
     let photoUploadResult = {
       uploadedCount: 0,
@@ -3347,7 +3293,7 @@ export default function ProjectUpdates() {
       title: hasQueuedPhotos ? 'Update Saved — Drive Upload Pending' : 'Update Saved',
       message: hasQueuedPhotos
         ? `The inspection update is saved and the Aide Memoire can be generated now, even without syncing. ${photoUploadResult.uploadedCount} photo(s) reached Google Drive and ${photoUploadResult.queuedCount} compressed photo(s) remain safely on this device for Offline Sync.`
-        : 'Project update saved successfully. The project record and compressed photos have been updated.',
+        : 'The field observation was saved to inspection history. The official project record was not changed.',
       mode:'online',
       updateRef: updateId,
       inspectionDate: savedInspectionDate,
@@ -3500,7 +3446,6 @@ export default function ProjectUpdates() {
     const projectId = id
     const updatePayload = buildUpdatePayload(projectId)
     const localUpdateId = makeLocalId()
-    const latestCoordinatePatch = buildLatestCoordinatePatch()
     const projectName = project?.project_name ||'Untitled Project'
     const driveFundingYear = getDriveFundingYear(project, inspectionDate)
     const driveFundingSource = getDriveFundingSource(project)
@@ -3519,7 +3464,6 @@ export default function ProjectUpdates() {
       funding_year: driveFundingYear || null,
       funding_source: driveFundingSource || project?.funding_source || null,
       funding_program: driveFundingSource || null,
-      status: projectStatus,
       contract_expiration_date: project?.contract_expiration_date || null,
       has_contract_modification: hasContractModification,
       contract_modification_type: hasContractModification ? contractModificationType : null,
@@ -3581,15 +3525,6 @@ export default function ProjectUpdates() {
         await photoTable.add(photoRecord)
       }
     }
-
-    // Offline observations are already kept in offlineDb.project_updates.
-    // Never change the cached official SubayBAYAN values with a field entry.
-    const inspectionPatch = {
-      last_inspection_date: inspectionDate,
-      ...latestCoordinatePatch,
-    }
-    await updateCachedProject(projectId, inspectionPatch)
-    await updateSharedProjectCache(projectId, inspectionPatch)
 
     await finalizeAideMemoireForSavedUpdate(localUpdateId, 'offline', updatePayload.inspection_date)
     await refreshLatestProjectOutputs()

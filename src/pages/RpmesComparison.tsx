@@ -2,7 +2,8 @@ import { Navigate } from 'react-router-dom'
 import RpmesStatusComparison from '../components/RpmesStatusComparison'
 import { useAuth } from '../context/AuthContext'
 import { useDesktopViewport } from '../hooks/useDesktopViewport'
-import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
+import { useSubaybayanOfficialProjects } from '../hooks/useSubaybayanOfficialProjects'
+import type { SharedProjectRow } from '../lib/projectDataCache'
 import { filterProjectsByAor, type AorProjectLike } from '../utils/aorAccess'
 
 export default function RpmesComparison() {
@@ -15,7 +16,7 @@ export default function RpmesComparison() {
 
 function DesktopComparison() {
   const auth = useAuth()
-  const { projects, source, refreshProjects } = useSharedProjects<SharedProjectRow & AorProjectLike>()
-  return <RpmesStatusComparison projects={filterProjectsByAor(projects, auth)}
+  const { officialProjects, source, refreshProjects } = useSubaybayanOfficialProjects<SharedProjectRow & AorProjectLike>()
+  return <RpmesStatusComparison officialProjects={filterProjectsByAor(officialProjects, auth)}
     projectSource={source} refreshProjects={refreshProjects} />
 }

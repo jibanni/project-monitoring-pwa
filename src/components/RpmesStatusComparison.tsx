@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { getCanonicalProjectLgu } from '../data/region10Directory'
 import { canViewProject } from '../utils/aorAccess'
 import { normalizeProgramName } from '../utils/program'
+import { getPmsProjectStatus } from '../utils/projectStatus'
 import {
   parseRpmesValues, pilotProvince, rpmesCsvUrl, rpmesSpreadsheetId, RPMES_PILOT_PROVINCES,
   RPMES_PILOT_SOURCES, SUMMARY_COLUMNS, summarizeByLgu, text,
@@ -14,7 +15,7 @@ import '../styles/rpmesStatusComparison.css'
 type Project = Record<string, unknown>
 type SheetData = { rows: StatusEntry[]; checkedAt: Date; spreadsheetId: string }
 type SourceLinks = Partial<Record<PilotProvince, string>>
-type Props = { projects: Project[]; projectSource: 'memory' | 'device' | 'network' | 'empty'; refreshProjects: () => Promise<void> }
+type Props = { officialProjects: Project[]; projectSource: 'memory' | 'device' | 'network' | 'empty'; refreshProjects: () => Promise<void> }
 
 const dateLabel = (date: Date) => new Intl.DateTimeFormat('en-PH', {
   dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila',
@@ -64,7 +65,7 @@ async function loadRpmes(province: PilotProvince, spreadsheetId: string): Promis
   return { rows: parseRpmesValues(values, province), checkedAt: new Date(), spreadsheetId }
 }
 
-export default function RpmesStatusComparison({ projects, projectSource, refreshProjects }: Props) {
+export default function RpmesStatusComparison({ officialProjects, projectSource, refreshProjects }: Props) {
   const auth = useAuth()
   const storageKey = `pms10:rpmes-links:v1:${auth.user?.id}`
   const [links, setLinks] = useState(() => readLinks(storageKey))
@@ -82,11 +83,11 @@ export default function RpmesStatusComparison({ projects, projectSource, refresh
   const busy = useRef(false)
   const usingCachedProjects = projectSource !== 'network'
 
-  const official = useMemo(() => projects.flatMap((project): StatusEntry[] => {
+  const official = useMemo(() => officialProjects.flatMap((project): StatusEntry[] => {
     const province = pilotProvince(project.province)
     if (!province || text(project.funding_year) !== '2025' || normalizeProgramName(project.funding_source) !== 'SBDP') return []
-    return [{ province, municipality: text(project.municipality), barangay: text(project.barangay), status: text(project.status) }]
-  }), [projects])
+    return [{ province, municipality: text(project.municipality), barangay: text(project.barangay), status: getPmsProjectStatus(project) }]
+  }), [officialProjects])
   const provinces = RPMES_PILOT_PROVINCES.filter((province) => auth.isAdmin || official.some((entry) => entry.province === province))
   const requested = selected ? provinces.filter((province) => province === selected) : provinces
   const ready = projectSource === 'empty' ? [] : requested.filter((province) => sheets[province] && !errors.includes(province))
@@ -207,7 +208,7 @@ export default function RpmesStatusComparison({ projects, projectSource, refresh
 
   return <section className="rpmes-comparison" aria-labelledby="pms10-rpmes-title">
     <h1 id="pms10-rpmes-title">RPMES Comparison</h1>
-    <p>FY 2025 SBDP · LGU summary comparing PMS SubayBAYAN and RPMES Form 2.</p>
+    <p>FY 2025 SBDP · PMS SubayBAYAN Official vs RPMES Form 2. Actual on-site updates are excluded.</p>
     <div className="rpmes-comparison-controls">
       <label>Province <select aria-label="Province" value={selected} disabled={loading || !provinces.length}
         onChange={(event) => setSelected(event.target.value as PilotProvince | '')}>

@@ -13,7 +13,8 @@ import {
   Tooltip,
   } from 'recharts'
 
-import { useSharedProjects, type SharedProjectRow } from '../lib/projectDataCache'
+import type { SharedProjectRow } from '../lib/projectDataCache'
+import { useSubaybayanOfficialProjects } from '../hooks/useSubaybayanOfficialProjects'
 import { useOnsiteProjectSnapshots } from '../hooks/useOnsiteProjectSnapshots'
 import { useAuth } from '../context/AuthContext'
 import { useDesktopViewport } from '../hooks/useDesktopViewport'
@@ -46,6 +47,7 @@ import '../styles/executiveDashboard.css'
 type ProjectRecord = SharedProjectRow & AorProjectLike & Record<string, any>
 
 type DrilldownState = {
+  dataSource: 'official' | 'onsite'
   title: string
   subtitle: string
   projects: ProjectRecord[]
@@ -62,6 +64,7 @@ type DrilldownFilters = {
 }
 
 type DashboardDrilldownMemory = {
+  dataSource?: 'official' | 'onsite'
   title: string
   subtitle: string
   projectIds: string[]
@@ -707,16 +710,17 @@ export default function Dashboard() {
 
   const {
     projects,
+    officialProjects,
     loading,
     errorMessage,
     refreshProjects,
-  } = useSharedProjects<ProjectRecord>()
-  const { onsiteProjects } = useOnsiteProjectSnapshots(projects, isDesktopViewport)
-  const dashboardSourceProjects = useMemo(
-    () => isDesktopViewport && dataSource === 'onsite' ? onsiteProjects : projects,
-    [isDesktopViewport, dataSource, onsiteProjects, projects],
-  )
-  const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
+  } = useSubaybayanOfficialProjects<ProjectRecord>()
+  const activeSource = isDesktopViewport ? dataSource : 'official'
+  const showingActual = activeSource === 'onsite'
+  const { onsiteProjects } = useOnsiteProjectSnapshots(projects, showingActual)
+  const dashboardSourceProjects = showingActual ? onsiteProjects : isDesktopViewport ? officialProjects : projects
+  const [storedDrilldown, setDrilldown] = useState<DrilldownState | null>(null)
+  const drilldown = storedDrilldown?.dataSource === activeSource ? storedDrilldown : null
   const [isDrilldownClosing, setIsDrilldownClosing] = useState(false)
   const [drilldownVisibleCount, setDrilldownVisibleCount] = useState(
     rememberedDrilldownRef.current?.visibleCount || DRILLDOWN_PAGE_SIZE,
@@ -824,6 +828,7 @@ export default function Dashboard() {
     }
 
     const memory: DashboardDrilldownMemory = {
+      dataSource: activeSource,
       title,
       subtitle,
       projectIds: selectedProjects.map((project) => project.id),
@@ -841,6 +846,7 @@ export default function Dashboard() {
     setDrilldownFilters(DEFAULT_DRILLDOWN_FILTERS)
     setDrilldownVisibleCount(DRILLDOWN_PAGE_SIZE)
     setDrilldown({
+      dataSource: activeSource,
       title,
       subtitle,
       projects: selectedProjects,
@@ -870,8 +876,8 @@ export default function Dashboard() {
   // remarks even when the display is switched to engineer On-Site snapshots.
   // Access scope remains identical to the selected dashboard's AOR.
   const officialAorProjects = useMemo(() => {
-    return filterProjectsByAor(projects, auth)
-  }, [projects, auth])
+    return filterProjectsByAor(officialProjects, auth)
+  }, [officialProjects, auth])
 
   const filterOptions = useMemo(() => {
     const years = uniqueSortedTextValues(aorProjects.map(getYearFilterValue)).sort(
@@ -919,7 +925,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const remembered = rememberedDrilldownRef.current
-    if (!remembered || drilldown || loading) return
+    if (!remembered || drilldown || loading || remembered.dataSource !== activeSource) return
 
     const byId = new Map(visibleProjects.map((project) => [project.id, project]))
     const restoredProjects = remembered.projectIds
@@ -936,17 +942,19 @@ export default function Dashboard() {
       ...(remembered.filters || {}),
     })
     setDrilldown({
+      dataSource: activeSource,
       title: remembered.title,
       subtitle: remembered.subtitle,
       projects: restoredProjects,
     })
-  }, [drilldown, loading, visibleProjects])
+  }, [drilldown, loading, visibleProjects, activeSource])
 
   useEffect(() => {
     if (!drilldown) return
 
     const projectIds = drilldown.projects.map((project) => project.id)
     const memory: DashboardDrilldownMemory = {
+      dataSource: drilldown.dataSource,
       title: drilldown.title,
       subtitle: drilldown.subtitle,
       projectIds,
@@ -1640,6 +1648,7 @@ export default function Dashboard() {
 
               if (drilldown) {
                 const memory: DashboardDrilldownMemory = {
+                  dataSource: drilldown.dataSource,
                   title: drilldown.title,
                   subtitle: drilldown.subtitle,
                   projectIds: drilldown.projects.map((project) => project.id),
@@ -1710,6 +1719,7 @@ export default function Dashboard() {
       <>
         <div className={`pms-dashboard-view-stage is-executive ${viewTransitionPhase} ${viewTransitionDirection}`}>
           <ExecutiveDashboard
+            key={activeSource}
             projects={aorProjects}
             officialProjects={officialAorProjects}
             dataSource={dataSource}

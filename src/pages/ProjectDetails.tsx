@@ -651,6 +651,7 @@ export default function ProjectDetails() {
       await loadCloudAideMemoireDocuments()
 
       await offlineDb.projects.put({
+        ...onlineProject,
         id: onlineProject.id,
         project_name: onlineProject.project_name || '',
         description: onlineProject.description || '',
@@ -658,12 +659,12 @@ export default function ProjectDetails() {
         municipality: onlineProject.municipality || '',
         province: onlineProject.province || '',
         barangay: onlineProject.barangay || '',
-        physical_accomplishment: onlineProject.physical_accomplishment || 0,
+        physical_accomplishment: onlineProject.physical_accomplishment ?? null,
         target_physical_accomplishment:
           onlineProject.target_physical_accomplishment ?? null,
         target_physical_as_of: onlineProject.target_physical_as_of || '',
         target_physical_source: onlineProject.target_physical_source || 'auto',
-        financial_accomplishment: onlineProject.financial_accomplishment || 0,
+        financial_accomplishment: onlineProject.financial_accomplishment ?? null,
         risk_level: onlineProject.risk_level || '',
         project_type: onlineProject.project_type || '',
         funding_source: onlineProject.funding_source || '',
@@ -1279,7 +1280,7 @@ export default function ProjectDetails() {
 
         <article className="pd-summary-card">
           <span>Last Inspection</span>
-          <strong className="pd-date-value">{formatDate(project.last_inspection_date)}</strong>
+          <strong className="pd-date-value">{formatDate(latestUpdate?.inspection_date || project.last_inspection_date)}</strong>
         </article>
       </section>
 

@@ -307,6 +307,7 @@ function getProjectTitle(projectId: string, fallback?: string) {
 function buildOnlineUpdatePayload(update: OfflineProjectUpdate) {
   return {
     project_id: update.project_id,
+    status: nullableText(update.status),
     engineer_id: update.engineer_id || null,
     inspection_date: update.inspection_date,
     physical_accomplishment: toNumber(update.physical_accomplishment),
@@ -320,19 +321,6 @@ function buildOnlineUpdatePayload(update: OfflineProjectUpdate) {
     inspection_latitude: nullableNumber(update.inspection_latitude),
     inspection_longitude: nullableNumber(update.inspection_longitude),
     created_at: update.created_at || new Date().toISOString(),
-  }
-}
-
-function buildProjectPatch(update: OfflineProjectUpdate) {
-  const latitude = nullableNumber(update.inspection_latitude)
-  const longitude = nullableNumber(update.inspection_longitude)
-  // Synchronization must never overwrite official SubayBAYAN master metrics.
-  // On-site physical, financial, risk and findings remain in project_updates.
-  return {
-    last_inspection_date: update.inspection_date,
-    ...(latitude !== null && longitude !== null
-      ? { latitude, longitude }
-      : {}),
   }
 }
 
@@ -1191,19 +1179,6 @@ export async function syncOfflineUpdates(): Promise<SyncResult> {
         update,
         onlineProjectUpdateId,
       )
-
-      const projectResult = await supabase
-        .from('projects')
-        .update(buildProjectPatch(update))
-        .eq('id', update.project_id)
-
-      if (projectResult.error) {
-        await markUpdateStatus(update, {
-          sync_status: 'failed',
-          error: projectResult.error.message,
-        })
-        throw projectResult.error
-      }
 
       const uploadedPhotoCount = await syncPhotosForOfflineUpdate(
         {
