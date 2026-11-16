@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, type OfflineAideMemoire, type OfflineAideMemoireDocument } from '../lib/offlineDb'
+import { AIDE_MEMOIRE_FILE_LIMIT, aideMemoireDocumentToBlob, getRecentLocalAideMemoireDocuments, getWorkingProjectUpdateDraftId, offlineDb, pruneSyncedAideMemoireCache, saveAideMemoireDocument, type OfflineAideMemoire, type OfflineAideMemoireDocument } from '../lib/offlineDb'
+import { createFormDraftKey, loadFormDraftEntry } from '../lib/formDraftStorage'
 import { getOfficialProjectCost, getProjectDisplayStatus, getTargetPhysicalInfo } from '../utils/projectVariance'
 import { getPmsRiskLevel } from '../utils/projectStatus'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
@@ -28,9 +29,7 @@ import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveIma
 import ActionMenu from '../components/ActionMenu'
 import AideMemoireGenerationDialog from '../components/AideMemoireGenerationDialog'
 import {
-  getLatestProjectAideMemoireDocument,
   getProjectAideMemoireDocuments,
-  isLocalAideMemoireNewer,
   type CloudAideMemoireDocument,
 } from '../services/projectDocumentService'
 
@@ -96,6 +95,22 @@ function formatDate(value: unknown) {
 function getDisplayValue(value: unknown, fallback = '-') {
   const displayValue = String(value ?? '').trim()
   return displayValue || fallback
+}
+
+function formatAideSavedTime(value: string) {
+  const normalized = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)
+    ? `${value.replace(' ', 'T')}Z`
+    : value
+  const time = new Date(normalized)
+  if (!Number.isFinite(time.getTime())) return formatDate(value)
+  return time.toLocaleString('en-US', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 function formatFundingYear(value: unknown) {
@@ -307,6 +322,9 @@ export default function ProjectDetails() {
   const [project, setProject] = useState<any>(null)
   const [updates, setUpdates] = useState<any[]>([])
   const [aideMemoireDrafts, setAideMemoireDrafts] = useState<OfflineAideMemoire[]>([])
+  const [latestWorkingUpdateDraft, setLatestWorkingUpdateDraft] = useState<{
+    projectId: string; ownerId: string; updatedAt: string; inspectionDate?: string
+  } | null>(null)
   const [photos, setPhotos] = useState<Awaited<ReturnType<typeof getProjectPhotoPage>>['photos']>([])
   const [photoPage, setPhotoPage] = useState({ nextOffset: 0, hasMore: false })
   const [photosLoading, setPhotosLoading] = useState(false)
@@ -320,8 +338,8 @@ export default function ProjectDetails() {
   const [isHeroCompact, setIsHeroCompact] = useState(false)
   const [accessDenied, setAccessDenied] = useState(false)
   const [copiedSubayCode, setCopiedSubayCode] = useState(false)
-  const [latestGeneratedAidePdf, setLatestGeneratedAidePdf] = useState<OfflineAideMemoireDocument | null>(null)
-  const [cloudAideDocuments, setCloudAideDocuments] = useState<CloudAideMemoireDocument[]>([])
+  const [localAideDocuments, setLocalAideDocuments] = useState<OfflineAideMemoireDocument[]>([])
+  const [cloudAideDocuments, setCloudAideDocuments] = useState<CloudAideMemoireDocument[] | null>(null)
   const [aideGenerationRequest, setAideGenerationRequest] = useState<{ updateRef: string; source: 'online' | 'offline'; inspectionDate?: string } | null>(null)
   const [generatingProjectBriefer, setGeneratingProjectBriefer] = useState(false)
 
@@ -420,11 +438,17 @@ export default function ProjectDetails() {
       if (document.visibilityState === 'visible') refreshDrafts()
     }
 
+    function handleDraftSaved() {
+      void loadAideMemoireDrafts()
+    }
+
     window.addEventListener('focus', refreshDrafts)
+    window.addEventListener('pms10:project-update-draft-saved', handleDraftSaved)
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       window.removeEventListener('focus', refreshDrafts)
+      window.removeEventListener('pms10:project-update-draft-saved', handleDraftSaved)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -433,13 +457,28 @@ export default function ProjectDetails() {
   async function loadAideMemoireDrafts() {
     if (!id) {
       setAideMemoireDrafts([])
-      setLatestGeneratedAidePdf(null)
+      setLatestWorkingUpdateDraft(null)
+      setLocalAideDocuments([])
       return
     }
 
     try {
       const currentUserId = String(auth?.user?.id || auth?.profile?.id || '').trim()
+      const workingId = currentUserId && getWorkingProjectUpdateDraftId(id, currentUserId)
+      const shadow = workingId
+        ? loadFormDraftEntry<{ inspectionDate?: string }>(createFormDraftKey('project-update', workingId, currentUserId))
+        : null
       const drafts = await offlineDb.aide_memoires.where('project_id').equals(id).toArray()
+      const draft = drafts.find((item) =>
+        item.id === workingId && item.status === 'draft' && item.created_by === currentUserId,
+      )
+      const useShadow = shadow && (!draft || shadow.updatedAt >= draft.updated_at)
+      setLatestWorkingUpdateDraft(shadow || draft ? {
+        projectId: id,
+        ownerId: currentUserId,
+        updatedAt: useShadow ? shadow.updatedAt : draft?.updated_at || '',
+        inspectionDate: useShadow ? shadow.data.inspectionDate : draft?.inspection_date,
+      } : null)
 
       setAideMemoireDrafts(
         drafts
@@ -449,8 +488,11 @@ export default function ProjectDetails() {
           .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || ''))),
       )
 
-      let latestPdf = await getLatestAideMemoireDocument(id, 'pdf')
-      if (!latestPdf) {
+      await pruneSyncedAideMemoireCache(id).catch((error) => {
+        console.warn('Unable to prune older local Aide Memoire files.', error)
+      })
+      let localDocs = await getRecentLocalAideMemoireDocuments(id)
+      if (!localDocs.length) {
         const legacyRecord = drafts
           .filter((draft) => Boolean(draft.latest_pdf_blob))
           .sort((first, second) =>
@@ -461,7 +503,7 @@ export default function ProjectDetails() {
 
         if (legacyRecord?.latest_pdf_blob) {
           try {
-            latestPdf = await saveAideMemoireDocument({
+            const migratedPdf = await saveAideMemoireDocument({
               aideMemoireId: legacyRecord.id,
               projectId: id,
               updateRef: legacyRecord.update_ref,
@@ -470,32 +512,39 @@ export default function ProjectDetails() {
               blob: legacyRecord.latest_pdf_blob,
               generatedAt: legacyRecord.latest_pdf_generated_at || legacyRecord.updated_at,
             })
+            localDocs = [migratedPdf]
           } catch (migrationError) {
             console.warn('Unable to migrate the legacy Aide Memoire PDF.', migrationError)
           }
         }
       }
-      setLatestGeneratedAidePdf(latestPdf)
+      setLocalAideDocuments(localDocs)
     } catch (error) {
       console.error('Unable to load Aide Memoire drafts for this project.', error)
       setAideMemoireDrafts([])
-      setLatestGeneratedAidePdf(null)
+      setLatestWorkingUpdateDraft(null)
+      setLocalAideDocuments([])
     }
   }
 
   async function loadCloudAideMemoireDocuments() {
     if (!id || !navigator.onLine) {
-      if (!navigator.onLine) setCloudAideDocuments([])
+      setCloudAideDocuments(null)
       return
     }
 
     try {
-      const documents = await getProjectAideMemoireDocuments(id, 20)
+      const documents = await getProjectAideMemoireDocuments(id)
       setCloudAideDocuments(documents)
     } catch (error) {
       console.error('Unable to load cloud Aide Memoire documents.', error)
-      setCloudAideDocuments([])
+      setCloudAideDocuments(null)
     }
+  }
+
+  function resumeLatestUpdateDraft() {
+    if (!id || !resumableUpdateDraft) return
+    navigate(`/projects/${id}/updates`)
   }
 
   async function loadOfflineData() {
@@ -528,7 +577,7 @@ export default function ProjectDetails() {
         .slice(0, PROJECT_UPDATE_HISTORY_LIMIT),
     )
     setPhotos([])
-    setCloudAideDocuments([])
+    setCloudAideDocuments(null)
     setDataSource('offline')
   }
 
@@ -672,17 +721,6 @@ export default function ProjectDetails() {
     return draftMap
   }, [aideMemoireDrafts])
 
-  const latestWorkingUpdateDraft = useMemo(
-    () =>
-      aideMemoireDrafts.find(
-        (draft) =>
-          draft.status === 'draft' &&
-          draft.update_source === 'offline' &&
-          String(draft.update_ref || '').startsWith('working-'),
-      ) || null,
-    [aideMemoireDrafts],
-  )
-
 
   const latestUpdate = updates.length > 0 ? updates[0] : null
   const primaryPhoto = photos[0] ?? null
@@ -732,6 +770,10 @@ export default function ProjectDetails() {
     .filter(Boolean)
     .join(', ') || 'Location Not Available'
   const canUpdateCurrentProject = project ? canUpdateProject(project, auth) : false
+  const resumableUpdateDraft = canUpdateCurrentProject &&
+    latestWorkingUpdateDraft?.projectId === id &&
+    latestWorkingUpdateDraft?.ownerId === String(auth?.user?.id || auth?.profile?.id || '').trim()
+    ? latestWorkingUpdateDraft : null
   const canEditCurrentProject = project ? canEditProjectRecord(project, auth) : false
 
   async function generateProjectBriefer() {
@@ -906,15 +948,29 @@ export default function ProjectDetails() {
     navigate(`/projects/${id}/updates`)
   }
 
-  const latestCloudAidePdf = useMemo(
-    () =>
-      cloudAideDocuments.find(
-        (document) =>
-          String(document.document_format || '').toLowerCase() === 'pdf' &&
-          Boolean(document.file_url),
-      ) || null,
-    [cloudAideDocuments],
-  )
+  const recentAideFiles = useMemo(() => {
+    const cloud = dataSource === 'online'
+      ? (cloudAideDocuments || []).filter((document) => document.project_id === id && document.file_url)
+      : []
+    const cloudIds = new Set(cloud.map((document) => document.id))
+    const local = localAideDocuments.filter((document) =>
+      document.project_id === id && (
+        dataSource !== 'online' ||
+        cloudAideDocuments === null ||
+        String(document.sync_status).toLowerCase() !== 'synced' ||
+        !document.cloud_document_id
+      ) && (!document.cloud_document_id || !cloudIds.has(document.cloud_document_id)),
+    )
+    return [
+      ...cloud.map((document) => ({
+        kind: 'cloud' as const, document, time: document.generated_at || document.uploaded_at || '',
+      })),
+      ...local.map((document) => ({
+        kind: 'local' as const, document, time: document.generated_at || '',
+      })),
+    ].sort((a, b) => (Date.parse(b.time) || 0) - (Date.parse(a.time) || 0) ||
+      b.document.id.localeCompare(a.document.id)).slice(0, AIDE_MEMOIRE_FILE_LIMIT)
+  }, [cloudAideDocuments, dataSource, id, localAideDocuments])
 
   function openCloudAideMemoire(document: CloudAideMemoireDocument) {
     const url = String(document.file_url || '').trim()
@@ -922,33 +978,15 @@ export default function ProjectDetails() {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  async function openLatestGeneratedAidePdf() {
+  function openAideFile(file: (typeof recentAideFiles)[number]) {
     if (!id) return
-
-    // Check the latest synced PDF without hiding a newer local copy pending upload.
-    if (navigator.onLine) {
-      try {
-        const latestCloud = await getLatestProjectAideMemoireDocument(id, 'pdf')
-
-        if (latestCloud?.file_url && !isLocalAideMemoireNewer(latestGeneratedAidePdf, latestCloud)) {
-          setCloudAideDocuments((current) => {
-            const withoutLatest = current.filter((item) => item.id !== latestCloud.id)
-            return [latestCloud, ...withoutLatest]
-          })
-          openCloudAideMemoire(latestCloud)
-          return
-        }
-      } catch (error) {
-        console.warn('Unable to resolve the latest cloud Aide Memoire. Falling back to this device.', error)
-      }
+    if (file.kind === 'cloud') {
+      openCloudAideMemoire(file.document)
+      return
     }
-
-    /* Offline / cloud-unavailable fallback: retain the existing local-first
-       behavior so field users can still open the most recent PDF cached on
-       the current device. */
-    if (latestGeneratedAidePdf) {
+    if (file.document.format === 'pdf') {
       const params = new URLSearchParams({
-        documentId: latestGeneratedAidePdf.id,
+        documentId: file.document.id,
         from: 'details',
         returnTo: `/projects/${id}`,
       })
@@ -957,9 +995,14 @@ export default function ProjectDetails() {
       return
     }
 
-    if (latestCloudAidePdf) {
-      openCloudAideMemoire(latestCloudAidePdf)
-    }
+    const url = URL.createObjectURL(aideMemoireDocumentToBlob(file.document))
+    const link = window.document.createElement('a')
+    link.href = url
+    link.download = file.document.file_name || 'Aide_Memoire.docx'
+    window.document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
   function goToMap() {
@@ -1423,65 +1466,53 @@ export default function ProjectDetails() {
                 <h2>Aide Memoire Files</h2>
               </div>
 
-              <span className="pd-section-chip">
-                {dataSource === 'online'
-                  ? `${cloudAideDocuments.length} file${cloudAideDocuments.length === 1 ? '' : 's'}`
-                  : latestGeneratedAidePdf
-                    ? '1 local'
-                    : 'Offline'}
-              </span>
+              <span className="pd-section-chip">{recentAideFiles.length} / {AIDE_MEMOIRE_FILE_LIMIT} files</span>
             </div>
 
-            {dataSource === 'offline' ? (
-              latestGeneratedAidePdf ? (
-                <button
-                  type="button"
-                  className="pd-aide-file-row is-local"
-                  onClick={openLatestGeneratedAidePdf}
-                >
-                  <span className="pd-aide-file-format">PDF</span>
-                  <span className="pd-aide-file-copy">
-                    <strong>{latestGeneratedAidePdf.file_name || 'Latest Aide Memoire'}</strong>
-                    <small>Available offline on this device</small>
-                  </span>
-                  <span className="pd-aide-file-open">Open</span>
-                </button>
-              ) : (
-                <div className="pd-empty-inline">
-                  Cloud Aide Memoire files will appear here when the device is online.
-                </div>
-              )
-            ) : cloudAideDocuments.length === 0 ? (
+            {recentAideFiles.length === 0 ? (
               <div className="pd-empty-inline">
-                No cloud-synced Aide Memoire has been generated for this project yet.
+                {dataSource === 'offline'
+                  ? 'No Aide Memoire files saved on this device.'
+                  : 'No Aide Memoire files have been generated for this project yet.'}
               </div>
             ) : (
               <div className="pd-aide-file-list">
-                {cloudAideDocuments.slice(0, 8).map((document) => (
+                {recentAideFiles.map((file) => (
                   <button
                     type="button"
-                    className="pd-aide-file-row"
-                    key={document.id}
-                    onClick={() => openCloudAideMemoire(document)}
-                    disabled={!document.file_url}
+                    className={`pd-aide-file-row ${file.kind === 'local' ? 'is-local' : ''}`}
+                    key={`${file.kind}:${file.document.id}`}
+                    onClick={() => openAideFile(file)}
                   >
                     <span className="pd-aide-file-format">
-                      {String(document.document_format || 'FILE').toUpperCase()}
+                      {String(file.kind === 'cloud' ? file.document.document_format || 'FILE' : file.document.format).toUpperCase()}
                     </span>
 
                     <span className="pd-aide-file-copy">
-                      <strong>{getDisplayValue(document.file_name, 'Aide Memoire')}</strong>
+                      <strong>{getDisplayValue(file.document.file_name, 'Aide Memoire')}</strong>
                       <small>
-                        {formatDate(document.generated_at || document.uploaded_at)}
-                        {document.generated_by_name
-                          ? ` · ${document.generated_by_name}`
-                          : ''}
+                        {formatAideSavedTime(file.time)}
+                        {file.kind === 'local' ? ' · On this device' :
+                          file.document.generated_by_name ? ` · ${file.document.generated_by_name}` : ''}
                       </small>
                     </span>
 
-                    <span className="pd-aide-file-open">Open</span>
+                    <span className="pd-aide-file-open">{file.kind === 'local' && file.document.format === 'docx' ? 'Download' : 'Open'}</span>
                   </button>
                 ))}
+              </div>
+            )}
+            {resumableUpdateDraft && (
+              <div className="pd-aide-file-list">
+                <button type="button" className="pd-aide-file-row is-local" onClick={resumeLatestUpdateDraft}>
+                  <span className="pd-aide-file-format">Draft</span>
+                  <span className="pd-aide-file-copy">
+                    <strong>Latest Update Draft</strong>
+                    <small>Saved on this device{resumableUpdateDraft.updatedAt ? ` · ${formatDate(resumableUpdateDraft.updatedAt)}` : ''}</small>
+                    {resumableUpdateDraft.inspectionDate && <small>Update date {formatDate(resumableUpdateDraft.inspectionDate)}</small>}
+                  </span>
+                  <span className="pd-aide-file-open">Resume Draft</span>
+                </button>
               </div>
             )}
           </section>
@@ -1695,16 +1726,19 @@ export default function ProjectDetails() {
             label: 'Continue Update',
             icon: <IconContinue />,
             tone: 'primary',
-            hidden: !canUpdateCurrentProject || !latestWorkingUpdateDraft,
-            onSelect: goToAddUpdate,
+            hidden: !resumableUpdateDraft,
+            onSelect: resumeLatestUpdateDraft,
           },
           {
             id: 'latest-aide',
             label: 'Latest Aide Memoire',
             icon: <IconPdf />,
             tone: 'document',
-            hidden: !latestGeneratedAidePdf && !latestCloudAidePdf,
-            onSelect: () => void openLatestGeneratedAidePdf(),
+            hidden: !recentAideFiles.length,
+            onSelect: () => {
+              const latest = recentAideFiles[0]
+              if (latest) openAideFile(latest)
+            },
           },
           {
             id: 'map',

@@ -99,14 +99,12 @@ export default function AideMemoirePdfViewer() {
 
         if (documentId) {
           stored = (await offlineDb.aide_memoire_documents.get(documentId)) || null
-        }
-
-        if (!stored) {
+        } else {
           stored = await getLatestAideMemoireDocument(id, 'pdf')
         }
 
         if (!stored || stored.format !== 'pdf' || String(stored.project_id) !== String(id)) {
-          throw new Error('The latest Aide Memoire PDF is not available on this device.')
+          throw new Error('This Aide Memoire PDF is no longer available on this device.')
         }
 
         if (!cancelled) setDocumentRecord(stored)
@@ -202,7 +200,7 @@ export default function AideMemoirePdfViewer() {
         </button>
 
         <div className="am-pdf-viewer-heading">
-          <small>Latest Aide Memoire</small>
+          <small>Aide Memoire</small>
           <strong>{documentRecord?.file_name || 'Aide Memoire PDF'}</strong>
         </div>
 
@@ -220,7 +218,7 @@ export default function AideMemoirePdfViewer() {
         {loading ? (
           <div className="am-pdf-viewer-state">
             <span className="am-pdf-viewer-spinner" />
-            <strong>Opening the latest PDF…</strong>
+            <strong>Opening the PDF…</strong>
             <small>The file is being loaded from this device.</small>
           </div>
         ) : error ? (

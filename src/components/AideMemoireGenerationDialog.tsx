@@ -186,7 +186,9 @@ export default function AideMemoireGenerationDialog({
 
       return {
         synced: true,
-        message: 'Uploaded to Google Drive.',
+        message: uploaded.retentionPending
+          ? 'Uploaded to Google Drive. Older-file cleanup will retry after the next upload.'
+          : 'Uploaded to Google Drive.',
         storagePath,
       }
     } catch (syncError: any) {
@@ -323,6 +325,7 @@ export default function AideMemoireGenerationDialog({
             const label = pendingDocument.format.toUpperCase()
 
             if (retryResult.synced) {
+              if (retryResult.message.includes('cleanup')) recoveryWarnings.push(retryResult.message)
               recovered.push(
                 retryResult.storagePath
                   ? `${label} uploaded to Google Drive: ${retryResult.storagePath}`
@@ -437,6 +440,7 @@ export default function AideMemoireGenerationDialog({
 
           const syncResult = await syncGeneratedDocumentIfPossible(storedPdf)
           if (syncResult.synced) {
+            if (syncResult.message.includes('cleanup')) cacheWarnings.push(syncResult.message)
             cloudMessages.push(
               syncResult.storagePath
                 ? `PDF uploaded to Google Drive: ${syncResult.storagePath}`
@@ -465,6 +469,7 @@ export default function AideMemoireGenerationDialog({
 
           const syncResult = await syncGeneratedDocumentIfPossible(storedDocx)
           if (syncResult.synced) {
+            if (syncResult.message.includes('cleanup')) cacheWarnings.push(syncResult.message)
             cloudMessages.push(
               syncResult.storagePath
                 ? `DOCX uploaded to Google Drive: ${syncResult.storagePath}`

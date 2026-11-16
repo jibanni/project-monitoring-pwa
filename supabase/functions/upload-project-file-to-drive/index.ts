@@ -10,6 +10,8 @@ const corsHeaders = {
 const DRIVE_FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 const MAX_PHOTO_BYTES = 700 * 1024
 const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
+const AIDE_MEMOIRE_FILE_LIMIT = 3
+const AIDE_MEMOIRE_RETENTION_BATCH_SIZE = 20
 
 type FileKind = 'photo' | 'aide-memoire'
 
@@ -39,6 +41,7 @@ type UploadResponse = {
   message: string
   file?: DriveFile & Record<string, unknown>
   document?: Record<string, unknown>
+  retentionPending?: boolean
   error?: string
 }
 
@@ -658,6 +661,79 @@ async function uploadDriveFile(params: {
   return data as DriveFile
 }
 
+function createDocumentAdminClient() {
+  return createClient(getRequiredEnv('SUPABASE_URL'), getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY'), {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
+async function pruneOlderAideMemoireFiles(
+  adminClient: ReturnType<typeof createDocumentAdminClient>,
+  accessToken: string,
+  projectId: string,
+) {
+  let offset = AIDE_MEMOIRE_FILE_LIMIT
+  let pending = false
+
+  for (;;) {
+    const { data: rows, error } = await adminClient
+      .from('documents')
+      .select('id, drive_file_id, drive_folder_id')
+      .eq('project_id', projectId)
+      .eq('document_type', 'Aide Memoire')
+      .not('file_url', 'is', null)
+      .order('generated_at', { ascending: false, nullsFirst: false })
+      .order('id', { ascending: false })
+      .range(offset, offset + AIDE_MEMOIRE_RETENTION_BATCH_SIZE - 1)
+    if (error) throw error
+    if (!rows?.length) return pending
+
+    let retained = 0
+    for (const row of rows) {
+      try {
+        if (row.drive_file_id) {
+          const fileUrl = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(row.drive_file_id)}?supportsAllDrives=true`
+          const headers = { Authorization: `Bearer ${accessToken}` }
+          const info = await fetch(`${fileUrl}&fields=id,parents,appProperties`, { headers })
+          if (info.ok) {
+            const file = await info.json()
+            if (file.appProperties?.source !== 'PMS10'
+              || file.appProperties?.fileKind !== 'aide-memoire'
+              || file.appProperties?.projectId !== projectId
+              || (row.drive_folder_id && !file.parents?.includes(row.drive_folder_id))) {
+              throw new Error('Drive file did not match the PMS10 project document.')
+            }
+            // Never remove a binary still referenced by another register entry.
+            const { data: references, error: referenceError } = await adminClient
+              .from('documents').select('id').eq('drive_file_id', row.drive_file_id).neq('id', row.id).limit(1)
+            if (referenceError) throw referenceError
+            if (!references?.length) {
+              const removed = await fetch(fileUrl, { method: 'DELETE', headers })
+              if (!removed.ok && removed.status !== 404) {
+                throw new Error(`Drive could not remove the older file (${removed.status}).`)
+              }
+            }
+          } else if (info.status !== 404) {
+            throw new Error(`Drive could not verify the older file (${info.status}).`)
+          }
+        }
+
+        const { error: deleteError } = await adminClient
+          .from('documents').delete().eq('id', row.id)
+          .eq('project_id', projectId).eq('document_type', 'Aide Memoire')
+        if (deleteError) throw deleteError
+      } catch (error) {
+        retained += 1
+        pending = true
+        console.warn('PMS10 Aide Memoire cleanup will retry on the next upload.', row.id, error)
+      }
+    }
+
+    if (rows.length < AIDE_MEMOIRE_RETENTION_BATCH_SIZE) return pending
+    offset += retained
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -689,7 +765,10 @@ Deno.serve(async (request) => {
     const updateId = textValue(formData.get('updateId'))
     const aideMemoireId = textValue(formData.get('aideMemoireId'))
     const documentFormat = textValue(formData.get('documentFormat')).toLowerCase()
-    const generatedAt = textValue(formData.get('generatedAt')) || new Date().toISOString()
+    const requestedGeneratedAt = Date.parse(textValue(formData.get('generatedAt')))
+    const generatedAt = Number.isFinite(requestedGeneratedAt)
+      ? new Date(requestedGeneratedAt).toISOString()
+      : new Date().toISOString()
 
     if (fileKind !== 'photo' && fileKind !== 'aide-memoire') {
       return jsonResponse(
@@ -816,7 +895,7 @@ Deno.serve(async (request) => {
     const assetKey = await createAssetKey(
       fileKind === 'photo'
         ? [projectId, updateId, assetId || `${file.name}:${file.size}`].join(':')
-        : [fileKind, projectId, updateId, aideMemoireId, documentFormat].join(':'),
+        : [fileKind, projectId, updateId, aideMemoireId, documentFormat, generatedAt].join(':'),
     )
 
     let existingFile = await findFileByAppProperty({
@@ -976,16 +1055,12 @@ Deno.serve(async (request) => {
       })
     }
 
-    const serviceRoleKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY')
-    const supabaseUrl = getRequiredEnv('SUPABASE_URL')
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
+    const adminClient = createDocumentAdminClient()
 
     const documentPayload = {
       project_id: projectId,
       project_update_id: updateId,
-      aide_memoire_id: aideMemoireId,
+      aide_memoire_id: assetKey,
       document_type: 'Aide Memoire',
       document_format: documentFormat,
       file_name: fileName,
@@ -1018,6 +1093,14 @@ Deno.serve(async (request) => {
 
     if (documentResult.error) throw documentResult.error
 
+    let retentionPending = false
+    try {
+      retentionPending = await pruneOlderAideMemoireFiles(adminClient, accessToken, projectId)
+    } catch (error) {
+      retentionPending = true
+      console.warn('PMS10 Aide Memoire cleanup will retry on the next upload.', error)
+    }
+
     return jsonResponse({
       ok: true,
       message: existingFile
@@ -1025,6 +1108,7 @@ Deno.serve(async (request) => {
         : 'Aide Memoire uploaded to Google Drive.',
       file: enrichedFile,
       document: documentResult.data,
+      retentionPending,
     })
   } catch (error) {
     console.error(error)

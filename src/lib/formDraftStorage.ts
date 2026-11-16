@@ -22,6 +22,10 @@ export function createFormDraftKey(scope: string, recordId: string, ownerId = 'l
 }
 
 export function loadFormDraft<T>(key: string): T | null {
+  return loadFormDraftEntry<T>(key)?.data ?? null
+}
+
+export function loadFormDraftEntry<T>(key: string): StoredFormDraft<T> | null {
   if (!key) return null
 
   const storage = getStorage()
@@ -37,7 +41,7 @@ export function loadFormDraft<T>(key: string): T | null {
       return null
     }
 
-    return parsed.data
+    return { version: 1, updatedAt: parsed.updatedAt || '', data: parsed.data }
   } catch {
     try {
       storage.removeItem(key)

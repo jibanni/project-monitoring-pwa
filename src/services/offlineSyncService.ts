@@ -380,6 +380,7 @@ function aideMemoireMatchesUpdate(
   update: OfflineProjectUpdate,
 ) {
   if (textValue(record.project_id) !== textValue(update.project_id)) return false
+  if (record.status === 'draft' || textValue(record.update_ref).startsWith('working-')) return false
 
   const references = getUpdateReferenceKeys(update)
   const updateRef = textValue(record.update_ref)
@@ -388,10 +389,6 @@ function aideMemoireMatchesUpdate(
     textValue(update.inspection_date).slice(0, 10)
 
   if (references.has(updateRef)) return true
-
-  if (updateRef.startsWith(`working-${update.project_id}-`) && sameInspectionDate) {
-    return true
-  }
 
   const snapshot = (record.update_snapshot || {}) as Record<string, unknown>
   const snapshotLocalId = textValue(snapshot.local_id)

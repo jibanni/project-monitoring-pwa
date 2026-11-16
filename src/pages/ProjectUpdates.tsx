@@ -4,8 +4,8 @@ import type { ChangeEvent, FormEvent, KeyboardEvent } from'react'
 import { Link, useLocation, useNavigate, useParams } from'react-router-dom'
 import { supabase } from'../lib/supabase'
 import { updateSharedProjectCache } from'../lib/projectDataCache'
-import { clearFormDraft, createFormDraftKey, loadFormDraft, saveFormDraft } from'../lib/formDraftStorage'
-import { aideMemoireDocumentToBlob, aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
+import { clearFormDraft, createFormDraftKey, loadFormDraftEntry, saveFormDraft } from'../lib/formDraftStorage'
+import { aideMemoireDocumentToBlob, aideMemoirePhotoAssetToBlob, getAideMemoirePhotoAssets, getLatestAideMemoireDocument, getWorkingProjectUpdateDraftId, offlineDb, saveAideMemoireDocument, saveAideMemoireRecord, type AideMemoireAttendance, type AideMemoireFinding, type AideMemoirePhoto, type OfflineAideMemoire, type OfflineAideMemoireDocument } from'../lib/offlineDb'
 import { useAuth } from'../context/AuthContext'
 import {
   formatProgressInput,
@@ -926,6 +926,8 @@ export default function ProjectUpdates() {
   const restoredDraftIdRef = useRef<string | null>(null)
   const autoSaveTimerRef = useRef<number | null>(null)
   const draftSavePromiseRef = useRef<Promise<OfflineAideMemoire> | null>(null)
+  const draftExitInProgressRef = useRef(false)
+  const draftExitFlushRef = useRef<(() => void) | null>(null)
   const lastGpsPositionRef = useRef<GeolocationPosition | null>(null)
   const lastAutoSaveFingerprintRef = useRef('')
   const autoSaveSuspendedRef = useRef(false)
@@ -1017,9 +1019,9 @@ export default function ProjectUpdates() {
   }, [location.state, id])
 
 
-  const draftOwnerKey = String(auth?.user?.id || auth?.profile?.id || 'local-user').replace(/[^a-zA-Z0-9_-]/g, '-')
+  const draftOwnerKey = String(auth?.user?.id || auth?.profile?.id || 'local-user').trim().replace(/[^a-zA-Z0-9_-]/g, '-')
   const workingUpdateRef = id ? `working-${id}-${draftOwnerKey}` : ''
-  const workingDraftId = id && workingUpdateRef ? `aide-${id}-offline-${workingUpdateRef}` : ''
+  const workingDraftId = id && workingUpdateRef ? getWorkingProjectUpdateDraftId(id, draftOwnerKey) : ''
   const shadowDraftKey = workingDraftId
     ? createFormDraftKey('project-update', workingDraftId, draftOwnerKey)
     : ''
@@ -1122,6 +1124,7 @@ export default function ProjectUpdates() {
       modeOfImplementation,
       wizardStep,
       maxReachedStep,
+      photoRefs: photoInputs.map((photo) => photo.id),
     }),
     [
       inspectionDate,
@@ -1149,6 +1152,7 @@ export default function ProjectUpdates() {
       modeOfImplementation,
       wizardStep,
       maxReachedStep,
+      photoInputs,
     ],
   )
 
@@ -1158,6 +1162,8 @@ export default function ProjectUpdates() {
     const defaultStatus = normalizeUpdateStatus(project.status, project.physical_accomplishment)
     const defaultContractAmount = String(project.contract_amount ?? project.budget ?? '')
     const defaultMode = String(project.mode_of_implementation || 'BY CONTRACT').trim().toUpperCase()
+    const defaultHasModification = ['true', 'yes'].includes(String(project.has_contract_modification).toLowerCase())
+    const defaultRevisedCost = String(project.revised_project_cost ?? '')
 
     return Boolean(
       wizardStep > 1 ||
@@ -1165,17 +1171,19 @@ export default function ProjectUpdates() {
         inspectionDate !== todayInputValue() ||
         projectStatus !== defaultStatus ||
         physicalAccomplishment !== String(project.physical_accomplishment ?? '') ||
-        targetPhysicalAccomplishment ||
+        targetPhysicalAccomplishment !== formatProgressInput(
+          String(project.target_physical_accomplishment ?? '').trim() || project.physical_accomplishment || 0,
+        ) ||
         financialAccomplishment !== String(project.financial_accomplishment ?? '') ||
         hasNewDisbursement ||
         disbursementAmount !== String(project.disbursement_amount ?? '') ||
         (contractAmount && contractAmount !== defaultContractAmount) ||
-        notYetStartedReason ||
-        hasContractModification ||
-        contractModificationType ||
-        hasRevisedProjectCost ||
-        revisedProjectCost ||
-        revisedContractExpirationDate ||
+        notYetStartedReason !== (project.not_yet_started_reason || '') ||
+        hasContractModification !== defaultHasModification ||
+        contractModificationType !== (project.contract_modification_type || '') ||
+        hasRevisedProjectCost !== Boolean(defaultRevisedCost) ||
+        revisedProjectCost !== defaultRevisedCost ||
+        revisedContractExpirationDate !== String(project.revised_contract_expiration_date || '').slice(0, 10) ||
         inspectionLatitude ||
         inspectionLongitude ||
         aideFindings.some(hasAideFindingContent) ||
@@ -1491,8 +1499,13 @@ export default function ProjectUpdates() {
 
   useEffect(() => {
     setWorkingDraftLoaded(false)
+    restoredDraftIdRef.current = null
     restoredShadowDraftKeyRef.current = null
-    void refreshWorkingAideDraft()
+    let active = true
+    void refreshWorkingAideDraft(() => active)
+    return () => {
+      active = false
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workingDraftId])
 
@@ -1509,10 +1522,13 @@ export default function ProjectUpdates() {
     }
 
     restoredShadowDraftKeyRef.current = shadowDraftKey
-    const shadowDraft = loadFormDraft<typeof workingShadowDraft>(shadowDraftKey)
+    const shadowDraft = loadFormDraftEntry<typeof workingShadowDraft>(shadowDraftKey)
     if (!shadowDraft) return
 
-    restoreWorkingShadowDraft(shadowDraft)
+    restoreWorkingShadowDraft(shadowDraft.data)
+    if (shadowDraft.data.photoRefs?.length) {
+      setErrorMessage('Some photos from the last session did not finish saving. Reattach the missing photos before submitting.')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workingDraftLoaded, loading, project?.id, workingAideDraft?.id, shadowDraftKey])
 
@@ -1521,25 +1537,29 @@ export default function ProjectUpdates() {
       !workingDraftLoaded ||
       loading ||
       !project ||
+      !canSubmit ||
       !shadowDraftKey ||
-      autoSaveSuspendedRef.current
+      autoSaveSuspendedRef.current ||
+      (workingAideDraft && restoredShadowDraftKeyRef.current !== shadowDraftKey)
     ) {
       return
     }
 
     if (hasMeaningfulWorkingUpdate) {
       saveFormDraft(shadowDraftKey, workingShadowDraft)
-    } else {
+    } else if (!workingAideDraft) {
       clearFormDraft(shadowDraftKey)
     }
   }, [
     workingDraftLoaded,
     loading,
+    canSubmit,
     project?.id,
     shadowDraftKey,
     hasMeaningfulWorkingUpdate,
     workingDraftFingerprint,
     workingShadowDraft,
+    workingAideDraft,
   ])
 
 
@@ -1562,29 +1582,37 @@ export default function ProjectUpdates() {
 
 
   useEffect(() => {
-    if (!workingAideDraft || !project) return
+    if (!workingAideDraft || !project || loading || !canSubmit || workingAideDraft.id !== workingDraftId) return
     if (restoredDraftIdRef.current === workingAideDraft.id) return
 
     restoredDraftIdRef.current = workingAideDraft.id
+    const shadowDraft = loadFormDraftEntry<typeof workingShadowDraft>(shadowDraftKey)
     void restoreWorkingAideDraft().then(() => {
-      if (!shadowDraftKey) return
-
-      const shadowDraft = loadFormDraft<typeof workingShadowDraft>(shadowDraftKey)
-      if (!shadowDraft) return
-
-      restoreWorkingShadowDraft(shadowDraft)
-      restoredShadowDraftKeyRef.current = shadowDraftKey
-    })
+      if (shadowDraft && shadowDraft.updatedAt >= workingAideDraft.updated_at) {
+        restoreWorkingShadowDraft(shadowDraft.data)
+        const persistedRefs = new Set(photoInputsRef.current.map((photo) => photo.id))
+        const expectedRefs = shadowDraft.data.photoRefs
+        if (Array.isArray(expectedRefs) && expectedRefs.some((photoId) => !persistedRefs.has(photoId))) {
+          setErrorMessage('Some photos from the last session did not finish saving. Reattach the missing photos before submitting.')
+        }
+      }
+    }).catch((error) => console.error('Unable to restore the Project Update draft.', error))
+      .finally(() => {
+        restoredShadowDraftKeyRef.current = shadowDraftKey
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workingAideDraft?.id, project?.id, shadowDraftKey])
+  }, [workingAideDraft?.id, project?.id, shadowDraftKey, loading, canSubmit, workingDraftId])
 
   useEffect(() => {
     if (
       !workingDraftLoaded ||
       loading ||
       !project ||
+      !canSubmit ||
       !workingDraftId ||
       saving ||
+      photoProcessing ||
+      (workingAideDraft && restoredShadowDraftKeyRef.current !== shadowDraftKey) ||
       autoSaveSuspendedRef.current ||
       !hasMeaningfulWorkingUpdate ||
       lastAutoSaveFingerprintRef.current === workingDraftFingerprint
@@ -1613,11 +1641,15 @@ export default function ProjectUpdates() {
   }, [
     workingDraftLoaded,
     loading,
+    canSubmit,
     project?.id,
     workingDraftId,
     saving,
+    photoProcessing,
     hasMeaningfulWorkingUpdate,
     workingDraftFingerprint,
+    workingAideDraft,
+    shadowDraftKey,
   ])
 
   useEffect(() => {
@@ -1625,7 +1657,11 @@ export default function ProjectUpdates() {
       if (
         !workingDraftLoaded ||
         !project ||
+        loading ||
+        !canSubmit ||
         !workingDraftId ||
+        saving ||
+        (workingAideDraft && restoredShadowDraftKeyRef.current !== shadowDraftKey) ||
         autoSaveSuspendedRef.current ||
         !hasMeaningfulWorkingUpdate
       ) {
@@ -1633,6 +1669,7 @@ export default function ProjectUpdates() {
       }
 
       saveFormDraft(shadowDraftKey, workingShadowDraft)
+      if (lastAutoSaveFingerprintRef.current === workingDraftFingerprint) return
 
       void saveLatestUpdateDraft({ silent: true }).catch((error) => {
         console.error('Unable to preserve the Project Update before leaving the page.', error)
@@ -1645,6 +1682,7 @@ export default function ProjectUpdates() {
 
     window.addEventListener('pagehide', flushWorkingDraft)
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    draftExitFlushRef.current = flushWorkingDraft
 
     return () => {
       window.removeEventListener('pagehide', flushWorkingDraft)
@@ -1654,12 +1692,18 @@ export default function ProjectUpdates() {
   }, [
     workingDraftLoaded,
     project?.id,
+    loading,
+    canSubmit,
     workingDraftId,
     shadowDraftKey,
     hasMeaningfulWorkingUpdate,
     workingDraftFingerprint,
     workingShadowDraft,
+    workingAideDraft,
+    saving,
   ])
+
+  useEffect(() => () => draftExitFlushRef.current?.(), [])
 
   useEffect(() => {
     let ticking = false
@@ -1849,7 +1893,7 @@ export default function ProjectUpdates() {
 
 
 
-  async function refreshWorkingAideDraft() {
+  async function refreshWorkingAideDraft(isActive: () => boolean) {
     if (!workingDraftId) {
       setWorkingDraftLoaded(true)
       return
@@ -1857,12 +1901,13 @@ export default function ProjectUpdates() {
 
     try {
       const draft = await offlineDb.aide_memoires.get(workingDraftId)
-      setWorkingAideDraft(draft || null)
-      lastAutoSaveFingerprintRef.current = draft ? JSON.stringify(draft.update_snapshot || {}) : ''
+      if (!isActive()) return
+      setWorkingAideDraft(draft?.status === 'draft' ? draft : null)
+      lastAutoSaveFingerprintRef.current = ''
     } catch (error) {
       console.error('Unable to load the latest Project Update draft.', error)
     } finally {
-      setWorkingDraftLoaded(true)
+      if (isActive()) setWorkingDraftLoaded(true)
     }
   }
 
@@ -2090,24 +2135,17 @@ export default function ProjectUpdates() {
     const silent = Boolean(options.silent)
     const requestedFingerprint = workingDraftFingerprint
 
-    if (draftSavePromiseRef.current) {
-      const activeResult = await promiseWithTimeout(
-        draftSavePromiseRef.current,
-        12_000,
-        'The previous local draft save is taking longer than expected. You may continue navigating while PMS10 finishes it in the background.',
-      )
-
-      if (silent || lastAutoSaveFingerprintRef.current === requestedFingerprint) {
-        return activeResult
-      }
-    }
-
     if (!silent) setDraftSaving(true)
 
     const draft = buildAideMemoireRecord(workingUpdateRef, 'offline', 'draft')
-    const savePromise = saveAideMemoireRecord(draft).then((storedDraft) => {
+    const previous = draftSavePromiseRef.current
+    const savePromise = (previous ?? Promise.resolve(null)).catch(() => null).then((stored) => {
+      if (stored?.id === draft.id && lastAutoSaveFingerprintRef.current === requestedFingerprint) return stored
+      return saveAideMemoireRecord(draft)
+    }).then((storedDraft) => {
       setWorkingAideDraft(storedDraft)
       lastAutoSaveFingerprintRef.current = requestedFingerprint
+      window.dispatchEvent(new Event('pms10:project-update-draft-saved'))
       return storedDraft
     })
 
@@ -2158,7 +2196,14 @@ export default function ProjectUpdates() {
       inspection_date: savedInspectionDate,
       update_snapshot: { ...finalRecord.update_snapshot, inspection_date: savedInspectionDate },
     })
-    if (workingDraftId) await offlineDb.aide_memoires.delete(workingDraftId)
+    autoSaveSuspendedRef.current = true
+    await draftSavePromiseRef.current?.catch(() => undefined)
+    if (workingDraftId) {
+      await offlineDb.transaction('rw', offlineDb.aide_memoires, offlineDb.aide_memoire_photo_assets, async () => {
+        await offlineDb.aide_memoires.delete(workingDraftId)
+        await offlineDb.aide_memoire_photo_assets.where('aide_memoire_id').equals(workingDraftId).delete()
+      })
+    }
     clearFormDraft(shadowDraftKey)
     setWorkingAideDraft(null)
   }
@@ -3600,6 +3645,35 @@ export default function ProjectUpdates() {
     }
   }
 
+  async function returnToProjectWithDraft() {
+    if (saving || photoProcessing || draftExitInProgressRef.current) return
+    const destination = id ? `/projects/${id}` : '/projects'
+    if ((!hasMeaningfulWorkingUpdate && !workingAideDraft) || !workingDraftLoaded || !canSubmit || autoSaveSuspendedRef.current ||
+        (workingAideDraft && restoredShadowDraftKeyRef.current !== shadowDraftKey)) {
+      navigate(destination)
+      return
+    }
+
+    draftExitInProgressRef.current = true
+    saveFormDraft(shadowDraftKey, workingShadowDraft)
+    try {
+      // A failed photo write must not be reported as a fully saved draft.
+      if (draftSavePromiseRef.current || lastAutoSaveFingerprintRef.current !== workingDraftFingerprint) {
+        await saveLatestUpdateDraft()
+      }
+      autoSaveSuspendedRef.current = true
+      navigate(destination)
+    } catch (error) {
+      setNoticeDialog({
+        title: 'Draft not fully saved',
+        message: error instanceof Error ? error.message : 'Could not save this draft on your device. Please try again.',
+        tone: 'warning',
+      })
+    } finally {
+      draftExitInProgressRef.current = false
+    }
+  }
+
   function prepareAideMemoire() {
     if (!id || !saveSuccessDialog?.updateRef) return
 
@@ -4724,9 +4798,10 @@ export default function ProjectUpdates() {
                 Back
               </button>
             ) : (
-              <Link className="pu-secondary-btn pu-wizard-back-btn" to={`/projects/${id}`}>
+              <button type="button" className="pu-secondary-btn pu-wizard-back-btn"
+                disabled={saving || draftSaving || photoProcessing} onClick={() => void returnToProjectWithDraft()}>
                 Return to Project
-              </Link>
+              </button>
             )}
 
             {!isFinalWizardStep ? (
@@ -5018,14 +5093,8 @@ export default function ProjectUpdates() {
             label: 'Back to Project',
             icon: <IconBack />,
             tone: 'neutral',
-            onSelect: () => {
-              if (id) {
-                navigate(`/projects/${id}`)
-                return
-              }
-
-              navigate('/projects')
-            },
+            disabled: saving || draftSaving || photoProcessing,
+            onSelect: () => void returnToProjectWithDraft(),
           },
         ]}
       />
