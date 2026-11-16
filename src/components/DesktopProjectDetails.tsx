@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { OfflineAideMemoire } from '../lib/offlineDb'
+import type { RemovableProjectItem } from '../services/adminProjectItemService'
 import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveImageUrl'
 import '../styles/desktopProjectDetails.css'
 
@@ -37,7 +38,7 @@ type SupportingPhoto = {
   uploaded_at?: string | null
 }
 
-type FileItem = { id: string; name: string; format: string; date: string; detail: string; open: () => void }
+type FileItem = { id: string; name: string; format: string; date: string; detail: string; open: () => void; removal?: RemovableProjectItem }
 type DraftItem = { updatedAt: string; inspectionDate?: string }
 
 type Props = {
@@ -68,6 +69,7 @@ type Props = {
   onResumeDraft?: () => void
   onEdit?: () => void
   onDelete?: () => void
+  onRemoveItem?: (item: RemovableProjectItem) => Promise<string>
   onMap: () => void
   onBriefer: () => void
   generatingBriefer: boolean
@@ -192,23 +194,38 @@ function Rows({ rows }: { rows: ReadonlyArray<readonly [string, ReactNode]> }) {
   </dl>
 }
 
-function FileRow({ item }: { item: FileItem }) {
-  return <button className="pdd-file-row" type="button" onClick={item.open}>
+type RequestRemoval = (item: RemovableProjectItem) => void
+
+function RemoveItemButton({ item, onRequest }: { item: RemovableProjectItem; onRequest: RequestRemoval }) {
+  return <button type="button" className="pdd-remove-item" aria-label={`Remove ${item.kind}: ${item.label}`}
+    onClick={() => onRequest(item)}>Remove{item.kind === 'update' ? ' update' : ''}</button>
+}
+
+function FileRow({ item, onRequest }: { item: FileItem; onRequest?: RequestRemoval }) {
+  const openButton = <button className="pdd-file-row" type="button" onClick={item.open}>
     <span className="pdd-file-type">{item.format}</span>
     <span className="pdd-file-copy"><strong>{item.name}</strong><small>{item.detail}</small></span>
     <span className="pdd-link-text">Open <span aria-hidden="true">↗</span></span>
   </button>
+  return item.removal && onRequest ? <div className="pdd-file-entry">
+    {openButton}<RemoveItemButton item={item.removal} onRequest={onRequest} />
+  </div> : openButton
 }
 
-function PhotoLink({ photo, compact = false }: { photo: SupportingPhoto; compact?: boolean }) {
+function PhotoLink({ photo, compact = false, onRequest }: { photo: SupportingPhoto; compact?: boolean; onRequest?: RequestRemoval }) {
   if (!photo.photo_url) return null
-  return <a className={compact ? 'pdd-linked-photo' : 'pdd-photo'} href={getDriveImageOpenUrl(photo.photo_url)} target="_blank" rel="noreferrer">
+  const link = <a className={compact ? 'pdd-linked-photo' : 'pdd-photo'} href={getDriveImageOpenUrl(photo.photo_url)} target="_blank" rel="noreferrer">
     {!compact && <img src={getDriveImagePreviewUrl(photo.photo_url, 480)} alt="" loading="lazy" decoding="async" />}
     <span><strong>{label(photo.caption, 'Inspection photo')}</strong><small>{dateLabel(photo.uploaded_at)}</small></span>
   </a>
+  return onRequest ? <div className={compact ? 'pdd-linked-photo-entry' : 'pdd-photo-entry'}>
+    {link}<RemoveItemButton item={{ kind: 'photo', id: String(photo.id), label: label(photo.caption, 'Inspection photo') }} onRequest={onRequest} />
+  </div> : link
 }
 
-function InspectionPhotos({ projectId, updateId }: { projectId: string; updateId: string }) {
+function InspectionPhotos({ projectId, updateId, photoRevision, onRequest }: {
+  projectId: string; updateId: string; photoRevision: number; onRequest?: RequestRemoval
+}) {
   const [result, setResult] = useState<{ photos: SupportingPhoto[]; error: boolean; more: boolean } | null>(null)
 
   useEffect(() => {
@@ -230,19 +247,19 @@ function InspectionPhotos({ projectId, updateId }: { projectId: string; updateId
       }
     })()
     return () => controller.abort()
-  }, [projectId, updateId])
+  }, [projectId, updateId, photoRevision])
 
   if (!result) return <p className="pdd-quiet" role="status">Loading linked photos…</p>
   if (result.error) return <p className="pdd-quiet">Linked photos could not be loaded.</p>
   if (!result.photos.length) return <p className="pdd-quiet">No linked photos.</p>
   return <div className="pdd-linked-photos">
-    {result.photos.map((photo) => <PhotoLink key={photo.id} photo={photo} compact />)}
+    {result.photos.map((photo) => <PhotoLink key={photo.id} photo={photo} compact onRequest={onRequest} />)}
     {result.more && <p className="pdd-quiet">More photos are available in Files &amp; Photos.</p>}
   </div>
 }
 
-function InspectionRow({ update, props, initiallyOpen }: {
-  update: DesktopProjectUpdate; props: Props; initiallyOpen: boolean
+function InspectionRow({ update, props, initiallyOpen, photoRevision, onRequest }: {
+  update: DesktopProjectUpdate; props: Props; initiallyOpen: boolean; photoRevision: number; onRequest?: RequestRemoval
 }) {
   const [isOpen, setIsOpen] = useState(initiallyOpen)
   const snapshot = updateSnapshot(update, props.localAideRecords)
@@ -269,11 +286,13 @@ function InspectionRow({ update, props, initiallyOpen }: {
         ['Inspection GPS', notes.gps],
         ['Risk at this update', updateRisk],
       ]} />
-      {cloudId && !props.offline && <InspectionPhotos key={cloudId} projectId={props.projectId} updateId={cloudId} />}
+      {cloudId && !props.offline && <InspectionPhotos key={cloudId} projectId={props.projectId} updateId={cloudId} photoRevision={photoRevision} onRequest={onRequest} />}
       {props.onGenerateAide && ref && <button type="button" className="pdd-btn pdd-btn-secondary"
         onClick={() => props.onGenerateAide?.(ref, source, update.inspection_date || undefined)}>
         {snapshot ? 'Open Aide Memoire' : 'Generate Aide Memoire'}
       </button>}
+      {source === 'online' && cloudId && onRequest && <RemoveItemButton onRequest={onRequest}
+        item={{ kind: 'update', id: cloudId, label: `${updateKind(update)} · ${dateLabel(updateDate(update))}` }} />}
     </div>}
   </details>
 }
@@ -287,6 +306,15 @@ export default function DesktopProjectDetails(props: Props) {
   const [historyHasMore, setHistoryHasMore] = useState(true)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
+  const [updateRevision, setUpdateRevision] = useState(0)
+  const [photoRevision, setPhotoRevision] = useState(0)
+  const [removal, setRemoval] = useState<RemovableProjectItem | null>(null)
+  const [removalError, setRemovalError] = useState('')
+  const [removalNotice, setRemovalNotice] = useState('')
+  const [removing, setRemoving] = useState(false)
+  const removalDialog = useRef<HTMLDialogElement>(null)
+  const removalBusy = useRef(false)
+  const canRemoveItems = Boolean(!offline && props.onRemoveItem)
   const historyRequest = useRef<AbortController | null>(null)
   const tabRefs = useRef<Partial<Record<Section, HTMLButtonElement | null>>>({})
   const domId = useId()
@@ -328,7 +356,7 @@ export default function DesktopProjectDetails(props: Props) {
       }
     })()
     return () => controller.abort()
-  }, [lookupSite, projectId])
+  }, [lookupSite, projectId, updateRevision])
 
   useEffect(() => () => historyRequest.current?.abort(), [])
 
@@ -358,6 +386,44 @@ export default function DesktopProjectDetails(props: Props) {
         historyRequest.current = null
         if (!controller.signal.aborted) setHistoryLoading(false)
       }
+    }
+  }
+
+  function requestRemoval(item: RemovableProjectItem) {
+    if (!canRemoveItems || removalBusy.current) return
+    setRemovalNotice('')
+    setRemovalError('')
+    setRemoval(item)
+    removalDialog.current?.showModal()
+  }
+
+  async function confirmRemoval() {
+    if (!removal || !canRemoveItems || !props.onRemoveItem || removalBusy.current) return
+    removalBusy.current = true
+    setRemoving(true)
+    setRemovalError('')
+    try {
+      const notice = await props.onRemoveItem(removal)
+      if (removal.kind === 'update') {
+        historyRequest.current?.abort()
+        historyRequest.current = null
+        setOlder([])
+        setHistoryLoading(false)
+        setHistoryHasMore(true)
+        setHistoryError('')
+        setSiteResult(null)
+        setUpdateRevision((value) => value + 1)
+      } else if (removal.kind === 'photo') {
+        setPhotoRevision((value) => value + 1)
+      }
+      setRemovalNotice(notice || `${removal.label} removed from PMS10.`)
+      removalDialog.current?.close()
+      tabRefs.current[section]?.focus()
+    } catch (error) {
+      setRemovalError(error instanceof Error ? error.message : 'Could not remove this item. Try again.')
+    } finally {
+      removalBusy.current = false
+      setRemoving(false)
     }
   }
 
@@ -409,6 +475,22 @@ export default function DesktopProjectDetails(props: Props) {
       </div>
     </header>
 
+    {removalNotice && <p className="pdd-removal-notice" role="status">{removalNotice}</p>}
+    {canRemoveItems && <dialog ref={removalDialog} className="pdd-removal-dialog"
+      aria-labelledby={`${domId}-remove-title`} aria-describedby={`${domId}-remove-explanation`}
+      onClose={() => setRemoval(null)} onCancel={(event) => { if (removalBusy.current) event.preventDefault() }}>
+      <h2 id={`${domId}-remove-title`}>Remove {removal?.kind || 'item'}?</h2>
+      <p className="pdd-removal-label">{removal?.label}</p>
+      <p id={`${domId}-remove-explanation`} className="pdd-quiet">{removal?.kind === 'update'
+        ? 'This removes the update from inspection history. Its linked photos and documents stay in Files & Photos.'
+        : 'This removes the file from PMS10. It does not delete the original file from storage.'}</p>
+      {removalError && <p className="pdd-removal-error" role="alert">{removalError}</p>}
+      <div className="pdd-removal-actions">
+        <button type="button" autoFocus className="pdd-btn pdd-btn-secondary" disabled={removing} onClick={() => removalDialog.current?.close()}>Cancel</button>
+        <button type="button" className="pdd-btn pdd-btn-destructive" disabled={removing || !removal}
+          onClick={() => void confirmRemoval()}>{removing ? 'Removing…' : 'Remove from PMS10'}</button>
+      </div>
+    </dialog>}
     {offline && <p className="pdd-offline">Offline view. Project details are cached and updates shown here are from this device.</p>}
     <div className="pdd-tabs" role="tablist" aria-label="Project details sections">
       {TABS.map(([key, title], index) => <button type="button" key={key}
@@ -492,7 +574,8 @@ export default function DesktopProjectDetails(props: Props) {
       </> : key === 'inspections' ? <Panel eyebrow="Project updates" title="Inspection history"
         action={<span className="pdd-tag">{catalog.length} shown</span>}>
         {catalog.length ? <div className="pdd-timeline">
-          {catalog.map((update, index) => <InspectionRow key={String(update.id ?? update.local_id ?? index)} update={update} props={props} initiallyOpen={index === 0} />)}
+          {catalog.map((update, index) => <InspectionRow key={String(update.id ?? update.local_id ?? index)} update={update} props={props} initiallyOpen={index === 0}
+            photoRevision={photoRevision} onRequest={canRemoveItems ? requestRemoval : undefined} />)}
         </div> : <p className="pdd-quiet">No project updates available.</p>}
         {historyError && <p role="status" className="pdd-quiet">{historyError}</p>}
         {!offline && historyHasMore && projectUpdates.length >= 5 && <button type="button" className="pdd-btn pdd-btn-secondary" disabled={historyLoading} onClick={() => void loadOlder()}>
@@ -500,7 +583,7 @@ export default function DesktopProjectDetails(props: Props) {
         </button>}
       </Panel> : <div className="pdd-contract-grid pdd-files-grid">
         <Panel eyebrow="Documents" title="Aide Memoire Files" action={<span className="pdd-tag">{props.files.length} / {props.fileLimit} files</span>}>
-          {props.files.length ? <div className="pdd-file-list">{props.files.map((item) => <FileRow key={item.id} item={item} />)}</div>
+          {props.files.length ? <div className="pdd-file-list">{props.files.map((item) => <FileRow key={item.id} item={item} onRequest={canRemoveItems ? requestRemoval : undefined} />)}</div>
             : <p className="pdd-quiet">{offline ? 'No Aide Memoire files saved on this device.' : 'No Aide Memoire files have been generated for this project yet.'}</p>}
           {props.draft && props.onResumeDraft && <button type="button" className="pdd-file-row pdd-draft-row" onClick={props.onResumeDraft}>
             <span className="pdd-file-type">Draft</span><span className="pdd-file-copy"><strong>Latest Update Draft</strong><small>Saved on this device{props.draft.inspectionDate ? ` · ${dateLabel(props.draft.inspectionDate)} update` : ''}</small></span><span className="pdd-link-text">Resume Draft</span>
@@ -508,7 +591,7 @@ export default function DesktopProjectDetails(props: Props) {
         </Panel>
         <Panel eyebrow="Site evidence" title="Photo Gallery" action={!offline && <span className="pdd-tag">{props.photos.length}{props.photosHaveMore ? '+' : ''} {props.photos.length === 1 && !props.photosHaveMore ? 'photo' : 'photos'}</span>}>
           {offline ? <p className="pdd-quiet">The online gallery is unavailable offline. Check Offline Sync for photos pending upload.</p>
-            : props.photos.length ? <div className="pdd-photo-grid">{props.photos.map((photo) => <PhotoLink key={photo.id} photo={photo} />)}</div>
+            : props.photos.length ? <div className="pdd-photo-grid">{props.photos.map((photo) => <PhotoLink key={photo.id} photo={photo} onRequest={canRemoveItems ? requestRemoval : undefined} />)}</div>
               : <p className="pdd-quiet">No photos uploaded yet.</p>}
           {props.photoError && <p className="pdd-quiet" role="status">{props.photoError}</p>}
           {!offline && props.photosHaveMore && <button className="pdd-btn pdd-btn-secondary" type="button" onClick={props.onLoadPhotos} disabled={props.photosLoading}>{props.photosLoading ? 'Loading photos…' : 'Load more photos'}</button>}
