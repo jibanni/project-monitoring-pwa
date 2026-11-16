@@ -1,6 +1,4 @@
 import {
-  lazy,
-  Suspense,
   useEffect,
   useMemo,
   useRef,
@@ -44,8 +42,6 @@ import ExecutiveDashboard from '../components/ExecutiveDashboard'
 import StartupSplash from '../components/StartupSplash'
 import ProvinceStatusChart from '../components/ProvinceStatusChart'
 import '../styles/executiveDashboard.css'
-
-const InspectionFollowUps = lazy(() => import('../components/InspectionFollowUps'))
 
 type ProjectRecord = SharedProjectRow & AorProjectLike & Record<string, any>
 
@@ -1710,15 +1706,10 @@ export default function Dashboard() {
   }
 
 
-  const followUps = isDesktopViewport && auth.user && auth.isApproved && auth.profile?.is_active !== false
-    ? <Suspense fallback={null}><InspectionFollowUps key={auth.user.id} defaultOpen={new URLSearchParams(window.location.search).has('followups')} /></Suspense>
-    : null
-
   if (hasExecutiveDashboard && isDesktopViewport && dashboardView === 'executive') {
     return (
       <>
         <div className={`pms-dashboard-view-stage is-executive ${viewTransitionPhase} ${viewTransitionDirection}`}>
-          {followUps}
           <ExecutiveDashboard
             projects={aorProjects}
             officialProjects={officialAorProjects}
@@ -1751,8 +1742,6 @@ export default function Dashboard() {
             </div>
           </section>
         )}
-
-        {followUps}
 
         <section
           className={[

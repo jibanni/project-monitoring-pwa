@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -163,8 +164,22 @@ export default function InspectionFollowUps({ defaultOpen = false }: { defaultOp
   const [revision, setRevision] = useState(0)
   const [notice, setNotice] = useState('')
   const editorTrigger = useRef<HTMLElement | null>(null)
+  const panel = useRef<HTMLDialogElement>(null)
+  const bell = useRef<HTMLButtonElement>(null)
   const panelId = useId()
+  const titleId = useId()
+  const reminderId = useId()
   const sourceId = useId()
+
+  useEffect(() => {
+    if (expanded && panel.current && !panel.current.open) panel.current.showModal()
+  }, [expanded])
+
+  function closePanel() {
+    setExpanded(false)
+    setEditor(null)
+    requestAnimationFrame(() => bell.current?.focus())
+  }
 
   useEffect(() => {
     let current: AbortController | undefined
@@ -247,16 +262,28 @@ export default function InspectionFollowUps({ defaultOpen = false }: { defaultOp
     refresh()
   }
 
-  return <section className="pms-fu" aria-label="Inspection follow-ups">
-    <button type="button" className="pms-fu-toggle" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded((value) => !value)}>
-      <span className="pms-fu-bell"><Bell /><span className="pms-fu-badge" hidden={!fresh || !urgent}>{urgent}</span></span>
-      <span className="pms-fu-title"><strong>Inspection Follow-ups</strong><small>Bukidnon pilot</small></span>
-      <span className="pms-fu-notification" aria-live="polite" aria-atomic="true">
-        {fresh ? `${counts.overdue} overdue · ${counts.due_soon} due within 7 days` : snapshot ? 'Reminders unavailable' : 'Checking reminders…'}
-      </span>
-      <span className="pms-fu-chevron" aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
+  const reminder = fresh ? `${counts.overdue} overdue · ${counts.due_soon} due within 7 days`
+    : snapshot ? 'Reminders unavailable' : 'Checking reminders…'
+
+  return <div className="pms-fu-trigger">
+    <button ref={bell} type="button" className="pms-fu-bell" aria-label="Inspection follow-ups"
+      aria-expanded={expanded} aria-haspopup="dialog" aria-controls={expanded ? panelId : undefined}
+      aria-describedby={reminderId} title={`Inspection follow-ups · ${reminder}`} onClick={() => setExpanded(true)}>
+      <Bell />
+      {fresh && urgent > 0 && <span className="pms-fu-badge" aria-hidden="true">{urgent}</span>}
     </button>
-    <div id={panelId} className="pms-fu-body" tabIndex={-1} hidden={!expanded}>
+    <span id={reminderId} className="pms-fu-sr" aria-live="polite" aria-atomic="true">{reminder}</span>
+    {expanded && createPortal(
+      <dialog ref={panel} id={panelId} className="pms-fu" aria-labelledby={titleId} tabIndex={-1}
+        onCancel={(event) => { event.preventDefault(); closePanel() }}
+        onClose={closePanel}
+        onClick={(event) => { if (event.target === event.currentTarget) closePanel() }}>
+      <header className="pms-fu-header">
+        <div className="pms-fu-title"><h2 id={titleId}>Inspection Follow-ups</h2><small>Bukidnon pilot</small></div>
+        <span className="pms-fu-notification">{reminder}</span>
+        <button type="button" className="pms-fu-close" aria-label="Close inspection follow-ups" onClick={closePanel} autoFocus>×</button>
+      </header>
+      <div className="pms-fu-body">
       <div className="pms-fu-toolbar">
         <div role="group" aria-label="Filter follow-ups" className="pms-fu-filters">
           {(['all', 'overdue', 'due_soon', 'later', 'unscheduled', 'resolved'] as Filter[]).map((key) =>
@@ -304,7 +331,9 @@ export default function InspectionFollowUps({ defaultOpen = false }: { defaultOp
             </li>)}</ul>}
         </div>
       </div>}
-    </div>
-    {editor && <FollowUpEditor entry={editor} onDismiss={closeEditor} onSave={save} />}
-  </section>
+      </div>
+      {editor && <FollowUpEditor entry={editor} onDismiss={closeEditor} onSave={save} />}
+      </dialog>, document.body,
+    )}
+  </div>
 }
