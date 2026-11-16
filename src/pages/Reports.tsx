@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useSharedProjects } from '../lib/projectDataCache'
@@ -32,6 +32,9 @@ import '../styles/unifiedFilters.css'
 import '../styles/pageHero.css'
 
 import '../styles/filterUniformityV6.css'
+
+const RpmesStatusComparison = lazy(() => import('../components/RpmesStatusComparison'))
+
 type ProjectRow = {
   id: string
   project_name: string | null
@@ -520,6 +523,7 @@ export default function Reports() {
     projects,
     refreshing,
     errorMessage,
+    source: projectSource,
     refreshProjects,
   } = useSharedProjects<ProjectRow>()
   const [poEngineerAssignments, setPoEngineerAssignments] = useState<PoEngineerAssignmentRow[]>([])
@@ -1063,6 +1067,12 @@ export default function Reports() {
           <p className="reports-background-refresh" role="status">Updating report records…</p>
         )}
 
+        {isDesktopViewport && auth.isApproved ? (
+          <Suspense fallback={null}>
+            <RpmesStatusComparison key={auth.user?.id} projects={aorProjects}
+              projectSource={projectSource} refreshProjects={refreshProjects} />
+          </Suspense>
+        ) : null}
 
         <section
           className={`reports-filter-card pm-unified-filter-panel ${

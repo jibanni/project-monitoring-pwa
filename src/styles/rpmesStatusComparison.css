@@ -1,0 +1,34 @@
+@media (min-width: 1024px) {
+  .rpmes-comparison {
+    border: 1px solid #d9e4ee;
+    border-radius: 16px;
+    background: #fff;
+    color: #17334d;
+    margin: 0 0 14px;
+    padding: 16px 18px;
+  }
+  .rpmes-comparison h2 { margin: 0 0 4px; font-size: 1.05rem; }
+  .rpmes-comparison p { margin: 6px 0; color: #445f77; font-size: .86rem; }
+  .rpmes-comparison [role='alert'] { color: #9e321b; }
+  .rpmes-comparison-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
+  .rpmes-comparison-controls label { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; }
+  .rpmes-comparison-controls :is(button, select) {
+    border: 1px solid #b9cde0;
+    border-radius: 8px;
+    color: #183d6a;
+    background: #f8fbff;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: .85rem;
+  }
+  .rpmes-comparison-controls button { cursor: pointer; font-weight: 700; }
+  .rpmes-comparison-controls button:disabled { opacity: .55; cursor: default; }
+  .rpmes-comparison-meta { line-height: 1.55; }
+  .rpmes-comparison-table { margin-top: 10px; max-height: 540px; overflow: auto; border: 1px solid #e0e8f0; border-radius: 9px; }
+  .rpmes-comparison-table table { width: 100%; min-width: 750px; border-collapse: collapse; text-align: left; font-size: .83rem; }
+  .rpmes-comparison-table :is(th, td) { vertical-align: top; border-bottom: 1px solid #e6edf4; padding: 9px; }
+  .rpmes-comparison-table th { position: sticky; top: 0; background: #edf4f9; }
+  .rpmes-comparison-table small { display: block; margin-top: 4px; color: #445f77; }
+  .rpmes-result { display: inline-block; border-radius: 8px; background: #fff0db; color: #804205; padding: 3px 6px; font-weight: 700; }
+  .rpmes-result[data-match='true'] { background: #e0f4e8; color: #135637; }
+}
