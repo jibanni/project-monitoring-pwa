@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from'react'
-import { createPortal } from'react-dom'
+import { createPortal, flushSync } from'react-dom'
 import type { ChangeEvent, FormEvent, KeyboardEvent } from'react'
 import { Link, useLocation, useNavigate, useParams } from'react-router-dom'
 import { supabase } from'../lib/supabase'
@@ -915,6 +915,7 @@ export default function ProjectUpdates() {
   const location = useLocation()
   const auth = useAuth() as any
   const dateInputRef = useRef<HTMLInputElement | null>(null)
+  const dateButtonRef = useRef<HTMLButtonElement | null>(null)
   const revisedContractExpirationDateInputRef = useRef<HTMLInputElement | null>(null)
   const photoInputsRef = useRef<PhotoInput[]>([])
   const wizardTopRef = useRef<HTMLDivElement | null>(null)
@@ -945,6 +946,7 @@ export default function ProjectUpdates() {
   const [errorMessage, setErrorMessage] = useState('')
 
   const [inspectionDate, setInspectionDate] = useState(todayInputValue())
+  const [editingInspectionDate, setEditingInspectionDate] = useState(false)
   const [projectStatus, setProjectStatus] = useState('Ongoing')
   const [physicalAccomplishment, setPhysicalAccomplishment] = useState('')
   const [targetPhysicalAccomplishment, setTargetPhysicalAccomplishment] = useState('')
@@ -1694,6 +1696,28 @@ export default function ProjectUpdates() {
     }
   }, [])
 
+
+  function toggleInspectionDateEditor() {
+    if (saving) return
+
+    if (editingInspectionDate) {
+      setEditingInspectionDate(false)
+      dateButtonRef.current?.focus()
+      return
+    }
+
+    // Mount the visible input within the click so the native picker keeps user activation.
+    flushSync(() => setEditingInspectionDate(true))
+    const input = dateInputRef.current
+    if (!input) return
+
+    input.focus()
+    try {
+      input.showPicker?.()
+    } catch {
+      // The visible date input still supports direct entry or its calendar icon.
+    }
+  }
 
   function applyContractFieldsFromProject(projectRecord: ProjectRecord | null) {
     if (!projectRecord) {
@@ -3553,6 +3577,7 @@ export default function ProjectUpdates() {
     setHasNewDisbursement(false)
     setNotYetStartedReason('')
     setInspectionDate(todayInputValue())
+    setEditingInspectionDate(false)
     setGpsMessage('')
     setInspectionLatitude('')
     setInspectionLongitude('')
@@ -3804,20 +3829,35 @@ export default function ProjectUpdates() {
                     <small>This date will appear on the Aide Memoire.</small>
                   </div>
 
-                  <label className={`pu-date-change-btn pu-date-picker-proxy ${saving ? 'disabled' : ''}`}>
-                    Change Date
-                    <input
-                      ref={dateInputRef}
-                      className="pu-native-date-input"
-                      type="date"
-                      value={inspectionDate}
-                      onChange={(event) => setInspectionDate(event.target.value)}
-                      required
-                      disabled={saving}
-                      aria-label="Update date"
-                    />
-                  </label>
+                  <button
+                    ref={dateButtonRef}
+                    type="button"
+                    className="pu-date-change-btn pu-date-picker-proxy"
+                    onClick={toggleInspectionDateEditor}
+                    disabled={saving}
+                    aria-expanded={editingInspectionDate}
+                    aria-controls={editingInspectionDate ? 'pu-inspection-date-editor' : undefined}
+                  >
+                    {editingInspectionDate ? 'Done' : 'Change Date'}
+                  </button>
                 </div>
+                {editingInspectionDate && (
+                  <input
+                    ref={dateInputRef}
+                    id="pu-inspection-date-editor"
+                    type="date"
+                    value={inspectionDate}
+                    onChange={(event) => setInspectionDate(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Escape') return
+                      event.preventDefault()
+                      toggleInspectionDateEditor()
+                    }}
+                    required
+                    disabled={saving}
+                    aria-label="Update date"
+                  />
+                )}
               </div>
 
               {!isOfficeUpdate && (
