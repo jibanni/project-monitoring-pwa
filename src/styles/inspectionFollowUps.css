@@ -1,0 +1,105 @@
+/* The tracker is also gated in React so mobile does not mount or fetch it. */
+@media (min-width: 1024px) {
+  .pms-fu {
+    color: #142943;
+    background: #fff;
+    border: 1px solid #d9e2ee;
+    border-radius: 18px;
+    box-shadow: 0 8px 28px #10243d0b;
+    margin: 0 auto 16px;
+    width: min(100%, 1600px);
+  }
+  .pms-fu [hidden] { display: none !important; }
+  .pms-fu-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 16px;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .pms-fu-title { display: flex; flex-direction: column; gap: 2px; }
+  .pms-fu-title small { color: #a5410f; font-weight: 700; }
+  .pms-fu-bell {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    place-items: center;
+    display: grid;
+    position: relative;
+    background: #fff0e4;
+    color: #a5410f;
+    flex: none;
+  }
+  .pms-fu-badge {
+    position: absolute;
+    top: -5px;
+    right: -6px;
+    min-width: 18px;
+    line-height: 18px;
+    padding: 0 4px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+    background: #ae2c2c;
+    color: white;
+  }
+  .pms-fu-notification { margin-left: auto; color: #445d77; font-weight: 650; font-size: .86rem; }
+  .pms-fu-chevron { font-size: 1.2rem; }
+  .pms-fu-body { padding: 12px 16px 16px; border-top: 1px solid #e7edf4; }
+  .pms-fu-toolbar, .pms-fu-filters, .pms-fu-modal-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .pms-fu-toolbar { justify-content: space-between; gap: 10px; }
+  .pms-fu-body button, .pms-fu-modal button {
+    background: #fff;
+    color: #245580;
+    border: 1px solid #cbd8e7;
+    border-radius: 8px;
+    padding: 5px 9px;
+    cursor: pointer;
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 700;
+  }
+  .pms-fu-body button:disabled, .pms-fu-modal button:disabled { opacity: .55; cursor: default; }
+  .pms-fu-filters button[aria-pressed="true"] { background: #e9f2ff; border-color: #a9c4e6; color: #183d6e; }
+  .pms-fu :is(a, button, input, select, textarea):focus-visible { outline: 2px solid #2559a2; outline-offset: 2px; }
+  .pms-fu-hint, .pms-fu-empty { color: #506881; font-size: .85rem; margin: 9px 0; }
+  .pms-fu-error { color: #a92929; font-size: .88rem; margin: 9px 0; }
+  .pms-fu-table-wrap { overflow-x: auto; margin: 10px 0; }
+  .pms-fu table { width: 100%; min-width: 740px; border-collapse: collapse; font-size: .85rem; text-align: left; }
+  .pms-fu th { background: #f3f7fb; color: #3d566e; font-weight: 800; }
+  .pms-fu td, .pms-fu th { padding: 9px; vertical-align: top; border-bottom: 1px solid #e7edf4; }
+  .pms-fu a { color: #135899; font-weight: 700; }
+  .pms-fu td small, .pms-fu-candidates small { display: block; color: #526a83; margin-top: 3px; }
+  .pms-fu-pill { border-radius: 999px; padding: 3px 7px; background: #eaf1f8; display: inline-block; white-space: nowrap; }
+  .pms-fu-pill.is-overdue { background: #fde8e5; color: #9f2323; }
+  .pms-fu-pill.is-due_soon { background: #ffeedb; color: #90400e; }
+  .pms-fu-pill.is-resolved { background: #dff3e7; color: #176145; }
+  .pms-fu-candidates { border-top: 1px solid #e7edf4; padding-top: 10px; margin-top: 10px; }
+  .pms-fu-candidates ul { list-style: none; padding: 0; margin: 0; max-height: 340px; overflow-y: auto; }
+  .pms-fu-candidates li { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; border-bottom: 1px solid #e7edf4; padding: 9px 3px; }
+  .pms-fu-candidates li p { margin: 5px 0 0; }
+  .pms-fu-recommendation { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 150px; }
+  .pms-fu-modal {
+    width: min(530px, calc(100vw - 48px));
+    max-height: calc(100vh - 48px);
+    border: 1px solid #d8e3ef;
+    border-radius: 16px;
+    padding: 20px;
+    color: #142943;
+    background: white;
+    overflow: auto;
+  }
+  .pms-fu-modal::backdrop { background: #10243d78; }
+  .pms-fu-modal h3 { margin: 0 0 10px; }
+  .pms-fu-modal label { display: grid; gap: 4px; margin-top: 10px; font-weight: 650; }
+  .pms-fu-modal :is(input, select, textarea) { width: 100%; box-sizing: border-box; border: 1px solid #bdcfe0; border-radius: 8px; padding: 7px; font: inherit; }
+  .pms-fu-modal-actions { justify-content: flex-end; margin-top: 16px; }
+  .pms-fu-modal button.pms-fu-primary { background: #20598e; color: #fff; }
+}

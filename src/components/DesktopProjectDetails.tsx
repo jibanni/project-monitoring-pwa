@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { OfflineAideMemoire } from '../lib/offlineDb'
 import type { RemovableProjectItem } from '../services/adminProjectItemService'
@@ -258,10 +259,17 @@ function InspectionPhotos({ projectId, updateId, photoRevision, onRequest }: {
   </div>
 }
 
-function InspectionRow({ update, props, initiallyOpen, photoRevision, onRequest }: {
-  update: DesktopProjectUpdate; props: Props; initiallyOpen: boolean; photoRevision: number; onRequest?: RequestRemoval
+function InspectionRow({ update, props, initiallyOpen, photoRevision, onRequest, focused }: {
+  update: DesktopProjectUpdate; props: Props; initiallyOpen: boolean; photoRevision: number; onRequest?: RequestRemoval; focused?: boolean
 }) {
   const [isOpen, setIsOpen] = useState(initiallyOpen)
+  const summary = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (focused) {
+      if (summary.current?.parentElement instanceof HTMLDetailsElement) summary.current.parentElement.open = true
+      summary.current?.focus()
+    }
+  }, [focused])
   const snapshot = updateSnapshot(update, props.localAideRecords)
   const notes = inspectionText(update, snapshot)
   const { ref, source } = aideReference(update)
@@ -271,7 +279,7 @@ function InspectionRow({ update, props, initiallyOpen, photoRevision, onRequest 
     ? 'No Risk'
     : /^(none|no risk)$/i.test(label(update.risk_level, '')) ? 'No Risk' : label(update.risk_level)
   return <details className="pdd-inspection" open={isOpen} onToggle={(event) => setIsOpen(event.currentTarget.open)}>
-    <summary>
+    <summary ref={summary}>
       <span className="pdd-inspection-date">{dateLabel(updateDate(update))}</span>
       <span className="pdd-inspection-meta">{updateKind(update)}{isPendingUpdate(update) ? ' · Pending sync' : ''}</span>
       <span className="pdd-inspection-values">Physical {percent(update.physical_accomplishment)} <span aria-hidden="true">·</span> Financial {percent(update.financial_accomplishment)}</span>
@@ -300,7 +308,15 @@ function InspectionRow({ update, props, initiallyOpen, photoRevision, onRequest 
 export default function DesktopProjectDetails(props: Props) {
   const { project, projectId, updates: projectUpdates, offline } = props
   const updates = projectUpdates.filter(isInspectionRecord)
-  const [section, setSection] = useState<Section>('overview')
+  const [params] = useSearchParams()
+  const requestedId = params.get('inspection') || ''
+  const inspectionId = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestedId) ? requestedId : ''
+  const searchKey = params.toString()
+  const [sectionChoice, setSectionChoice] = useState<{ search: string; section: Section } | null>(null)
+  const section = sectionChoice?.search === searchKey ? sectionChoice.section
+    : params.get('section') === 'inspections' ? 'inspections' : 'overview'
+  function setSection(next: Section) { setSectionChoice({ search: searchKey, section: next }) }
+  const [linkedResult, setLinkedResult] = useState<{ id: string; update: DesktopProjectUpdate | null } | null>(null)
   const [siteResult, setSiteResult] = useState<{ update: DesktopProjectUpdate | null; error: boolean } | null>(null)
   const [older, setOlder] = useState<DesktopProjectUpdate[]>([])
   const [historyHasMore, setHistoryHasMore] = useState(true)
@@ -332,10 +348,28 @@ export default function DesktopProjectDetails(props: Props) {
   const hasContractExpiry = Boolean(label(project.revised_contract_expiration_date, '') || label(project.contract_expiration_date, ''))
   const contractExpiry = project.revised_contract_expiration_date || project.contract_expiration_date
   const isRevised = Boolean(label(project.revised_contract_expiration_date, ''))
-  const catalog = [...new Map([...updates, ...older].map((update, index) =>
+  const linkedUpdate = linkedResult?.id === inspectionId ? linkedResult.update : null
+  const hasLinkedUpdate = [...updates, ...older].some((update) => String(update.online_update_id ?? update.id) === inspectionId)
+  const catalog = [...new Map([...updates, ...older, ...(linkedUpdate && !hasLinkedUpdate ? [linkedUpdate] : [])].map((update, index) =>
     [String(update.local_id || update.id || index), update])).values()]
     .sort((a, b) => String(updateDate(b) || '').localeCompare(String(updateDate(a) || ''))
       || String(b.created_at || '').localeCompare(String(a.created_at || '')))
+
+  useEffect(() => {
+    if (!inspectionId || offline || hasLinkedUpdate) return
+    const controller = new AbortController()
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('project_updates').select('*')
+          .eq('project_id', projectId).eq('id', inspectionId).abortSignal(controller.signal).maybeSingle()
+        if (error) throw error
+        if (!controller.signal.aborted) setLinkedResult({ id: inspectionId, update: data as DesktopProjectUpdate | null })
+      } catch {
+        if (!controller.signal.aborted) setLinkedResult({ id: inspectionId, update: null })
+      }
+    })()
+    return () => controller.abort()
+  }, [inspectionId, projectId, offline, hasLinkedUpdate, updateRevision])
 
   useEffect(() => {
     if (!lookupSite) return
@@ -573,9 +607,16 @@ export default function DesktopProjectDetails(props: Props) {
         </div>
       </> : key === 'inspections' ? <Panel eyebrow="Project updates" title="Inspection history"
         action={<span className="pdd-tag">{catalog.length} shown</span>}>
+        {inspectionId && !hasLinkedUpdate && !linkedUpdate && <p className="pdd-quiet" role="status">
+          {offline || linkedResult?.id === inspectionId ? 'The linked inspection is unavailable.' : 'Loading the linked inspection…'}
+        </p>}
         {catalog.length ? <div className="pdd-timeline">
-          {catalog.map((update, index) => <InspectionRow key={String(update.id ?? update.local_id ?? index)} update={update} props={props} initiallyOpen={index === 0}
-            photoRevision={photoRevision} onRequest={canRemoveItems ? requestRemoval : undefined} />)}
+          {catalog.map((update, index) => {
+            const focused = Boolean(inspectionId && String(update.online_update_id ?? update.id) === inspectionId)
+            return <InspectionRow key={String(update.id ?? update.local_id ?? index)} update={update} props={props}
+              initiallyOpen={focused || (!inspectionId && index === 0)} focused={focused}
+              photoRevision={photoRevision} onRequest={canRemoveItems ? requestRemoval : undefined} />
+          })}
         </div> : <p className="pdd-quiet">No project updates available.</p>}
         {historyError && <p role="status" className="pdd-quiet">{historyError}</p>}
         {!offline && historyHasMore && projectUpdates.length >= 5 && <button type="button" className="pdd-btn pdd-btn-secondary" disabled={historyLoading} onClick={() => void loadOlder()}>
