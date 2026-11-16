@@ -30,6 +30,7 @@ import { getDriveImageOpenUrl, getDriveImagePreviewUrl } from '../utils/driveIma
 import ActionMenu from '../components/ActionMenu'
 import AideMemoireGenerationDialog from '../components/AideMemoireGenerationDialog'
 import DesktopProjectDetails from '../components/DesktopProjectDetails'
+import { forgetRemovedDocument, removeProjectItem, type RemovableProjectItem } from '../services/adminProjectItemService'
 import {
   getProjectAideMemoireDocuments,
   type CloudAideMemoireDocument,
@@ -333,6 +334,7 @@ export default function ProjectDetails() {
   const [photosLoading, setPhotosLoading] = useState(false)
   const [photoPageError, setPhotoPageError] = useState('')
   const photoPageRequest = useRef<AbortController | null>(null)
+  const adminRefreshRequest = useRef<AbortController | null>(null)
   const [loading, setLoading] = useState(true)
   const [dataSource, setDataSource] = useState('online')
   const [photosExpanded, setPhotosExpanded] = useState(Boolean(rememberedView.photosExpanded))
@@ -415,6 +417,7 @@ export default function ProjectDetails() {
     void loadData(controller.signal)
     return () => {
       controller.abort()
+      adminRefreshRequest.current?.abort()
       photoPageRequest.current?.abort()
       photoPageRequest.current = null
     }
@@ -584,8 +587,8 @@ export default function ProjectDetails() {
     setDataSource('offline')
   }
 
-  async function loadData(signal: AbortSignal) {
-    setLoading(true)
+  async function loadData(signal: AbortSignal, background = false) {
+    if (!background) setLoading(true)
 
     if (!id) {
       setLoading(false)
@@ -679,6 +682,7 @@ export default function ProjectDetails() {
       } as any)
     } catch (error) {
       if (signal.aborted) return
+      if (background) throw error
       console.error(error)
       await loadOfflineData()
     } finally {
@@ -686,8 +690,60 @@ export default function ProjectDetails() {
     }
   }
 
+  async function handleRemoveProjectItem(item: RemovableProjectItem) {
+    if (!id || !isAdmin || dataSource !== 'online' || !navigator.onLine) {
+      throw new Error('Sign in as an admin and connect to the internet before removing project items.')
+    }
+
+    const controller = new AbortController()
+    adminRefreshRequest.current?.abort()
+    adminRefreshRequest.current = controller
+    try {
+      await removeProjectItem(id, item)
+      if (controller.signal.aborted) return ''
+
+      if (item.kind === 'update') {
+        setUpdates((current) => current.filter((update) => String(update.id) !== item.id))
+        try {
+          await loadData(controller.signal, true)
+        } catch (error) {
+          console.error('The update was removed but project details could not be refreshed.', error)
+          return 'Update removed. Reload this page to refresh project details.'
+        }
+      } else if (item.kind === 'photo') {
+        photoPageRequest.current?.abort()
+        photoPageRequest.current = null
+        setPhotosLoading(false)
+        setPhotos((current) => current.filter((photo) => String(photo.id) !== item.id))
+        try {
+          const firstPage = await getProjectPhotoPage(id, 0, PROJECT_PHOTO_PAGE_SIZE, controller.signal)
+          if (controller.signal.aborted) return ''
+          setPhotos(firstPage.photos)
+          setPhotoPage({ nextOffset: firstPage.nextOffset, hasMore: firstPage.hasMore })
+        } catch (error) {
+          if (controller.signal.aborted) return ''
+          console.error('The photo was removed but the gallery could not be refreshed.', error)
+          setPhotoPage({ nextOffset: 0, hasMore: false })
+          return 'Photo removed from PMS10. Reload this page to refresh the gallery.'
+        }
+      } else {
+        setCloudAideDocuments((current) => current?.filter((document) => document.id !== item.id) ?? [])
+        setLocalAideDocuments((current) => current.filter((document) => document.cloud_document_id !== item.id))
+        try {
+          await forgetRemovedDocument(id, item)
+        } catch (error) {
+          console.error('The document was removed but a local copy could not be cleared.', error)
+          return 'Document removed from PMS10. A copy may still be saved on this device.'
+        }
+      }
+      return ''
+    } finally {
+      if (adminRefreshRequest.current === controller) adminRefreshRequest.current = null
+    }
+  }
+
   async function loadMorePhotos() {
-    if (!id || !photoPage.hasMore || photoPageRequest.current) return
+    if (!id || !photoPage.hasMore || photoPageRequest.current || adminRefreshRequest.current) return
 
     const controller = new AbortController()
     photoPageRequest.current = controller
@@ -1116,6 +1172,14 @@ export default function ProjectDetails() {
             detail: `${formatAideSavedTime(file.time)}${file.kind === 'local' ? ' · On this device'
               : file.document.generated_by_name ? ` · ${file.document.generated_by_name}` : ''}`,
             open: () => openAideFile(file),
+            removal: file.kind === 'cloud' ? {
+              kind: 'document' as const,
+              id: file.document.id,
+              label: getDisplayValue(file.document.file_name, 'Aide Memoire'),
+              aideMemoireId: file.document.aide_memoire_id,
+              documentFormat: file.document.document_format,
+              generatedAt: file.document.generated_at,
+            } : undefined,
           }))}
           fileLimit={AIDE_MEMOIRE_FILE_LIMIT}
           photos={photos}
@@ -1128,6 +1192,7 @@ export default function ProjectDetails() {
           onNewUpdate={canUpdateCurrentProject ? goToAddUpdate : undefined}
           onResumeDraft={resumableUpdateDraft ? resumeLatestUpdateDraft : undefined}
           onEdit={canEditCurrentProject && dataSource === 'online' ? goToEditProject : undefined}
+          onRemoveItem={isAdmin && dataSource === 'online' ? handleRemoveProjectItem : undefined}
           onDelete={isAdmin && dataSource === 'online' ? () => void handleDelete() : undefined}
           onMap={goToMap}
           onBriefer={() => void generateProjectBriefer()}

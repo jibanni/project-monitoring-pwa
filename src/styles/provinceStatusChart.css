@@ -101,3 +101,51 @@
     padding-top: 12px;
   }
 }
+
+@media (min-width: 1024px) {
+  .pms110-province-chart button.pms110-province-row {
+    width: 100%;
+    margin: 0;
+    padding: 2px 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
+  }
+  .pms110-province-chart button.pms110-province-row:hover {
+    color: #155699;
+    background: #edf5fb;
+  }
+  .pms110-province-chart :is(button.pms110-province-row, .pms110-province-dialog button):focus-visible {
+    outline: 2px solid #155699;
+    outline-offset: 3px;
+  }
+  .pms110-province-hint { margin: 9px 0 0; color: #526a81; font-size: 11px; }
+  .pms110-province-dialog {
+    width: min(550px, calc(100% - 48px));
+    max-height: calc(100dvh - 48px);
+    padding: 22px;
+    color: #17253a;
+    background: #fff;
+    border: 1px solid #d1deec;
+    border-radius: 16px;
+    box-shadow: 0 18px 60px #18345640;
+  }
+  .pms110-province-dialog::backdrop { background: #152c4980; }
+  .pms110-province-dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
+  .pms110-province-dialog-heading p { color: #a94612; font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 3px; }
+  .pms110-province-dialog-heading h3 { margin: 0; font-size: 22px; }
+  .pms110-province-dialog-heading button { flex: none; width: 32px; height: 32px; border: 1px solid #d1deec; border-radius: 7px; cursor: pointer; font-size: 21px; color: #17253a; background: #f0f5fb; }
+  .pms110-province-breakdown { display: grid; grid-template-columns: 146px minmax(0, 1fr); align-items: center; gap: 20px; }
+  .pms110-province-pie { width: 100%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background-color: #f0f5fb; }
+  .pms110-province-pie > div { width: 68%; aspect-ratio: 1; border-radius: 50%; display: grid; place-content: center; text-align: center; background: #fff; }
+  .pms110-province-pie strong { font-size: 24px; line-height: 1.15; }
+  .pms110-province-pie span { color: #526a81; font-size: 11px; }
+  .pms110-province-breakdown ul { padding: 0; margin: 0; list-style: none; }
+  .pms110-province-breakdown li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto 3.7em; align-items: baseline; gap: 7px; padding-block: 7px; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .pms110-province-breakdown li + li { border-top: 1px solid #e5edf5; }
+  .pms110-province-breakdown li i { width: 8px; height: 8px; border-radius: 2px; }
+  .pms110-province-breakdown li > span:last-child { text-align: right; color: #526a81; }
+}
