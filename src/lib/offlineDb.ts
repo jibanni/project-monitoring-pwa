@@ -368,6 +368,7 @@ export async function deleteAideMemoireLocalAssets(aideMemoireId: string) {
 }
 
 export type AideMemoireDocumentFormat = 'pdf' | 'docx'
+export const AIDE_MEMOIRE_FILE_LIMIT = 3
 
 export type OfflineAideMemoireDocument = {
   id: string
@@ -380,7 +381,7 @@ export type OfflineAideMemoireDocument = {
   data: ArrayBuffer
   generated_at: string
 
-  /* Cloud sync metadata. Local binary data is always retained for offline use. */
+  /* Older synced copies may be pruned. Unsynced files stay queued until uploaded. */
   sync_status?: 'pending' | 'syncing' | 'synced' | 'failed' | string
   sync_error?: string
   cloud_document_id?: string
@@ -402,7 +403,7 @@ export async function saveAideMemoireDocument(params: {
   syncStatus?: OfflineAideMemoireDocument['sync_status']
 }) {
   const generatedAt = params.generatedAt || new Date().toISOString()
-  const id = `${params.aideMemoireId}:${params.format}`
+  const id = `${params.aideMemoireId}:${params.format}:${generatedAt}`
   const existing = await offlineDb.aide_memoire_documents.get(id)
 
   const record: OfflineAideMemoireDocument = {
@@ -446,7 +447,36 @@ export async function markAideMemoireDocumentSync(
   }
 
   await offlineDb.aide_memoire_documents.put(updated)
+  if (patch.sync_status === 'synced') {
+    // Cache cleanup must never turn a successful cloud upload into a failed one.
+    await pruneSyncedAideMemoireCache(updated.project_id).catch((error) => {
+      console.warn('Could not prune older local Aide Memoire files.', error)
+    })
+  }
   return updated
+}
+
+function newestAideMemoireFirst(a: OfflineAideMemoireDocument, b: OfflineAideMemoireDocument) {
+  return (b.generated_at || '').localeCompare(a.generated_at || '') || b.id.localeCompare(a.id)
+}
+
+export async function pruneSyncedAideMemoireCache(projectId: string) {
+  const table = offlineDb.aide_memoire_documents
+  await offlineDb.transaction('rw', table, async () => {
+    const synced = await table.where('[project_id+sync_status]').equals([projectId, 'synced']).toArray()
+    const olderIds = synced.sort(newestAideMemoireFirst).slice(AIDE_MEMOIRE_FILE_LIMIT).map((item) => item.id)
+    if (olderIds.length) await table.bulkDelete(olderIds)
+  })
+}
+
+export async function getRecentLocalAideMemoireDocuments(projectId: string) {
+  const records = await offlineDb.aide_memoire_documents.where('project_id').equals(projectId).toArray()
+  return records.sort(newestAideMemoireFirst).slice(0, AIDE_MEMOIRE_FILE_LIMIT)
+}
+
+export function getWorkingProjectUpdateDraftId(projectId: string, userId: string) {
+  const ownerKey = (userId || 'local-user').replace(/[^a-zA-Z0-9_-]/g, '-')
+  return `aide-${projectId}-offline-working-${projectId}-${ownerKey}`
 }
 
 export async function getPendingAideMemoireDocuments() {
@@ -466,7 +496,9 @@ export async function getAideMemoireDocument(
   aideMemoireId: string,
   format: AideMemoireDocumentFormat,
 ) {
-  return (await offlineDb.aide_memoire_documents.get(`${aideMemoireId}:${format}`)) || null
+  const records = await offlineDb.aide_memoire_documents
+    .where('[aide_memoire_id+format]').equals([aideMemoireId, format]).toArray()
+  return records.sort(newestAideMemoireFirst)[0] || null
 }
 
 export async function getLatestAideMemoireDocument(
@@ -478,9 +510,7 @@ export async function getLatestAideMemoireDocument(
     .equals([projectId, format])
     .toArray()
 
-  return records.sort((first, second) =>
-    String(second.generated_at || '').localeCompare(String(first.generated_at || '')),
-  )[0] || null
+  return records.sort(newestAideMemoireFirst)[0] || null
 }
 
 class OfflineDatabase extends Dexie {
