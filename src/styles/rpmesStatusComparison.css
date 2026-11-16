@@ -1,18 +1,19 @@
 @media (min-width: 1024px) {
   .rpmes-comparison {
+    min-width: 0;
     border: 1px solid #d9e4ee;
     border-radius: 16px;
     background: #fff;
     color: #17334d;
     margin: 0 0 14px;
-    padding: 16px 18px;
+    padding: 18px;
   }
-  .rpmes-comparison h2 { margin: 0 0 4px; font-size: 1.05rem; }
+  .rpmes-comparison h1 { margin: 0 0 4px; font-size: 1.3rem; }
   .rpmes-comparison p { margin: 6px 0; color: #445f77; font-size: .86rem; }
   .rpmes-comparison [role='alert'] { color: #9e321b; }
   .rpmes-comparison-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
   .rpmes-comparison-controls label { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; }
-  .rpmes-comparison-controls :is(button, select) {
+  .rpmes-comparison-controls :is(button, select, input) {
     border: 1px solid #b9cde0;
     border-radius: 8px;
     color: #183d6a;
@@ -23,12 +24,18 @@
   }
   .rpmes-comparison-controls button { cursor: pointer; font-weight: 700; }
   .rpmes-comparison-controls button:disabled { opacity: .55; cursor: default; }
+  .rpmes-comparison-controls .rpmes-primary { background: #15558d; border-color: #15558d; color: white; }
+  .rpmes-import { padding: 10px 12px 0; border: 1px solid #dce7f1; background: #f6faff; border-radius: 8px; }
+  .rpmes-comparison-controls .rpmes-link-field { flex: 1 1 300px; }
+  .rpmes-link-field input { flex: 1; min-width: 130px; }
   .rpmes-comparison-meta { line-height: 1.55; }
-  .rpmes-comparison-table { margin-top: 10px; max-height: 540px; overflow: auto; border: 1px solid #e0e8f0; border-radius: 9px; }
-  .rpmes-comparison-table table { width: 100%; min-width: 750px; border-collapse: collapse; text-align: left; font-size: .83rem; }
-  .rpmes-comparison-table :is(th, td) { vertical-align: top; border-bottom: 1px solid #e6edf4; padding: 9px; }
-  .rpmes-comparison-table th { position: sticky; top: 0; background: #edf4f9; }
-  .rpmes-comparison-table small { display: block; margin-top: 4px; color: #445f77; }
-  .rpmes-result { display: inline-block; border-radius: 8px; background: #fff0db; color: #804205; padding: 3px 6px; font-weight: 700; }
-  .rpmes-result[data-match='true'] { background: #e0f4e8; color: #135637; }
+  .rpmes-comparison-table { margin-top: 12px; overflow-x: auto; border: 1px solid #d7e4f0; border-radius: 9px; }
+  .rpmes-comparison-table table { width: 100%; min-width: 820px; border-collapse: collapse; text-align: center; font-size: .82rem; color: #163753; }
+  .rpmes-comparison-table caption { padding: 7px 10px; background: #f4f8fc; text-align: left; color: #456381; }
+  .rpmes-comparison-table :is(th, td) { border: 1px solid #d9e6f2; padding: 8px 5px; vertical-align: middle; }
+  .rpmes-comparison-table thead th { background: #11558f; color: #fff; font-weight: 750; text-transform: uppercase; }
+  .rpmes-comparison-table thead tr + tr th { background: #eaf3fc; color: #214b72; font-size: .64rem; letter-spacing: .02em; }
+  .rpmes-comparison-table tbody tr:nth-child(even) { background: #f6f9fd; }
+  .rpmes-comparison-table tbody :is(td:first-child, th[scope='row']) { text-align: left; padding-inline: 9px; }
+  .rpmes-comparison-table td[data-diff='true'] { background: #fff3db; color: #714200; font-weight: 700; }
 }

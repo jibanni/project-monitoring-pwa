@@ -20,6 +20,7 @@ export const routeLoaders = {
   createProject: () => import('../pages/CreateProject'),
   editProject: () => import('../pages/EditProject'),
   projectMap: () => import('../pages/ProjectMap'),
+  rpmesComparison: () => import('../pages/RpmesComparison'),
   reports: () => import('../pages/Reports'),
   userManagement: () => import('../pages/UserManagement'),
   advisories: () => import('../pages/Advisories'),
@@ -57,6 +58,7 @@ function getRouteLoader(pathname: string): PageLoader | null {
   if (/^\/projects\/[^/]+\/edit\/?$/.test(path)) return routeLoaders.editProject
   if (/^\/projects\/[^/]+\/?$/.test(path)) return routeLoaders.projectDetails
   if (path === '/map') return routeLoaders.projectMap
+  if (path === '/rpmes-comparison') return routeLoaders.rpmesComparison
   if (path === '/reports') return routeLoaders.reports
   if (/^\/users\/[^/]+\/access\/?$/.test(path)) return routeLoaders.userAccess
   if (path === '/advisories') return routeLoaders.advisories

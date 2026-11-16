@@ -29,6 +29,7 @@ const AideMemoirePdfViewer = lazy(routeLoaders.aideMemoirePdfViewer)
 const CreateProject = lazy(routeLoaders.createProject)
 const EditProject = lazy(routeLoaders.editProject)
 const ProjectMap = lazy(routeLoaders.projectMap)
+const RpmesComparison = lazy(routeLoaders.rpmesComparison)
 const Reports = lazy(routeLoaders.reports)
 const UserManagement = lazy(routeLoaders.userManagement)
 const Advisories = lazy(routeLoaders.advisories)
@@ -174,6 +175,7 @@ function App() {
             <Route path="projects" element={<Projects />} />
             <Route path="reports" element={<Reports />} />
             <Route path="map" element={<ProjectMap />} />
+            <Route path="rpmes-comparison" element={<RpmesComparison />} />
 
             <Route
               path="offline-sync"

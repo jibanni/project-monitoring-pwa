@@ -1,39 +1,53 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { compareRpmesStatus, parseRpmesValues, rpmesCsvUrl, toPhysical } from '../src/utils/rpmesStatusComparison.ts'
+import { parseRpmesValues, rpmesCsvUrl, rpmesSpreadsheetId, summarizeByLgu } from '../src/utils/rpmesStatusComparison.ts'
+import { getCanonicalProjectLgu } from '../src/data/region10Directory.ts'
 
-const entry = (code, status, physical, province = 'Bukidnon') => ({ code, status, physical, province, municipality: 'Manolo Fortich', title: 'Sample project' })
-const compare = (rpm, subay, physical) => compareRpmesStatus([entry('SBDP-2025-01', rpm)], [entry('sbdp-2025-01', subay, physical)])[0].result
+const entry = (municipality, barangay, status, province = 'Bukidnon') => ({ municipality, barangay, status, province })
 
-test('loads only the intended Form 2 fields from fixed provincial workbooks', () => {
+test('reads the approved Form 2 columns including barangay and calculated status', () => {
   const url = new URL(rpmesCsvUrl('Misamis Oriental'))
   assert.equal(url.origin, 'https://docs.google.com')
   assert.equal(url.searchParams.get('sheet'), 'RPMES Form 2')
-  assert.match(url.searchParams.get('tq'), /select A,C,D,F,AB/)
-  assert.equal(parseRpmesValues([['SBDP-2025-01', 'BUKIDNON', 'Sample LGU', 'Sample project', 'Completed']], 'Bukidnon')[0].status, 'Completed')
-  assert.throws(() => parseRpmesValues([['SBDP-2025-01', 'MISAMIS ORIENTAL', 'Sample LGU', 'Sample project', 'Completed']], 'Bukidnon'))
+  assert.match(url.searchParams.get('tq'), /select A,C,D,E,AB/)
+  const row = ['SBDP-2025-01', 'BUKIDNON', 'Talakag', 'SAGARAN', 'Completed']
+  assert.deepEqual(parseRpmesValues([row], 'Bukidnon'), [entry('Talakag', 'SAGARAN', 'Completed')])
+  assert.throws(() => parseRpmesValues([row], 'Misamis Oriental'))
+  assert.throws(() => parseRpmesValues([row, row], 'Bukidnon'), /duplicate/)
   assert.throws(() => parseRpmesValues([['Sign in to Google']], 'Bukidnon'))
 })
 
-test('compares the imported stage and the numeric accomplishment without treating blanks as zero', () => {
-  assert.equal(compare('Completed', 'Completed', 100), 'Match')
-  assert.equal(compare('Ongoing (31-60%)', 'Ongoing', 30.1), 'Match')
-  assert.equal(compare('Ongoing (31-60%)', 'Ongoing', 60), 'Match')
-  assert.equal(compare('Ongoing (31-60%)', 'Ongoing', 70), 'Progress band mismatch')
-  assert.equal(compare('Ongoing (31-60%)', 'Ongoing', null), 'Needs review')
-  assert.equal(compare('Ongoing (31-60%)', 'Not Yet Started', null), 'Status mismatch')
-  assert.equal(compare('Procurement (Notice to Proceed)', 'Not Yet Started', 0), 'Needs review')
-  assert.equal(compare('Preparation of Documents', 'Not Yet Started', null), 'Needs review')
-  assert.equal(compare('Procurement (Opening of Bids)', 'Under Procurement', null), 'Needs review')
-  assert.equal(compare('', 'Ongoing', 20), 'Needs review')
-  assert.equal(toPhysical(''), null)
-  assert.equal(toPhysical('0%'), 0)
+test('counts distinct barangays, classifies pre-implementation, and retains other statuses in the denominator', () => {
+  const [result] = summarizeByLgu([
+    entry('CITY OF MALAYBALAY', 'San Martin', 'Ongoing'),
+    entry('CITY OF MALAYBALAY', ' SAN MARTIN ', 'Completed'),
+    entry('CITY OF MALAYBALAY', '', 'Suspended'),
+  ], [
+    entry('Malaybalay City', 'San Martin', 'Procurement (Opening of Bids)'),
+    entry('MALAYBALAY CITY', 'Brgy. San Martin', 'Preparation of Documents'),
+    entry('Malaybalay City', 'Simaya', 'Ongoing (31–60%)'),
+    entry('Malaybalay City', 'Simaya', 'Completed'),
+  ], getCanonicalProjectLgu)
+  assert.equal(result.lgu, 'Malaybalay City')
+  assert.deepEqual(result.subay, {projects:3, barangays:1, notStarted:0, ongoing:1, completed:1, completion:1/3, other:1, missingBarangay:1})
+  assert.deepEqual(result.rpmes, {projects:4, barangays:2, notStarted:2, ongoing:1, completed:1, completion:1/4, other:0, missingBarangay:0})
 })
 
-test('does not silently match legacy codes, other provinces, same titles or duplicates', () => {
-  const results = compareRpmesStatus([
-    entry('SBDP-2025-01', 'Completed'), entry('SBDP-2025-02', 'Completed'), entry('SBDP-2025-02', 'Completed'),
-    entry('SBDP-2025-03', 'Completed', 100, 'Misamis Oriental'),
-  ], [entry('SBDP-25-01', 'Completed', 100), entry('SBDP-2025-03', 'Completed', 100), entry('', 'Ongoing', 1)])
-  assert.deepEqual(results.map((row) => row.result).sort(), ['Duplicate code', 'Missing code', 'RPMES only', 'RPMES only', 'SubayBAYAN only', 'SubayBAYAN only'])
+test('keeps same-named LGUs in different provinces separate and leaves zero-denominator completion blank', () => {
+  const result = summarizeByLgu([
+    entry('Magsaysay', 'Barangay 1', 'Completed', 'Misamis Oriental'),
+  ], [entry('Magsaysay', 'Barangay 1', 'Completed', 'Misamis Occidental')], getCanonicalProjectLgu)
+  assert.equal(result.length, 2)
+  assert.equal(result[0].subay.completion, null)
+  assert.equal(result[1].rpmes.completion, null)
+})
+
+test('accepts direct Google Sheets links and builds the Form 2 request independent of the link gid', () => {
+  const id = 'private-looking-example12345'
+  assert.equal(rpmesSpreadsheetId(`https://docs.google.com/spreadsheets/d/${id}/edit?gid=0#gid=0`), id)
+  assert.equal(rpmesSpreadsheetId(`https://docs.google.com.evil.test/spreadsheets/d/${id}/edit`), '')
+  assert.equal(rpmesSpreadsheetId(`http://docs.google.com/spreadsheets/d/${id}`), '')
+  assert.equal(rpmesSpreadsheetId(`https://user:pass@docs.google.com/spreadsheets/d/${id}/edit`), '')
+  assert.equal(rpmesSpreadsheetId('https://docs.google.com/spreadsheets/d/e/hello/pubhtml'), '')
+  assert.match(rpmesCsvUrl('Bukidnon', id), /private-looking-example12345\/gviz/)
 })

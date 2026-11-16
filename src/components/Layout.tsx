@@ -28,7 +28,7 @@ type LayoutProps = {
 }
 
 type AppIconProps = {
-  type: 'home' | 'projects' | 'create' | 'map' | 'reports' | 'sync' | 'advisories' | 'users'
+  type: 'home' | 'projects' | 'create' | 'map' | 'comparison' | 'reports' | 'sync' | 'advisories' | 'users'
 }
 
 type NavItem = {
@@ -39,6 +39,7 @@ type NavItem = {
   icon: AppIconProps['type']
   adminOnly?: boolean
   adminOrEngineerOnly?: boolean
+  desktopOnly?: boolean
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -62,6 +63,14 @@ const NAV_ITEMS: NavItem[] = [
     mobileLabel: 'Map',
     to: '/map',
     icon: 'map',
+  },
+  {
+    key: 'comparison',
+    label: 'RPMES Comparison',
+    mobileLabel: 'RPMES',
+    to: '/rpmes-comparison',
+    icon: 'comparison',
+    desktopOnly: true,
   },
   {
     key: 'reports',
@@ -167,6 +176,14 @@ function AppIcon({ type }: AppIconProps) {
     )
   }
 
+  if (type === 'comparison') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 6v8h5v-8H4Zm7 0v8h9v-8h-9ZM4 6v2h16V6H4Z" />
+      </svg>
+    )
+  }
+
   if (type === 'reports') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -266,6 +283,10 @@ function getDesktopPageMeta(pathname: string): DesktopPageMeta {
 
   if (pathname === '/map') {
     return { eyebrow: 'GIS Mapping', title: 'Project GIS Map' }
+  }
+
+  if (pathname === '/rpmes-comparison') {
+    return { eyebrow: 'Project Monitoring', title: 'RPMES Comparison' }
   }
 
   if (pathname.startsWith('/reports')) {
@@ -654,11 +675,13 @@ export default function Layout({ children }: LayoutProps) {
 
   const visibleNavItems = useMemo(() => {
     return NAV_ITEMS.filter((item) => {
+      if (item.desktopOnly && !isDesktopViewport) return false
       if (item.adminOnly) return isAdmin
       if (item.adminOrEngineerOnly) return isAdmin || isEngineer
       return true
     })
-  }, [isAdmin, isEngineer])
+  }, [isAdmin, isEngineer, isDesktopViewport])
+  const mobileNavItems = visibleNavItems.filter((item) => !item.desktopOnly)
 
   const desktopPageMeta = useMemo(
     () => getDesktopPageMeta(location.pathname),
@@ -731,6 +754,7 @@ export default function Layout({ children }: LayoutProps) {
     // Detailed View. A direct website/dashboard opening still defaults to
     // Executive View.
     if (item.key === 'dashboard') return '/dashboard?view=detailed'
+    if (item.key === 'comparison') return item.to
 
     // Every workspace button resumes the exact route last used in that section.
     // This applies even when the section is already active, so a nested working
@@ -823,7 +847,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const activeMobileIndex = Math.max(
     0,
-    visibleNavItems.findIndex((item) => isItemActive(item)),
+    mobileNavItems.findIndex((item) => isItemActive(item)),
   )
 
   const appDesktopSidebar = (
@@ -1133,7 +1157,7 @@ export default function Layout({ children }: LayoutProps) {
       aria-label="Mobile navigation"
       style={
         {
-          '--pms10-mobile-nav-count': String(visibleNavItems.length),
+          '--pms10-mobile-nav-count': String(mobileNavItems.length),
           '--pms10-mobile-nav-active-index': String(activeMobileIndex),
         } as CSSProperties
       }
@@ -1141,7 +1165,7 @@ export default function Layout({ children }: LayoutProps) {
       <div className="app-mobile-nav-scroll">
         <span className="app-mobile-nav-bubble" aria-hidden="true" />
 
-        {visibleNavItems.map((item) => {
+        {mobileNavItems.map((item) => {
           const active = isItemActive(item)
           const destination = getItemDestination(item)
 
