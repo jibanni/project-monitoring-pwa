@@ -14,6 +14,10 @@
     --pdd-surface: #fff;
     --pdd-soft: #f0f5fb;
     --pdd-soft-blue: #e8f2ff;
+    --pdd-orange: #a94612;
+    --pdd-orange-line: #e58b51;
+    --pdd-orange-wash: #fff5eb;
+    --pdd-gap: 14px;
     box-sizing: border-box;
     max-width: 1440px;
     width: 100%;
@@ -35,10 +39,10 @@
   .pdd-inline { border: 0; padding: 4px 0; background: none; color: var(--pdd-blue); text-align: left; }
   .pdd-workspace .pdd-inline { font-size: .84rem; font-weight: 650; }
   .pdd-inline:hover, .pdd-file-row:hover .pdd-link-text, .pdd-linked-photo:hover strong { text-decoration: underline; }
-  .pdd-project-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px 24px; padding-bottom: 14px; }
+  .pdd-project-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px 24px; padding-block: 5px 16px; }
   .pdd-project-identity { min-width: 0; }
   .pdd-workspace .pdd-project-meta { color: var(--pdd-muted); font-size: .86rem; margin-bottom: 5px; }
-  .pdd-project-meta strong { color: var(--pdd-blue); }
+  .pdd-project-meta strong { color: var(--pdd-orange); }
   .pdd-workspace h1 { font-size: clamp(1.65rem, 2.6vw, 2.45rem); line-height: 1.13; font-weight: 750; letter-spacing: -.034em; }
   .pdd-workspace .pdd-location { color: var(--pdd-muted); margin-top: 6px; font-size: .91rem; }
   .pdd-code { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-top: 1px; color: var(--pdd-muted); font-size: .82rem; }
@@ -59,7 +63,7 @@
   .pdd-actions-menu button:hover { background: var(--pdd-soft); }
   .pdd-actions-menu .pdd-danger { color: #a02033; }
 
-  .pdd-tag { display: inline-flex; align-items: center; white-space: nowrap; padding: 3px 8px; border-radius: 999px; background: var(--pdd-soft); color: var(--pdd-muted); font-size: .72rem; font-weight: 650; }
+  .pdd-tag { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 22px; line-height: 1.2; white-space: nowrap; padding: 3px 9px; border-radius: 999px; background: var(--pdd-soft); color: var(--pdd-muted); font-size: .72rem; font-weight: 650; }
   .pdd-tag-blue { background: var(--pdd-soft-blue); color: var(--pdd-blue); }
   .pdd-tag[data-risk="none"] { background: #e5f6ee; color: #216347; }
   .pdd-tag[data-risk="low"] { background: #fff5d4; color: #6d5003; }
@@ -68,29 +72,54 @@
   .pdd-workspace .pdd-offline { color: #6d5003; background: #fff5d4; padding: 7px 10px; border-radius: 6px; margin: 0 0 7px; font-size: .82rem; }
 
   .pdd-tabs { display: flex; flex-wrap: wrap; gap: 0 17px; border-bottom: 1px solid var(--pdd-line); margin-bottom: 13px; }
-  .pdd-tabs button { color: var(--pdd-muted); padding: 9px 3px 10px; border: 0; border-bottom: 2px solid transparent; background: none; font-size: .89rem; font-weight: 650; }
-  .pdd-tabs button:hover, .pdd-tabs button[aria-selected="true"] { color: var(--pdd-blue); }
-  .pdd-tabs button[aria-selected="true"] { border-bottom-color: var(--pdd-blue); }
-  .pdd-tabpanel, .pdd-stack { display: grid; gap: 12px; min-width: 0; align-content: start; }
-  .pdd-overview-grid, .pdd-contract-grid { display: grid; grid-template-columns: minmax(0, 1.78fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+  .pdd-tabs button { color: var(--pdd-muted); padding: 9px 9px 10px; border: 0; border-bottom: 2px solid transparent; border-radius: 7px 7px 0 0; background: none; font-size: .89rem; font-weight: 650; }
+  .pdd-tabs button:hover { color: var(--pdd-blue); background: var(--pdd-soft); }
+  .pdd-tabs button[aria-selected="true"] { color: var(--pdd-ink); border-bottom-color: var(--pdd-orange); background: var(--pdd-orange-wash); }
+  .pdd-tabpanel, .pdd-stack { display: grid; gap: var(--pdd-gap); min-width: 0; }
+  .pdd-tabpanel { align-content: start; }
+  .pdd-overview-grid, .pdd-contract-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: var(--pdd-gap);
+    align-items: stretch;
+  }
   .pdd-contract-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pdd-files-grid { grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr); }
-  .pdd-card { border: 1px solid var(--pdd-line); border-radius: 11px; background: var(--pdd-surface); min-width: 0; padding: 12px 15px; }
-  .pdd-panel-heading, .pdd-panel-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; }
-  .pdd-panel-heading { margin-bottom: 7px; }
+  .pdd-card {
+    min-width: 0;
+    padding: 13px 16px;
+    border: 1px solid var(--pdd-line);
+    border-top: 2px solid var(--pdd-orange-line);
+    border-radius: 12px;
+    background: linear-gradient(180deg, var(--pdd-orange-wash), var(--pdd-surface) 60px);
+    box-shadow: 0 3px 10px #172b4d0b;
+  }
+  .pdd-panel-heading, .pdd-panel-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; }
+  .pdd-panel-heading { align-items: flex-start; margin-bottom: 9px; }
+  .pdd-panel-heading > div { min-width: 0; }
+  .pdd-panel-heading > .pdd-tag { align-self: flex-start; margin-left: auto; }
+  .pdd-panel-heading > .pdd-inline { padding-block: 2px; }
   .pdd-workspace h2 { margin-top: 2px; font-size: 1.12rem; line-height: 1.22; font-weight: 700; letter-spacing: -.018em; }
-  .pdd-kicker { color: var(--pdd-blue); text-transform: uppercase; letter-spacing: .07em; font-size: .69rem; font-weight: 720; }
+  .pdd-kicker { color: var(--pdd-orange); text-transform: uppercase; letter-spacing: .08em; font-size: .69rem; line-height: 1.4; font-weight: 750; }
   .pdd-quiet { color: var(--pdd-muted); font-size: .8rem; line-height: 1.4; }
   .pdd-card > .pdd-inline + .pdd-inline { margin-left: 10px; }
-  .pdd-panel-footer { margin-top: 6px; }
+  .pdd-panel-footer { align-items: baseline; padding-top: 8px; }
+  /* Let the inspection footer sit on the same visual baseline as the right-hand stack. */
+  .pdd-overview-grid > .pdd-card { display: flex; flex-direction: column; }
+  .pdd-overview-grid > .pdd-card > .pdd-panel-footer { margin-top: auto; }
+  .pdd-stack > .pdd-card > .pdd-inline { text-wrap: pretty; }
   .pdd-workspace .pdd-secondary-update { margin-top: 5px; }
   .pdd-rows > div { display: grid; grid-template-columns: minmax(85px, 1fr) minmax(0, 1.45fr); gap: 8px; align-items: baseline; border-bottom: 1px solid var(--pdd-line); padding: 6px 0; font-size: .83rem; }
+  .pdd-rows > div:last-child { border-bottom: 0; }
   .pdd-rows dt { color: var(--pdd-muted); }
   .pdd-rows dd { font-weight: 550; white-space: pre-wrap; }
   .pdd-scope { white-space: pre-wrap; font-size: .86rem; line-height: 1.55; }
   .pdd-progress-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .83rem; margin-bottom: 7px; }
   .pdd-progress-table th, .pdd-progress-table td { padding: 6px 5px; text-align: left; border-bottom: 1px solid var(--pdd-line); font-variant-numeric: tabular-nums; }
   .pdd-progress-table thead th, .pdd-progress-table tbody th { color: var(--pdd-muted); font-weight: 650; }
+  .pdd-progress-table thead th { background: var(--pdd-soft); }
+  .pdd-progress-table thead th:first-child { border-top-left-radius: 6px; }
+  .pdd-progress-table thead th:last-child { border-top-right-radius: 6px; }
+  .pdd-progress-table tbody tr:nth-child(even) { background: #f7f9fc; }
 
   .pdd-inspection { border-bottom: 1px solid var(--pdd-line); }
   .pdd-inspection summary { display: grid; grid-template-columns: minmax(103px, .8fr) minmax(98px, 1fr) minmax(0, 1.6fr) auto; align-items: center; gap: 8px; padding: 9px 4px; min-height: 40px; font-size: .83rem; border-radius: 5px; }
@@ -105,17 +134,21 @@
   .pdd-linked-photo { border: 1px solid var(--pdd-line); border-radius: 6px; padding: 4px 7px; text-decoration: none; color: var(--pdd-blue); font-size: .78rem; }
 
   .pdd-file-list { display: grid; gap: 6px; }
-  .pdd-workspace .pdd-file-row { display: flex; width: 100%; align-items: center; justify-content: flex-start; gap: 8px; color: var(--pdd-ink); text-align: left; border: 1px solid var(--pdd-line); border-radius: 7px; min-height: 42px; background: var(--pdd-soft); padding: 6px 8px; font-size: .81rem; }
+  .pdd-workspace .pdd-file-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; width: 100%; align-items: center; gap: 8px; color: var(--pdd-ink); text-align: left; border: 1px solid var(--pdd-line); border-radius: 7px; min-height: 42px; background: var(--pdd-soft); padding: 6px 8px; font-size: .81rem; }
   .pdd-file-type { color: var(--pdd-blue); background: var(--pdd-soft-blue); border-radius: 5px; padding: 4px 5px; font-size: .68rem; font-weight: 700; }
-  .pdd-file-copy { flex: 1; min-width: 0; }
+  .pdd-file-copy { min-width: 0; }
   .pdd-file-copy strong, .pdd-file-copy small, .pdd-photo strong, .pdd-photo small, .pdd-linked-photo small { display: block; }
   .pdd-file-copy small, .pdd-photo small, .pdd-linked-photo small { color: var(--pdd-muted); font-size: .72rem; }
   .pdd-link-text { color: var(--pdd-blue); font-size: .74rem; white-space: nowrap; font-weight: 650; }
-  .pdd-draft-row { margin-top: 7px; }
+  .pdd-workspace .pdd-draft-row { margin-top: 7px; background: var(--pdd-orange-wash); border-color: #f0d6bf; }
+  .pdd-draft-row .pdd-file-type { color: var(--pdd-orange); background: #fce3cd; }
   .pdd-photo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .pdd-photo { min-width: 0; border: 1px solid var(--pdd-line); border-radius: 7px; color: var(--pdd-ink); text-decoration: none; overflow: hidden; font-size: .78rem; }
   .pdd-photo img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--pdd-soft); }
-  .pdd-photo > span { display: block; padding: 5px 7px; }
+  .pdd-photo > span { display: block; padding: 6px 8px; }
+  .pdd-photo:only-child { grid-column: 1 / -1; }
+  .pdd-photo:only-child img { max-height: 180px; object-fit: contain; }
+  .pdd-photo:hover, .pdd-workspace .pdd-file-row:hover { border-color: #9fb5d0; }
 }
 
 @media (min-width: 1024px) and (max-width: 1220px) {
@@ -124,5 +157,5 @@
   .pdd-project-controls { justify-items: start; }
   .pdd-card { padding-inline: 11px; }
   .pdd-inspection summary { gap: 5px; }
-  .pdd-workspace .pdd-file-row { flex-wrap: wrap; }
+  .pdd-tabs { gap: 0 8px; }
 }
