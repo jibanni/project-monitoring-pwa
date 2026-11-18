@@ -22,7 +22,7 @@ export default function RpmesLinkManager({ open, disabled, yearOptions, initialY
   const [invalidKeys, setInvalidKeys] = useState<RpmesSourceKey[]>([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const year = selectedYear && yearOptions.includes(selectedYear) ? selectedYear : initialYear
+  const year = selectedYear !== null && (selectedYear === '' || yearOptions.includes(selectedYear)) ? selectedYear : initialYear
   const slotsByYear = useMemo(() => Object.fromEntries(yearOptions.map((item) => [item, rpmesLinkSlots(item)])), [yearOptions])
   const slots = slotsByYear[year] ?? []
   const draftCount = Object.keys(drafts).length
@@ -61,11 +61,12 @@ export default function RpmesLinkManager({ open, disabled, yearOptions, initialY
           setSelectedYear(event.target.value)
           setNotice('')
         }}>
+          <option value="">Select year</option>
           {yearOptions.map((item) => <option value={item} key={item}>FY {item}</option>)}
         </select>
       </label>
     </div>
-    <div className="rpmes-link-manager-table-wrap">
+    {year ? <div className="rpmes-link-manager-table-wrap">
       <table className="rpmes-link-manager-table" aria-label={`RPMES links for FY ${year}`}>
         <thead><tr>
           <th scope="col">Province</th>
@@ -95,7 +96,7 @@ export default function RpmesLinkManager({ open, disabled, yearOptions, initialY
           })}
         </tr>)}</tbody>
       </table>
-    </div>
+    </div> : <p>Select a reporting year to enter workbook links.</p>}
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     <div className="rpmes-comparison-controls rpmes-link-manager-footer">

@@ -1,12 +1,13 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import type { FormEvent } from 'react'
 import RpmesLinkManager from './RpmesLinkManager'
 import { useAuth } from '../context/AuthContext'
+import type { RpmesSheetData, RpmesViewSession } from '../lib/rpmesViewSession'
 import { getCanonicalProjectLgu } from '../data/region10Directory'
 import { canViewProject } from '../utils/aorAccess'
 import { getPmsProjectStatus } from '../utils/projectStatus'
 import {
-  DEFAULT_RPMES_COHORT, DEFAULT_RPMES_PROGRAM, parseRpmesValues, readRpmesSourceLinks, resolveRpmesSheet, rpmesCsvUrl,
+  DEFAULT_RPMES_PROGRAM, parseRpmesValues, readRpmesSourceLinks, resolveRpmesSheet, rpmesCsvUrl,
   rpmesProvince, rpmesSourceKey, rpmesSpreadsheetId, RPMES_PROVINCES,
   rpmesOfficialCohort, rpmesYearOptions, SUMMARY_COLUMNS, summarizeByLgu, text,
   type RpmesCohort, type RpmesProvince, type RpmesSourceKey, type RpmesSourceLinks, type StatusEntry,
@@ -14,8 +15,7 @@ import {
 import '../styles/rpmesStatusComparison.css'
 
 type Project = Record<string, unknown>
-type SheetData = { rows: StatusEntry[]; checkedAt: Date; spreadsheetId: string }
-type Props = { officialProjects: Project[]; projectSource: 'memory' | 'device' | 'network' | 'empty'; refreshProjects: () => Promise<void> }
+type Props = { officialProjects: Project[]; projectSource: 'memory' | 'device' | 'network' | 'empty'; refreshProjects: () => Promise<void>; viewSession: RpmesViewSession }
 
 const fundingOptions = ['SBDP', 'SBDP-UA'] as const
 
@@ -60,7 +60,7 @@ function readLinks(storageKey: string, legacyKey: string) {
   return readRpmesSourceLinks(saved(storageKey), saved(legacyKey))
 }
 
-async function loadRpmes(province: RpmesProvince, cohort: RpmesCohort, program: string, spreadsheetId: string): Promise<SheetData> {
+async function loadRpmes(province: RpmesProvince, cohort: RpmesCohort, program: string, spreadsheetId: string): Promise<RpmesSheetData> {
   const response = await fetch(rpmesCsvUrl(spreadsheetId), {
     credentials: 'omit', cache: 'no-store', signal: AbortSignal.timeout(15_000),
   })
@@ -75,17 +75,14 @@ async function loadRpmes(province: RpmesProvince, cohort: RpmesCohort, program: 
   return { rows: parseRpmesValues(values, province, cohort, program), checkedAt: new Date(), spreadsheetId }
 }
 
-export default function RpmesStatusComparison({ officialProjects, projectSource, refreshProjects }: Props) {
+export default function RpmesStatusComparison({ officialProjects, projectSource, refreshProjects, viewSession }: Props) {
   const auth = useAuth()
   const storageKey = `pms10:rpmes-links:v2:${auth.user?.id}`
   const legacyKey = `pms10:rpmes-links:v1:${auth.user?.id}`
-  const [links, setLinks] = useState(() => readLinks(storageKey, legacyKey))
-  const [cohort, setCohort] = useState<RpmesCohort>(DEFAULT_RPMES_COHORT)
-  const [selected, setSelected] = useState<RpmesProvince | ''>('')
-  const [sheets, setSheets] = useState<Partial<Record<RpmesSourceKey, SheetData>>>({})
-  const [errors, setErrors] = useState<RpmesSourceKey[]>([])
-  const [loading, setLoading] = useState(false)
-  const [differencesOnly, setDifferencesOnly] = useState(false)
+  const view = useSyncExternalStore(viewSession.subscribe, viewSession.getSnapshot)
+  const { reportingYear, isUa, selected, sheets, errors, loading, differencesOnly } = view
+  const [initialLinks] = useState(() => readLinks(storageKey, legacyKey))
+  const links = view.links ?? initialLinks
   const [importOpen, setImportOpen] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
   const [importProvince, setImportProvince] = useState<RpmesProvince | ''>('')
@@ -93,29 +90,27 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
   const [importError, setImportError] = useState('')
   const [notice, setNotice] = useState('')
   const [exportError, setExportError] = useState(false)
-  const busy = useRef(false)
   const usingCachedProjects = projectSource !== 'network'
 
   const program = DEFAULT_RPMES_PROGRAM
-  const reportingYear = cohort.slice(0, 4)
-  const isUa = cohort.endsWith('-UA')
+  const cohort = reportingYear ? `${reportingYear}${isUa ? '-UA' : ''}` as RpmesCohort : null
   const yearOptions = useMemo(() => rpmesYearOptions(officialProjects, DEFAULT_RPMES_PROGRAM)
     .filter((value) => !value.endsWith('-UA')), [officialProjects])
-  const comparisonLabel = `${isUa ? 'SBDP-UA' : 'SBDP'} ${reportingYear}`
+  const comparisonLabel = `${isUa ? 'SBDP-UA' : 'SBDP'} ${reportingYear}`.trim()
 
   const official = useMemo(() => officialProjects.flatMap((project): StatusEntry[] => {
     const province = rpmesProvince(project.province)
-    if (!province || rpmesOfficialCohort(project, program) !== cohort) return []
+    if (!cohort || !province || rpmesOfficialCohort(project, program) !== cohort) return []
     return [{ province, municipality: text(project.municipality), barangay: text(project.barangay), status: getPmsProjectStatus(project) }]
   }), [officialProjects, cohort, program])
   // Province labels are public metadata. Row-level AOR filtering still applies to both sources.
   const requested = selected ? [selected] : RPMES_PROVINCES
-  const sourceFor = (province: RpmesProvince) => resolveRpmesSheet(links, cohort, province, program)
+  const sourceFor = (province: RpmesProvince) => cohort ? resolveRpmesSheet(links, cohort, province, program) : undefined
   const configured = requested.flatMap((province) => {
     const id = sourceFor(province)
-    return id ? [{ province, id, key: rpmesSourceKey(cohort, province, program) }] : []
+    return id && cohort ? [{ province, id, key: rpmesSourceKey(cohort, province, program) }] : []
   })
-  const missing = requested.filter((province) => !sourceFor(province))
+  const missing = cohort ? requested.filter((province) => !sourceFor(province)) : []
   const failed = configured.filter(({ key }) => errors.includes(key))
   const ready = projectSource === 'empty' ? [] : configured.filter(({ key, id }) => sheets[key]?.spreadsheetId === id && !errors.includes(key))
   const readyProvinces = new Set(ready.map(({ province }) => province))
@@ -138,33 +133,29 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
     setNotice('')
     setImportError('')
     setImportUrl('')
-    setDifferencesOnly(false)
     setExportError(false)
   }
 
   function saveManagedLinks(next: RpmesSourceLinks, changed: RpmesSourceKey[]) {
-    if (!auth.isAdmin || busy.current) return false
+    if (!auth.isAdmin || viewSession.getSnapshot().loading) return false
     try {
       localStorage.setItem(storageKey, JSON.stringify(next))
     } catch {
       return false
     }
-    setLinks(next)
-    setSheets((previous) => {
-      const retained = { ...previous }
+    viewSession.update((previous) => {
+      const retained = { ...previous.sheets }
       changed.forEach((key) => delete retained[key])
-      return retained
+      return { links: next, sheets: retained, errors: previous.errors.filter((key) => !changed.includes(key)) }
     })
-    setErrors((previous) => previous.filter((key) => !changed.includes(key)))
     setNotice('')
     setExportError(false)
     return true
   }
 
   async function runComparison() {
-    if (busy.current || !configured.length) return
-    busy.current = true
-    setLoading(true)
+    if (viewSession.getSnapshot().loading || !cohort || !configured.length) return
+    viewSession.update({ loading: true })
     setNotice('')
     setExportError(false)
     try {
@@ -173,22 +164,23 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
         refreshProjects().catch(() => undefined),
       ])
       const failedKeys: RpmesSourceKey[] = []
-      const next: Partial<Record<RpmesSourceKey, SheetData>> = {}
+      const next: Partial<Record<RpmesSourceKey, RpmesSheetData>> = {}
       results.forEach((result, index) => {
         if (result.status === 'fulfilled') next[configured[index].key] = result.value
         else failedKeys.push(configured[index].key)
       })
-      setSheets((previous) => ({ ...previous, ...next }))
-      setErrors((previous) => [...previous.filter((key) => !configured.some((source) => source.key === key)), ...failedKeys])
+      viewSession.update((previous) => ({
+        sheets: { ...previous.sheets, ...next },
+        errors: [...previous.errors.filter((key) => !configured.some((source) => source.key === key)), ...failedKeys],
+      }))
     } finally {
-      busy.current = false
-      setLoading(false)
+      viewSession.update({ loading: false })
     }
   }
 
   async function importLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (busy.current || !importProvince) return
+    if (viewSession.getSnapshot().loading || !cohort || !importProvince) return
     const province = importProvince
     const spreadsheetId = rpmesSpreadsheetId(importUrl)
     setImportError('')
@@ -197,16 +189,15 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
       setImportError('Paste a valid Google Sheets spreadsheet link.')
       return
     }
-    busy.current = true
-    setLoading(true)
+    viewSession.update({ loading: true })
     try {
       const data = await loadRpmes(province, cohort, program, spreadsheetId)
       const key = rpmesSourceKey(cohort, province, program)
       const next = { ...links, [key]: spreadsheetId }
-      setLinks(next)
-      setSheets((previous) => ({ ...previous, [key]: data }))
-      setErrors((previous) => previous.filter((item) => item !== key))
-      setSelected(province)
+      viewSession.update((previous) => ({
+        links: next, sheets: { ...previous.sheets, [key]: data },
+        errors: previous.errors.filter((item) => item !== key), selected: province,
+      }))
       setImportOpen(false)
       setImportUrl('')
       try {
@@ -218,12 +209,12 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
     } catch (error) {
       setImportError(error instanceof Error && error.name === 'Error' ? error.message : 'Unable to read RPMES Form 2. Check the link and try again.')
     } finally {
-      busy.current = false
-      setLoading(false)
+      viewSession.update({ loading: false })
     }
   }
 
   async function exportComparison() {
+    if (!cohort || !compared.length) return
     setExportError(false)
     try {
       const xlsx = await import('xlsx')
@@ -268,29 +259,31 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
         <h1 id="pms10-rpmes-title">RPMES Comparison</h1>
         <p>SubayBAYAN Official vs. RPMES Form 2 · On-site updates excluded</p>
       </div>
-      <span className="rpmes-cohort-badge">{comparisonLabel}</span>
+      {cohort && <span className="rpmes-cohort-badge">{comparisonLabel}</span>}
     </header>
     <div className="rpmes-workspace">
       <div className="rpmes-comparison-controls rpmes-toolbar">
         <div className="rpmes-toolbar-filters" role="group" aria-label="Comparison filters">
           <label>Program <select className="rpmes-program-select" data-preserve-case aria-label="Program" value={isUa ? 'SBDP-UA' : 'SBDP'} disabled={loading}
             onChange={(event) => {
-              setCohort((reportingYear + (event.target.value === 'SBDP-UA' ? '-UA' : '')) as RpmesCohort)
+              viewSession.update({ isUa: event.target.value === 'SBDP-UA', differencesOnly: false })
               resetComparisonSelection()
             }}>
             {fundingOptions.map((value) => <option value={value} key={value}>{value}</option>)}
           </select></label>
           <label>Reporting year <select aria-label="Reporting year" value={reportingYear} disabled={loading}
             onChange={(event) => {
-              setCohort((event.target.value + (isUa ? '-UA' : '')) as RpmesCohort)
+              viewSession.update({ reportingYear: event.target.value, differencesOnly: false })
+              if (!event.target.value) setImportOpen(false)
               resetComparisonSelection()
             }}>
+            <option value="">Select year</option>
             {yearOptions.map((value) => <option value={value} key={value}>FY {value}</option>)}
           </select></label>
           <label>Province <select aria-label="Province" value={selected} disabled={loading}
             onChange={(event) => {
               const province = event.target.value as RpmesProvince | ''
-              setSelected(province)
+              viewSession.update({ selected: province })
               setImportProvince(province)
               setImportUrl('')
               setImportError('')
@@ -308,7 +301,7 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
           {ready.length ? 'Refresh' : 'Compare'}
         </button>
         <div className="rpmes-actions rpmes-workbook-actions" role="group" aria-label="Workbook tools">
-          <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-label="Import RPMES Link" title="Import RPMES Link" aria-controls="rpmes-import-link" aria-expanded={importOpen} disabled={loading}
+          <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-label="Import RPMES Link" title="Import RPMES Link" aria-controls="rpmes-import-link" aria-expanded={importOpen} disabled={loading || !cohort}
             onClick={() => {
               if (!importOpen) {
                 setManagerOpen(false)
@@ -327,10 +320,10 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
             onClick={() => void exportComparison()}><RpmesToolbarIcon name="export" /><span className="rpmes-action-label">Excel</span></button>
         </div>
       </div>
-      <div className="rpmes-link-status">
+      {cohort && <div className="rpmes-link-status">
         <strong>{configured.length} of {requested.length} {requested.length === 1 ? 'province' : 'provinces'} linked</strong>
         {missing.length > 0 && <span>No link yet for {missing.join(', ')}. Unlinked provinces are excluded from totals.</span>}
-      </div>
+      </div>}
       {auth.isAdmin && <RpmesLinkManager open={managerOpen} disabled={loading} yearOptions={yearOptions}
         initialYear={reportingYear} links={links} onSave={saveManagedLinks} />}
       {importOpen && <form id="rpmes-import-link" className="rpmes-import" onSubmit={importLink}>
@@ -357,7 +350,8 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
     </p>}
     {exportError && <p role="alert">Could not export the comparison. Please try again.</p>}
     {projectSource === 'empty' && <p role="status">Waiting for official PMS10 project records.</p>}
-    {!configured.length && <div className="rpmes-empty">
+    {!cohort && <p>Select a reporting year to compare project statuses.</p>}
+    {cohort && !configured.length && <div className="rpmes-empty">
       <strong>No RPMES workbook linked for this selection</strong>
       <p>Use {auth.isAdmin && 'Manage RPMES Links or '}Import RPMES Link to add a workbook for {comparisonLabel}. A missing link does not mean there are zero projects.</p>
     </div>}
@@ -371,7 +365,7 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
           <div><strong>{differing.length}</strong> {differing.length === 1 ? 'LGU differs' : 'LGUs differ'}</div>
         </div>
         {compared.length > 0 && <div className="rpmes-table-options">
-          <label><input type="checkbox" checked={differencesOnly} onChange={(event) => setDifferencesOnly(event.target.checked)} /> Differences only</label>
+          <label><input type="checkbox" checked={differencesOnly} onChange={(event) => viewSession.update({ differencesOnly: event.target.checked })} /> Differences only</label>
         </div>}
       </div>
       {visible.length > 0 && <p className="rpmes-table-guide">{differencesOnly && <>Showing {visible.length} of {compared.length} LGUs · </>}Highlighted cells show PMS SubayBAYAN and RPMES values separately.</p>}

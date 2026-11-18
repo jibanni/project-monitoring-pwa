@@ -1,8 +1,9 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import type { ComponentProps, ReactNode } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { createRpmesViewSession } from './lib/rpmesViewSession'
 import { routeLoaders } from './lib/routePreload'
 import { getLastProtectedRoute } from './lib/navigationMemory'
 import { hasPasswordRecoveryIntent } from './lib/supabase'
@@ -78,6 +79,16 @@ function ResumeLastProtectedRoute() {
   return <Navigate to={getLastProtectedRoute('/dashboard')} replace />
 }
 
+function WorkspaceOutlet() {
+  const { user } = useAuth()
+  return <WorkspaceSession key={user?.id} />
+}
+
+function WorkspaceSession() {
+  const [rpmesView] = useState(createRpmesViewSession)
+  return <Outlet context={rpmesView} />
+}
+
 /**
  * This shell is mounted once for every authenticated route. The previous route
  * structure recreated Layout on each navbar click, repeating header effects,
@@ -88,7 +99,7 @@ function ProtectedAppShell() {
     <ProtectedRoute>
       <Layout>
         <Suspense fallback={<PageLoader />}>
-          <Outlet />
+          <WorkspaceOutlet />
         </Suspense>
       </Layout>
     </ProtectedRoute>
