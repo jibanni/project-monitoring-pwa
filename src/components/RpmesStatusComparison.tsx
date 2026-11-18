@@ -6,7 +6,7 @@ import { canViewProject } from '../utils/aorAccess'
 import { getPmsProjectStatus } from '../utils/projectStatus'
 import {
   DEFAULT_RPMES_COHORT, DEFAULT_RPMES_PROGRAM, defaultRpmesSheet, parseRpmesValues, readRpmesSourceLinks, rpmesCsvUrl,
-  rpmesProvince, rpmesSourceKey, rpmesSpreadsheetId, RPMES_PROGRAMS, RPMES_PROVINCES,
+  rpmesProvince, rpmesSourceKey, rpmesSpreadsheetId, RPMES_PROVINCES,
   rpmesOfficialCohort, rpmesYearOptions, SUMMARY_COLUMNS, summarizeByLgu, text,
   type RpmesCohort, type RpmesProvince, type RpmesSourceKey, type StatusEntry,
 } from '../utils/rpmesStatusComparison'
@@ -15,6 +15,8 @@ import '../styles/rpmesStatusComparison.css'
 type Project = Record<string, unknown>
 type SheetData = { rows: StatusEntry[]; checkedAt: Date; spreadsheetId: string }
 type Props = { officialProjects: Project[]; projectSource: 'memory' | 'device' | 'network' | 'empty'; refreshProjects: () => Promise<void> }
+
+const fundingOptions = ['SBDP', 'SBDP-UA'] as const
 
 const dateLabel = (date: Date) => new Intl.DateTimeFormat('en-PH', {
   dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila',
@@ -64,7 +66,6 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
   const storageKey = `pms10:rpmes-links:v2:${auth.user?.id}`
   const legacyKey = `pms10:rpmes-links:v1:${auth.user?.id}`
   const [links, setLinks] = useState(() => readLinks(storageKey, legacyKey))
-  const [program, setProgram] = useState(DEFAULT_RPMES_PROGRAM)
   const [cohort, setCohort] = useState<RpmesCohort>(DEFAULT_RPMES_COHORT)
   const [selected, setSelected] = useState<RpmesProvince | ''>('')
   const [sheets, setSheets] = useState<Partial<Record<RpmesSourceKey, SheetData>>>({})
@@ -80,8 +81,12 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
   const busy = useRef(false)
   const usingCachedProjects = projectSource !== 'network'
 
-  const yearOptions = useMemo(() => rpmesYearOptions(officialProjects, program), [officialProjects, program])
-  const comparisonLabel = `${program} ${cohort}`
+  const program = DEFAULT_RPMES_PROGRAM
+  const reportingYear = cohort.slice(0, 4)
+  const isUa = cohort.endsWith('-UA')
+  const yearOptions = useMemo(() => rpmesYearOptions(officialProjects, DEFAULT_RPMES_PROGRAM)
+    .filter((value) => !value.endsWith('-UA')), [officialProjects])
+  const comparisonLabel = `${isUa ? 'SBDP-UA' : 'SBDP'} ${reportingYear}`
 
   const official = useMemo(() => officialProjects.flatMap((project): StatusEntry[] => {
     const province = rpmesProvince(project.province)
@@ -234,21 +239,19 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
     </header>
     <div className="rpmes-workspace">
       <div className="rpmes-comparison-controls rpmes-toolbar">
-        <label>Program <select aria-label="Program" value={program} disabled={loading}
+        <label>Program <select className="rpmes-program-select" data-preserve-case aria-label="Program" value={isUa ? 'SBDP-UA' : 'SBDP'} disabled={loading}
           onChange={(event) => {
-            const next = event.target.value
-            setProgram(next)
-            if (!rpmesYearOptions(officialProjects, next).includes(cohort)) setCohort(DEFAULT_RPMES_COHORT)
+            setCohort((reportingYear + (event.target.value === 'SBDP-UA' ? '-UA' : '')) as RpmesCohort)
             resetComparisonSelection()
           }}>
-          {RPMES_PROGRAMS.map((value) => <option value={value} key={value}>{value}</option>)}
+          {fundingOptions.map((value) => <option value={value} key={value}>{value}</option>)}
         </select></label>
-        <label>Reporting year <select aria-label="Reporting year" value={cohort} disabled={loading}
+        <label>Reporting year <select aria-label="Reporting year" value={reportingYear} disabled={loading}
           onChange={(event) => {
-            setCohort(event.target.value as RpmesCohort)
+            setCohort((event.target.value + (isUa ? '-UA' : '')) as RpmesCohort)
             resetComparisonSelection()
           }}>
-          {yearOptions.map((value) => <option value={value} key={value}>{value.endsWith('-UA') ? `FY ${value.slice(0, 4)} · UA` : `FY ${value} · Regular`}</option>)}
+          {yearOptions.map((value) => <option value={value} key={value}>FY {value}</option>)}
         </select></label>
         <label>Province <select aria-label="Province" value={selected} disabled={loading}
           onChange={(event) => {

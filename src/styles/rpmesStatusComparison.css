@@ -30,6 +30,9 @@
   .rpmes-comparison-controls .rpmes-primary { background: #15558d; border-color: #15558d; color: white; }
   .rpmes-workspace { border: 1px solid #d9e6f2; border-radius: 10px; background: #f7faff; padding: 11px 13px; }
   .rpmes-workspace .rpmes-toolbar { margin: 0; align-items: flex-end; }
+  .rpmes-comparison .rpmes-program-select, .rpmes-comparison .rpmes-program-select option {
+    text-transform: none !important;
+  }
   .rpmes-toolbar > label, .rpmes-import-fields > label { flex-direction: column; align-items: stretch; gap: 4px; font-size: .75rem; font-weight: 700; }
   .rpmes-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-left: auto; }
   .rpmes-workspace :is(button, select, input) { min-height: 34px; }

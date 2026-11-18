@@ -119,6 +119,8 @@ function isLocationScope(element: Element) {
 
 function normalizeElement(element: Element) {
   if (!(element instanceof HTMLElement)) return
+  // Program labels are acronyms, not locations. Preserve explicitly opted-in labels.
+  if (element.closest('[data-preserve-case]')) return
   if (!isLocationScope(element)) return
 
   element.style.textTransform = 'none'
