@@ -265,9 +265,8 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
   return <section className="rpmes-comparison" aria-labelledby="pms10-rpmes-title">
     <header className="rpmes-page-heading">
       <div>
-        <p className="rpmes-eyebrow">Region X · Project monitoring</p>
         <h1 id="pms10-rpmes-title">RPMES Comparison</h1>
-        <p>Compare SubayBAYAN Official with RPMES Form 2. Actual on-site updates are excluded.</p>
+        <p>SubayBAYAN Official vs. RPMES Form 2 · On-site updates excluded</p>
       </div>
       <span className="rpmes-cohort-badge">{comparisonLabel}</span>
     </header>
@@ -302,18 +301,14 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
           </select></label>
         </div>
         <button type="button" className="rpmes-primary rpmes-toolbar-button rpmes-compare-button"
+          aria-label={ready.length ? 'Refresh comparison' : 'Compare statuses'}
+          title={ready.length ? 'Refresh comparison' : 'Compare statuses'}
           onClick={() => void runComparison()} disabled={loading || !configured.length}>
           <RpmesToolbarIcon name={ready.length ? 'refresh' : 'compare'} />
-          {ready.length ? 'Refresh comparison' : 'Compare statuses'}
+          {ready.length ? 'Refresh' : 'Compare'}
         </button>
-      </div>
-      <div className="rpmes-comparison-controls rpmes-workbook-bar">
-        <div className="rpmes-link-status">
-          <strong>{configured.length} of {requested.length} {requested.length === 1 ? 'province' : 'provinces'} linked</strong>
-          {missing.length > 0 && <span>No link yet for {missing.join(', ')}. Unlinked provinces are excluded from totals.</span>}
-        </div>
         <div className="rpmes-actions rpmes-workbook-actions" role="group" aria-label="Workbook tools">
-          <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-controls="rpmes-import-link" aria-expanded={importOpen} disabled={loading}
+          <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-label="Import RPMES Link" title="Import RPMES Link" aria-controls="rpmes-import-link" aria-expanded={importOpen} disabled={loading}
             onClick={() => {
               if (!importOpen) {
                 setManagerOpen(false)
@@ -322,15 +317,19 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
                 setImportError('')
               }
               setImportOpen(!importOpen)
-            }}><RpmesToolbarIcon name="import" />Import RPMES Link</button>
-          {auth.isAdmin && <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-controls="rpmes-link-manager" aria-expanded={managerOpen} disabled={loading}
+            }}><RpmesToolbarIcon name="import" /><span className="rpmes-action-label">Import</span></button>
+          {auth.isAdmin && <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-label="Manage RPMES Links" title="Manage RPMES Links" aria-controls="rpmes-link-manager" aria-expanded={managerOpen} disabled={loading}
             onClick={() => {
               if (!managerOpen) setImportOpen(false)
               setManagerOpen(!managerOpen)
-            }}><RpmesToolbarIcon name="links" />Manage RPMES Links</button>}
-          <button className="rpmes-toolbar-button rpmes-excel-button" type="button" disabled={loading || !compared.length}
-            onClick={() => void exportComparison()}><RpmesToolbarIcon name="export" />Export Excel</button>
+            }}><RpmesToolbarIcon name="links" /><span className="rpmes-action-label">Links</span></button>}
+          <button className="rpmes-toolbar-button rpmes-excel-button" type="button" aria-label="Export Excel" title="Export Excel" disabled={loading || !compared.length}
+            onClick={() => void exportComparison()}><RpmesToolbarIcon name="export" /><span className="rpmes-action-label">Excel</span></button>
         </div>
+      </div>
+      <div className="rpmes-link-status">
+        <strong>{configured.length} of {requested.length} {requested.length === 1 ? 'province' : 'provinces'} linked</strong>
+        {missing.length > 0 && <span>No link yet for {missing.join(', ')}. Unlinked provinces are excluded from totals.</span>}
       </div>
       {auth.isAdmin && <RpmesLinkManager open={managerOpen} disabled={loading} yearOptions={yearOptions}
         initialYear={reportingYear} links={links} onSave={saveManagedLinks} />}
@@ -364,19 +363,27 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
     </div>}
     {ready.length > 0 && <>
       {usingCachedProjects && <p role="status">PMS SubayBAYAN is showing cached records.</p>}
-      <div className="rpmes-summary" aria-label="Comparison totals">
-        <div><strong>{compared.length}</strong> LGUs covered <span>across {provinceCount} {provinceCount === 1 ? 'province' : 'provinces'}</span></div>
-        <div><strong>{subayProjectCount}</strong> PMS SubayBAYAN projects</div>
-        <div><strong>{rpmesProjectCount}</strong> RPMES projects</div>
-        <div><strong>{differing.length}</strong> {differing.length === 1 ? 'LGU' : 'LGUs'} with differences</div>
+      <div className="rpmes-results-bar">
+        <div className="rpmes-summary" role="group" aria-label="Comparison totals">
+          <div><strong>{compared.length}</strong> {compared.length === 1 ? 'LGU' : 'LGUs'} <span>· {provinceCount} {provinceCount === 1 ? 'province' : 'provinces'}</span></div>
+          <div><strong>{subayProjectCount}</strong> PMS {subayProjectCount === 1 ? 'project' : 'projects'}</div>
+          <div><strong>{rpmesProjectCount}</strong> RPMES {rpmesProjectCount === 1 ? 'project' : 'projects'}</div>
+          <div><strong>{differing.length}</strong> {differing.length === 1 ? 'LGU differs' : 'LGUs differ'}</div>
+        </div>
+        {compared.length > 0 && <div className="rpmes-table-options">
+          <label><input type="checkbox" checked={differencesOnly} onChange={(event) => setDifferencesOnly(event.target.checked)} /> Differences only</label>
+        </div>}
       </div>
-      {compared.length > 0 && <div className="rpmes-table-options">
-        <p>One number means both sources agree. Highlighted cells show each source’s figure.</p>
-        <label><input type="checkbox" checked={differencesOnly} onChange={(event) => setDifferencesOnly(event.target.checked)} /> Show differences only</label>
-      </div>}
+      {visible.length > 0 && <p className="rpmes-table-guide">{differencesOnly && <>Showing {visible.length} of {compared.length} LGUs · </>}Highlighted cells show PMS SubayBAYAN and RPMES values separately.</p>}
       {visible.length > 0 && <div className="rpmes-comparison-table" tabIndex={0} role="region" aria-label="LGU status summary">
         <table>
-          <caption>Showing {visible.length} of {compared.length} LGUs</caption>
+          <caption className="rpmes-sr-only">Showing {visible.length} of {compared.length} LGUs</caption>
+          <colgroup>
+            <col className="rpmes-col-province" /><col className="rpmes-col-lgu" />
+            <col className="rpmes-col-projects" /><col className="rpmes-col-barangays" />
+            <col className="rpmes-col-not-started" /><col className="rpmes-col-ongoing" />
+            <col className="rpmes-col-completed" /><col className="rpmes-col-rate" />
+          </colgroup>
           <thead>
             <tr>
               <th scope="col">Province</th><th scope="col">LGU</th>
@@ -393,7 +400,7 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
                 const differs = subay !== rpmes
                 return <td key={key} data-diff={differs}>
                   {differs ? <div className="rpmes-metric-difference">
-                    <span><span>SubayBAYAN</span> <strong>{subay}</strong></span>
+                    <span><span aria-hidden="true">PMS</span><span className="rpmes-sr-only">PMS SubayBAYAN </span><strong>{subay}</strong></span>
                     <span><span>RPMES</span> <strong>{rpmes}</strong></span>
                   </div> : subay}
                 </td>
@@ -405,7 +412,7 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
       {!compared.length && <p>No projects were found in the selected scope.</p>}
       {differencesOnly && compared.length > 0 && !visible.length && <p role="status">No differences in the displayed metrics for the selected LGUs.</p>}
       {compared.length > 0 && <section className="rpmes-status-summary" aria-labelledby="rpmes-status-summary-title">
-        <h2 id="rpmes-status-summary-title">Summary{differencesOnly && <span>All {compared.length} LGUs in scope</span>}</h2>
+        <h2 id="rpmes-status-summary-title">Status totals{differencesOnly && <span>All {compared.length} LGUs in scope</span>}</h2>
         <table aria-labelledby="rpmes-status-summary-title">
           <thead><tr>
             <th scope="col">Project status</th>
