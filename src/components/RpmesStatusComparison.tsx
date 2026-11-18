@@ -1,14 +1,15 @@
 import { useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import RpmesLinkManager from './RpmesLinkManager'
 import { useAuth } from '../context/AuthContext'
 import { getCanonicalProjectLgu } from '../data/region10Directory'
 import { canViewProject } from '../utils/aorAccess'
 import { getPmsProjectStatus } from '../utils/projectStatus'
 import {
-  DEFAULT_RPMES_COHORT, DEFAULT_RPMES_PROGRAM, defaultRpmesSheet, parseRpmesValues, readRpmesSourceLinks, rpmesCsvUrl,
+  DEFAULT_RPMES_COHORT, DEFAULT_RPMES_PROGRAM, parseRpmesValues, readRpmesSourceLinks, resolveRpmesSheet, rpmesCsvUrl,
   rpmesProvince, rpmesSourceKey, rpmesSpreadsheetId, RPMES_PROVINCES,
   rpmesOfficialCohort, rpmesYearOptions, SUMMARY_COLUMNS, summarizeByLgu, text,
-  type RpmesCohort, type RpmesProvince, type RpmesSourceKey, type StatusEntry,
+  type RpmesCohort, type RpmesProvince, type RpmesSourceKey, type RpmesSourceLinks, type StatusEntry,
 } from '../utils/rpmesStatusComparison'
 import '../styles/rpmesStatusComparison.css'
 
@@ -73,6 +74,7 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
   const [loading, setLoading] = useState(false)
   const [differencesOnly, setDifferencesOnly] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [managerOpen, setManagerOpen] = useState(false)
   const [importProvince, setImportProvince] = useState<RpmesProvince | ''>('')
   const [importUrl, setImportUrl] = useState('')
   const [importError, setImportError] = useState('')
@@ -95,14 +97,14 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
   }), [officialProjects, cohort, program])
   // Province labels are public metadata. Row-level AOR filtering still applies to both sources.
   const requested = selected ? [selected] : RPMES_PROVINCES
-  const sourceFor = (province: RpmesProvince) => links[rpmesSourceKey(cohort, province, program)] ?? defaultRpmesSheet(cohort, province, program)
+  const sourceFor = (province: RpmesProvince) => resolveRpmesSheet(links, cohort, province, program)
   const configured = requested.flatMap((province) => {
     const id = sourceFor(province)
     return id ? [{ province, id, key: rpmesSourceKey(cohort, province, program) }] : []
   })
   const missing = requested.filter((province) => !sourceFor(province))
   const failed = configured.filter(({ key }) => errors.includes(key))
-  const ready = projectSource === 'empty' ? [] : configured.filter(({ key }) => sheets[key] && !errors.includes(key))
+  const ready = projectSource === 'empty' ? [] : configured.filter(({ key, id }) => sheets[key]?.spreadsheetId === id && !errors.includes(key))
   const readyProvinces = new Set(ready.map(({ province }) => province))
   const rpmes = ready.flatMap(({ key }) => sheets[key]!.rows.filter((entry) => canViewProject(entry, auth)))
   const compared = summarizeByLgu(official.filter((entry) => readyProvinces.has(entry.province)), rpmes, getCanonicalProjectLgu)
@@ -125,6 +127,25 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
     setImportUrl('')
     setDifferencesOnly(false)
     setExportError(false)
+  }
+
+  function saveManagedLinks(next: RpmesSourceLinks, changed: RpmesSourceKey[]) {
+    if (busy.current) return false
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(next))
+    } catch {
+      return false
+    }
+    setLinks(next)
+    setSheets((previous) => {
+      const retained = { ...previous }
+      changed.forEach((key) => delete retained[key])
+      return retained
+    })
+    setErrors((previous) => previous.filter((key) => !changed.includes(key)))
+    setNotice('')
+    setExportError(false)
+    return true
   }
 
   async function runComparison() {
@@ -272,12 +293,18 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
           <button className="rpmes-secondary" type="button" aria-controls="rpmes-import-link" aria-expanded={importOpen} disabled={loading}
             onClick={() => {
               if (!importOpen) {
+                setManagerOpen(false)
                 setImportProvince(selected)
                 setImportUrl('')
                 setImportError('')
               }
               setImportOpen(!importOpen)
             }}>Import RPMES Link</button>
+          <button className="rpmes-secondary" type="button" aria-controls="rpmes-link-manager" aria-expanded={managerOpen} disabled={loading}
+            onClick={() => {
+              if (!managerOpen) setImportOpen(false)
+              setManagerOpen(!managerOpen)
+            }}>Manage RPMES Links</button>
           <button type="button" disabled={loading || !compared.length} onClick={() => void exportComparison()}>Export Excel</button>
         </div>
       </div>
@@ -285,6 +312,8 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
         <strong>{configured.length} of {requested.length} {requested.length === 1 ? 'province' : 'provinces'} linked</strong>
         {missing.length > 0 && <span>No link yet for {missing.join(', ')}. Unlinked provinces are excluded from totals.</span>}
       </div>
+      <RpmesLinkManager open={managerOpen} disabled={loading} yearOptions={yearOptions}
+        initialYear={reportingYear} links={links} onSave={saveManagedLinks} />
       {importOpen && <form id="rpmes-import-link" className="rpmes-import" onSubmit={importLink}>
         <p><strong>Link a province workbook for {comparisonLabel}</strong></p>
         <p>Use the standard RPMES Form 2 tab for this program and year. The sheet may contain both regular and UA projects. Only the selected funding type is compared. Links are saved in this browser.</p>
@@ -311,7 +340,7 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
     {projectSource === 'empty' && <p role="status">Waiting for official PMS10 project records.</p>}
     {!configured.length && <div className="rpmes-empty">
       <strong>No RPMES workbook linked for this selection</strong>
-      <p>Use Import RPMES Link to add a workbook for {comparisonLabel}. A missing link does not mean there are zero projects.</p>
+      <p>Use Manage RPMES Links or Import RPMES Link to add a workbook for {comparisonLabel}. A missing link does not mean there are zero projects.</p>
     </div>}
     {ready.length > 0 && <>
       {usingCachedProjects && <p role="status">PMS SubayBAYAN is showing cached records.</p>}

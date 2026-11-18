@@ -46,6 +46,22 @@
   .rpmes-import-fields { align-items: flex-end; }
   .rpmes-comparison-controls .rpmes-link-field { flex: 1 1 300px; }
   .rpmes-link-field input { flex: 1; min-width: 130px; }
+  .rpmes-link-manager { margin-top: 10px; padding: 12px; border: 1px solid #d5e3f0; border-radius: 9px; background: white; }
+  .rpmes-link-manager-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .rpmes-link-manager-heading h2 { margin: 0; color: #214d77; font-size: 1rem; }
+  .rpmes-link-manager-year { display: flex; flex-direction: column; flex: none; gap: 4px; font-size: .75rem; font-weight: 700; }
+  .rpmes-link-manager :is(select, input) { border: 1px solid #b9cde0; border-radius: 7px; background: #f8fbff; padding: 6px 9px; color: #183d6a; font: inherit; }
+  .rpmes-link-manager-table-wrap { overflow-x: auto; border: 1px solid #dce7f1; border-radius: 8px; margin-top: 9px; }
+  .rpmes-link-manager-table { width: 100%; min-width: 490px; table-layout: fixed; border-collapse: collapse; text-align: left; font-size: .82rem; }
+  .rpmes-link-manager-table :is(th, td) { padding: 7px 9px; border-bottom: 1px solid #e3edf6; }
+  .rpmes-link-manager-table thead { background: #edf5ff; color: #214d77; }
+  .rpmes-link-manager-table thead th:first-child { width: 155px; }
+  .rpmes-link-manager-table tbody tr:last-child > * { border-bottom: 0; }
+  .rpmes-link-manager-table input { width: 100%; min-width: 0; }
+  .rpmes-link-manager-table input[aria-invalid="true"] { border-color: #9e321b; }
+  .rpmes-link-manager .rpmes-link-manager-footer { margin: 8px 0 0; }
+  .rpmes-link-manager-footer .rpmes-actions span { color: #526a82; font-size: .75rem; }
+
   .rpmes-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
   .rpmes-summary > div { padding: 9px 11px; background: #f2f7fc; border: 1px solid #d9e6f2; border-radius: 8px; font-size: .8rem; }
   .rpmes-summary strong { display: block; font-size: 1.2rem; font-variant-numeric: tabular-nums; }

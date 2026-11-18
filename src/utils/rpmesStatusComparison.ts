@@ -24,7 +24,51 @@ export function rpmesSourceKey(cohort: RpmesCohort, province: RpmesProvince, pro
 }
 
 export type RpmesSourceKey = ReturnType<typeof rpmesSourceKey>
-export type RpmesSourceLinks = Partial<Record<RpmesSourceKey, string>>
+// null explicitly removes a link, including built-in and migrated links.
+export type RpmesSourceLinks = Partial<Record<RpmesSourceKey, string | null>>
+
+export function resolveRpmesSheet(links: RpmesSourceLinks, cohort: RpmesCohort, province: RpmesProvince, program = DEFAULT_RPMES_PROGRAM) {
+  const id = links[rpmesSourceKey(cohort, province, program)]
+  return id === null ? undefined : id ?? defaultRpmesSheet(cohort, province, program)
+}
+
+export const RPMES_LINK_VARIANTS = [
+  { label: 'SBDP', suffix: '' },
+  { label: 'SBDP-UA', suffix: '-UA' },
+] as const
+
+export function rpmesLinkSlots(year: string) {
+  if (!/^20\d{2}$/.test(year)) return []
+  return RPMES_PROVINCES.flatMap((province) => RPMES_LINK_VARIANTS.map(({ label, suffix }) => {
+    const cohort = (year + suffix) as RpmesCohort
+    return { province, year, label, cohort, key: rpmesSourceKey(cohort, province) }
+  }))
+}
+
+export type RpmesLinkSlot = ReturnType<typeof rpmesLinkSlots>[number]
+
+export function rpmesSheetLink(id: string | undefined) {
+  return id ? `https://docs.google.com/spreadsheets/d/${id}/edit` : ''
+}
+
+export function prepareRpmesLinkSettings(links: RpmesSourceLinks, slots: RpmesLinkSlot[], drafts: Partial<Record<RpmesSourceKey, string>>) {
+  const next = { ...links }
+  const changed: RpmesSourceKey[] = []
+  const invalid: RpmesLinkSlot[] = []
+  for (const slot of slots) {
+    const draft = drafts[slot.key]
+    if (draft === undefined) continue
+    const value = text(draft)
+    const id = value ? rpmesSpreadsheetId(value) : undefined
+    if (value && !id) {
+      invalid.push(slot)
+    } else if (id !== resolveRpmesSheet(links, slot.cohort, slot.province)) {
+      next[slot.key] = id ?? null
+      changed.push(slot.key)
+    }
+  }
+  return { next, changed, invalid }
+}
 
 export type StatusEntry = {
   province: RpmesProvince
@@ -110,7 +154,7 @@ export function readRpmesSourceLinks(current: unknown, legacy: unknown): RpmesSo
   const links: RpmesSourceLinks = {}
   if (current && typeof current === 'object') {
     for (const [key, id] of Object.entries(current)) {
-      if (!validId(id)) continue
+      if (id !== null && !validId(id)) continue
       const parts = key.split(':')
       if (parts.length !== 2 && parts.length !== 3) continue
       const [cohort, province] = parts.slice(-2)
@@ -124,7 +168,7 @@ export function readRpmesSourceLinks(current: unknown, legacy: unknown): RpmesSo
     for (const province of RPMES_PROVINCES) {
       const id = Object.hasOwn(legacy, province) ? (legacy as Record<string, unknown>)[province] : undefined
       const key = rpmesSourceKey(DEFAULT_RPMES_COHORT, province)
-      if (validId(id)) links[key] ??= id
+      if (validId(id) && !Object.hasOwn(links, key)) links[key] = id
     }
   }
   return links
