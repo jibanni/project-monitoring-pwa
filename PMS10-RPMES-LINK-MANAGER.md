@@ -1,6 +1,6 @@
 # Manage RPMES Links
 
-In the desktop RPMES Comparison page, open **Manage RPMES Links**. Pick a reporting year and paste the Google Sheets workbook links into the SBDP or SBDP-UA column for each province. You can change years and continue entering links before selecting **Save links** once.
+On the desktop RPMES Comparison page, approved, active PMS10 admins can open **Manage RPMES Links**. Other users do not see the button or panel. The comparison and single-link import keep their existing access. Pick a reporting year and paste the Google Sheets workbook links into the SBDP or SBDP-UA column for each province. You can change years and continue entering links before selecting **Save links** once.
 
 Saved links are specific to the signed-in account in the current browser. Existing links are available for editing. Clearing a field and saving removes that link. No link is preloaded by this update.
 

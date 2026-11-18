@@ -143,7 +143,7 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
   }
 
   function saveManagedLinks(next: RpmesSourceLinks, changed: RpmesSourceKey[]) {
-    if (busy.current) return false
+    if (!auth.isAdmin || busy.current) return false
     try {
       localStorage.setItem(storageKey, JSON.stringify(next))
     } catch {
@@ -323,17 +323,17 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
               }
               setImportOpen(!importOpen)
             }}><RpmesToolbarIcon name="import" />Import RPMES Link</button>
-          <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-controls="rpmes-link-manager" aria-expanded={managerOpen} disabled={loading}
+          {auth.isAdmin && <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-controls="rpmes-link-manager" aria-expanded={managerOpen} disabled={loading}
             onClick={() => {
               if (!managerOpen) setImportOpen(false)
               setManagerOpen(!managerOpen)
-            }}><RpmesToolbarIcon name="links" />Manage RPMES Links</button>
+            }}><RpmesToolbarIcon name="links" />Manage RPMES Links</button>}
           <button className="rpmes-toolbar-button rpmes-excel-button" type="button" disabled={loading || !compared.length}
             onClick={() => void exportComparison()}><RpmesToolbarIcon name="export" />Export Excel</button>
         </div>
       </div>
-      <RpmesLinkManager open={managerOpen} disabled={loading} yearOptions={yearOptions}
-        initialYear={reportingYear} links={links} onSave={saveManagedLinks} />
+      {auth.isAdmin && <RpmesLinkManager open={managerOpen} disabled={loading} yearOptions={yearOptions}
+        initialYear={reportingYear} links={links} onSave={saveManagedLinks} />}
       {importOpen && <form id="rpmes-import-link" className="rpmes-import" onSubmit={importLink}>
         <p><strong>Link a province workbook for {comparisonLabel}</strong></p>
         <p>Use the standard RPMES Form 2 tab for this program and year. The sheet may contain both regular and UA projects. Only the selected funding type is compared. Links are saved in this browser.</p>
@@ -360,7 +360,7 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
     {projectSource === 'empty' && <p role="status">Waiting for official PMS10 project records.</p>}
     {!configured.length && <div className="rpmes-empty">
       <strong>No RPMES workbook linked for this selection</strong>
-      <p>Use Manage RPMES Links or Import RPMES Link to add a workbook for {comparisonLabel}. A missing link does not mean there are zero projects.</p>
+      <p>Use {auth.isAdmin && 'Manage RPMES Links or '}Import RPMES Link to add a workbook for {comparisonLabel}. A missing link does not mean there are zero projects.</p>
     </div>}
     {ready.length > 0 && <>
       {usingCachedProjects && <p role="status">PMS SubayBAYAN is showing cached records.</p>}
