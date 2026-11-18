@@ -19,6 +19,19 @@ type Props = { officialProjects: Project[]; projectSource: 'memory' | 'device' |
 
 const fundingOptions = ['SBDP', 'SBDP-UA'] as const
 
+const toolbarIconPaths = {
+  compare: 'M4 19h16M7 15v-4m5 4V5m5 10V8',
+  refresh: 'M20 11a8 8 0 0 0-14-5L3 9m0 0V4m0 5h5m-4 4a8 8 0 0 0 14 5l3-3m0 0v5m0-5h-5',
+  import: 'M12 16V4m-4 4 4-4 4 4M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4',
+  links: 'M10 13a4 4 0 0 0 6 0l3-3a4 4 0 1 0-6-6l-2 2m3 5a4 4 0 0 0-6 0l-3 3a4 4 0 1 0 6 6l2-2',
+  export: 'M12 4v12m-4-4 4 4 4-4M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3',
+} as const
+
+function RpmesToolbarIcon({ name }: { name: keyof typeof toolbarIconPaths }) {
+  return <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={toolbarIconPaths[name]} /></svg>
+}
+
 const dateLabel = (date: Date) => new Intl.DateTimeFormat('en-PH', {
   dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila',
 }).format(date)
@@ -260,37 +273,47 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
     </header>
     <div className="rpmes-workspace">
       <div className="rpmes-comparison-controls rpmes-toolbar">
-        <label>Program <select className="rpmes-program-select" data-preserve-case aria-label="Program" value={isUa ? 'SBDP-UA' : 'SBDP'} disabled={loading}
-          onChange={(event) => {
-            setCohort((reportingYear + (event.target.value === 'SBDP-UA' ? '-UA' : '')) as RpmesCohort)
-            resetComparisonSelection()
-          }}>
-          {fundingOptions.map((value) => <option value={value} key={value}>{value}</option>)}
-        </select></label>
-        <label>Reporting year <select aria-label="Reporting year" value={reportingYear} disabled={loading}
-          onChange={(event) => {
-            setCohort((event.target.value + (isUa ? '-UA' : '')) as RpmesCohort)
-            resetComparisonSelection()
-          }}>
-          {yearOptions.map((value) => <option value={value} key={value}>FY {value}</option>)}
-        </select></label>
-        <label>Province <select aria-label="Province" value={selected} disabled={loading}
-          onChange={(event) => {
-            const province = event.target.value as RpmesProvince | ''
-            setSelected(province)
-            setImportProvince(province)
-            setImportUrl('')
-            setImportError('')
-            setNotice('')
-          }}>
-          <option value="">All five provinces</option>
-          {RPMES_PROVINCES.map((province) => <option key={province}>{province}</option>)}
-        </select></label>
-        <div className="rpmes-actions">
-          <button type="button" className="rpmes-primary" onClick={() => void runComparison()} disabled={loading || !configured.length}>
-            {ready.length ? 'Refresh comparison' : 'Compare statuses'}
-          </button>
-          <button className="rpmes-secondary" type="button" aria-controls="rpmes-import-link" aria-expanded={importOpen} disabled={loading}
+        <div className="rpmes-toolbar-filters" role="group" aria-label="Comparison filters">
+          <label>Program <select className="rpmes-program-select" data-preserve-case aria-label="Program" value={isUa ? 'SBDP-UA' : 'SBDP'} disabled={loading}
+            onChange={(event) => {
+              setCohort((reportingYear + (event.target.value === 'SBDP-UA' ? '-UA' : '')) as RpmesCohort)
+              resetComparisonSelection()
+            }}>
+            {fundingOptions.map((value) => <option value={value} key={value}>{value}</option>)}
+          </select></label>
+          <label>Reporting year <select aria-label="Reporting year" value={reportingYear} disabled={loading}
+            onChange={(event) => {
+              setCohort((event.target.value + (isUa ? '-UA' : '')) as RpmesCohort)
+              resetComparisonSelection()
+            }}>
+            {yearOptions.map((value) => <option value={value} key={value}>FY {value}</option>)}
+          </select></label>
+          <label>Province <select aria-label="Province" value={selected} disabled={loading}
+            onChange={(event) => {
+              const province = event.target.value as RpmesProvince | ''
+              setSelected(province)
+              setImportProvince(province)
+              setImportUrl('')
+              setImportError('')
+              setNotice('')
+            }}>
+            <option value="">All five provinces</option>
+            {RPMES_PROVINCES.map((province) => <option key={province}>{province}</option>)}
+          </select></label>
+        </div>
+        <button type="button" className="rpmes-primary rpmes-toolbar-button rpmes-compare-button"
+          onClick={() => void runComparison()} disabled={loading || !configured.length}>
+          <RpmesToolbarIcon name={ready.length ? 'refresh' : 'compare'} />
+          {ready.length ? 'Refresh comparison' : 'Compare statuses'}
+        </button>
+      </div>
+      <div className="rpmes-comparison-controls rpmes-workbook-bar">
+        <div className="rpmes-link-status">
+          <strong>{configured.length} of {requested.length} {requested.length === 1 ? 'province' : 'provinces'} linked</strong>
+          {missing.length > 0 && <span>No link yet for {missing.join(', ')}. Unlinked provinces are excluded from totals.</span>}
+        </div>
+        <div className="rpmes-actions rpmes-workbook-actions" role="group" aria-label="Workbook tools">
+          <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-controls="rpmes-import-link" aria-expanded={importOpen} disabled={loading}
             onClick={() => {
               if (!importOpen) {
                 setManagerOpen(false)
@@ -299,18 +322,15 @@ export default function RpmesStatusComparison({ officialProjects, projectSource,
                 setImportError('')
               }
               setImportOpen(!importOpen)
-            }}>Import RPMES Link</button>
-          <button className="rpmes-secondary" type="button" aria-controls="rpmes-link-manager" aria-expanded={managerOpen} disabled={loading}
+            }}><RpmesToolbarIcon name="import" />Import RPMES Link</button>
+          <button className="rpmes-secondary rpmes-toolbar-button" type="button" aria-controls="rpmes-link-manager" aria-expanded={managerOpen} disabled={loading}
             onClick={() => {
               if (!managerOpen) setImportOpen(false)
               setManagerOpen(!managerOpen)
-            }}>Manage RPMES Links</button>
-          <button type="button" disabled={loading || !compared.length} onClick={() => void exportComparison()}>Export Excel</button>
+            }}><RpmesToolbarIcon name="links" />Manage RPMES Links</button>
+          <button className="rpmes-toolbar-button rpmes-excel-button" type="button" disabled={loading || !compared.length}
+            onClick={() => void exportComparison()}><RpmesToolbarIcon name="export" />Export Excel</button>
         </div>
-      </div>
-      <div className="rpmes-link-status">
-        <strong>{configured.length} of {requested.length} {requested.length === 1 ? 'province' : 'provinces'} linked</strong>
-        {missing.length > 0 && <span>No link yet for {missing.join(', ')}. Unlinked provinces are excluded from totals.</span>}
       </div>
       <RpmesLinkManager open={managerOpen} disabled={loading} yearOptions={yearOptions}
         initialYear={reportingYear} links={links} onSave={saveManagedLinks} />

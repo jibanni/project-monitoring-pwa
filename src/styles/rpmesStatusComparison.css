@@ -28,12 +28,59 @@
   .rpmes-comparison-controls button { cursor: pointer; font-weight: 700; }
   .rpmes-comparison-controls button:disabled { opacity: .55; cursor: default; }
   .rpmes-comparison-controls .rpmes-primary { background: #15558d; border-color: #15558d; color: white; }
-  .rpmes-workspace { border: 1px solid #d9e6f2; border-radius: 10px; background: #f7faff; padding: 11px 13px; }
-  .rpmes-workspace .rpmes-toolbar { margin: 0; align-items: flex-end; }
+  .rpmes-workspace { border: 1px solid #d9e6f2; border-radius: 12px; background: #f7faff; padding: 12px 14px; }
+  .rpmes-workspace .rpmes-toolbar { margin: 0; align-items: flex-end; justify-content: space-between; gap: 9px 16px; }
+  .rpmes-toolbar-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; min-width: 0; }
+  .rpmes-workspace .rpmes-toolbar-filters select { background: #fff; min-height: 38px; }
+  .rpmes-comparison-controls .rpmes-toolbar-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 6px 11px;
+    border-radius: 9px;
+    line-height: 1.15;
+    white-space: nowrap;
+    transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .rpmes-toolbar-button svg { width: 17px; height: 17px; flex: none; pointer-events: none; }
+  .rpmes-comparison-controls .rpmes-compare-button {
+    min-width: 165px;
+    padding-inline: 13px;
+    background: #15558d;
+    border-color: #15558d;
+    box-shadow: 0 2px 4px #123b6027;
+  }
+  .rpmes-comparison-controls .rpmes-compare-button:hover:not(:disabled) { background: #114777; border-color: #114777; }
+  .rpmes-workspace .rpmes-workbook-bar { margin: 10px 0 0; padding-top: 9px; border-top: 1px solid #dce7f2; gap: 8px 14px; }
+  .rpmes-workbook-bar .rpmes-link-status { flex: 1 1 260px; margin-top: 0; gap: 4px 8px; }
+  .rpmes-workbook-bar .rpmes-link-status strong {
+    white-space: nowrap;
+    border: 1px solid #cfe0f0;
+    border-radius: 999px;
+    background: #edf5ff;
+    padding: 3px 8px;
+    line-height: 1.25;
+  }
+  .rpmes-workbook-bar .rpmes-workbook-actions { gap: 6px; }
+  .rpmes-workbook-actions .rpmes-toolbar-button { min-height: 34px; font-size: .78rem; }
+  .rpmes-workbook-actions .rpmes-secondary:hover:not(:disabled),
+  .rpmes-workbook-actions .rpmes-secondary[aria-expanded='true'] {
+    background: #e9f2fc;
+    border-color: #91b6d8;
+    color: #164472;
+  }
+  .rpmes-workbook-actions .rpmes-excel-button { background: #f1f9f5; border-color: #bad8c9; color: #20583e; }
+  .rpmes-workbook-actions .rpmes-excel-button:hover:not(:disabled) { background: #e3f2e9; border-color: #91baa4; }
+  .rpmes-comparison-controls .rpmes-toolbar-button:disabled { box-shadow: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .rpmes-comparison-controls .rpmes-toolbar-button { transition: none; }
+  }
   .rpmes-comparison .rpmes-program-select, .rpmes-comparison .rpmes-program-select option {
     text-transform: none !important;
   }
-  .rpmes-toolbar > label, .rpmes-import-fields > label { flex-direction: column; align-items: stretch; gap: 4px; font-size: .75rem; font-weight: 700; }
+  .rpmes-toolbar-filters > label, .rpmes-import-fields > label { flex-direction: column; align-items: stretch; gap: 4px; font-size: .75rem; font-weight: 700; }
   .rpmes-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-left: auto; }
   .rpmes-workspace :is(button, select, input) { min-height: 34px; }
   .rpmes-workspace :is(button, select, input):focus-visible { outline: 2px solid #1c69ab; outline-offset: 2px; }
