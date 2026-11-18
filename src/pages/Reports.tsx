@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useDesktopViewport } from '../hooks/useDesktopViewport'
 import { readPageView, writePageView } from '../lib/pageViewMemory'
 import { filterProjectsByAor } from '../utils/aorAccess'
-import { normalizeProgramName } from '../utils/program'
+import { getProjectFundingProgram } from '../utils/program'
 import MultiSelectFilter from '../components/MultiSelectFilter'
 import SingleSelectFilter from '../components/SingleSelectFilter'
 import { matchesMultiFilter, normalizeMultiFilterValue, pruneMultiFilterValues } from '../utils/multiFilter'
@@ -711,7 +711,7 @@ export default function Reports() {
     return Array.from(
       new Set(
         aorProjects
-          .map((project) => normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)))
+          .map((project) => getProjectFundingProgram(project))
           .filter(Boolean),
       ),
     ).sort()
@@ -793,9 +793,7 @@ export default function Reports() {
         project.province,
         project.municipality,
       ),
-      program: normalizeProgramName(
-        project.funding_source || project.project_type,
-      ),
+      program: getProjectFundingProgram(project),
       fundingYear: textValue(project.funding_year),
       status: textValue(project.status),
       risk: getReportRisk(project),
@@ -849,6 +847,7 @@ export default function Reports() {
           project.municipality,
           project.province,
           project.funding_source,
+          getProjectFundingProgram(project),
           project.project_type,
           project.status,
           risk,
@@ -1285,7 +1284,7 @@ export default function Reports() {
                             </span>
                           </td>
                           <td className="reports-program-year-cell">
-                            <strong>{textValue(project.funding_source) || '—'}</strong>
+                            <strong>{getProjectFundingProgram(project) || '—'}</strong>
                             <span>{formatFundingYear(project.funding_year)}</span>
                           </td>
                           <td>{formatCurrency(project.budget)}</td>
@@ -1369,7 +1368,7 @@ export default function Reports() {
                           </span>
                           <span>
                             <strong>Funding</strong>
-                            {textValue(project.funding_source) || '-'}
+                            {getProjectFundingProgram(project) || '-'}
                           </span>
                           <span>
                             <strong>Cost</strong>

@@ -156,6 +156,7 @@ function buildPreviewRows(records: SubayImportRecord[], existingProjects: Existi
     const fingerprint = createProjectFingerprint({
       funding_year: project.funding_year,
       funding_source: project.funding_source,
+      subaybayan_project_code: code,
       province: project.province,
       municipality: project.municipality,
       project_name: project.project_name,

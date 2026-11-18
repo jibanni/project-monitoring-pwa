@@ -1,3 +1,4 @@
+import { baseFundingProgram, normalizeFundingProgramName, UA_PROGRAM_SUFFIX } from '../utils/program'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
 import {
@@ -94,6 +95,7 @@ const LGSF_PROGRAMS = new Set([
   'FALGU',
   'GEF',
   'GREEN, GREEN, GREEN',
+  'KALSADA',
   'SAFPB',
   'SBDP',
 ])
@@ -103,6 +105,7 @@ const PROGRAM_UI_ORDER = [
   'FALGU',
   'GEF',
   'GREEN, GREEN, GREEN',
+  'KALSADA',
   'RAPID Growth',
   'SAFPB',
   'SBDP',
@@ -111,15 +114,15 @@ const PROGRAM_UI_ORDER = [
 ]
 
 function programDisplayLabel(program: string) {
-  if (program === 'GREEN, GREEN, GREEN') return '3GP'
+  if (baseFundingProgram(program) === 'GREEN, GREEN, GREEN') return program.endsWith(UA_PROGRAM_SUFFIX) ? '3GP-UA' : '3GP'
   return program
 }
 
 function compareProgramOptions(a: string, b: string) {
-  const aIndex = PROGRAM_UI_ORDER.indexOf(a)
-  const bIndex = PROGRAM_UI_ORDER.indexOf(b)
+  const aIndex = PROGRAM_UI_ORDER.indexOf(baseFundingProgram(a))
+  const bIndex = PROGRAM_UI_ORDER.indexOf(baseFundingProgram(b))
 
-  if (aIndex >= 0 && bIndex >= 0) return aIndex - bIndex
+  if (aIndex >= 0 && bIndex >= 0) return aIndex - bIndex || a.localeCompare(b)
   if (aIndex >= 0) return -1
   if (bIndex >= 0) return 1
   return a.localeCompare(b)
@@ -263,15 +266,14 @@ function weightedAverage(
 }
 
 function projectProgram(project: ProjectRecord) {
-  return (
-    textValue(
-      project.program ??
-        project.program_name ??
-        project.funding_source ??
-        project.funding_program ??
-        project.source_of_fund,
-    ) || 'Unspecified Program'
-  )
+  const raw = textValue(project.funding_source || project.program || project.program_name ||
+    project.funding_program || project.source_of_fund)
+  const classified = normalizeFundingProgramName(raw, project.subaybayan_project_code)
+  if (classified.endsWith(UA_PROGRAM_SUFFIX)) {
+    const base = baseFundingProgram(classified)
+    return (base === 'RAPID Growth Project' ? 'RAPID Growth' : base) + UA_PROGRAM_SUFFIX
+  }
+  return canonicalProgram(classified || raw)
 }
 
 function canonicalProgram(value: unknown) {
@@ -889,7 +891,7 @@ export default function ExecutiveDashboard({
     // zero projects in another area, and that must never reset the filter.
     const values = Array.from(
       new Set<string>([
-        ...projects.map((project) => canonicalProgram(projectProgram(project))),
+        ...projects.map((project) => projectProgram(project)),
         ...(selectedProgram !== 'All Programs' && selectedProgram !== 'All LGSF'
           ? [selectedProgram]
           : []),
@@ -898,7 +900,7 @@ export default function ExecutiveDashboard({
       .filter((value) => value && value !== 'Unspecified Program')
       .sort(compareProgramOptions)
 
-    const hasLgsfPrograms = values.some((value) => LGSF_PROGRAMS.has(value)) ||
+    const hasLgsfPrograms = values.some((value) => LGSF_PROGRAMS.has(baseFundingProgram(value))) ||
       selectedProgram === 'All LGSF'
 
     return [
@@ -913,13 +915,13 @@ export default function ExecutiveDashboard({
 
     if (selectedProgram === 'All LGSF') {
       return fundingYearProjects.filter((project) =>
-        LGSF_PROGRAMS.has(canonicalProgram(projectProgram(project))),
+        LGSF_PROGRAMS.has(baseFundingProgram(projectProgram(project))),
       )
     }
 
     return fundingYearProjects.filter(
       (project) =>
-        canonicalProgram(projectProgram(project)) === selectedProgram,
+        projectProgram(project) === selectedProgram,
     )
   }, [fundingYearProjects, selectedProgram])
 

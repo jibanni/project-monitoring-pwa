@@ -1,5 +1,5 @@
 import { getDilgOfficeDirectoryEntry } from '../data/dilgOfficeDirectory'
-import { normalizeProgramName } from './program'
+import { getProjectFundingProgram } from './program'
 import { getPmsRiskLevel } from './projectStatus'
 import { getContractExpirationInfo, getTargetPhysicalInfo } from './projectVariance'
 
@@ -152,7 +152,7 @@ function cleanFilename(value: string) {
 }
 
 function projectProgram(project: ReportExportProject) {
-  return normalizeProgramName(project.funding_source || project.project_type) || 'Unspecified Program'
+  return getProjectFundingProgram(project) || 'Unspecified Program'
 }
 
 

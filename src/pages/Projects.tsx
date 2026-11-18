@@ -20,7 +20,7 @@ import '../styles/unifiedFilters.css'
 import '../styles/projectRegistryDesktopPolish.css'
 import '../styles/filterUniformityV6.css'
 import { getPmsProjectStatus, getPmsRiskLevel } from '../utils/projectStatus'
-import { normalizeProgramName } from '../utils/program'
+import { getProjectFundingProgram } from '../utils/program'
 import {
   getCanonicalProjectLgu,
   getCanonicalProjectProvinceOrHuc,
@@ -127,9 +127,7 @@ function formatFundingYear(value: unknown) {
 
 function formatFundingDisplay(project: ProjectRow) {
   const year = formatFundingYear(project.funding_year)
-  const source = normalizeProgramName(
-    normalizeProgramName(project.funding_source || project.project_type),
-  )
+  const source = getProjectFundingProgram(project)
 
   if (year && source) return `${year} · ${source}`
   return year || source || 'No Program'
@@ -416,7 +414,7 @@ export default function Projects() {
     return Array.from(
       new Set(
         allowedProjects
-          .map((project) => normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)))
+          .map((project) => getProjectFundingProgram(project))
           .filter(Boolean),
       ),
     ).sort()
@@ -451,6 +449,7 @@ export default function Projects() {
         project.province,
         project.funding_year,
         project.funding_source,
+        getProjectFundingProgram(project),
         project.project_type,
         project.implementing_office,
         project.contractor,
@@ -478,7 +477,7 @@ export default function Projects() {
         : true
 
       const programMatches = matchesMultiFilter(
-        normalizeProgramName(normalizeProgramName(project.funding_source || project.project_type)),
+        getProjectFundingProgram(project),
         programFilters,
       )
 

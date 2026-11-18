@@ -195,6 +195,81 @@ export function normalizeProgramName(value: unknown) {
   return withoutFundingYear || raw
 }
 
+// UA is a funding classification, separate from the base program and fiscal year.
+export const UA_PROGRAM_SUFFIX = '-UA'
+
+const PROGRAM_CODE_ALIASES: Record<string, string[]> = {
+  'GREEN, GREEN, GREEN': ['GGG', '3GP'],
+  'RAPID Growth Project': ['RAPID'],
+}
+
+export function fundingProgramCodePrefixes(program: string) {
+  return PROGRAM_CODE_ALIASES[program] ?? [program.toUpperCase()]
+}
+
+const UA_MARKER = /\b(?:UA|UNPROGRAMMED(?:\s+(?:APPROPRIATIONS?|FUNDS?))?)\b/gi
+
+export function baseFundingProgram(value: string) {
+  return value.endsWith(UA_PROGRAM_SUFFIX) ? value.slice(0, -UA_PROGRAM_SUFFIX.length) : value
+}
+
+export function hasUaDesignation(value: unknown) {
+  return Boolean(cleanProgramText(value).match(UA_MARKER))
+}
+
+export function projectCodeHasUa(value: unknown) {
+  return /(?:^|-)UA(?:-|$)/i.test(cleanProgramText(value).replace(/\s+/g, '').replace(/[‐‑‒–—]/g, '-'))
+}
+
+export function normalizeFundingProgramName(value: unknown, officialProjectCode?: unknown) {
+  const raw = cleanProgramText(value)
+  const explicitUa = hasUaDesignation(raw)
+  // Strip the funding type before resolving aliases such as GGG and RBIS.
+  const base = normalizeProgramName(explicitUa
+    ? raw.replace(UA_MARKER, ' ').replace(/\(\s*\)/g, ' ').replace(/^[\s:–—-]+|[\s:–—-]+$/g, '')
+    : raw)
+  if (!base || /^subaybayan$/i.test(base)) {
+    const prefix = cleanProgramText(officialProjectCode).toUpperCase().replace(/\s+/g, '').replace(/[‐‑‒–—]/g, '-')
+    const fromCode = CANONICAL_PROGRAMS.find((program) => {
+      const code = prefix.replace(/^LGSF-/, '').replace(/^UA-/, '')
+      return fundingProgramCodePrefixes(program).some((alias) => code.startsWith(alias + '-'))
+    })
+    if (fromCode) return explicitUa || projectCodeHasUa(officialProjectCode) ? fromCode + UA_PROGRAM_SUFFIX : fromCode
+  }
+  if (!base) return ''
+  return explicitUa || projectCodeHasUa(officialProjectCode) ? base + UA_PROGRAM_SUFFIX : base
+}
+
+export function getProjectFundingProgram(project: {
+  funding_source?: unknown
+  project_type?: unknown
+  subaybayan_project_code?: unknown
+}) {
+  return normalizeFundingProgramName(project.funding_source || project.project_type, project.subaybayan_project_code)
+}
+
+// Use the existing form labels, and offer a UA variant for each named program.
+const EXISTING_FORM_PROGRAMS = [
+  'RAPID Growth Project', 'LGSF-FALGU', 'LGSF-GEF', 'LGSF-SBDP', 'LGSF-SAFPB',
+  'SGLGIF', 'SALINTUBIG', 'CMGP / KALSADA',
+]
+
+export const PROJECT_FORM_FUNDING_SOURCES = [
+  ...EXISTING_FORM_PROGRAMS, 'Other',
+  ...EXISTING_FORM_PROGRAMS.filter((program) => program !== 'CMGP / KALSADA')
+    .map((program) => program + UA_PROGRAM_SUFFIX),
+  'KALSADA-UA',
+  ...CANONICAL_PROGRAMS
+    .filter((program) => !EXISTING_FORM_PROGRAMS.some((label) => normalizeProgramName(label) === program))
+    .flatMap((program) => [program, program + UA_PROGRAM_SUFFIX]),
+]
+
+export function projectFormFundingSources(current: string) {
+  return current && !PROJECT_FORM_FUNDING_SOURCES.includes(current)
+    ? [...PROJECT_FORM_FUNDING_SOURCES, current]
+    : PROJECT_FORM_FUNDING_SOURCES
+}
+
 export function buildProgramFilterOptions(
   values: Iterable<unknown>,
   includeCanonicalPrograms = false,
@@ -206,7 +281,7 @@ export function buildProgramFilterOptions(
   }
 
   for (const value of values) {
-    const normalizedProgram = normalizeProgramName(value)
+    const normalizedProgram = normalizeFundingProgramName(value)
 
     if (normalizedProgram) {
       programSet.add(normalizedProgram)
@@ -214,10 +289,10 @@ export function buildProgramFilterOptions(
   }
 
   return Array.from(programSet).sort((a, b) => {
-    const aIndex = PROGRAM_SORT_ORDER.indexOf(a)
-    const bIndex = PROGRAM_SORT_ORDER.indexOf(b)
+    const aIndex = PROGRAM_SORT_ORDER.indexOf(baseFundingProgram(a))
+    const bIndex = PROGRAM_SORT_ORDER.indexOf(baseFundingProgram(b))
 
-    if (aIndex >= 0 && bIndex >= 0) return aIndex - bIndex
+    if (aIndex >= 0 && bIndex >= 0) return aIndex - bIndex || a.localeCompare(b)
     if (aIndex >= 0) return -1
     if (bIndex >= 0) return 1
 

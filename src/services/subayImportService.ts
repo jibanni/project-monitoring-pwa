@@ -5,7 +5,7 @@ import {
   isRegion10Huc,
 } from '../data/region10Directory'
 import { toProjectTitleCase } from '../utils/projectTitleCase'
-import { normalizeProgramName } from '../utils/program'
+import { normalizeFundingProgramName } from '../utils/program'
 
 /*
   PMS10 SubayBAYAN guided parser.
@@ -698,11 +698,11 @@ function normalizeRiskLevel(value: unknown, physicalAccomplishment: unknown, sta
 }
 
 function getProjectFingerprint(
-  record: Pick<SubayImportRecord, 'fundingYear' | 'fundingSource' | 'province' | 'municipality' | 'projectTitle'>,
+  record: Pick<SubayImportRecord, 'fundingYear' | 'fundingSource' | 'province' | 'municipality' | 'projectTitle' | 'projectCode'>,
 ) {
   return [
     record.fundingYear || '',
-    record.fundingSource,
+    normalizeFundingProgramName(record.fundingSource, record.projectCode),
     record.province,
     record.municipality,
     record.projectTitle,
@@ -714,13 +714,14 @@ function getProjectFingerprint(
 export function createProjectFingerprint(input: {
   funding_year?: unknown
   funding_source?: unknown
+  subaybayan_project_code?: unknown
   province?: unknown
   municipality?: unknown
   project_name?: unknown
 }) {
   return [
     input.funding_year || '',
-    input.funding_source,
+    normalizeFundingProgramName(input.funding_source, input.subaybayan_project_code),
     input.province,
     input.municipality,
     input.project_name,
@@ -910,7 +911,7 @@ export function projectPayloadFromSubayRecord(
     description: record.description || null,
     status: getSimplifiedImportStatus(record),
     project_type: record.projectType || null,
-    funding_source: normalizeProgramName(record.fundingSource) || null,
+    funding_source: normalizeFundingProgramName(record.fundingSource, record.projectCode) || null,
     funding_year: record.fundingYear,
     implementing_office: record.implementingOffice || null,
     contractor: record.contractor || null,
@@ -1166,7 +1167,7 @@ function parseRecordFromRow(
   const fundingSource =
     profile.id === 'sglgif_portal'
       ? 'SGLGIF'
-      : normalizeProgramName(
+      : normalizeFundingProgramName(
           firstNonEmpty(
             getProfileCell(row, profile, 'fundingSource'),
             profile.id === 'fy2025_above'
@@ -1174,6 +1175,7 @@ function parseRecordFromRow(
               : '',
             'SubayBAYAN',
           ),
+          projectCode,
         )
 
   const projectTitle = toProjectTitleCase(rawTitle)

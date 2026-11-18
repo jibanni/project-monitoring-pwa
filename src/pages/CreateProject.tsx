@@ -1,3 +1,4 @@
+import { PROJECT_FORM_FUNDING_SOURCES } from '../utils/program'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -114,18 +115,6 @@ const PROJECT_TYPE_OPTIONS = [
 
 const FUNDING_YEAR_OPTIONS = [2022, 2023, 2024, 2025, 2026, 2027, 2028]
 
-const FUNDING_SOURCE_OPTIONS = [
-  'RAPID Growth Project',
-  'LGSF-FALGU',
-  'LGSF-GEF',
-  'LGSF-SBDP',
-  'LGSF - SBDP UA',
-  'LGSF-SAFPB',
-  'SGLGIF',
-  'SALINTUBIG',
-  'CMGP / KALSADA',
-  'Other',
-]
 
 const MINDANAO_BOUNDS = {
   minLat: 4,
@@ -932,7 +921,7 @@ export default function CreateProject() {
                 value={fundingSource}
                 onChange={(event) => setFundingSource(event.target.value)}
               >
-                {FUNDING_SOURCE_OPTIONS.map((option) => (
+                {PROJECT_FORM_FUNDING_SOURCES.map((option) => (
                   <option key={option} value={option}>
                     {option.toUpperCase()}
                   </option>

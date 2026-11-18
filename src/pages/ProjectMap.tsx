@@ -21,7 +21,7 @@ import SingleSelectFilter from '../components/SingleSelectFilter'
 import { matchesMultiFilter, normalizeMultiFilterValue } from '../utils/multiFilter'
 import { readPageView, writePageView } from '../lib/pageViewMemory'
 import { getComputedRiskLevel, getTargetPhysicalInfo } from '../utils/projectVariance'
-import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
+import { buildProgramFilterOptions, getProjectFundingProgram } from '../utils/program'
 import {
   canUpdateProject as canUpdateProjectByAor,
   filterProjectsByAor,
@@ -346,7 +346,7 @@ function formatFundingYear(value: unknown) {
 
 function getFundingLabel(project: ProjectRecord) {
   const year = formatFundingYear(project.funding_year)
-  const source = normalizeText(project.funding_source)
+  const source = getProjectFundingProgram(project)
 
   if (year && source) return `${year} · ${source}`
   if (year) return year
@@ -952,9 +952,8 @@ export default function ProjectMap() {
       const fundingYear = formatFundingYear(project.funding_year)
       if (fundingYear) fundingYears.add(fundingYear)
 
-      if (normalizeText(project.funding_source)) {
-        programs.add(normalizeProgramName(normalizeText(project.funding_source)))
-      }
+      const program = getProjectFundingProgram(project)
+      if (program) programs.add(program)
 
       if (normalizeText(project.status)) statuses.add(normalizeText(project.status))
 
@@ -992,6 +991,7 @@ export default function ProjectMap() {
         project.project_type,
         projectFundingYear,
         project.funding_source,
+        getProjectFundingProgram(project),
         project.implementing_office,
         project.contractor,
         project.barangay,
@@ -1019,7 +1019,7 @@ export default function ProjectMap() {
         fundingYearFilters,
       )
       const matchesProgram = matchesMultiFilter(
-        normalizeProgramName(normalizeText(project.funding_source)),
+        getProjectFundingProgram(project),
         programFilters,
       )
       const matchesStatus =

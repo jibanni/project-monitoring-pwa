@@ -1,3 +1,4 @@
+import { getProjectFundingProgram, projectFormFundingSources } from '../utils/program'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { FormEvent, KeyboardEvent } from 'react'
@@ -106,18 +107,6 @@ const emptyForm: ProjectForm = {
 
 const fundingYearOptions = [2022, 2023, 2024, 2025, 2026, 2027, 2028]
 
-const FUNDING_SOURCE_OPTIONS = [
-  'RAPID Growth Project',
-  'LGSF-FALGU',
-  'LGSF-GEF',
-  'LGSF-SBDP',
-  'LGSF - SBDP UA',
-  'LGSF-SAFPB',
-  'SGLGIF',
-  'SALINTUBIG',
-  'CMGP / KALSADA',
-  'Other',
-]
 
 const statusOptions = [
   'Under Review',
@@ -639,7 +628,7 @@ export default function EditProject() {
       description: data.description || '',
       status: data.status || 'Not Yet Started',
       project_type: data.project_type || '',
-      funding_source: data.funding_source || '',
+      funding_source: data.subaybayan_project_code ? getProjectFundingProgram(data) : data.funding_source || '',
       funding_year: numberInputValue(data.funding_year),
       nadai_date: dateInputValue(data.nadai_date),
       nadai_amount: numberInputValue(data.nadai_amount),
@@ -1178,7 +1167,7 @@ export default function EditProject() {
                 onChange={(event) => updateField('funding_source', event.target.value)}
               >
                 <option value="">Select Funding Source</option>
-                {FUNDING_SOURCE_OPTIONS.map((source) => (
+                {projectFormFundingSources(form.funding_source).map((source) => (
                   <option key={source} value={source}>
                     {source.toUpperCase()}
                   </option>

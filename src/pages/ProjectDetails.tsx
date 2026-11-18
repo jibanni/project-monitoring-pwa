@@ -10,7 +10,7 @@ import { getOfficialProjectCost, getProjectDisplayStatus, getTargetPhysicalInfo 
 import { getPmsRiskLevel } from '../utils/projectStatus'
 import { canEditProjectRecord, canUpdateProject, canViewProject } from '../utils/aorAccess'
 import { deleteProjectPhotos, getProjectPhotoPage } from '../services/photoService'
-import { normalizeProgramName } from '../utils/program'
+import { getProjectFundingProgram } from '../utils/program'
 import {
   generateProjectBrieferPdf,
   type ProjectBrieferUpdate,
@@ -127,7 +127,7 @@ function formatFundingYear(value: unknown) {
 }
 
 function formatFundingDisplay(project: any) {
-  const source = normalizeProgramName(project?.funding_source)
+  const source = project ? getProjectFundingProgram(project) : ''
 
   return source || '-'
 }

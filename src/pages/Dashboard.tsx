@@ -27,7 +27,7 @@ import {
 } from '../utils/projectStatus'
 import { getOfficialProjectCost } from '../utils/projectVariance'
 import { isProjectEligibleForAggregatePerformance } from '../utils/projectMetricEligibility'
-import { buildProgramFilterOptions, normalizeProgramName } from '../utils/program'
+import { buildProgramFilterOptions, normalizeFundingProgramName } from '../utils/program'
 import MultiSelectFilter from '../components/MultiSelectFilter'
 import SingleSelectFilter from '../components/SingleSelectFilter'
 import { matchesMultiFilter, normalizeMultiFilterValue } from '../utils/multiFilter'
@@ -258,10 +258,10 @@ function getFundingSource(project: ProjectRecord) {
       project.fund_source ??
       project.program ??
       project.program_name,
-    'N/A',
+    '',
   )
 
-  const normalizedSource = normalizeProgramName(source)
+  const normalizedSource = normalizeFundingProgramName(source, project.subaybayan_project_code)
 
   return normalizedSource || 'N/A'
 }

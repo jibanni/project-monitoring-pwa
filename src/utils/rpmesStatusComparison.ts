@@ -1,7 +1,11 @@
+import { baseFundingProgram, CANONICAL_PROGRAMS, fundingProgramCodePrefixes, getProjectFundingProgram, projectCodeHasUa, UA_PROGRAM_SUFFIX } from './program.ts'
+
 export const RPMES_PROVINCES = ['Bukidnon', 'Camiguin', 'Lanao del Norte', 'Misamis Occidental', 'Misamis Oriental'] as const
 export type RpmesProvince = (typeof RPMES_PROVINCES)[number]
 export const RPMES_COHORTS = ['2024', '2024-UA', '2025', '2025-UA', '2026', '2026-UA', '2027', '2027-UA'] as const
-export type RpmesCohort = (typeof RPMES_COHORTS)[number]
+export type RpmesCohort = `${number}` | `${number}-UA`
+export const RPMES_PROGRAMS = CANONICAL_PROGRAMS
+export const DEFAULT_RPMES_PROGRAM = 'SBDP'
 export const DEFAULT_RPMES_COHORT: RpmesCohort = '2025'
 
 const DEFAULT_2025_SOURCES: Partial<Record<RpmesProvince, string>> = {
@@ -10,12 +14,13 @@ const DEFAULT_2025_SOURCES: Partial<Record<RpmesProvince, string>> = {
   Bukidnon: '18qCMLiXRm0C5mxaLzi87Eyea-m73M14l_LW5WcMj7mA',
 }
 
-export function defaultRpmesSheet(cohort: RpmesCohort, province: RpmesProvince) {
-  return cohort === DEFAULT_RPMES_COHORT ? DEFAULT_2025_SOURCES[province] : undefined
+export function defaultRpmesSheet(cohort: RpmesCohort, province: RpmesProvince, program = DEFAULT_RPMES_PROGRAM) {
+  return program === DEFAULT_RPMES_PROGRAM && cohort === DEFAULT_RPMES_COHORT ? DEFAULT_2025_SOURCES[province] : undefined
 }
 
-export function rpmesSourceKey(cohort: RpmesCohort, province: RpmesProvince) {
-  return `${cohort}:${province}` as const
+export function rpmesSourceKey(cohort: RpmesCohort, province: RpmesProvince, program = DEFAULT_RPMES_PROGRAM) {
+  // Keep the existing SBDP keys so previously saved links still work.
+  return program === DEFAULT_RPMES_PROGRAM ? `${cohort}:${province}` : `${program}:${cohort}:${province}`
 }
 
 export type RpmesSourceKey = ReturnType<typeof rpmesSourceKey>
@@ -49,44 +54,77 @@ export const SUMMARY_COLUMNS = [
 ] as const
 
 export const text = (value: unknown) => String(value ?? '').trim()
-export const projectCodeKey = (value: unknown) => text(value).toUpperCase().replace(/\s+/g, '')
+export const projectCodeKey = (value: unknown) => text(value).toUpperCase().replace(/\s+/g, '').replace(/[‐‑‒–—]/g, '-')
 
 export function rpmesProvince(value: unknown) {
   const normalized = text(value).replace(/^province\s+of\s+/i, '').replace(/\s+/g, ' ').toLowerCase()
   return RPMES_PROVINCES.find((province) => province.toLowerCase() === normalized)
 }
 
-export function sbdpCodeCohort(value: unknown): RpmesCohort | undefined {
-  const parts = projectCodeKey(value).split('-')
-  if (parts.shift() !== 'SBDP') return undefined
-  const yearIndex = parts[0] === 'UA' ? 1 : 0
-  const first = parts[yearIndex]
-  const identifiers = parts.slice(yearIndex + 1).filter((part) => part !== 'UA')
-  if (!/^(?:20)?2[4-7]$/.test(first ?? '') || !identifiers.length ||
-    !identifiers.every((part) => /^[A-Z0-9]+$/.test(part)) || !identifiers.some((part) => /\d/.test(part))) return undefined
-  const year = first.length === 2 ? `20${first}` : first
-  return (parts.includes('UA') ? `${year}-UA` : year) as RpmesCohort
+function validRpmesCohort(value: string): value is RpmesCohort {
+  return /^20\d{2}(?:-UA)?$/.test(value)
 }
 
-export function sbdpOfficialCohort(project: Record<string, unknown>): RpmesCohort | undefined {
-  const code = sbdpCodeCohort(project.subaybayan_project_code)
+export function rpmesCodeCohort(value: unknown, program = DEFAULT_RPMES_PROGRAM): RpmesCohort | undefined {
+  const code = projectCodeKey(value).replace(/^LGSF-/, '')
+  const withoutLeadingUa = code.replace(/^UA-/, '')
+  const prefix = fundingProgramCodePrefixes(program).find((alias) => withoutLeadingUa.startsWith(alias + '-'))
+  if (!prefix) return undefined
+  const parts = withoutLeadingUa.slice(prefix.length + 1).split('-')
+  if (parts[0] === 'UA') parts.shift()
+  const [first, ...rest] = parts
+  const identifiers = rest.filter((part) => part !== 'UA')
+  if (!/^(?:20)?\d{2}$/.test(first ?? '') || (first.length === 4 && !first.startsWith('20')) ||
+    !identifiers.length || !identifiers.every((part) => /^[A-Z0-9]+$/.test(part)) ||
+    !identifiers.some((part) => /\d/.test(part))) return undefined
+  const year = first.length === 2 ? `20${first}` : first
+  const cohort = projectCodeHasUa(code) ? year + UA_PROGRAM_SUFFIX : year
+  return validRpmesCohort(cohort) ? cohort : undefined
+}
+
+export const sbdpCodeCohort = (value: unknown) => rpmesCodeCohort(value)
+
+export function rpmesOfficialCohort(project: Record<string, unknown>, program = DEFAULT_RPMES_PROGRAM): RpmesCohort | undefined {
+  const code = rpmesCodeCohort(project.subaybayan_project_code, program)
   if (!code || project.pms10_progress_source === 'onsite' || text(project.funding_year) !== code.slice(0, 4)) return undefined
-  const explicitUa = /(?:^|[^a-z])ua(?:[^a-z]|$)|unprogrammed/i.test(text(project.funding_source))
-  return explicitUa ? `${code.slice(0, 4)}-UA` as RpmesCohort : code
+  const fundingProgram = getProjectFundingProgram(project)
+  if (baseFundingProgram(fundingProgram) !== program) return undefined
+  const cohort = fundingProgram.endsWith(UA_PROGRAM_SUFFIX) ? code.slice(0, 4) + UA_PROGRAM_SUFFIX : code
+  return validRpmesCohort(cohort) ? cohort : undefined
+}
+
+export const sbdpOfficialCohort = (project: Record<string, unknown>) => rpmesOfficialCohort(project)
+
+export function rpmesYearOptions(projects: Record<string, unknown>[], program: string) {
+  const years = new Set(RPMES_COHORTS.map((cohort) => cohort.slice(0, 4)))
+  for (const project of projects) {
+    if (baseFundingProgram(getProjectFundingProgram(project)) !== program) continue
+    const year = text(project.funding_year)
+    if (/^20\d{2}$/.test(year)) years.add(year)
+  }
+  return Array.from(years).sort().flatMap((year) => [year, year + UA_PROGRAM_SUFFIX]).filter(validRpmesCohort)
 }
 
 export function readRpmesSourceLinks(current: unknown, legacy: unknown): RpmesSourceLinks {
-  const read = (input: unknown, key: string) => {
-    const value = input && typeof input === 'object' && Object.hasOwn(input, key)
-      ? (input as Record<string, unknown>)[key] : undefined
-    return typeof value === 'string' && /^[\w-]{20,128}$/.test(value) ? value : undefined
-  }
+  const validId = (value: unknown): value is string => typeof value === 'string' && /^[\w-]{20,128}$/.test(value)
   const links: RpmesSourceLinks = {}
-  for (const province of RPMES_PROVINCES) {
-    for (const cohort of RPMES_COHORTS) {
-      const key = rpmesSourceKey(cohort, province)
-      const id = read(current, key) ?? (cohort === DEFAULT_RPMES_COHORT ? read(legacy, province) : undefined)
-      if (id) links[key] = id
+  if (current && typeof current === 'object') {
+    for (const [key, id] of Object.entries(current)) {
+      if (!validId(id)) continue
+      const parts = key.split(':')
+      if (parts.length !== 2 && parts.length !== 3) continue
+      const [cohort, province] = parts.slice(-2)
+      const program = parts.length === 3 ? parts[0] : DEFAULT_RPMES_PROGRAM
+      if (validRpmesCohort(cohort) && RPMES_PROVINCES.includes(province as RpmesProvince) && RPMES_PROGRAMS.includes(program)) {
+        links[rpmesSourceKey(cohort, province as RpmesProvince, program)] = id
+      }
+    }
+  }
+  if (legacy && typeof legacy === 'object') {
+    for (const province of RPMES_PROVINCES) {
+      const id = Object.hasOwn(legacy, province) ? (legacy as Record<string, unknown>)[province] : undefined
+      const key = rpmesSourceKey(DEFAULT_RPMES_COHORT, province)
+      if (validId(id)) links[key] ??= id
     }
   }
   return links
@@ -111,18 +149,24 @@ export function rpmesCsvUrl(spreadsheetId: string) {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?${query}`
 }
 
-export function parseRpmesValues(rows: unknown[][], province: RpmesProvince, cohort: RpmesCohort): StatusEntry[] {
+export function parseRpmesValues(rows: unknown[][], province: RpmesProvince, cohort: RpmesCohort, program = DEFAULT_RPMES_PROGRAM): StatusEntry[] {
   const usable = rows.filter((row) => Boolean(text(row[0])))
   if (!usable.length || usable.some((row) => rpmesProvince(row[1]) !== province || !text(row[2]))) {
     throw new Error(`RPMES Form 2 must contain project rows for ${province} with an LGU on each row.`)
   }
-  if (usable.some((row) => sbdpCodeCohort(row[0]) !== cohort)) {
-    throw new Error(`The project codes in RPMES Form 2 do not all match SBDP ${cohort}. Check the year and UA designation.`)
+  const coded = usable.map((row) => ({ row, selection: rpmesCodeCohort(row[0], program) }))
+  const year = cohort.slice(0, 4)
+  if (coded.some(({ selection }) => selection?.slice(0, 4) !== year)) {
+    throw new Error(`RPMES Form 2 contains codes that do not match ${program} ${year}. Check the program, year and UA designation.`)
   }
-  if (new Set(usable.map((row) => projectCodeKey(row[0]))).size !== usable.length) {
-    throw new Error('RPMES Form 2 contains duplicate project codes.')
+  const matching = coded.filter(({ selection }) => selection === cohort).map(({ row }) => row)
+  if (!matching.length) {
+    throw new Error(`No ${program} ${cohort} project codes were found in RPMES Form 2. Check the reporting year and UA designation.`)
   }
-  return usable.map((row) => ({ province, municipality: text(row[2]), barangay: text(row[3]), status: text(row[4]) }))
+  if (new Set(matching.map((row) => projectCodeKey(row[0]))).size !== matching.length) {
+    throw new Error('RPMES Form 2 contains duplicate project codes for this selection.')
+  }
+  return matching.map((row) => ({ province, municipality: text(row[2]), barangay: text(row[3]), status: text(row[4]) }))
 }
 
 function stage(value: string) {
