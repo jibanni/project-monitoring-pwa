@@ -79,7 +79,22 @@ async function exportVariance(snapshot: Snapshot, comparison: Comparison, result
   xlsx.writeFile(book, `PMS10_SubayBAYAN_Variance_${snapshot.report_month.slice(0, 7)}.xlsx`)
 }
 
+const iconPaths = {
+  archive: 'M4 7h16v13H4zM3 4h18v3H3zm6 7h6',
+  plus: 'M12 5v14M5 12h14',
+  reload: 'M20 11a8 8 0 0 0-14-5L3 9m0 0V4m0 5h5m-4 4a8 8 0 0 0 14 5l3-3m0 0v5m0-5h-5',
+  compare: 'M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4',
+  export: 'M12 4v12m-4-4 4 4 4-4M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3',
+  chevron: 'm6 9 6 6 6-6',
+} as const
+
+function SnapshotIcon({ name }: { name: keyof typeof iconPaths }) {
+  return <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={iconPaths[name]} /></svg>
+}
+
 function ReportingSnapshotsPanel({ projects }: { projects: readonly ProjectScopeSource[] }) {
+  const [showCreate, setShowCreate] = useState(false)
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [snapshotId, setSnapshotId] = useState('')
   const [month, setMonth] = useState(currentMonth)
@@ -134,6 +149,7 @@ function ReportingSnapshotsPanel({ projects }: { projects: readonly ProjectScope
       })
       if (error) throw error
       setComparison(null)
+      setShowCreate(false)
       setNotice('Official records captured. The snapshot is saved.')
       try {
         setSnapshots(await listSnapshots())
@@ -158,50 +174,72 @@ function ReportingSnapshotsPanel({ projects }: { projects: readonly ProjectScope
   }
 
   return <div className="snapshot-panel" aria-busy={busy}>
-    <p>Save a baseline from SubayBAYAN Official and compare it with the latest official records. Actual On-Site updates are excluded.</p>
-    <form className="snapshot-controls" onSubmit={(event) => { event.preventDefault(); save() }}>
-      <label>Reporting month <input type="month" required value={month} onChange={(event) => setMonth(event.target.value)} /></label>
-      <label>Program <select aria-label="Program" value={program} onChange={(event) => setProgram(event.target.value)}>
-        <option value="">All programs</option>{options.programs.map((value) => <option key={value} value={value} data-preserve-case>{value}</option>)}
-      </select></label>
-      <label>Funding year <select aria-label="Funding year" value={fundingYear} onChange={(event) => setFundingYear(event.target.value)}>
-        <option value="">All funding years</option>{options.years.map((value) => <option key={value} value={value}>FY {value}</option>)}
-      </select></label>
-      <label>Province or city <select aria-label="Province or city" value={province} onChange={(event) => setProvince(event.target.value)}>
-        <option value="">All provinces and cities</option>{options.provinces.map((value) => <option key={value}>{value}</option>)}
-      </select></label>
-      <button className="snapshot-primary" type="submit" disabled={busy}>Save reporting snapshot</button>
-    </form>
-    <div className="snapshot-controls snapshot-compare-controls">
-      <label>Saved snapshot <select aria-label="Saved snapshot" value={snapshotId} onChange={(event) => {
-        setSnapshotId(event.target.value); setComparison(null); setError(''); setNotice('')
-      }} disabled={busy || !snapshots.length}>
-        <option value="">{snapshots.length ? 'Select a snapshot' : 'No saved snapshots'}</option>
-        {snapshots.map((item) => <option key={item.id} value={item.id} data-preserve-case>
-          {formatMonth(item.report_month)} · {scopeLabel(item)} · {item.project_count} projects · {dateLabel(item.captured_at)}
-        </option>)}
-      </select></label>
-      <button type="button" className="snapshot-primary" disabled={busy || !selected} onClick={compare}>Compare with latest</button>
-      <button type="button" disabled={busy || !selected || !comparison || !result} onClick={() => {
-        if (selected && comparison && result) void run('Export', () => exportVariance(selected, comparison, result))
-      }}>Export variance to Excel</button>
-      <button type="button" disabled={busy} onClick={() => void run('Reload snapshots', async () => {
-        const next = await listSnapshots()
-        setSnapshots(next)
-        if (!next.some(({ id }) => id === snapshotId)) { setSnapshotId(next[0]?.id ?? ''); setComparison(null) }
-      })}>Reload snapshots</button>
+    <div className="snapshot-bar">
+      <h2>{showCreate ? 'New reporting snapshot' : 'Saved snapshots'}</h2>
+      {!showCreate && <div className="snapshot-bar-actions">
+        <button className="snapshot-reload" type="button" aria-label="Reload snapshots" title="Reload snapshots" disabled={busy}
+          onClick={() => void run('Reload snapshots', async () => {
+            const next = await listSnapshots()
+            setSnapshots(next)
+            if (!next.some(({ id }) => id === snapshotId)) { setSnapshotId(next[0]?.id ?? ''); setComparison(null) }
+          })}><SnapshotIcon name="reload" /></button>
+        <button type="button" className={snapshots.length ? 'snapshot-secondary' : 'snapshot-primary'} disabled={busy} onClick={() => {
+          setShowCreate(true); setError(''); setNotice('')
+        }}><SnapshotIcon name="plus" /> New snapshot</button>
+      </div>}
     </div>
+    {showCreate ? <>
+      <p>Save the official records currently available for the selected reporting scope.</p>
+      <form className="snapshot-controls snapshot-create-controls" onSubmit={(event) => { event.preventDefault(); save() }}>
+        <label>Reporting month <input type="month" required value={month} onChange={(event) => setMonth(event.target.value)} /></label>
+        <label>Program <select aria-label="Program" value={program} onChange={(event) => setProgram(event.target.value)}>
+          <option value="">All programs</option>{options.programs.map((value) => <option key={value} value={value} data-preserve-case>{value}</option>)}
+        </select></label>
+        <label>Funding year <select aria-label="Funding year" value={fundingYear} onChange={(event) => setFundingYear(event.target.value)}>
+          <option value="">All funding years</option>{options.years.map((value) => <option key={value} value={value}>FY {value}</option>)}
+        </select></label>
+        <label>Province or city <select aria-label="Province or city" value={province} onChange={(event) => setProvince(event.target.value)}>
+          <option value="">All provinces and cities</option>{options.provinces.map((value) => <option key={value}>{value}</option>)}
+        </select></label>
+        <div className="snapshot-bar-actions snapshot-form-actions">
+          <button type="button" disabled={busy} onClick={() => { setShowCreate(false); setError(''); setNotice('') }}>Cancel</button>
+          <button className="snapshot-primary" type="submit" disabled={busy}>Save reporting snapshot</button>
+        </div>
+      </form>
+    </> : snapshots.length > 0 ? <div className="snapshot-controls snapshot-compare-controls">
+      <label htmlFor="pms10-reporting-snapshot-select">
+        <span className="snapshot-sr-only">Saved snapshot</span>
+        <select id="pms10-reporting-snapshot-select" value={snapshotId} onChange={(event) => {
+          setSnapshotId(event.target.value); setComparison(null); setError(''); setNotice('')
+        }} disabled={busy}>
+          <option value="">Select a snapshot</option>
+          {snapshots.map((item) => <option key={item.id} value={item.id} data-preserve-case>
+            {formatMonth(item.report_month)} · {scopeLabel(item)} · {item.project_count} projects · {dateLabel(item.captured_at)}
+          </option>)}
+        </select>
+      </label>
+      <button type="button" className="snapshot-primary" disabled={busy || !selected} onClick={compare}>
+        <SnapshotIcon name="compare" /> Compare with latest
+      </button>
+      {selected && comparison && result && <button type="button" className="snapshot-export"
+        aria-label="Export variance to Excel" title="Export variance to Excel" disabled={busy}
+        onClick={() => void run('Export', () => exportVariance(selected, comparison, result))}><SnapshotIcon name="export" /> Excel</button>}
+    </div> : !busy && !error && <div className="snapshot-empty">
+      <strong>No reporting snapshots yet</strong>
+      <p>Save your first SubayBAYAN Official snapshot as a baseline for future comparisons.</p>
+    </div>}
+    <p className="snapshot-source-note">Actual On-Site updates are excluded.</p>
     {busy && <p role="status">{action ? `${action} in progress…` : 'Loading saved snapshots…'}</p>}
     {notice && <p role="status">{notice}</p>}
     {error && <p className="snapshot-error" role="alert">{error}</p>}
-    {selected && comparison && result && <>
-      <p><strong>{formatMonth(selected.report_month)}</strong> · {scopeLabel(selected)}<br />
+    {!showCreate && selected && comparison && result && <>
+      <p className="snapshot-result-meta"><strong>{formatMonth(selected.report_month)}</strong> · {scopeLabel(selected)}<br />
         Snapshot captured {dateLabel(selected.captured_at)} PHT · Latest data read {dateLabel(comparison.comparedAt)} PHT</p>
       <div className="snapshot-table-wrap">
         <table aria-label="Snapshot status summary">
           <thead><tr><th scope="col">Project status</th><th scope="col">Snapshot</th><th scope="col">Latest</th><th scope="col">Variance</th></tr></thead>
           <tbody>{result.summary.map((row) => <tr key={row.label}>
-            <th scope="row">{row.label}</th><td>{row.before}</td><td>{row.after}</td><td>{signed(row.delta)}</td>
+            <th scope="row">{row.label}</th><td>{row.before}</td><td>{row.after}</td><td className={row.delta ? 'snapshot-delta' : undefined}>{signed(row.delta)}</td>
           </tr>)}</tbody>
         </table>
       </div>
@@ -220,7 +258,7 @@ function ReportingSnapshotsPanel({ projects }: { projects: readonly ProjectScope
               return <tr key={`${kind}-${project.id}`}>
                 <th scope="row">{project.title || project.code}<small>{project.code}</small></th>
                 <td>{[project.province, project.municipality].filter(Boolean).join(' · ') || '—'}</td>
-                <td>{kind}{fields.length > 0 && <small>{fields.join(', ')}</small>}</td>
+                <td><span className="snapshot-variance" data-kind={kind}>{kind}</span>{fields.length > 0 && <small>{fields.join(', ')}</small>}</td>
                 <td>{before?.status ?? '—'}</td><td>{after?.status ?? '—'}</td>
                 <td>{percent(before?.physical)} → {percent(after?.physical)}</td>
                 <td>{percent(before?.financial)} → {percent(after?.financial)}</td>
@@ -241,7 +279,12 @@ function ReportingSnapshotsPanel({ projects }: { projects: readonly ProjectScope
 export default function ReportingSnapshots({ projects }: { projects: readonly ProjectScopeSource[] }) {
   const [opened, setOpened] = useState(false)
   return <details className="reporting-snapshots" onToggle={(event) => { if (event.currentTarget.open) setOpened(true) }}>
-    <summary>Reporting Snapshots and Variance Analysis <span>SubayBAYAN Official</span></summary>
+    <summary>
+      <span className="snapshot-header-icon"><SnapshotIcon name="archive" /></span>
+      <span className="snapshot-header-title">Reporting Snapshots and Variance Analysis</span>
+      <span className="snapshot-header-source">SubayBAYAN Official</span>
+      <span className="snapshot-header-chevron"><SnapshotIcon name="chevron" /></span>
+    </summary>
     {opened && <ReportingSnapshotsPanel projects={projects} />}
   </details>
 }
