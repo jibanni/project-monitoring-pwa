@@ -7,6 +7,7 @@ import { useDesktopViewport } from '../hooks/useDesktopViewport'
 import { readPageView, writePageView } from '../lib/pageViewMemory'
 import { filterProjectsByAor } from '../utils/aorAccess'
 import { getProjectFundingProgram } from '../utils/program'
+import ReportingSnapshots from '../components/ReportingSnapshots'
 import MultiSelectFilter from '../components/MultiSelectFilter'
 import SingleSelectFilter from '../components/SingleSelectFilter'
 import { matchesMultiFilter, normalizeMultiFilterValue, pruneMultiFilterValues } from '../utils/multiFilter'
@@ -1049,6 +1050,8 @@ export default function Reports() {
             </div>
           </section>
         )}
+
+        {isDesktopViewport && auth.isAdmin && <ReportingSnapshots projects={projects} />}
 
         {errorMessage && projects.length === 0 && (
           <section className="reports-error-card" role="alert">
